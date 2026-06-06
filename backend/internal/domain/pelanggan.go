@@ -68,7 +68,7 @@ type DataTeknis struct {
 	UpdatedAt           *time.Time     `gorm:"type:datetime;default:CURRENT_TIMESTAMP;autoUpdateTime" json:"updated_at"`
 
 	// Relationships
-	Pelanggan      *Pelanggan      `gorm:"foreignKey:PelangganID" json:"-"`
+	Pelanggan      *Pelanggan      `gorm:"foreignKey:PelangganID" json:"pelanggan"`
 	MikrotikServer *MikrotikServer `gorm:"foreignKey:MikrotikServerID" json:"mikrotik_server"`
 	Odp            *ODP            `gorm:"foreignKey:OdpID" json:"odp"`
 	TroubleTickets []TroubleTicket `gorm:"foreignKey:DataTeknisID" json:"trouble_tickets"`

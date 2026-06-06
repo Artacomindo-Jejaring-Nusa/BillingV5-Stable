@@ -18,7 +18,7 @@ func NewPelangganUsecase(p domain.PelangganRepository) domain.PelangganUsecase {
 	}
 }
 
-func (u *pelangganUsecase) FetchAll(ctx context.Context, page, pageSize int) ([]domain.Pelanggan, int64, error) {
+func (u *pelangganUsecase) FetchAll(ctx context.Context, page, pageSize int, connectionStatus string) ([]domain.Pelanggan, int64, error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -27,7 +27,7 @@ func (u *pelangganUsecase) FetchAll(ctx context.Context, page, pageSize int) ([]
 	}
 	offset := (page - 1) * pageSize
 
-	return u.pelangganRepo.GetAll(ctx, pageSize, offset)
+	return u.pelangganRepo.GetAll(ctx, pageSize, offset, connectionStatus)
 }
 
 func (u *pelangganUsecase) GetByID(ctx context.Context, id uint64) (*domain.Pelanggan, error) {

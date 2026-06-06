@@ -34,7 +34,16 @@ func (h *PelangganHandler) FetchAll(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 
-	pelanggans, total, err := h.pelangganUsecase.FetchAll(c.Request.Context(), page, pageSize)
+	// Map 'limit' query parameter to pageSize if present
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if limitVal, err := strconv.Atoi(limitStr); err == nil && limitVal > 0 {
+			pageSize = limitVal
+		}
+	}
+
+	connectionStatus := c.Query("connection_status")
+
+	pelanggans, total, err := h.pelangganUsecase.FetchAll(c.Request.Context(), page, pageSize, connectionStatus)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

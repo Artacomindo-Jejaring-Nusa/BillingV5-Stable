@@ -19,23 +19,39 @@ func NewPelangganRepository(db *gorm.DB) domain.PelangganRepository {
 	return &pelangganRepository{db: db}
 }
 
-func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int) ([]domain.Pelanggan, int64, error) {
+func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, connectionStatus string) ([]domain.Pelanggan, int64, error) {
 	var pelanggans []domain.Pelanggan
 	var total int64
 
+	query := r.db.WithContext(ctx).Model(&domain.Pelanggan{})
+
+	if connectionStatus == "unconfigured" {
+		query = query.
+			Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggans.id").
+			Where("data_teknis.id IS NULL")
+	}
+
 	// Count total records
-	if err := r.db.WithContext(ctx).Model(&domain.Pelanggan{}).Count(&total).Error; err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	// Fetch with limit and offset, preload relationships
-	err := r.db.WithContext(ctx).
+	fetchQuery := query.
+		Select("pelanggans.*").
 		Preload("DataTeknis").
 		Preload("MikrotikServer").
-		Preload("Langganan").
-		Limit(limit).
-		Offset(offset).
-		Order("id desc").
+		Preload("Langganan")
+
+	if limit > 0 {
+		fetchQuery = fetchQuery.Limit(limit)
+	}
+	if offset > 0 {
+		fetchQuery = fetchQuery.Offset(offset)
+	}
+
+	err := fetchQuery.
+		Order("pelanggans.id desc").
 		Find(&pelanggans).Error
 
 	if err != nil {
