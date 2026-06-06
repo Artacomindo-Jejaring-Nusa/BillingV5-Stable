@@ -1,0 +1,127 @@
+package repository
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"billing-backend/internal/domain"
+
+	"gorm.io/gorm"
+)
+
+type pelangganRepository struct {
+	db *gorm.DB
+}
+
+func NewPelangganRepository(db *gorm.DB) domain.PelangganRepository {
+	return &pelangganRepository{db: db}
+}
+
+func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int) ([]domain.Pelanggan, int64, error) {
+	var pelanggans []domain.Pelanggan
+	var total int64
+
+	// Count total records
+	if err := r.db.WithContext(ctx).Model(&domain.Pelanggan{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Fetch with limit and offset, preload relationships
+	err := r.db.WithContext(ctx).
+		Preload("DataTeknis").
+		Preload("MikrotikServer").
+		Preload("Langganan").
+		Limit(limit).
+		Offset(offset).
+		Order("id desc").
+		Find(&pelanggans).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return pelanggans, total, nil
+}
+
+func (r *pelangganRepository) GetByID(ctx context.Context, id uint64) (*domain.Pelanggan, error) {
+	var pelanggan domain.Pelanggan
+	err := r.db.WithContext(ctx).
+		Preload("DataTeknis").
+		Preload("MikrotikServer").
+		Preload("Langganan").
+		First(&pelanggan, id).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("pelanggan not found")
+		}
+		return nil, err
+	}
+	return &pelanggan, nil
+}
+
+func (r *pelangganRepository) Create(ctx context.Context, pelanggan *domain.Pelanggan) error {
+	return r.db.WithContext(ctx).Create(pelanggan).Error
+}
+
+func (r *pelangganRepository) Update(ctx context.Context, pelanggan *domain.Pelanggan) error {
+	// Omit associations to prevent accidental overwriting of nested objects during save
+	return r.db.WithContext(ctx).Omit("DataTeknis", "MikrotikServer", "Langganan", "Invoices").Save(pelanggan).Error
+}
+
+func (r *pelangganRepository) Delete(ctx context.Context, id uint64) error {
+	var pelanggan domain.Pelanggan
+	if err := r.db.WithContext(ctx).First(&pelanggan, id).Error; err != nil {
+		return err
+	}
+
+	// Modify email and NoKtp to release unique constraints
+	now := time.Now().Unix()
+	pelanggan.Email = fmt.Sprintf("deleted_%d_%s", now, pelanggan.Email)
+	if pelanggan.NoKtp != "" {
+		pelanggan.NoKtp = fmt.Sprintf("deleted_%d_%s", now, pelanggan.NoKtp)
+	}
+
+	// Save modified fields to release constraints
+	if err := r.db.WithContext(ctx).Model(&pelanggan).Omit("DataTeknis", "MikrotikServer", "Langganan", "Invoices").Updates(map[string]interface{}{
+		"email":  pelanggan.Email,
+		"no_ktp": pelanggan.NoKtp,
+	}).Error; err != nil {
+		return err
+	}
+
+	return r.db.WithContext(ctx).Delete(&domain.Pelanggan{}, id).Error
+}
+
+func (r *pelangganRepository) GetByEmail(ctx context.Context, email string) (*domain.Pelanggan, error) {
+	var pelanggan domain.Pelanggan
+	err := r.db.WithContext(ctx).Unscoped().Preload("Langganan").Where("email = ?", email).First(&pelanggan).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &pelanggan, nil
+}
+
+func (r *pelangganRepository) GetByEmails(ctx context.Context, emails []string) ([]domain.Pelanggan, error) {
+	var list []domain.Pelanggan
+	err := r.db.WithContext(ctx).Preload("Langganan").Where("email IN ?", emails).Find(&list).Error
+	return list, err
+}
+
+func (r *pelangganRepository) GetByNoKtp(ctx context.Context, noKtp string) (*domain.Pelanggan, error) {
+	var pelanggan domain.Pelanggan
+	err := r.db.WithContext(ctx).Unscoped().Where("no_ktp = ?", noKtp).First(&pelanggan).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &pelanggan, nil
+}
+

@@ -1,0 +1,45 @@
+# Credentials & Configuration
+.env
+backend/.env
+frontend/.env
+API KEY.txt
+
+# Binaries & Executables
+*.exe
+backend/api.exe
+backend/tmp_build
+backend/tmp_build_test.exe
+
+# Node Modules & Frontend Builds
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/release/
+frontend/.tmp/
+frontend/electron/dist/
+frontend/neutralino/
+frontend/bundle-analysis.html
+frontend/dev.log
+frontend/dist_electron/
+
+# Typescript build info
+*.tsbuildinfo
+frontend/*.tsbuildinfo
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE Configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary / Log files
+*.log
+backend/uploads/
+test.txt

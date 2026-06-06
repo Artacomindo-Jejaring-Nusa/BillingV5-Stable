@@ -1,0 +1,3685 @@
+<template>
+  <v-container fluid class="pa-sm-6 pa-4">
+    <div class="header-card mb-4 mb-md-6">
+      <div class="d-flex flex-column align-center gap-4">
+        <div class="d-flex align-center header-info">
+          <div class="header-avatar-wrapper">
+            <v-avatar class="header-avatar" color="transparent" size="50">
+              <v-icon color="white" size="28">mdi-lan</v-icon>
+            </v-avatar>
+          </div>
+          <div class="ml-4">
+            <h1 class="header-title">Data Teknis Pelanggan</h1>
+            <p class="header-subtitle">Kelola informasi teknis pelanggan dengan mudah</p>
+          </div>
+        </div>
+
+        <!-- Mobile Action Buttons -->
+        <div class="action-buttons-container">
+          <v-btn
+            color="success"
+            @click="dialogImport = true"
+            prepend-icon="mdi-file-upload-outline"
+            :loading="importing"
+            class="header-action-btn action-btn text-none mobile-btn"
+            size="default"
+            block
+          >
+            Import
+          </v-btn>
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn
+                color="primary"
+                v-bind="props"
+                :loading="exporting"
+                prepend-icon="mdi-file-download-outline"
+                class="header-action-btn action-btn text-none mobile-btn"
+                size="default"
+                block
+              >
+                Export
+                <v-icon end>mdi-menu-down</v-icon>
+              </v-btn>
+            </template>
+            <v-list>
+              <v-list-item @click="exportData('csv')">
+                <v-list-item-title>
+                  <v-icon class="mr-2">mdi-file-delimited</v-icon>
+                  Export sebagai CSV
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item @click="exportData('excel')">
+                <v-list-item-title>
+                  <v-icon class="mr-2">mdi-file-excel</v-icon>
+                  Export sebagai Excel
+                </v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+          <v-btn
+            color="primary"
+            @click="openDialog()"
+            prepend-icon="mdi-plus-network"
+            class="primary-btn text-none mobile-btn"
+            size="default"
+            block
+            elevation="3"
+          >
+            Tambah Data
+          </v-btn>
+        </div>
+      </div>
+    </div>
+
+    <v-card class="filter-card mb-6" elevation="0">
+      <div class="d-flex flex-wrap align-center gap-4 pa-4">
+        <v-text-field
+          v-model="searchQuery"
+          label="Cari (Nama, ID PPPoE, IP)"
+          prepend-inner-icon="mdi-magnify"
+          variant="outlined"
+          density="comfortable"
+          hide-details
+          class="flex-grow-1"
+          style="min-width: 300px;"
+        ></v-text-field>
+
+        <v-select
+          v-model="selectedOlt"
+          :items="oltOptions"
+          label="Filter OLT"
+          variant="outlined"
+          density="comfortable"
+          hide-details
+          clearable
+          class="flex-grow-1"
+          style="min-width: 200px;"
+        ></v-select>
+
+        <v-select
+          v-model="selectedProfile"
+          :items="profileOptions"
+          label="Filter Profile PPPoE"
+          variant="outlined"
+          density="comfortable"
+          hide-details
+          clearable
+          class="flex-grow-1"
+          style="min-width: 200px;"
+        ></v-select>
+
+        <v-select
+          v-model="selectedVlan"
+          :items="vlanOptions"
+          label="Filter VLAN"
+          variant="outlined"
+          density="comfortable"
+          hide-details
+          clearable
+          class="flex-grow-1"
+          style="min-width: 200px;"
+        ></v-select>
+
+        <v-select
+          v-model="selectedOnuPowerRange"
+          :items="onuPowerRangeOptions"
+          label="Filter ONU Power"
+          variant="outlined"
+          density="comfortable"
+          hide-details
+          clearable
+          class="flex-grow-1"
+          style="min-width: 200px;"
+        ></v-select>
+
+        <v-btn
+            variant="text"
+            @click="resetFilters"
+            class="text-none"
+        >
+          Reset Filter
+        </v-btn>
+      </div>
+    </v-card>
+
+    <!-- VLAN Information Section -->
+    <v-card class="mb-6" elevation="2">
+      <v-card-title class="pa-3 py-2 d-flex align-center bg-grey-lighten-4">
+        <v-icon start>mdi-network</v-icon>
+        <span class="text-subtitle-1 font-weight-medium">Informasi VLAN Mikrotik</span>
+      </v-card-title>
+      <v-card-text class="pa-4">
+        <div class="d-flex flex-wrap gap-3 pa-2">
+          <v-chip 
+            v-for="info in mikrotikVlanInfo" 
+            :key="info.name"
+            variant="elevated"
+            color="primary"
+            size="large"
+          >
+            <v-icon start>mdi-server</v-icon>
+            <strong>{{ info.name }}:</strong> VLAN {{ info.vlan }}
+          </v-chip>
+        </div>
+      </v-card-text>
+    </v-card>
+
+    <v-row class="mb-6" no-gutters>
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card 
+          class="stats-card pa-4 h-100" 
+          :style="{
+            background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%)',
+            border: '1px solid rgba(76, 175, 80, 0.2)',
+            backdropFilter: 'blur(10px)'
+          }"
+          elevation="2"
+        >
+          <div class="d-flex align-center">
+            <v-avatar color="success" size="48" class="me-3">
+              <v-icon color="white">mdi-check-network</v-icon>
+            </v-avatar>
+            <div>
+              <div class="text-h5 font-weight-bold">{{ statisticsData.totalPelanggan }}</div>
+              <div class="text-caption text-medium-emphasis">Total Pelanggan</div>
+            </div>
+          </div>
+        </v-card>
+      </v-col>
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card 
+          class="stats-card pa-4 h-100"
+          :style="{
+            background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%)',
+            border: '1px solid rgba(255, 152, 0, 0.2)',
+            backdropFilter: 'blur(10px)'
+          }"
+          elevation="2"
+        >
+          <div class="d-flex align-center">
+            <v-avatar color="warning" size="48" class="me-3">
+              <v-icon color="white">mdi-signal</v-icon>
+            </v-avatar>
+            <div>
+              <div class="text-h5 font-weight-bold">{{ statisticsData.sinyalBaik }}</div>
+              <div class="text-caption text-medium-emphasis">Sinyal Baik</div>
+            </div>
+          </div>
+        </v-card>
+      </v-col>
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card 
+          class="stats-card pa-4 h-100"
+          :style="{
+            background: 'linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(244, 67, 54, 0.05) 100%)',
+            border: '1px solid rgba(244, 67, 54, 0.2)',
+            backdropFilter: 'blur(10px)'
+          }"
+          elevation="2"
+        >
+          <div class="d-flex align-center">
+            <v-avatar color="error" size="48" class="me-3">
+              <v-icon color="white">mdi-alert</v-icon>
+            </v-avatar>
+            <div>
+              <div class="text-h5 font-weight-bold">{{ statisticsData.sinyalLemah }}</div>
+              <div class="text-caption text-medium-emphasis">Sinyal Lemah</div>
+            </div>
+          </div>
+        </v-card>
+      </v-col>
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card 
+          class="stats-card pa-4 h-100"
+          :style="{
+            background: 'linear-gradient(135deg, rgba(103, 58, 183, 0.1) 0%, rgba(103, 58, 183, 0.05) 100%)',
+            border: '1px solid rgba(103, 58, 183, 0.2)',
+            backdropFilter: 'blur(10px)'
+          }"
+          elevation="2"
+        >
+          <div class="d-flex align-center">
+            <v-avatar color="deep-purple" size="48" class="me-3">
+              <v-icon color="white">mdi-router-network</v-icon>
+            </v-avatar>
+            <div>
+              <div class="text-h5 font-weight-bold">{{ statisticsData.oltAktif }}</div>
+              <div class="text-caption text-medium-emphasis">OLT Aktif</div>
+            </div>
+          </div>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-card 
+      elevation="8" 
+      class="modern-card overflow-hidden"
+      :style="{
+        borderRadius: '20px',
+        backdropFilter: 'blur(20px)',
+        background: theme.global.current.value.dark 
+          ? 'rgba(30, 30, 30, 0.8)' 
+          : 'rgba(255, 255, 255, 0.9)',
+        border: theme.global.current.value.dark 
+          ? '1px solid rgba(255, 255, 255, 0.1)' 
+          : '1px solid rgba(0, 0, 0, 0.05)'
+      }"
+    >
+      <v-expand-transition>
+        <div v-if="selectedDataTeknis.length > 0" class="selection-toolbar pa-4">
+          <span class="font-weight-bold text-primary">{{ selectedDataTeknis.length }} data terpilih</span>
+          <v-spacer></v-spacer>
+          <v-btn 
+            color="error" 
+            variant="tonal" 
+            prepend-icon="mdi-delete-sweep"
+            @click="dialogBulkDelete = true"
+          >
+            Hapus Terpilih
+          </v-btn>
+        </div>
+      </v-expand-transition>
+      <v-card-title 
+        class="pa-6 d-flex align-center"
+        :style="{
+          background: 'linear-gradient(135deg, rgba(0, 172, 193, 0.1) 0%, rgba(0, 96, 100, 0.05) 100%)',
+          borderBottom: '1px solid rgba(0, 172, 193, 0.2)'
+        }"
+      >
+        <v-icon class="me-3 text-primary" size="24">mdi-table</v-icon>
+        <span class="text-h5 font-weight-bold">Daftar Infrastruktur</span>
+      </v-card-title>
+      
+      <!-- PERUBAHAN DIMULAI DI SINI -->
+
+      <!-- Tampilan Tabel untuk Desktop (Medium ke atas) -->
+      <div class="d-none d-md-block">
+        <v-data-table
+          v-model="selectedDataTeknis"
+          v-model:expanded="expanded"
+          :headers="headers"
+          :items="dataTeknisList"
+          :loading="loading"
+          item-value="id"
+          class="elevation-0 modern-table"
+          :items-per-page="-1"
+          :server-items-length="-1"
+          :loading-text="'Memuat data...'"
+          show-select
+          return-object
+          show-expand
+          hide-default-footer
+        >
+          <template v-slot:loading>
+            <SkeletonLoader type="table" :rows="8" />
+          </template>
+
+          <template v-slot:item.nomor="{ index }">
+            {{ index + 1 }}
+          </template>
+
+          <template v-slot:item.pelanggan_id="{ item }">
+            <div class="d-flex align-center py-2" style="min-width: 250px;">
+              <v-avatar :color="getAvatarColor(item.pelanggan_id)" size="40" class="me-3" :style="{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)' }">
+                <span class="text-white font-weight-bold">{{ getPelangganInitials(item.pelanggan_id) }}</span>
+              </v-avatar>
+              <div>
+                <div class="font-weight-bold text-body-1">{{ item.pelanggan?.nama || getPelangganName(item.pelanggan_id) }}</div>
+                <div class="text-caption text-medium-emphasis">ID: {{ item.id_pelanggan }}</div>
+              </div>
+            </div>
+          </template>
+          <template v-slot:item.ip_pelanggan="{ item }">
+            <a 
+              :href="`http://${item.ip_pelanggan}`" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style="text-decoration: none;"
+            >
+              <v-chip 
+                size="small" 
+                variant="tonal" 
+                color="primary" 
+                class="font-mono" 
+                :style="{ fontFamily: 'monospace' }"
+              >
+                <v-icon start size="16">mdi-ip-network</v-icon>
+                {{ item.ip_pelanggan }}
+              </v-chip>
+            </a>
+          </template>
+          <template v-slot:item.olt="{ item }">
+            <div class="d-flex align-center">
+              <v-icon class="me-2 text-primary">mdi-router-network</v-icon>
+              <div>
+                <div class="font-weight-medium">{{ item.olt }}</div>
+                <div v-if="item.olt_custom" class="text-caption text-medium-emphasis">{{ item.olt_custom }}</div>
+              </div>
+            </div>
+          </template>
+          <template v-slot:item.onu_power="{ item }">
+            <div class="text-center">
+              <v-chip :color="getOnuPowerColor(item.onu_power)" size="small" variant="flat" class="font-weight-bold px-3" :style="{ minWidth: '80px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }">
+                <v-icon :icon="getOnuPowerIcon(item.onu_power)" start size="16"></v-icon>
+                {{ item.onu_power }} dBm
+              </v-chip>
+              <div class="text-caption mt-1 text-medium-emphasis">{{ getOnuPowerStatus(item.onu_power) }}</div>
+            </div>
+          </template>
+          <template v-slot:item.actions="{ item }">
+            <div class="d-flex justify-center gap-2" style="min-width: 180px;">
+              <v-btn 
+                size="small" 
+                variant="tonal" 
+                color="primary" 
+                @click="openDialog(item)"
+                class="action-btn"
+                :style="{ borderRadius: '8px' }"
+              >
+                <v-icon size="16" class="me-1">mdi-pencil</v-icon>
+                Edit
+              </v-btn>
+              <v-btn 
+                size="small" 
+                variant="tonal" 
+                color="error" 
+                @click="openDeleteDialog(item)"
+                class="action-btn"
+                :style="{ borderRadius: '8px' }"
+              >
+                <v-icon size="16" class="me-1">mdi-delete</v-icon>
+                Hapus
+              </v-btn>
+            </div>
+          </template>
+          <template v-slot:expanded-row="{ columns, item }">
+            <tr>
+              <td :colspan="columns.length">
+                <v-card flat class="pa-4 my-2" color="rgba(0, 172, 193, 0.05)">
+                  <div class="d-flex justify-space-between align-center mb-4">
+                    <h4 class="text-h6 font-weight-bold text-cyan-darken-2">Detail Lengkap</h4>
+                    <v-chip size="small" variant="tonal" color="cyan-darken-2">
+                      ID: {{ item.id_pelanggan }}
+                    </v-chip>
+                  </div>
+                  <v-row>
+                    <v-col cols="12" md="4">
+                      <v-list-item-title class="font-weight-bold mb-2">Info Jaringan</v-list-item-title>
+                      <v-list density="compact">
+                        <v-list-item prepend-icon="mdi-key-variant">
+                          <v-list-item-title>Password: {{ item.password_pppoe }}</v-list-item-title>
+                        </v-list-item>
+                        <v-list-item prepend-icon="mdi-account-details">
+                          <v-list-item-title>Profile: {{ item.profile_pppoe }}</v-list-item-title>
+                        </v-list-item>
+                        <v-list-item prepend-icon="mdi-lan">
+                          <v-list-item-title>VLAN: {{ item.id_vlan }}</v-list-item-title>
+                        </v-list-item>
+                      </v-list>
+                    </v-col>
+                    <v-col cols="12" md="4">
+                      <v-list-item-title class="font-weight-bold mb-2">Info Infrastruktur</v-list-item-title>
+                      <v-list density="compact">
+                        <v-list-item prepend-icon="mdi-timeline">
+                          <v-list-item-title>PON: {{ item.pon }}</v-list-item-title>
+                        </v-list-item>
+                        <v-list-item prepend-icon="mdi-cable-data">
+                          <v-list-item-title>OTB: {{ item.otb }}</v-list-item-title>
+                        </v-list-item>
+                        <v-list-item prepend-icon="mdi-access-point-network">
+                          <v-list-item-title>ODC: {{ item.odc }}</v-list-item-title>
+                        </v-list-item>
+                        <v-list-item prepend-icon="mdi-distribution-point">
+                          <v-list-item-title>ODP ID: {{ item.odp_id || 'N/A' }}</v-list-item-title>
+                        </v-list-item>
+                        <v-list-item prepend-icon="mdi-barcode-scan">
+                            <v-list-item-title>SN: {{ item.sn || 'N/A' }}</v-list-item-title>
+                        </v-list-item>
+                      </v-list>
+                    </v-col>
+                    <v-col cols="12" md="4">
+                      <v-list-item-title class="font-weight-bold mb-2">Bukti Speedtest</v-list-item-title>
+                      <v-img v-if="item.speedtest_proof" :src="`${apiClient.defaults.baseURL}${item.speedtest_proof}`" height="150" class="rounded-lg elevation-2" cover>
+                        <template v-slot:placeholder>
+                          <div class="d-flex align-center justify-center fill-height">
+                            <v-progress-circular indeterminate color="grey-lighten-4"></v-progress-circular>
+                          </div>
+                        </template>
+                      </v-img>
+                      <div v-else class="text-medium-emphasis mt-2">
+                        Tidak ada gambar.
+                      </div>
+                    </v-col>
+                  </v-row>
+                </v-card>
+              </td>
+            </tr>
+          </template>
+          <template v-slot:no-data>
+            <div class="text-center pa-8">
+              <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-database-off</v-icon>
+              <div class="text-h6 text-medium-emphasis mb-2">Tidak ada data</div>
+              <div class="text-body-2 text-medium-emphasis">Belum ada data teknis</div>
+            </div>
+          </template>
+        </v-data-table>
+      </div>
+
+      <!-- Custom Pagination Controls untuk Desktop -->
+      <div class="d-none d-md-block pa-2">
+        <v-card class="pa-3">
+          <div class="d-flex align-center justify-space-between">
+            <!-- Total Count -->
+            <v-chip variant="outlined" color="primary" size="large">
+              Total: {{ totalDataTeknisCount }} Data Teknis di server
+            </v-chip>
+
+            <!-- Custom Pagination -->
+            <div class="d-flex align-center">
+              <v-select
+                v-model="itemsPerPage"
+                :items="[5, 10, 15, 25, 50]"
+                variant="outlined"
+                density="compact"
+                hide-details
+                style="width: 80px"
+                class="mr-3"
+                @update:model-value="onItemsPerPageChange"
+              ></v-select>
+
+              <span class="text-body-2 mr-3">
+                {{ (desktopPage - 1) * itemsPerPage + 1 }}-{{ Math.min(desktopPage * itemsPerPage, totalDataTeknisCount) }} of {{ totalDataTeknisCount }}
+              </span>
+
+              <v-btn
+                icon="mdi-chevron-left"
+                variant="text"
+                :disabled="desktopPage === 1"
+                @click="goToPreviousPage"
+                class="mr-1"
+              ></v-btn>
+
+              <v-btn
+                icon="mdi-chevron-right"
+                variant="text"
+                :disabled="desktopPage >= Math.ceil(totalDataTeknisCount / itemsPerPage)"
+                @click="goToNextPage"
+              ></v-btn>
+            </div>
+          </div>
+        </v-card>
+      </div>
+
+      <!-- Tampilan Kartu untuk Mobile (Small ke bawah) -->
+      <div class="d-md-none pa-4">
+        <!-- Loading State -->
+        <div v-if="loading">
+          <SkeletonLoader type="list" :items="5" />
+        </div>
+
+        <!-- No Data State -->
+        <div v-else-if="!dataTeknisList.length" class="text-center py-8">
+          <v-icon size="48" class="text-disabled mb-4">mdi-database-off-outline</v-icon>
+          <p class="text-medium-emphasis">Tidak ada data teknis ditemukan</p>
+        </div>
+
+        <!-- Data Teknis Cards -->
+        <div v-else>
+          <v-card
+            v-for="item in paginatedDataTeknis"
+            :key="item.id"
+            class="data-teknis-card-mobile mb-4"
+            elevation="2"
+          >
+            <!-- Card Header with Checkbox and Customer Info -->
+            <div class="d-flex align-center pa-3">
+              <v-checkbox-btn v-model="selectedDataTeknis" :value="item" multiple hide-details class="flex-grow-0"></v-checkbox-btn>
+              <v-avatar :color="getAvatarColor(item.pelanggan_id)" size="40" class="ms-3">
+                <span class="text-white font-weight-bold">{{ getPelangganInitials(item.pelanggan_id) }}</span>
+              </v-avatar>
+              <div class="ms-3 flex-grow-1" @click="expanded = expanded.includes(item.id) ? [] : [item.id]">
+                <div class="font-weight-bold">{{ item.pelanggan?.nama || getPelangganName(item.pelanggan_id) }}</div>
+                <div class="text-caption text-medium-emphasis">ID: {{ item.id_pelanggan }}</div>
+              </div>
+               <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  @click="expanded = expanded.includes(item.id) ? [] : [item.id]"
+                >
+                  <v-icon>{{ expanded.includes(item.id) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                </v-btn>
+            </div>
+            
+            <!-- Card Body -->
+            <v-list density="compact" class="py-2 px-4">
+                <v-list-item class="px-0">
+                  <template v-slot:prepend>
+                    <v-icon class="me-4" color="primary">mdi-ip-network</v-icon>
+                  </template>
+                  <v-list-item-title>IP Pelanggan</v-list-item-title>
+                   <template v-slot:append>
+                     <a :href="`http://${item.ip_pelanggan}`" target="_blank" class="text-decoration-none">
+                      <v-chip size="small" variant="tonal" color="primary">{{ item.ip_pelanggan }}</v-chip>
+                     </a>
+                   </template>
+                </v-list-item>
+                <v-list-item class="px-0">
+                  <template v-slot:prepend>
+                    <v-icon class="me-4" color="deep-purple">mdi-router-network</v-icon>
+                  </template>
+                  <v-list-item-title>OLT</v-list-item-title>
+                   <template v-slot:append>
+                     <span class="font-weight-medium">{{ item.olt }}</span>
+                   </template>
+                </v-list-item>
+                <v-list-item class="px-0">
+                  <template v-slot:prepend>
+                    <v-icon class="me-4" :color="getOnuPowerColor(item.onu_power)">mdi-signal</v-icon>
+                  </template>
+                  <v-list-item-title>ONU Power</v-list-item-title>
+                   <template v-slot:append>
+                     <v-chip :color="getOnuPowerColor(item.onu_power)" size="small" variant="flat" label class="font-weight-bold">
+                       {{ item.onu_power }} dBm
+                     </v-chip>
+                   </template>
+                </v-list-item>
+            </v-list>
+
+            <!-- Expanded Content -->
+             <v-expand-transition>
+                <div v-if="expanded.includes(item.id)">
+                  <v-divider></v-divider>
+                  <div class="pa-4" style="background-color: rgba(0,0,0,0.02);">
+                     <h4 class="text-subtitle-1 font-weight-bold mb-2">Detail Lengkap</h4>
+                      <v-list density="compact" class="bg-transparent">
+                        <v-list-item prepend-icon="mdi-key-variant">Password: {{ item.password_pppoe }}</v-list-item>
+                        <v-list-item prepend-icon="mdi-account-details">Profile: {{ item.profile_pppoe }}</v-list-item>
+                        <v-list-item prepend-icon="mdi-lan">VLAN: {{ item.id_vlan }}</v-list-item>
+                        <v-list-item prepend-icon="mdi-timeline">PON: {{ item.pon }}</v-list-item>
+                        <v-list-item prepend-icon="mdi-barcode-scan">SN: {{ item.sn || 'N/A' }}</v-list-item>
+                      </v-list>
+                  </div>
+                </div>
+              </v-expand-transition>
+            
+            <v-divider></v-divider>
+
+            <!-- Card Actions -->
+            <div class="d-flex justify-space-around pa-1">
+                <v-btn variant="elevated" class="mobile-edit-btn" @click="openDialog(item)">
+                  <v-icon start>mdi-pencil</v-icon>
+                  Edit
+                </v-btn>
+                <v-btn variant="elevated" class="mobile-delete-btn" @click="openDeleteDialog(item)">
+                   <v-icon start>mdi-delete</v-icon>
+                   Hapus
+                </v-btn>
+            </div>
+          </v-card>
+
+          <!-- Tombol Load More -->
+          <div v-if="hasMoreData" class="text-center pa-4">
+            <v-btn
+              variant="tonal"
+              color="primary"
+              @click="loadMore"
+              :loading="loadingMore"
+              class="text-none"
+            >
+              Muat Lebih Banyak
+            </v-btn>
+          </div>
+
+        </div>
+      </div>
+      <!-- PERUBAHAN SELESAI DI SINI -->
+
+    </v-card>
+
+    <v-dialog 
+        v-model="dialog"
+        max-width="900px"
+        :fullscreen="display.smAndDown.value"
+      >
+      <v-card class="d-flex flex-column" style="height: 100vh;">
+        
+        <v-card-title class="pa-0 flex-shrink-0" :style="{ background: 'linear-gradient(135deg, #00ACC1 0%, #006064 100%)', color: 'white' }">
+          <div class="pa-4 pa-sm-6 d-flex align-center">
+            <v-icon class="me-3" size="28">mdi-plus-network-outline</v-icon>
+            <div>
+              <div class="text-h5 text-sm-h4 font-weight-bold">{{ formTitle }}</div>
+              <div class="text-body-2 opacity-90 mt-1">Lengkapi informasi teknis</div>
+            </div>
+          </div>
+        </v-card-title>
+
+        <v-card-text class="flex-grow-1 pa-0" style="overflow-y: auto;">
+          <v-stepper v-model="currentStep" class="elevation-0" style="background: transparent;">
+            <v-stepper-header class="px-sm-6 px-2 pt-6">
+              <v-stepper-item title="Jaringan" :value="1" editable :complete="currentStep > 1"></v-stepper-item>
+              <v-divider></v-divider>
+              <v-stepper-item title="Infrastruktur" :value="2" editable :complete="currentStep > 2"></v-stepper-item>
+              <v-divider></v-divider>
+              <v-stepper-item title="ONU" :value="3" editable></v-stepper-item>
+            </v-stepper-header>
+
+            <v-stepper-window>
+              <v-stepper-window-item :value="1">
+                <div class="pa-4 pa-sm-6">
+              <h3 class="text-h6 font-weight-bold mb-4">Informasi Jaringan</h3>
+                  <label class="input-label">
+                    Pilih Pelanggan <span class="required-flag text-error">*</span>
+                  </label>
+                  <v-select
+                    v-model="editedItem.pelanggan_id"
+                    :items="pelangganForSelect"
+                    item-title="nama"
+                    item-value="id"
+                    :disabled="isEditMode"
+                    variant="outlined"
+                    class="mb-4"
+                  >
+                    <template v-slot:item="{ props, item }">
+                      <v-list-item v-bind="props" class="px-4">
+                        <template v-slot:prepend>
+                          <v-avatar color="primary" size="32">
+                            <v-icon color="white" size="16">mdi-account</v-icon>
+                          </v-avatar>
+                        </template>
+                        <template v-slot:title>
+                          <div class="font-weight-medium d-flex align-center">
+                            <span class="flex-grow-1">{{ item.title }}</span>
+                            <v-chip
+                              v-if="item.raw.created_at && isNewUser(item.raw.created_at)"
+                              size="x-small"
+                              color="success"
+                              class="ms-2 font-weight-bold"
+                              variant="flat"
+                            >
+                              BARU
+                            </v-chip>
+                          </div>
+                        </template>
+                      </v-list-item>
+                    </template>
+                  </v-select>
+
+                  <v-row>
+                <v-col cols="12" sm="6">
+                  <v-select
+                        v-model="editedItem.mikrotik_server_id"
+                        :items="mikrotikServers"
+                        item-title="name"
+                        item-value="id"
+                        label="Mikrotik Server"
+                        @update:modelValue="handleOltSelection"
+                        variant="outlined"
+                  >
+                    <template v-slot:label>
+                      Mikrotik Server <span class="text-error">*</span>
+                    </template>
+                  </v-select>
+                </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="editedItem.id_pelanggan"
+                        label="ID Pelanggan (PPPoE)"
+                        variant="outlined"
+                        :rules="idPelangganRules"
+                        placeholder="Contoh: user123"
+                        hint="ID Pelanggan tidak boleh mengandung spasi. Gunakan format: user123, test-service, client_01"
+                        persistent-hint
+                      >
+                        <template v-slot:label>
+                          ID Pelanggan (PPPoE) <span class="text-error">*</span>
+                        </template>
+                      </v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="editedItem.password_pppoe"
+                        label="Password PPPoE"
+                        :type="showPppoePassword ? 'text' : 'password'"
+                        variant="outlined"
+                        :append-inner-icon="showPppoePassword ? 'mdi-eye-off' : 'mdi-eye'"
+                        @click:append-inner="showPppoePassword = !showPppoePassword"
+                        :rules="passwordRules"
+                        placeholder="Contoh: support123.!!"
+                        hint="Password tidak boleh mengandung spasi. Contoh format: support123.!!"
+                        persistent-hint
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="editedItem.ip_pelanggan"
+                        label="IP Pelanggan"
+                        variant="outlined"
+                        @update:modelValue="checkIpAvailability"
+                        :loading="ipValidation.loading"
+                        :error-messages="ipValidation.color === 'error' ? ipValidation.message : []"
+                        :success-messages="ipValidation.color === 'success' ? ipValidation.message : []"
+                        :rules="ipRules"
+                        placeholder="Contoh: 192.168.1.100"
+                        hint="Format IPv4: xxx.xxx.xxx.xxx (0-255)"
+                        persistent-hint
+                      >
+                        <template v-slot:label>
+                          IP Pelanggan <span class="text-error">*</span>
+                        </template>
+                        <template v-slot:append-inner>
+                          <v-tooltip v-if="lastIpInfo.message" location="top" :text="lastIpInfo.message">
+                            <template v-slot:activator="{ props }">
+                              <v-icon v-bind="props" color="info">mdi-information</v-icon>
+                            </template>
+                          </v-tooltip>
+                        </template>
+                      </v-text-field>
+                      <div v-if="lastIpInfo.message" class="mt-1 text-caption" :class="lastIpInfo.last_ip ? 'text-info' : 'text-grey'">
+                        <v-icon size="small">mdi-information</v-icon>
+                        {{ lastIpInfo.message }}
+                        <span v-if="lastIpInfo.source" class="ml-1 text-grey">
+                          (sumber: {{ lastIpInfo.source === 'mikrotik' ? 'Mikrotik' : 'Database' }})
+                        </span>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-select
+                        v-model="editedItem.profile_pppoe"
+                        :items="availablePppoeProfiles"
+                        :loading="profilesLoading"
+                        label="Profile PPPoE"
+                        variant="outlined"
+                        placeholder="Pilih profile yang tersedia..."
+                        no-data-text="Tidak ada profile tersedia untuk paket ini"
+                      >
+                        <template v-slot:label>
+                          Profile PPPoE <span class="text-error">*</span>
+                        </template>
+                      </v-select>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field v-model="editedItem.id_vlan" label="ID VLAN" variant="outlined">
+                        <template v-slot:label>
+                          ID VLAN <span class="text-error">*</span>
+                        </template>
+                      </v-text-field>
+                    </v-col>
+                  </v-row>
+                </div>
+              </v-stepper-window-item>
+
+              <v-stepper-window-item :value="2">
+                <div class="pa-4 pa-sm-6">
+              <h3 class="text-h6 font-weight-bold mb-4">Detail Infrastruktur</h3>
+                  <v-row>
+                    <v-col cols="12" sm="6">
+                       <v-select
+                        v-model="editedItem.odp_id" :items="odpList"
+                        item-title="kode_odp"
+                        item-value="id"
+                        label="Terhubung ke ODP"
+                        variant="outlined"
+                        clearable
+                        :loading="loadingOdps"
+                      >
+                        <template v-slot:item="{ props, item }">
+                          <v-list-item v-bind="props" :subtitle="item.raw.alamat"></v-list-item>
+                        </template>
+                      </v-select>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field v-model="editedItem.olt_custom" label="OLT Custom (Opsional)" variant="outlined"></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="3">
+                      <v-text-field 
+                        v-model.number="editedItem.pon" 
+                        label="PON" 
+                        type="number" 
+                        variant="outlined" 
+                        :readonly="isNocUser"
+                      ></v-text-field>
+                    </v-col>
+
+                    <v-col cols="12" sm="3">
+                      <v-text-field 
+                        v-model.number="editedItem.otb" 
+                        label="OTB" 
+                        type="number" 
+                        variant="outlined" 
+                        :readonly="isNocUser"
+                      ></v-text-field>
+                    </v-col>
+
+                    <v-col cols="12" sm="3">
+                      <v-text-field 
+                        v-model.number="editedItem.odc" 
+                        label="ODC" 
+                        type="number" 
+                        variant="outlined" 
+                        :readonly="isNocUser"
+                      ></v-text-field>
+                    </v-col>
+
+                    <v-col cols="12" sm="3">
+                      <v-text-field 
+                        v-model.number="editedItem.port_odp" 
+                        label="Port ODP" 
+                        type="number" 
+                        variant="outlined" 
+                        :readonly="isNocUser"
+                      ></v-text-field>
+                    </v-col>
+                    </v-row>
+                </div>
+              </v-stepper-window-item>
+
+              <v-stepper-window-item :value="3">
+                <div class="pa-4 pa-sm-6">
+                  <h3 class="text-h6 font-weight-bold mb-4">Detail ONU</h3>
+                  <v-row>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model.number="editedItem.onu_power"
+                        label="ONU Power"
+                        type="number"
+                        suffix="dBm"
+                        variant="outlined"
+                        :rules="[
+                          v => v >= -40 || 'ONU Power minimal -40 dBm',
+                          v => v <= 10 || 'ONU Power maksimal 10 dBm'
+                        ]"
+                        :error-messages="getOnuPowerError()"
+                        hint="Range: -40 dBm (sinyal lemah) hingga 10 dBm (sinyal sangat kuat)"
+                        persistent-hint
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field 
+                        v-model="editedItem.sn" 
+                        label="Serial Number (SN) ONU" 
+                        variant="outlined"
+                        prepend-inner-icon="mdi-barcode-scan"
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12">
+                      <v-file-input ref="fileInputComponent" label="Unggah Bukti Speedtest" variant="outlined" accept="image/*" clearable></v-file-input>
+                    </v-col>
+                    <v-col cols="12">
+                      <v-img v-if="imagePreviewUrl" :src="imagePreviewUrl" height="200" class="rounded-lg elevation-2" cover></v-img>
+                      <div v-else class="text-center text-medium-emphasis pa-8 border rounded-lg">
+                        Tidak ada bukti speedtest.
+                      </div>
+                    </v-col>
+                  </v-row>
+                </div>
+              </v-stepper-window-item>
+            </v-stepper-window>
+          </v-stepper>
+        </v-card-text>
+
+        <v-card-actions class="pa-4 pa-sm-6 pt-0 flex-shrink-0" :style="{ background: 'rgba(0, 0, 0, 0.02)' }">
+          <v-btn v-if="currentStep > 1" color="grey" variant="outlined" @click="currentStep--">
+            Kembali
+          </v-btn>
+          <v-spacer></v-spacer>
+          <v-btn color="grey" variant="outlined" @click="closeDialog">
+            Batal
+          </v-btn>
+          <v-btn
+            v-if="currentStep < 3"
+            color="primary"
+            variant="flat"
+            @click="currentStep++"
+            :disabled="currentStep === 1 && !isInformasiJaringanValid"
+          >
+            Lanjut
+          </v-btn>
+          <v-btn v-else color="primary" variant="flat" @click="saveDataTeknis" :loading="saving">
+            Simpan
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+    <v-dialog v-model="dialogDelete" max-width="500px">
+      <v-card class="modern-dialog" :style="{ borderRadius: '20px' }" elevation="16">
+        <v-card-title class="pa-6 d-flex align-center" :style="{ background: 'linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(244, 67, 54, 0.05) 100%)', borderBottom: '1px solid rgba(244, 67, 54, 0.2)' }">
+          <v-avatar color="error" size="48" class="me-4">
+            <v-icon color="white">mdi-alert</v-icon>
+          </v-avatar>
+          <div>
+            <div class="text-h5 font-weight-bold">Konfirmasi Hapus</div>
+            <div class="text-body-2 opacity-80">Tindakan ini permanen</div>
+          </div>
+        </v-card-title>
+        <v-card-text class="pa-6">
+          <div class="text-center">
+            <v-icon size="64" color="error" class="mb-4 opacity-60">
+              mdi-delete-alert
+            </v-icon>
+            <p class="text-body-1 mb-2">
+              Yakin ingin menghapus data teknis ini?
+            </p>
+          </div>
+        </v-card-text>
+        <v-card-actions class="pa-6 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn variant="outlined" @click="closeDeleteDialog" class="me-3" :style="{ borderRadius: '12px' }">
+            Batal
+          </v-btn>
+          <v-btn color="error" variant="flat" @click="confirmDelete" prepend-icon="mdi-delete" :style="{ borderRadius: '12px' }" :loading="deleting">
+            Ya, Hapus
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="dialogBulkDelete" max-width="500px">
+      <v-card class="modern-dialog" :style="{ borderRadius: '20px' }" elevation="16">
+        <v-card-title class="pa-6 d-flex align-center" :style="{ background: 'linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(244, 67, 54, 0.05) 100%)', borderBottom: '1px solid rgba(244, 67, 54, 0.2)' }">
+          <v-avatar color="error" size="48" class="me-4">
+            <v-icon color="white">mdi-delete-sweep</v-icon>
+          </v-avatar>
+          <div>
+            <div class="text-h5 font-weight-bold">Hapus Massal</div>
+          </div>
+        </v-card-title>
+        <v-card-text class="pa-6 text-center">
+          <p class="text-body-1">
+            Yakin ingin menghapus <strong>{{ selectedDataTeknis.length }} data teknis</strong> terpilih?
+          </p>
+        </v-card-text>
+        <v-card-actions class="pa-6 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn variant="outlined" @click="dialogBulkDelete = false" class="me-3" :style="{ borderRadius: '12px' }">
+            Batal
+          </v-btn>
+          <v-btn 
+            color="error" 
+            variant="flat" 
+            @click="confirmBulkDelete" 
+            prepend-icon="mdi-delete" 
+            :style="{ borderRadius: '12px' }" 
+            :loading="deleting"
+          >
+            Ya, Hapus
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-container>
+
+    <!-- Import Dialog -->
+    <v-dialog v-model="dialogImport" max-width="900px" :fullscreen="display.mobile.value" persistent class="import-dialog">
+      <v-card class="import-card overflow-hidden">
+        <div class="import-header-gradient">
+          <div class="d-flex align-center pa-6">
+            <v-avatar color="white" size="48" class="elevation-4 me-4">
+              <v-icon color="success" size="28">mdi-database-import-outline</v-icon>
+            </v-avatar>
+            <div class="flex-grow-1">
+              <h2 class="text-h5 font-weight-bold text-white mb-1">Import Data Teknis</h2>
+              <p class="text-body-2 text-white mb-0" style="opacity: 0.9;">Pilih file CSV untuk sinkronisasi data teknis infrastruktur</p>
+            </div>
+            <v-btn
+              icon="mdi-close"
+              variant="text"
+              color="white"
+              @click="closeImportDialog"
+              size="small"
+              class="close-button-import"
+            ></v-btn>
+          </div>
+        </div>
+
+        <v-card-text class="import-content pa-6">
+          <v-row>
+            <v-col cols="12" md="5" class="border-right-md pe-md-6">
+              <div class="step-guide mb-6">
+                <h3 class="text-subtitle-1 font-weight-bold mb-4 d-flex align-center">
+                  <v-avatar color="success" size="24" class="me-2 text-caption">1</v-avatar>
+                  Persiapkan File
+                </h3>
+                <p class="text-body-2 text-medium-emphasis mb-4">
+                  Pastikan kolom CSV sesuai dengan template. <strong>Nama Pelanggan</strong> atau <strong>No Telepon</strong> harus akurat untuk pencocokan.
+                </p>
+                <v-hover v-slot="{ isHovering, props }">
+                  <v-card
+                    v-bind="props"
+                    :elevation="isHovering ? 4 : 1"
+                    variant="outlined"
+                    class="template-download-card pa-4 mb-4 cursor-pointer"
+                    @click="downloadTemplate"
+                    border-color="success-lighten-4"
+                  >
+                    <div class="d-flex align-center">
+                      <v-icon color="success" size="32" class="me-3">mdi-microsoft-excel</v-icon>
+                      <div class="flex-grow-1">
+                        <div class="text-subtitle-2 font-weight-bold">Template_Data_Teknis.csv</div>
+                        <div class="text-caption text-medium-emphasis">Klik untuk mengunduh</div>
+                      </div>
+                      <v-icon color="success">mdi-download</v-icon>
+                    </div>
+                  </v-card>
+                </v-hover>
+                
+                <div class="format-info pa-3 rounded-lg bg-surface-variant">
+                  <div class="text-caption font-weight-bold mb-1">Format Kolom:</div>
+                  <div class="text-caption text-medium-emphasis">
+                    ID Pelanggan, Nama, No Telp, Alamat, SSID, Password, IP, SN, Brand.
+                  </div>
+                </div>
+              </div>
+            </v-col>
+
+            <v-col cols="12" md="7" class="ps-md-6">
+              <div class="step-guide">
+                <h3 class="text-subtitle-1 font-weight-bold mb-4 d-flex align-center">
+                  <v-avatar color="success" size="24" class="me-2 text-caption">2</v-avatar>
+                  Unggah File
+                </h3>
+                
+                <div 
+                  class="simple-dropzone"
+                  :class="{ 'dropzone-active': fileToImport.length > 0 }"
+                  @click="triggerFileSelect"
+                >
+                  <v-file-input
+                    ref="fileInputRef"
+                    :model-value="fileToImport"
+                    @update:model-value="handleFileSelection"
+                    accept=".csv"
+                    class="d-none"
+                  ></v-file-input>
+                  
+                  <template v-if="fileToImport.length === 0">
+                    <v-icon size="48" color="success" class="mb-3 opacity-60">mdi-cloud-upload-outline</v-icon>
+                    <div class="text-subtitle-1 font-weight-bold">Klik untuk Pilih File</div>
+                    <div class="text-caption text-medium-emphasis">Hanya mendukung format .CSV</div>
+                  </template>
+                  <template v-else>
+                    <v-icon size="48" color="success" class="mb-3">mdi-file-check-outline</v-icon>
+                    <div class="text-subtitle-1 font-weight-bold text-success">{{ fileToImport[0].name }}</div>
+                    <div class="text-caption text-medium-emphasis">{{ (fileToImport[0].size / 1024).toFixed(2) }} KB</div>
+                    <v-btn
+                      variant="text"
+                      color="error"
+                      size="small"
+                      class="mt-2 text-none"
+                      @click.stop="fileToImport = []"
+                    >
+                      Hapus & Ganti
+                    </v-btn>
+                  </template>
+                </div>
+              </div>
+            </v-col>
+          </v-row>
+
+          <v-expand-transition>
+            <div v-if="importErrors.length > 0" class="mt-6">
+              <v-alert
+                type="error"
+                variant="tonal"
+                prominent
+                border="start"
+                class="error-alert rounded-xl pa-4"
+              >
+                <template v-slot:title>
+                  <div class="d-flex justify-space-between align-center">
+                    <span class="font-weight-bold">Peringatan Import</span>
+                    <v-chip color="error" size="small" class="font-weight-bold">
+                      {{ importErrors.length }} Kesalahan
+                    </v-chip>
+                  </div>
+                </template>
+
+                <div class="error-list mt-4">
+                  <v-virtual-scroll
+                    :items="importErrors"
+                    height="120"
+                    class="rounded-lg bg-surface-variant overflow-y-auto"
+                  >
+                    <template v-slot:default="{ item, index }">
+                      <div class="error-item-modern d-flex align-start pa-2 border-bottom">
+                        <v-icon size="16" color="error" class="me-2 mt-1">mdi-alert-circle</v-icon>
+                        <span class="text-caption">{{ item }}</span>
+                      </div>
+                    </template>
+                  </v-virtual-scroll>
+                </div>
+              </v-alert>
+            </div>
+          </v-expand-transition>
+        </v-card-text>
+
+        <v-divider></v-divider>
+
+        <v-card-actions class="pa-6 bg-grey-lighten-5">
+          <v-btn
+            variant="text"
+            @click="closeImportDialog"
+            class="px-6 text-none font-weight-medium rounded-lg"
+          >
+            Batal
+          </v-btn>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="success"
+            variant="elevated"
+            @click="importData"
+            :loading="importing"
+            :disabled="fileToImport.length === 0"
+            prepend-icon="mdi-upload"
+            class="px-8 text-none font-weight-bold rounded-lg elevation-4 import-cta-btn"
+          >
+            Mulai Sinkronisasi
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+</template>
+
+<script setup lang="ts">
+// --- SCRIPT ANDA TETAP SAMA, TIDAK ADA PERUBAHAN ---
+import { ref, onMounted, computed, watch, nextTick } from 'vue';
+import { useTheme, useDisplay } from 'vuetify';
+import apiClient from '@/services/api';
+import { debounce } from 'lodash-es';
+import { useAuthStore } from '@/stores/auth';
+import SkeletonLoader from '@/components/SkeletonLoader.vue';
+
+const theme = useTheme();
+const display = useDisplay();
+
+// --- Interfaces ---
+interface DataTeknis {
+  id: number;
+  pelanggan_id: number;
+  id_vlan: string;
+  id_pelanggan: string;
+  password_pppoe: string;
+  ip_pelanggan: string;
+  profile_pppoe: string;
+  olt: string;
+  olt_custom?: string | null;
+  pon: number;
+  otb: number;
+  odc: number;
+  odp_id?: number | null; // ID ODP (dari dropdown)
+  odp: number;
+  port_odp?: number | null;  // Port ODP
+  speedtest_proof?: string | null;
+  onu_power: number;
+  mikrotik_server_id: number;
+  sn?: string | null;
+  pelanggan?: Pelanggan;
+}
+interface Pelanggan {
+  id: number;
+  nama: string;
+  created_at?: string;
+}
+
+interface MikrotikServer {
+  id: number;
+  name: string;
+}
+
+interface PaketLayananSelectItem {
+  id: number;
+  nama_paket: string;
+}
+
+// --- State ---
+const dataTeknisList = ref<DataTeknis[]>([]);
+const pelangganList = ref<Pelanggan[]>([]);
+const pelangganMap = ref(new Map<number, Pelanggan>());
+const loading = ref(true);
+const saving = ref(false);
+const deleting = ref(false);
+const dialog = ref(false);
+const dialogDelete = ref(false);
+const currentStep = ref(1);
+const editedItem = ref<Partial<DataTeknis>>({});
+const itemToDeleteId = ref<number | null>(null);
+const searchQuery = ref('');
+const mikrotikServers = ref<MikrotikServer[]>([]);
+
+const profilesLoading = ref(false);
+const paketLayananSelectList = ref<PaketLayananSelectItem[]>([]);
+const odpList = ref<any[]>([]);
+const loadingOdps = ref(false);
+const profilesFromApi = ref<{ profile_name: string; usage_count: number }[]>([]);
+
+const selectedDataTeknis = ref<DataTeknis[]>([]);
+const dialogBulkDelete = ref(false);
+
+const fileToImport = ref<File[]>([]);
+const dialogImport = ref(false);
+const importing = ref(false);
+const exporting = ref(false);
+const downloadingTemplate = ref(false);
+const snackbar = ref({ show: false, text: '', color: 'success' });
+const importErrors = ref<string[]>([]);
+const showPppoePassword = ref(false);
+
+// --- State Baru untuk Paginasi Mobile dan Desktop ---
+const mobilePage = ref(1);
+const desktopPage = ref(1);
+const itemsPerPage = ref(10); // Jumlah item per halaman untuk mobile dan desktop
+const hasMoreData = ref(true);
+const loadingMore = ref(false);
+const selectedOlt = ref<string | null>(null);
+const selectedProfile = ref<string | null>(null);
+const selectedVlan = ref<string | null>(null);
+const selectedOnuPowerRange = ref<string | null>(null);
+const profileOptions = ref<string[]>([]);
+const vlanOptions = ref<string[]>([]);
+const onuPowerRangeOptions = ref<any[]>([]);
+
+// --- State for Total Count ---
+const totalDataTeknisCount = ref(0);
+
+
+
+// --- State for Statistics ---
+const statisticsData = ref({
+  totalPelanggan: 0,
+  sinyalBaik: 0,
+  sinyalLemah: 0,
+  oltAktif: 0
+});
+
+const authStore = useAuthStore();
+
+// Ref untuk komponen file input
+const fileInputRef = ref<any>(null);
+
+function triggerFileSelect() {
+  fileInputRef.value?.click();
+}
+const expanded = ref<any[]>([]); // Ganti dari readonly
+
+// Data VLAN Mikrotik
+const mikrotikVlanInfo = ref([
+  { name: 'Tambun', vlan: '100' },
+  { name: 'Nagrak', vlan: '105' },
+  { name: 'Parama', vlan: '10' },
+  { name: 'Waringin', vlan: '10' },
+  { name: 'Pinus', vlan: '101/100' },
+  { name: 'Pulogebang', vlan: '103' },
+  { name: 'Tipar Cakung', vlan: '102' }
+]);
+
+// --- Computed Properties ---
+const isEditMode = computed(() => !!editedItem.value.id);
+const formTitle = computed(() => isEditMode.value ? 'Edit Data Teknis' : 'Tambah Data Teknis');
+
+const availablePppoeProfiles = computed(() => {
+  // 1. Buat array objects dengan informasi lengkap (nama + jumlah user aktif)
+  // Tidak ada batasan 5 user lagi, tampilkan semua profile yang sesuai kecepatan
+  const profilesWithInfo = profilesFromApi.value
+    .map(p => ({
+      title: `${p.profile_name} (Digunakan oleh ${p.usage_count} user)`,
+      value: p.profile_name,
+      usageCount: p.usage_count
+    }));
+
+  // 2. Ambil profile yang sedang digunakan oleh user yang diedit
+  const currentProfile = editedItem.value.profile_pppoe;
+  
+  // 3. Pastikan profile yang sedang digunakan tetap muncul di list (meskipun logic di atas sudah cover semua, ini safety net)
+  if (currentProfile && !profilesWithInfo.find(p => p.value === currentProfile)) {
+    const currentProfileData = profilesFromApi.value.find(p => p.profile_name === currentProfile);
+    const usage = currentProfileData ? currentProfileData.usage_count : '?'; // Tanda tanya jika data real-time tidak ada
+    
+    profilesWithInfo.unshift({
+      title: `${currentProfile} (Digunakan oleh ${usage} user)`,
+      value: currentProfile,
+      usageCount: typeof usage === 'number' ? usage : 0
+    });
+  }
+
+  return profilesWithInfo;
+});
+
+
+const imagePreviewUrl = computed(() => {
+  if (fileInputRef.value?.files && fileInputRef.value.files.length > 0) {
+    return URL.createObjectURL(fileInputRef.value.files[0]);
+  }
+  if (editedItem.value.speedtest_proof) {
+    const baseUrl = apiClient.defaults.baseURL || ''; 
+    return `${baseUrl}${editedItem.value.speedtest_proof}`;
+  }
+  return null;
+});
+
+const ipValidation = ref({
+  loading: false,
+  message: '',
+  color: ''
+});
+
+// Validation rules untuk IP field
+const ipRules = [
+  (v: string) => {
+    if (!v) return 'IP Pelanggan wajib diisi';
+    const validation = validateIpFormat(v);
+    return validation.isValid || validation.message;
+  }
+];
+
+// Validation rules untuk Password PPPoE field
+const passwordRules = [
+  (v: string) => {
+    if (!v) return 'Password PPPoE wajib diisi';
+    if (v.includes(' ')) return 'Password PPPoE tidak boleh mengandung spasi. Contoh: support123.!!';
+    if (v.length > 100) return 'Password PPPoE maksimal 100 karakter';
+    return true;
+  }
+];
+
+// Validation rules untuk ID Pelanggan PPPoE field
+const idPelangganRules = [
+  (v: string) => {
+    if (!v) return 'ID Pelanggan PPPoE wajib diisi';
+    if (v.includes(' ')) return 'ID Pelanggan PPPoE tidak boleh mengandung spasi. Gunakan format: user123, test-service, client_01';
+    if (v.length > 100) return 'ID Pelanggan PPPoE maksimal 100 karakter';
+    // Validasi karakter yang diperbolehkan
+    if (!/^[a-zA-Z0-9\-_\.]+$/.test(v)) {
+      return 'ID Pelanggan hanya boleh mengandung huruf, angka, dash (-), underscore (_), dan titik (.)';
+    }
+    return true;
+  }
+];
+
+const lastIpInfo = ref({
+  last_ip: null,
+  last_octet: 0,
+  message: '',
+  server_name: '',
+  source: ''
+});
+
+
+
+const pelangganForSelect = computed(() => {
+  return Array.isArray(pelangganList.value) ? pelangganList.value : [];
+});
+
+
+
+const oltOptions = ref<string[]>([]);
+
+const paginatedDataTeknis = computed(() => {
+  if (dataTeknisList.value.length === 0) return [];
+  return dataTeknisList.value;
+});
+
+// --- Table Headers ---
+const headers = [
+  { title: 'No', key: 'nomor', sortable: false, align: 'center' as const, width: '60px' },
+  { title: 'Nama Pelanggan', key: 'pelanggan_id' },
+  { title: 'IP Pelanggan', key: 'ip_pelanggan' },
+  { title: 'OLT', key: 'olt' },
+  { title: 'ONU Power', key: 'onu_power', align: 'center' as const },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'center' as const },
+];
+
+// const pppoeProfiles = (() => {
+//   const speeds = ['10Mbps', '20Mbps', '30Mbps', '50Mbps'];
+//   const alphabet = 'abcdefghijklmnopqrstuvwxyz'.split('');
+//   const profiles: string[] = [];
+
+//   for (const speed of speeds) {
+//     for (const letter of alphabet) {
+//       profiles.push(`${speed}-${letter}`);
+//     }
+//   }
+//   return profiles;
+// })();
+
+
+const isNocUser = computed(() => {
+  if (authStore.user && authStore.user.role) {
+    const role = authStore.user.role;
+    // Cek dulu apakah 'role' adalah objek dan memiliki properti 'name'
+    if (typeof role === 'object' && role !== null && 'name' in role) {
+      // Jika ya, baru akses .name
+      return role.name.toLowerCase() === 'noc';
+    }
+  }
+  return false;
+});
+
+// Validasi form Informasi Jaringan (Step 1)
+const isInformasiJaringanValid = computed(() => {
+  const item = editedItem.value;
+
+  // Validasi field wajib di Informasi Jaringan
+  if (!item.pelanggan_id) return false;
+  if (!item.mikrotik_server_id) return false;
+  if (!item.id_pelanggan || item.id_pelanggan.trim() === '' || item.id_pelanggan.includes(' ')) return false;
+  if (!item.password_pppoe || item.password_pppoe.trim() === '' || item.password_pppoe.includes(' ')) return false;
+  if (!item.ip_pelanggan || item.ip_pelanggan.trim() === '') return false;
+  if (!item.profile_pppoe || item.profile_pppoe.trim() === '') return false;
+  if (!item.id_vlan || item.id_vlan.trim() === '') return false;
+
+  // Validasi format IP
+  const ipFormatValidation = validateIpFormat(item.ip_pelanggan);
+  if (!ipFormatValidation.isValid) return false;
+
+  // Validasi IP sudah tersedia atau tidak (jika sudah ada hasil pengecekan)
+  if (ipValidation.value.color === 'error') return false;
+
+  // Validasi karakter ID Pelanggan
+  if (!/^[a-zA-Z0-9\-_\.]+$/.test(item.id_pelanggan)) return false;
+
+  return true;
+});
+
+
+function handleOltSelection(serverId: number) {
+  const selectedServer = mikrotikServers.value.find(s => s.id === serverId);
+  if (selectedServer) {
+    editedItem.value.olt = selectedServer.name;
+    
+    // Ambil informasi IP terakhir untuk server ini
+    fetchLastUsedIp(serverId);
+  }
+}
+
+async function fetchLastUsedIp(serverId: number) {
+  if (!serverId) {
+    lastIpInfo.value = {
+      last_ip: null,
+      last_octet: 0,
+      message: '',
+      server_name: '',
+      source: ''
+    };
+    return;
+  }
+
+  try {
+    const response = await apiClient.get(`/data_teknis/last-ip/${serverId}`);
+    lastIpInfo.value = response.data;
+  } catch (error) {
+    console.error("Gagal mengambil informasi IP terakhir:", error);
+    lastIpInfo.value = {
+      last_ip: null,
+      last_octet: 0,
+      message: "Gagal mengambil informasi IP terakhir",
+      server_name: '',
+      source: ''
+    };
+  }
+}
+
+
+// --- Methods ---
+onMounted(() => {
+  fetchPelanggan(); // Load pelanggan (unconfigured)
+  fetchMikrotikServers();
+  fetchPaketLayananForSelect();
+  fetchOdpList();
+  fetchFilterOptions();
+  fetchDataTeknis(); // Load data teknis terakhir
+  // fetchStatisticsData() akan dipanggil setelah fetchDataTeknis() selesai
+});
+
+async function fetchDataTeknis(isLoadMore = false, preservePage = false) {
+  if (isLoadMore) {
+    loadingMore.value = true;
+  } else {
+    loading.value = true;
+    if (!preservePage) {
+      mobilePage.value = 1; // Reset halaman saat filter baru
+      desktopPage.value = 1; // Reset halaman desktop juga
+    }
+    hasMoreData.value = true; // Reset status data
+  }
+
+  try {
+    const params = new URLSearchParams();
+    if (searchQuery.value) {
+      params.append('search', searchQuery.value);
+    }
+    if (selectedOlt.value) {
+      params.append('olt', selectedOlt.value);
+    }
+    if (selectedProfile.value) {
+      params.append('profile', selectedProfile.value);
+    }
+    if (selectedVlan.value) {
+      params.append('vlan', selectedVlan.value);
+    }
+    if (selectedOnuPowerRange.value) {
+      const selectedRange = onuPowerRangeOptions.value.find(r => r.label === selectedOnuPowerRange.value);
+      if (selectedRange) {
+        params.append('onu_power_min', selectedRange.min.toString());
+        params.append('onu_power_max', selectedRange.max.toString());
+      }
+    }
+
+    // Gunakan page yang sesuai tergantung apakah sedang load more (mobile) atau tidak (desktop)
+    const currentPage = isLoadMore ? mobilePage.value : desktopPage.value;
+    const skip = (currentPage - 1) * itemsPerPage.value;
+
+    params.append('skip', String(skip));
+    params.append('limit', String(itemsPerPage.value));
+
+    const response = await apiClient.get(`/data_teknis?${params.toString()}`);
+    const { data: newData, total_count: newTotalCount } = response.data;
+
+    if (isLoadMore) {
+      dataTeknisList.value.push(...newData);
+    } else {
+      dataTeknisList.value = newData;
+      // Hitung ulang statistik setelah data baru di-load
+      calculateStatisticsFromExistingData();
+    }
+
+    // Selalu update total count untuk pagination yang benar
+    totalDataTeknisCount.value = newTotalCount;
+
+    // Cek apakah masih ada data untuk dimuat
+    if (newData.length < itemsPerPage.value) {
+      hasMoreData.value = false;
+    }
+
+  } finally {
+    loading.value = false;
+    loadingMore.value = false;
+  }
+}
+
+function loadMore() {
+  mobilePage.value++;
+  fetchDataTeknis(true);
+}
+
+// Pagination event handlers untuk desktop
+function goToPreviousPage() {
+  if (desktopPage.value > 1) {
+    desktopPage.value = desktopPage.value - 1;
+    fetchDataTeknis(false, true); // preserve current page
+  }
+}
+
+async function goToNextPage() {
+  const maxPage = Math.ceil(totalDataTeknisCount.value / itemsPerPage.value);
+  if (desktopPage.value < maxPage) {
+    desktopPage.value = desktopPage.value + 1;
+    await nextTick();
+    fetchDataTeknis(false, true); // preserve current page
+  }
+}
+
+function onItemsPerPageChange(newItemsPerPage: number) {
+  itemsPerPage.value = newItemsPerPage;
+  desktopPage.value = 1; // Reset ke halaman pertama saat mengubah items per page
+  fetchDataTeknis();
+  // Statistik akan dihitung ulang otomatis di dalam fetchDataTeknis()
+}
+
+async function fetchOdpList() {
+  loadingOdps.value = true;
+  try {
+    const response = await apiClient.get('/odp');
+    const rawData = response.data?.data ?? response.data;
+    odpList.value = Array.isArray(rawData) ? rawData : [];
+  } catch (error) {
+    console.error("Gagal mengambil daftar ODP:", error);
+    odpList.value = [];
+  } finally {
+    loadingOdps.value = false;
+  }
+}
+
+
+
+const applyFilters = debounce(() => {
+  fetchDataTeknis(false); // Panggil dengan `isLoadMore = false` untuk mereset
+  // Statistik akan dihitung ulang otomatis di dalam fetchDataTeknis()
+}, 500);
+
+watch([searchQuery, selectedOlt, selectedProfile, selectedVlan, selectedOnuPowerRange], () => {
+  applyFilters();
+});
+
+function resetFilters() {
+  searchQuery.value = '';
+  selectedOlt.value = null;
+  selectedProfile.value = null;
+  selectedVlan.value = null;
+  selectedOnuPowerRange.value = null;
+  // fetchDataTeknis() akan ter-trigger oleh watch
+}
+
+async function fetchMikrotikServers() {
+  try {
+    const response = await apiClient.get('/mikrotik_servers');
+    // Backend wraps in { data: [...] }, extract the array
+    const rawData = response.data?.data ?? response.data;
+    mikrotikServers.value = Array.isArray(rawData) ? rawData : [];
+  } catch (error) {
+    console.error("Gagal mengambil daftar server Mikrotik:", error);
+    mikrotikServers.value = [];
+  }
+}
+
+async function fetchFilterOptions() {
+  try {
+    // Ambil data OLT
+    const oltResponse = await apiClient.get('/data_teknis/available-olt');
+    oltOptions.value = oltResponse.data;
+
+    // Ambil data Profile PPPoE
+    const profileResponse = await apiClient.get('/data_teknis/available-profiles');
+    profileOptions.value = profileResponse.data;
+
+    // Ambil data VLAN
+    const vlanResponse = await apiClient.get('/data_teknis/available-vlans');
+    vlanOptions.value = vlanResponse.data;
+
+    // Ambil data ONU Power ranges
+    const onuPowerResponse = await apiClient.get('/data_teknis/onu-power-ranges');
+    const ranges = onuPowerResponse.data.ranges || [];
+    onuPowerRangeOptions.value = ranges.map((range: any) => ({
+      title: range.label,
+      value: range.label,
+      ...range
+    }));
+  } catch (error) {
+    console.error("Gagal mengambil data filter:", error);
+  }
+}
+
+
+// Fungsi untuk menghitung statistik dari data yang sudah ada
+function calculateStatisticsFromExistingData() {
+  try {
+    // Gunakan totalDataTeknisCount yang sudah diambil dari API utama
+    const total = totalDataTeknisCount.value || 0;
+
+    // Hitung statistik dari data yang sudah di-load (dataTeknisList)
+    const good = dataTeknisList.value.filter(item => item.onu_power > -24).length;
+    const poor = dataTeknisList.value.filter(item => item.onu_power <= -27).length;
+    const uniqueOLTs = new Set(dataTeknisList.value.map(item => item.olt));
+
+    // Untuk data yang belum di-load, gunakan estimasi berdasarkan proporsi
+    const loadedCount = dataTeknisList.value.length;
+    const remainingCount = Math.max(0, total - loadedCount);
+
+    if (loadedCount > 0) {
+      // Estimasi statistik untuk data yang belum di-load
+      const goodRatio = good / loadedCount;
+      const poorRatio = poor / loadedCount;
+
+      statisticsData.value = {
+        totalPelanggan: total,
+        sinyalBaik: Math.round(good + (remainingCount * goodRatio)),
+        sinyalLemah: Math.round(poor + (remainingCount * poorRatio)),
+        oltAktif: uniqueOLTs.size // Ini mungkin tidak akurat, tapi cukup untuk estimasi
+      };
+    } else {
+      // Jika tidak ada data yang di-load, gunakan 0
+      statisticsData.value = {
+        totalPelanggan: total,
+        sinyalBaik: 0,
+        sinyalLemah: 0,
+        oltAktif: 0
+      };
+    }
+  } catch (error) {
+    console.error("Gagal menghitung statistik dari data yang ada:", error);
+    // Fallback ke 0
+    statisticsData.value = {
+      totalPelanggan: 0,
+      sinyalBaik: 0,
+      sinyalLemah: 0,
+      oltAktif: 0
+    };
+  }
+}
+
+async function fetchPelanggan() {
+  try {
+    // OPTIMIZED: Hanya ambil pelanggan yang BELUM dikonfigurasi data teknisnya (untuk dropdown)
+    // Server-side filtering, jauh lebih cepat & payload lebih kecil
+    // Request created_at juga untuk badge "BARU"
+    const response = await apiClient.get('/pelanggan?connection_status=unconfigured&limit=1000&use_minimal_loading=true&fields=id,nama,created_at');
+    
+    // Response is paginated, so the actual data is in response.data.data
+    const rawData = response.data?.data ?? response.data;
+    pelangganList.value = Array.isArray(rawData) ? rawData : [];
+
+    // Untuk pelangganMap, kita hanya memetakan yang baru diambil.
+    // Untuk display tabel, kita akan gunakan item.pelanggan.nama langsung dari backend join.
+    // Namun kita tetap maintain map untuk fallback.
+    const newMap = new Map<number, Pelanggan>();
+    const pelangganData = response.data.data || response.data;
+    for (const pelanggan of pelangganData) {
+      newMap.set(pelanggan.id, pelanggan);
+    }
+    pelangganMap.value = newMap;
+  } catch(error) {
+    console.error("Gagal mengambil daftar pelanggan:", error);
+  }
+}
+
+// function openDialog(item?: DataTeknis) {
+//   editedItem.value = item ? { ...item } : {};
+//   currentStep.value = 1;
+//   dialog.value = true;
+// }
+
+
+function openDialog(item?: DataTeknis) {
+  // Selalu fetch data terbaru untuk dropdown
+  fetchPelanggan();
+  fetchMikrotikServers();
+  fetchOdpList();
+
+  ipValidation.value = { loading: false, message: '', color: '' };
+  // Reset informasi IP terakhir
+  lastIpInfo.value = {
+    last_ip: null,
+    last_octet: 0,
+    message: '',
+    server_name: '',
+    source: ''
+  };
+  
+  if (item) {
+    // Mode Edit: Gunakan data yang ada
+    editedItem.value = { ...item };
+    // Jika dalam mode edit, pastikan pelanggan yang sedang diedit ada di list pilihan
+    if (item.pelanggan) {
+        const exists = pelangganList.value.some(p => p.id === item.pelanggan?.id);
+        if (!exists) {
+            pelangganList.value.push(item.pelanggan);
+        }
+    }
+
+    // Jika dalam mode edit, ambil informasi IP terakhir untuk server yang dipilih
+    if (item.mikrotik_server_id) {
+      fetchLastUsedIp(item.mikrotik_server_id);
+    }
+  } else {
+    // Mode Tambah Baru: Set nilai default di sini
+    editedItem.value = {
+      pon: 0,
+      otb: 0,
+      odc: 0,
+      odp_id: null,
+      onu_power: 0, // Ini juga akan mengisi default 0 pada ONU Power
+    };
+    profilesFromApi.value = []; 
+  }
+  currentStep.value = 1;
+  dialog.value = true;
+}
+
+function closeDialog() {
+  dialog.value = false;
+  if (fileInputRef.value) {
+    fileInputRef.value.reset();
+  }
+  editedItem.value = {};
+  currentStep.value = 1;
+  // Reset informasi IP terakhir
+  lastIpInfo.value = {
+    last_ip: null,
+    last_octet: 0,
+    message: '',
+    server_name: '',
+    source: ''
+  };
+}
+
+// Fungsi validasi format IP
+function validateIpFormat(ip: string): { isValid: boolean; message: string } {
+  if (!ip) {
+    return { isValid: false, message: '' }; // Biarkan kosong, tidak error
+  }
+
+  // Validasi panjang IP (max 15 karakter)
+  if (ip.length > 15) {
+    return { isValid: false, message: 'IP terlalu panjang (maksimal 15 karakter)' };
+  }
+
+  // Validasi format dasar - harus ada 3 titik
+  if ((ip.match(/\./g) || []).length !== 3) {
+    return { isValid: false, message: 'Format IP tidak valid. Harus xxx.xxx.xxx.xxx' };
+  }
+
+  // Validasi karakter - hanya boleh angka dan titik
+  if (!/^[0-9.]+$/.test(ip)) {
+    return { isValid: false, message: 'IP hanya boleh mengandung angka dan titik' };
+  }
+
+  // Validasi setiap oktet
+  const ipParts = ip.split('.');
+  if (ipParts.length !== 4) {
+    return { isValid: false, message: 'IP harus memiliki 4 oktet' };
+  }
+
+  for (let i = 0; i < ipParts.length; i++) {
+    const part = ipParts[i];
+
+    // Validasi tidak ada oktet kosong
+    if (part === '') {
+      return { isValid: false, message: `Oktet ke-${i+1} kosong` };
+    }
+
+    // Validasi panjang setiap oktet (max 3 digit)
+    if (part.length > 3) {
+      return { isValid: false, message: `Oktet ke-${i+1} terlalu panjang: ${part}` };
+    }
+
+    // Validasi tidak ada leading zero (kecuali "0")
+    if (part.length > 1 && part.startsWith('0')) {
+      return { isValid: false, message: `Oktet ke-${i+1} tidak boleh ada leading zero: ${part}` };
+    }
+
+    // Validasi angka
+    const num = parseInt(part, 10);
+    if (isNaN(num)) {
+      return { isValid: false, message: `Oktet ke-${i+1} harus angka: ${part}` };
+    }
+
+    // Validasi range 0-255
+    if (num < 0 || num > 255) {
+      return { isValid: false, message: `Oktet ke-${i+1} harus antara 0-255: ${part}` };
+    }
+  }
+
+  return { isValid: true, message: '' };
+}
+
+const checkIpAvailability = debounce(async (ip: string) => {
+  // Reset validasi
+  ipValidation.value = { loading: false, message: '', color: '' };
+
+  // Jangan cek jika IP kosong
+  if (!ip) {
+    return;
+  }
+
+  // Validasi format IP terlebih dahulu
+  const formatValidation = validateIpFormat(ip);
+  if (!formatValidation.isValid) {
+    ipValidation.value.message = formatValidation.message;
+    ipValidation.value.color = 'error';
+    return;
+  }
+
+  // Format valid, lanjut cek ketersediaan
+  ipValidation.value.loading = true;
+  try {
+    const response = await apiClient.post('/data_teknis/check-ip', {
+      ip_address: ip,
+      current_id: editedItem.value.id || null // Kirim ID saat mode edit
+    });
+
+    const { is_taken, message } = response.data;
+
+    ipValidation.value.message = message;
+    ipValidation.value.color = is_taken ? 'error' : 'success';
+
+  } catch (error) {
+    console.error("Gagal memeriksa IP:", error);
+    ipValidation.value.message = "Gagal memeriksa ketersediaan IP.";
+    ipValidation.value.color = 'error';
+  } finally {
+    ipValidation.value.loading = false;
+  }
+}, 700);
+
+async function saveDataTeknis() {
+  saving.value = true;
+  try {
+    const files = fileInputRef.value?.files;
+    const fileToUpload = files?.[0];
+
+    if (fileToUpload) {
+      const formData = new FormData();
+      formData.append('file', fileToUpload);
+      
+      const uploadResponse = await apiClient.post('/uploads/speedtest', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      if (uploadResponse?.data?.file_url) {
+        editedItem.value.speedtest_proof = uploadResponse.data.file_url;
+      }
+    }
+
+    let updatedData: DataTeknis; // Deklarasikan variabel di sini
+
+    // Buat payload yang hanya berisi field yang valid (mencegah field relasi merusak unmarshaling backend)
+    const payloadToSend: any = {};
+    const rawData = editedItem.value as any;
+
+    const validFields = [
+      'pelanggan_id', 'mikrotik_server_id', 'odp_id', 'otb', 'odc', 'port_odp',
+      'id_vlan', 'id_pelanggan', 'password_pppoe', 'ip_pelanggan',
+      'profile_pppoe', 'olt', 'olt_custom', 'pon', 'onu_power',
+      'sn', 'speedtest_proof'
+    ];
+
+    validFields.forEach(field => {
+      if (rawData[field] !== undefined && rawData[field] !== null) {
+        // Konversi ke number untuk field numeric
+        if (['otb', 'odc', 'port_odp', 'pon', 'onu_power'].includes(field)) {
+          let value = Number(rawData[field]);
+
+          // Validasi khusus untuk onu_power: harus antara -40 sampai 10 dBm
+          if (field === 'onu_power') {
+            if (value < -40) {
+              value = -40;
+              console.warn('ONU Power dibatasi ke minimum -40 dBm');
+            } else if (value > 10) {
+              value = 10;
+              console.warn('ONU Power dibatasi ke maksimal 10 dBm');
+            }
+          }
+
+          payloadToSend[field] = value;
+        } else {
+          payloadToSend[field] = rawData[field];
+        }
+      }
+    });
+
+    if (isEditMode.value) {
+      // Tangkap respons dari server setelah PATCH
+      const response = await apiClient.patch(`/data_teknis/${editedItem.value.id}`, payloadToSend);
+      updatedData = response.data;
+
+      // Cari index dari data lama di dalam array
+      const index = dataTeknisList.value.findIndex(item => item.id === updatedData.id);
+      if (index !== -1) {
+        // Ganti data lama dengan data baru yang diterima dari server
+        dataTeknisList.value[index] = updatedData;
+      }
+
+      showSnackbar('Data teknis berhasil diperbarui', 'success');
+
+    } else {
+      // Untuk "Tambah Data", gunakan payloadToSend yang sudah dibersihkan
+      await apiClient.post('/data_teknis', payloadToSend);
+      showSnackbar('Data teknis berhasil ditambahkan', 'success');
+      fetchDataTeknis();
+    }
+
+    // Update statistik setelah operasi CRUD
+    calculateStatisticsFromExistingData();
+    closeDialog();
+  } catch (error: any) {
+    console.error("Gagal saat menyimpan data teknis:", error);
+    showSnackbar('Gagal menyimpan data teknis', 'error');
+
+    // Handle error validasi 422 secara spesifik
+    if (error.response?.status === 422) {
+      const errorDetail = error.response.data?.detail;
+
+      if (typeof errorDetail === 'object' && errorDetail !== null) {
+        // Tampilkan error validasi yang spesifik
+        let errorMessage = "Error validasi:\n";
+        if (Array.isArray(errorDetail)) {
+          errorDetail.forEach((err: any) => {
+            errorMessage += `- ${err.loc?.join('.')}: ${err.msg}\n`;
+          });
+        } else {
+          errorMessage = JSON.stringify(errorDetail, null, 2);
+        }
+        alert(errorMessage);
+      } else {
+        alert("Data tidak valid. Silakan periksa kembali input Anda.");
+      }
+    } else {
+      alert("Gagal menyimpan data teknis. Silakan coba lagi.");
+    }
+  } finally {
+    saving.value = false;
+  }
+}
+
+function openDeleteDialog(item: DataTeknis) {
+  itemToDeleteId.value = item.id;
+  dialogDelete.value = true;
+}
+
+function closeDeleteDialog() {
+  dialogDelete.value = false;
+  itemToDeleteId.value = null;
+}
+
+
+async function confirmBulkDelete() {
+  const itemsToDelete = [...selectedDataTeknis.value];
+  if (itemsToDelete.length === 0) return;
+
+  deleting.value = true;
+  try {
+    const deletePromises = itemsToDelete.map(item =>
+      apiClient.delete(`/data_teknis/${item.id}`)
+    );
+    await Promise.all(deletePromises);
+    showSnackbar(`${itemsToDelete.length} data teknis berhasil dihapus.`, 'success');
+    fetchDataTeknis();
+    // Statistik akan dihitung ulang otomatis di dalam fetchDataTeknis()
+    selectedDataTeknis.value = [];
+  } catch (error) {
+    console.error("Gagal melakukan hapus massal data teknis:", error);
+    showSnackbar('Terjadi kesalahan saat menghapus data.', 'error');
+  } finally {
+    deleting.value = false;
+    dialogBulkDelete.value = false;
+  }
+}
+
+async function confirmDelete() {
+  if (itemToDeleteId.value === null) return;
+  deleting.value = true;
+  try {
+    await apiClient.delete(`/data_teknis/${itemToDeleteId.value}`);
+    fetchDataTeknis();
+    // Statistik akan dihitung ulang otomatis di dalam fetchDataTeknis()
+    closeDeleteDialog();
+  } catch (error) {
+    console.error("Gagal menghapus data teknis:", error);
+  } finally {
+    deleting.value = false;
+  }
+}
+
+function getPelangganName(pelangganId: number) {
+  // Try to find in the list/map first
+  const fromMap = pelangganMap.value.get(pelangganId)?.nama;
+  if (fromMap) return fromMap;
+  
+  // If not in map (because map only has unconfigured users), check dataTeknisList
+  // Since we now have nested object, we can try to find it in the loaded data list
+  const inList = dataTeknisList.value.find(dt => dt.pelanggan_id === pelangganId);
+  return inList?.pelanggan?.nama || 'Tidak Ditemukan';
+}
+
+function getPelangganInitials(pelangganId: number) {
+  const name = getPelangganName(pelangganId);
+  if (name === 'Tidak Ditemukan') return '?';
+  return name.split(' ').map(word => word.charAt(0)).join('').substring(0, 2).toUpperCase();
+}
+
+function isNewUser(dateStr?: string) {
+  if (!dateStr) return false;
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    return diffDays <= 3; // Kriteria baru: <= 3 hari
+  } catch (e) {
+    return false;
+  }
+}
+
+function getAvatarColor(pelangganId: number) {
+  const colors = ['primary', 'secondary', 'accent', 'success', 'info', 'warning', 'error'];
+  // Ensure non-negative index
+  return colors[Math.abs(pelangganId) % colors.length];
+}
+
+function getOnuPowerColor(power: number) {
+  if (!power) return 'grey';
+  if (power <= -27) return 'error';
+  if (power <= -24) return 'warning';
+  return 'success';
+}
+
+function getOnuPowerIcon(power: number) {
+  if (!power) return 'mdi-help-circle';
+  if (power <= -27) return 'mdi-signal-off';
+  if (power <= -24) return 'mdi-signal-2g';
+  return 'mdi-signal-4g';
+}
+
+function getOnuPowerStatus(power: number) {
+  if (!power) return 'N/A';
+  if (power <= -27) return 'Sinyal Lemah';
+  if (power <= -24) return 'Sinyal Sedang';
+  return 'Sinyal Baik';
+}
+
+
+async function exportData(format = 'csv') {
+  exporting.value = true;
+  try {
+    // Bangun URL dengan parameter filter agar export mengikuti filter yang sedang aktif
+    const params = new URLSearchParams();
+    if (searchQuery.value) {
+      params.append('search', searchQuery.value);
+    }
+    if (selectedOlt.value) {
+      params.append('olt', selectedOlt.value);
+    }
+    if (selectedProfile.value) {
+      params.append('profile', selectedProfile.value);
+    }
+    if (selectedVlan.value) {
+      params.append('vlan', selectedVlan.value);
+    }
+    if (selectedOnuPowerRange.value) {
+      const selectedRange = onuPowerRangeOptions.value.find(r => r.label === selectedOnuPowerRange.value);
+      if (selectedRange) {
+        params.append('onu_power_min', selectedRange.min.toString());
+        params.append('onu_power_max', selectedRange.max.toString());
+      }
+    }
+    // Tambahkan parameter untuk format export
+    params.append('format', format);
+
+    const queryString = params.toString();
+    const exportUrl = `/data_teknis/export${queryString ? '?' + queryString : ''}`;
+
+    const response = await apiClient.get(exportUrl, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    const fileExtension = format === 'excel' ? 'xlsx' : 'csv';
+    link.setAttribute('download', `data_teknis.${fileExtension}`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Gagal mengunduh file:", error);
+  } finally {
+    exporting.value = false;
+  }
+}
+
+async function downloadTemplate() {
+  downloadingTemplate.value = true;
+  try {
+    // Gunakan endpoint public untuk menghindari issue auth token di production
+    const response = await apiClient.get('/data_teknis/template/csv', {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'template_import_teknis.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Gagal mengunduh template:", error);
+    showSnackbar("Gagal mengunduh template", "error");
+  } finally {
+    downloadingTemplate.value = false;
+  }
+}
+
+async function importData() {
+  const file = fileToImport.value[0];
+  if (!file) {
+    showSnackbar("Silakan pilih file CSV terlebih dahulu.", "error");
+    return;
+  }
+
+  importing.value = true;
+  importErrors.value = [];
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await apiClient.post('/data_teknis/import/csv', formData);
+    const message = response.data.message || 'Impor data teknis berhasil!';
+    showSnackbar(message, 'success');
+    fetchDataTeknis();
+    // Statistik akan dihitung ulang otomatis di dalam fetchDataTeknis()
+    closeImportDialog();
+    
+  } catch (error: any) {
+    console.error("Gagal mengimpor data:", error);
+    const detail = error.response?.data?.detail;
+    let snackbarMessage = "Gagal mengimpor data.";
+    let errorList: string[] = ["Terjadi kesalahan yang tidak diketahui."];
+
+    if (typeof detail === 'object' && detail !== null && Array.isArray(detail.errors)) {
+      snackbarMessage = detail.message || snackbarMessage;
+      errorList = detail.errors;
+    } else if (typeof detail === 'string') {
+      snackbarMessage = detail;
+      errorList = [detail];
+    }
+    
+    importErrors.value = errorList;
+    showSnackbar(snackbarMessage, "error");
+  } finally {
+    importing.value = false;
+  }
+}
+
+function handleFileSelection(newFiles: File | File[]) {
+  importErrors.value = [];
+  if (Array.isArray(newFiles)) {
+    fileToImport.value = newFiles;
+  } else if (newFiles) {
+    fileToImport.value = [newFiles];
+  } else {
+    fileToImport.value = [];
+  }
+}
+
+function closeImportDialog() {
+  dialogImport.value = false;
+  fileToImport.value = [];
+  importErrors.value = [];
+}
+
+function showSnackbar(text: string, color: string) {
+  snackbar.value.text = text;
+  snackbar.value.color = color;
+  snackbar.value.show = true;
+}
+
+/**
+ * Watcher cerdas yang memantau perubahan pada pelanggan DAN OLT/Server yang dipilih.
+ * Ini akan memicu pengambilan profil PPPoE hanya jika kedua informasi tersebut sudah ada.
+ */
+watch(
+  () => [editedItem.value.pelanggan_id, editedItem.value.mikrotik_server_id],
+  async ([newPelangganId, newServerId]) => {
+    // Jika salah satu kosong, reset dan hentikan proses
+    if (!newPelangganId || !newServerId) {
+      profilesFromApi.value = [];
+      return;
+    }
+
+    await handleProfileFetch(newPelangganId, newServerId);
+  },
+  { deep: true }
+);
+
+async function handleProfileFetch(pelangganId: number, serverId: number) {
+  // Reset state yang relevan
+  profilesLoading.value = true;
+  profilesFromApi.value = [];
+
+  try {
+    // 1. Ambil detail pelanggan untuk mengetahui paket layanan apa yang dia gunakan
+    const pelangganResponse = await apiClient.get(`/pelanggan/${pelangganId}`);
+    const pelangganDetail = pelangganResponse.data?.data ?? pelangganResponse.data;
+
+    if (pelangganDetail && pelangganDetail.layanan) {
+      // 2. Cari ID paket yang namanya cocok dengan 'layanan' pelanggan
+      const paketTerkait = paketLayananSelectList.value.find(
+        (p: PaketLayananSelectItem) => p.nama_paket === pelangganDetail.layanan
+      );
+
+      if (paketTerkait) {
+        // 3. Jika paket ditemukan, panggil API dengan SEMUA info yang dibutuhkan
+        await fetchAvailableProfiles(paketTerkait.id, pelangganId, serverId);
+      }
+    }
+    
+    // 4. Ambil informasi IP terakhir untuk server yang dipilih (tanpa memengaruhi fungsi utama)
+    try {
+      await fetchLastUsedIp(serverId);
+    } catch (error) {
+      console.warn("Gagal mengambil informasi IP terakhir (tidak memengaruhi fungsi utama):", error);
+    }
+  } catch (error) {
+    console.error("Gagal mengambil data detail pelanggan:", error);
+  } finally {
+    profilesLoading.value = false;
+  }
+}
+
+async function fetchPaketLayananForSelect() {
+  try {
+    // Asumsi endpoint ini mengembalikan semua paket layanan
+    const response = await apiClient.get<PaketLayananSelectItem[]>('/paket_layanan');
+    paketLayananSelectList.value = response.data;
+  } catch (error) {
+    console.error("Gagal mengambil data paket layanan:", error);
+  }
+}
+
+
+async function fetchAvailableProfiles(paketLayananId: number, pelangganId: number, serverId: number) {
+  if (!paketLayananId || !pelangganId || !serverId) {
+    profilesFromApi.value = [];
+    return;
+  }
+  profilesLoading.value = true;
+  try {
+    // --- PERBAIKAN UTAMA DI SINI ---
+    // Kirim mikrotik_server_id sebagai query parameter
+    const response = await apiClient.get(
+      `/data_teknis/available-profiles/${paketLayananId}/${pelangganId}?mikrotik_server_id=${serverId}`
+    );
+    profilesFromApi.value = response.data;
+  } catch (error) {
+    console.error("Gagal mengambil profile PPPoE yang tersedia:", error);
+    profilesFromApi.value = [];
+  } finally {
+    profilesLoading.value = false;
+  }
+}
+
+// Function untuk validasi ONU Power
+function getOnuPowerError() {
+  const value = editedItem.value.onu_power;
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  const numValue = Number(value);
+  if (isNaN(numValue)) {
+    return 'Format ONU Power tidak valid';
+  }
+  if (numValue < -40) {
+    return 'ONU Power terlalu rendah (minimal -40 dBm)';
+  }
+  if (numValue > 10) {
+    return 'ONU Power terlalu tinggi (maksimal 10 dBm)';
+  }
+  return '';
+}
+
+</script>
+
+<style scoped>
+/* ============================================
+   MOBILE-FIRST RESPONSIVE DESIGN
+   ============================================ */
+
+/* Header Card - Mobile Optimized with Fixed Positioning */
+.header-card {
+  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
+  border-radius: 20px;
+  padding: 24px;
+  color: rgb(var(--v-theme-on-primary));
+  box-shadow: 0 8px 32px rgba(var(--v-theme-primary), 0.25);
+  position: relative;
+}
+
+.header-card .d-flex.flex-column {
+  align-items: stretch !important;
+}
+
+.header-info {
+  width: 100%;
+  justify-content: flex-start;
+  margin-bottom: 0;
+}
+
+.header-avatar-wrapper {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.header-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.header-subtitle {
+  font-size: 0.95rem;
+  opacity: 0.85;
+  line-height: 1.3;
+}
+
+/* Action Buttons Container - Fixed Positioning */
+.action-buttons-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-self: flex-end;
+}
+
+.mobile-btn {
+  border-radius: 14px;
+  font-weight: 600;
+  height: 48px;
+  transition: all 0.3s ease;
+}
+
+.action-btn {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+}
+
+.action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px);
+}
+
+.primary-btn {
+  background: white !important;
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+/* Import Dialog */
+.import-header {
+  background: rgb(var(--v-theme-success));
+  color: rgb(var(--v-theme-on-success));
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+}
+
+.import-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.import-content {
+  padding: 28px !important;
+}
+
+.template-card {
+  border: 2px dashed rgba(var(--v-theme-success), 0.3);
+  background: rgba(var(--v-theme-success), 0.05);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.template-card:hover {
+  border-color: rgb(var(--v-theme-success));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(var(--v-theme-success), 0.15);
+}
+
+.template-title, .upload-title {
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+  margin-bottom: 6px;
+  font-size: 1rem;
+}
+
+.template-subtitle {
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  line-height: 1.4;
+  font-size: 0.9rem;
+}
+
+.file-input :deep(.v-field) {
+  border: 2px dashed rgb(var(--v-theme-outline-variant)) !important;
+  background: rgb(var(--v-theme-surface)) !important;
+  border-radius: 12px;
+  transition: all 0.2s ease-in-out;
+}
+
+.file-input :deep(.v-field:hover) {
+  border-color: rgb(var(--v-theme-success)) !important;
+  background: rgba(var(--v-theme-success), 0.05) !important;
+}
+
+.error-alert {
+  border-radius: 12px;
+}
+
+.error-item {
+  background: rgba(var(--v-theme-error), 0.05);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.import-actions {
+  padding: 16px 24px !important;
+  background: rgb(var(--v-theme-surface));
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.import-btn {
+  background: rgb(var(--v-theme-success)) !important;
+  color: rgb(var(--v-theme-on-success)) !important;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.nav-btn {
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+/* ============================================
+   RESPONSIVE BREAKPOINTS - FIXED POSITIONING
+   ============================================ */
+
+/* Tablet (768px and up) */
+@media (min-width: 768px) {
+  .header-card {
+    padding: 32px;
+    border-radius: 24px;
+  }
+
+  .header-card .d-flex.flex-column {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .header-info {
+    flex: 1;
+    margin-right: 24px;
+  }
+
+  .header-title {
+    font-size: 2.25rem;
+  }
+
+  .header-subtitle {
+    font-size: 1.1rem;
+  }
+
+  .action-buttons-container {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 16px;
+    width: auto;
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  .mobile-btn {
+    width: auto;
+    min-width: 140px;
+  }
+}
+
+/* Large Desktop (1024px and up) */
+@media (min-width: 1024px) {
+  .action-buttons-container {
+    gap: 20px;
+  }
+
+  .mobile-btn {
+    min-width: 160px;
+    height: 52px;
+    font-size: 0.95rem;
+  }
+}
+
+/* Mobile Specific Adjustments */
+@media (max-width: 767px) {
+  .v-container {
+    padding: 12px !important;
+  }
+
+  .header-card .d-flex.flex-column {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 20px;
+  }
+
+  .header-info {
+    margin-right: 0;
+  }
+
+  .header-card {
+    margin-bottom: 16px;
+  }
+}
+
+/* Dark Theme Adjustments */
+.v-theme--dark .header-card {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.v-theme--dark .import-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.v-theme--dark .template-card {
+  background: rgba(var(--v-theme-success), 0.1);
+  border-color: rgba(var(--v-theme-success), 0.3);
+}
+
+.v-theme--dark .error-item {
+  background: rgba(var(--v-theme-error), 0.1);
+}
+
+/* MENAMBAHKAN STYLE BARU UNTUK KARTU MOBILE */
+.data-teknis-card-mobile {
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 16px;
+  transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+.data-teknis-card-mobile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+}
+.data-teknis-card-mobile .v-list-item {
+  min-height: auto;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.data-teknis-card-mobile .v-list-item-title {
+  font-size: 0.9rem;
+  color: rgba(var(--v-theme-on-surface), 0.75);
+}
+.data-teknis-card-mobile .v-list-item__append {
+  font-size: 0.9rem;
+}
+
+
+
+.gap-3 {
+  gap: 12px;
+}
+.gap-4 {
+  gap: 16px;
+}
+
+.responsive-table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.filter-card {
+  border-radius: 20px;
+  border: 1px solid rgba(var(--v-theme-primary), 0.12);
+  background: linear-gradient(145deg, 
+    rgba(var(--v-theme-surface), 0.95) 0%, 
+    rgba(var(--v-theme-background), 0.98) 100%);
+  backdrop-filter: blur(10px);
+  box-shadow: 
+    0 4px 20px rgba(var(--v-theme-shadow), 0.08),
+    0 1px 3px rgba(var(--v-theme-shadow), 0.12);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.filter-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 30px rgba(var(--v-theme-shadow), 0.12),
+    0 2px 6px rgba(var(--v-theme-shadow), 0.16);
+  border-color: rgba(var(--v-theme-primary), 0.2);
+}
+
+.filter-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(var(--v-theme-primary), 0.6) 50%, 
+    transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.filter-card:hover::before {
+  opacity: 1;
+}
+
+.filter-card .d-flex {
+  padding: 24px 28px !important;
+  gap: 16px !important;
+  flex-wrap: wrap;
+}
+
+.filter-card .v-text-field, .filter-card .v-select {
+  min-width: 250px !important;
+}
+
+.filter-card :deep(.v-field) {
+  background: rgba(var(--v-theme-surface), 0.8) !important;
+  border: 2px solid rgba(var(--v-theme-outline-variant), 0.3) !important;
+  border-radius: 16px !important;
+  box-shadow: inset 0 2px 4px rgba(var(--v-theme-shadow), 0.06);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-card :deep(.v-field:hover) {
+  border-color: rgba(var(--v-theme-primary), 0.4) !important;
+  background: rgba(var(--v-theme-surface), 1) !important;
+  transform: translateY(-1px);
+  box-shadow: 
+    inset 0 2px 4px rgba(var(--v-theme-shadow), 0.06),
+    0 4px 12px rgba(var(--v-theme-primary), 0.1);
+}
+
+.filter-card :deep(.v-field--focused) {
+  border-color: rgb(var(--v-theme-primary)) !important;
+  background: rgba(var(--v-theme-surface), 1) !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(var(--v-theme-shadow), 0.06),
+    0 0 0 3px rgba(var(--v-theme-primary), 0.12);
+}
+
+.filter-card .v-text-field :deep(.v-field__prepend-inner .v-icon) {
+  color: rgba(var(--v-theme-primary), 0.7) !important;
+  transition: color 0.2s ease;
+}
+
+.filter-card .v-text-field:hover :deep(.v-field__prepend-inner .v-icon) {
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+.filter-card .v-btn[variant="text"] {
+  border-radius: 14px !important;
+  font-weight: 600 !important;
+  height: 48px !important;
+  min-width: 120px !important;
+  color: rgba(var(--v-theme-primary), 0.8) !important;
+  background: rgba(var(--v-theme-primary), 0.08) !important;
+  border: 1px solid rgba(var(--v-theme-primary), 0.2) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-card .v-btn[variant="text"]:hover {
+  background: rgba(var(--v-theme-primary), 0.12) !important;
+  color: rgb(var(--v-theme-primary)) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--v-theme-primary), 0.2);
+}
+
+@media (max-width: 960px) {
+  .filter-card .d-flex {
+    padding: 20px 24px !important;
+    gap: 16px !important;
+  }
+  
+  .filter-card .v-text-field,
+  .filter-card .v-select {
+    min-width: 100% !important;
+  }
+  
+  .filter-card .v-btn[variant="text"] {
+    width: 100% !important;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 600px) {
+  .filter-card .d-flex {
+    padding: 16px 20px !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  
+  .filter-card {
+    border-radius: 16px;
+    margin: 0;
+  }
+}
+
+.header-gradient {
+  background: linear-gradient(135deg, #00ACC1 0%, #006064 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-avatar {
+  position: relative;
+  overflow: hidden;
+}
+
+.gradient-avatar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+  z-index: 1;
+}
+
+.selection-toolbar {
+  display: flex;
+  align-items: center;
+  background-color: rgba(var(--v-theme-primary), 0.08);
+  border-bottom: 1px solid rgba(var(--v-theme-primary), 0.15);
+}
+
+.modern-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(0);
+}
+
+.modern-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 172, 193, 0.4) !important;
+}
+
+.modern-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.modern-btn:hover::before {
+  left: 100%;
+}
+
+.icon-bounce {
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-4px);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+}
+
+.stats-card {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 16px !important;
+}
+
+.stats-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1) !important;
+}
+
+.stats-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #00ACC1, #006064);
+}
+
+.modern-card {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modern-card:hover {
+  transform: translateY(-2px);
+}
+
+.modern-table {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  overflow: hidden;
+  box-shadow: none !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+.modern-table :deep(thead) {
+  background: #fafafa !important;
+}
+
+.modern-table :deep(th) {
+  font-weight: 700 !important;
+  font-size: 0.75rem !important;
+  color: #424242 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 16px 12px !important;
+  border-bottom: 2px solid #e0e0e0 !important;
+  white-space: nowrap;
+}
+
+.modern-table :deep(td) {
+  padding: 14px 12px !important;
+  border-bottom: 1px solid #f5f5f5 !important;
+  font-size: 0.875rem;
+  color: #616161 !important;
+  vertical-align: middle;
+}
+
+.modern-table :deep(tbody tr) {
+  transition: all 0.2s ease;
+  background: #ffffff !important;
+}
+
+.modern-table :deep(tbody tr:hover) {
+  background-color: #fafafa !important;
+}
+
+.modern-table :deep(tbody tr:last-child td) {
+  border-bottom: none !important;
+}
+
+/* Only apply custom styling to action buttons that are NOT Import/Export and NOT header-action-btn */
+.action-btn:not([color="success"]):not([color="primary"]):not(.mobile-btn):not(.header-action-btn) {
+  transition: all 0.2s ease;
+  opacity: 1 !important;
+  visibility: visible !important;
+  background-color: rgba(var(--v-theme-primary), 0.08) !important;
+  border: 1px solid rgba(var(--v-theme-primary), 0.3) !important;
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+.action-btn:not([color="success"]):not([color="primary"]):not(.mobile-btn):not(.header-action-btn):hover {
+  transform: translateY(-1px) !important;
+  opacity: 0.9 !important;
+  background-color: rgba(var(--v-theme-primary), 0.15) !important;
+  box-shadow: 0 2px 8px rgba(var(--v-theme-primary), 0.2) !important;
+}
+
+/* Force visibility for action buttons in all themes - EXCEPT Import/Export and header-action-btn */
+.v-btn.action-btn.v-btn--variant-tonal:not([color="success"]):not([color="primary"]):not(.header-action-btn) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  background-color: rgba(var(--v-theme-primary), 0.08) !important;
+  border-color: rgba(var(--v-theme-primary), 0.3) !important;
+}
+
+.v-btn.action-btn.v-btn--variant-tonal:not([color="success"]):not([color="primary"]):not(.header-action-btn):hover {
+  opacity: 0.9 !important;
+  background-color: rgba(var(--v-theme-primary), 0.15) !important;
+}
+
+.modern-dialog {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px !important;
+}
+
+.modern-dialog::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #00ACC1, #006064);
+  z-index: 1;
+}
+
+:deep(.v-text-field .v-field--focused),
+:deep(.v-select .v-field--focused) {
+  box-shadow: 0 0 0 2px rgba(0, 172, 193, 0.2);
+  border-color: #00ACC1 !important;
+}
+
+.v-theme--dark .stats-card,
+.v-theme--dark .modern-card {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.v-theme--dark .modern-dialog {
+  background: rgba(30, 30, 30, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+@media (max-width: 768px) {
+  .stats-card {
+    margin-bottom: 8px;
+  }
+  
+  .modern-btn {
+    width: 100%;
+    margin-top: 0;
+  }
+  
+  .action-btn {
+    min-width: 80px;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 172, 193, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 172, 193, 0.5);
+}
+
+.v-progress-circular {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 172, 193, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 172, 193, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 172, 193, 0);
+  }
+}
+
+.v-chip {
+  transition: all 0.2s ease;
+}
+
+.v-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+/* ===============================================
+   MANUAL STYLING FOR MOBILE ACTION BUTTONS
+   Bypassing Vuetify theme engine for reliability
+   =============================================== */
+
+/* Light Theme Manual Styles - Fixed visibility */
+.v-theme--light .mobile-edit-btn {
+  background-color: #1976D2 !important; /* Blue */
+  color: #FFFFFF !important; /* White */
+  opacity: 1 !important;
+  visibility: visible !important;
+  border: 2px solid #1976D2 !important;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3) !important;
+}
+
+.v-theme--light .mobile-delete-btn {
+  background-color: #D32F2F !important; /* Red */
+  color: #FFFFFF !important; /* White */
+  opacity: 1 !important;
+  visibility: visible !important;
+  border: 2px solid #D32F2F !important;
+  box-shadow: 0 2px 8px rgba(211, 47, 47, 0.3) !important;
+}
+
+/* Dark Theme Manual Styles */
+.v-theme--dark .mobile-edit-btn {
+  background-color: #292929 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #424242 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.v-theme--dark .mobile-delete-btn {
+  background-color: #292929 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #424242 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Additional fixes for visibility issues */
+.mobile-edit-btn, .mobile-delete-btn {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+  transition: all 0.2s ease !important;
+  border-radius: 8px !important;
+  min-width: 80px !important;
+  height: 36px !important;
+  font-weight: 600 !important;
+}
+
+.mobile-edit-btn:hover, .mobile-delete-btn:hover {
+  opacity: 0.9 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Fix for both desktop and mobile action buttons */
+.v-btn.action-btn {
+  opacity: 1 !important;
+  visibility: visible !important;
+  background-color: rgba(var(--v-theme-primary), 0.08) !important;
+  border: 1px solid rgba(var(--v-theme-primary), 0.5) !important;
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+.v-btn.action-btn:hover {
+  background-color: rgba(var(--v-theme-primary), 0.15) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(var(--v-theme-primary), 0.2) !important;
+}
+
+/* Additional override for light theme visibility - EXCEPT Import/Export */
+.v-theme--light .v-btn.action-btn:not([color="success"]):not([color="primary"]) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  background-color: rgba(25, 118, 210, 0.08) !important;
+  border: 1px solid rgba(25, 118, 210, 0.5) !important;
+  color: #1976D2 !important;
+  box-shadow: 0 1px 3px rgba(25, 118, 210, 0.1) !important;
+}
+
+.v-theme--light .v-btn.action-btn:not([color="success"]):not([color="primary"]):hover {
+  background-color: rgba(25, 118, 210, 0.15) !important;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2) !important;
+}
+
+/* Override for error action buttons in light theme */
+.v-theme--light .v-btn.action-btn.v-btn--color-error {
+  background-color: rgba(211, 47, 47, 0.08) !important;
+  border: 1px solid rgba(211, 47, 47, 0.5) !important;
+  color: #D32F2F !important;
+  box-shadow: 0 1px 3px rgba(211, 47, 47, 0.1) !important;
+}
+
+.v-theme--light .v-btn.action-btn.v-btn--color-error:hover {
+  background-color: rgba(211, 47, 47, 0.15) !important;
+  box-shadow: 0 2px 8px rgba(211, 47, 47, 0.2) !important;
+}
+
+/* Force visibility for all action buttons in light theme - EXCEPT Import/Export */
+.v-theme--light .modern-table .v-btn.action-btn:not([color="success"]):not([color="primary"]),
+.v-theme--light .v-data-table .v-btn.action-btn:not([color="success"]):not([color="primary"]) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  background-color: rgba(25, 118, 210, 0.08) !important;
+  border: 1px solid rgba(25, 118, 210, 0.4) !important;
+  color: #1976D2 !important;
+  min-width: 70px !important;
+  height: 32px !important;
+  font-size: 0.8rem !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.v-theme--light .modern-table .v-btn.action-btn.v-btn--color-error:not([color="success"]):not([color="primary"]),
+.v-theme--light .v-data-table .v-btn.action-btn.v-btn--color-error:not([color="success"]):not([color="primary"]) {
+  background-color: rgba(211, 47, 47, 0.08) !important;
+  border: 1px solid rgba(211, 47, 47, 0.4) !important;
+  color: #D32F2F !important;
+}
+
+.v-theme--light .modern-table .v-btn.action-btn:not([color="success"]):not([color="primary"]):hover,
+.v-theme--light .v-data-table .v-btn.action-btn:not([color="success"]):not([color="primary"]):hover {
+  background-color: rgba(25, 118, 210, 0.15) !important;
+  box-shadow: 0 2px 6px rgba(25, 118, 210, 0.2) !important;
+}
+
+.v-theme--light .modern-table .v-btn.action-btn.v-btn--color-error:not([color="success"]):not([color="primary"]):hover,
+.v-theme--light .v-data-table .v-btn.action-btn.v-btn--color-error:not([color="success"]):not([color="primary"]):hover {
+  background-color: rgba(211, 47, 47, 0.15) !important;
+  box-shadow: 0 2px 6px rgba(211, 47, 47, 0.2) !important;
+}
+
+/* Fix for header action buttons (Import/Export) to match PelangganView */
+.header-card .action-btn {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.header-card .action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px);
+  opacity: 0.9 !important;
+}
+
+.header-card .primary-btn {
+  background: white !important;
+  color: rgb(var(--v-theme-primary)) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.header-card .primary-btn:hover {
+  transform: translateY(-1px);
+  opacity: 0.9 !important;
+}
+
+/* Ensure header buttons work properly in both themes - VERY SPECIFIC OVERRIDES */
+.v-theme--light .header-card .action-btn,
+.v-theme--dark .header-card .action-btn,
+.header-card .v-btn.action-btn {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.v-theme--light .header-card .action-btn:hover,
+.v-theme--dark .header-card .action-btn:hover,
+.header-card .v-btn.action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px);
+  opacity: 0.9 !important;
+}
+
+/* Action buttons styling - SAME AS PELANGGANVIEW */
+.action-btn {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+}
+
+.action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px);
+}
+
+/* VERY SPECIFIC: Header action buttons (Import/Export) - OVERRIDE EVERYTHING */
+.header-action-btn {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.header-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px) !important;
+  opacity: 0.9 !important;
+}
+
+/* ULTRA SPECIFIC: Force header action buttons in light theme */
+.v-theme--light .header-action-btn {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.v-theme--light .header-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px) !important;
+  opacity: 0.9 !important;
+}
+
+/* ULTRA SPECIFIC: Force header action buttons in dark theme */
+.v-theme--dark .header-action-btn {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.v-theme--dark .header-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px) !important;
+  opacity: 0.9 !important;
+}
+
+/* SUPER AGGRESSIVE: Override any other styling that might interfere */
+.action-buttons-container .header-action-btn {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.action-buttons-container .header-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px) !important;
+  opacity: 0.9 !important;
+}
+
+/* NUCLEAR OPTION: Force header action buttons to be visible with maximum specificity */
+.v-container .header-card .action-buttons-container .v-btn.header-action-btn {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.v-container .header-card .action-buttons-container .v-btn.header-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px) !important;
+  opacity: 0.9 !important;
+}
+
+/* MAXIMUM SPECIFICITY: Override literally everything */
+div.v-container > div.header-card > div.action-buttons-container > v-btn.header-action-btn,
+.v-theme--light div.v-container > div.header-card > div.action-buttons-container > v-btn.header-action-btn,
+.v-theme--dark div.v-container > div.header-card > div.action-buttons-container > v-btn.header-action-btn {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.primary-btn {
+  background: white !important;
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+.v-theme--light .header-card .primary-btn,
+.v-theme--dark .header-card .primary-btn {
+  background: white !important;
+  color: rgb(var(--v-theme-primary)) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.v-theme--light .header-card .primary-btn:hover,
+.v-theme--dark .header-card .primary-btn:hover {
+  transform: translateY(-1px);
+  opacity: 0.9 !important;
+}
+
+/* Global override for all action buttons in light theme - EXCEPT Import/Export AND HEADER */
+.v-theme--light .v-btn[class*="action-btn"]:not([color="success"]):not([color="primary"]):not(.header-card *) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+}
+
+/* REMOVED: Let header buttons use default styling like PelangganView */
+
+.v-theme--light .v-btn[class*="mobile-edit-btn"],
+.v-theme--light .v-btn[class*="mobile-delete-btn"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+/* Ensure buttons work in all container types - EXCEPT Import/Export AND HEADER */
+.v-theme--light .d-flex:not(.header-card) .v-btn.action-btn:not([color="success"]):not([color="primary"]),
+.v-theme--light .v-card:not(.header-card) .v-btn.action-btn:not([color="success"]):not([color="primary"]),
+.v-theme--light .v-data-table__tr .v-btn.action-btn:not([color="success"]):not([color="primary"]) {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* FINAL OVERRIDE: Header Import/Export buttons - SAME AS PELANGGANVIEW */
+.action-buttons-container .v-btn[color="success"] {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.action-buttons-container .v-btn[color="primary"] {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.action-buttons-container .v-btn[color="success"]:hover,
+.action-buttons-container .v-btn[color="primary"]:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px) !important;
+  opacity: 0.9 !important;
+}
+
+/* Force override for ANY potential conflicts - SAME AS PELANGGANVIEW */
+.v-theme--light .action-buttons-container .v-btn[color="success"] {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.v-theme--light .action-buttons-container .v-btn[color="primary"] {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.v-theme--dark .action-buttons-container .v-btn[color="success"] {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.v-theme--dark .action-buttons-container .v-btn[color="primary"] {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+/* ============================================
+   DARK MODE SUPPORT
+   ============================================ */
+
+/* Table Dark Mode */
+.v-theme--dark .v-data-table {
+  background: rgba(26, 31, 46, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.v-theme--dark .v-data-table :deep(thead) {
+  background: rgba(21, 27, 45, 0.8) !important;
+}
+
+.v-theme--dark .v-data-table :deep(th) {
+  color: rgba(255, 255, 255, 0.95) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.15) !important;
+  font-weight: 700 !important;
+}
+
+.v-theme--dark .v-data-table :deep(td) {
+  color: rgba(255, 255, 255, 0.8) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.v-theme--dark .v-data-table :deep(tbody tr) {
+  background: rgba(26, 31, 46, 0.4) !important;
+}
+
+.v-theme--dark .v-data-table :deep(tbody tr:hover) {
+  background-color: rgba(33, 150, 243, 0.08) !important;
+}
+
+/* VLAN Information Card Dark Mode */
+.v-theme--dark .v-card-title.bg-grey-lighten-4 {
+  background: rgba(21, 27, 45, 0.8) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.v-theme--dark .v-card-title.bg-grey-lighten-4 .v-icon {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.v-theme--dark .v-card-title.bg-grey-lighten-4 .text-subtitle-1 {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Filter Card Dark Mode */
+.v-theme--dark .filter-card {
+  background: rgba(26, 31, 46, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Stats Cards Dark Mode */
+.v-theme--dark .stats-card {
+  background: rgba(26, 31, 46, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.v-theme--dark .stats-card .text-h5 {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.v-theme--dark .stats-card .text-caption {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Card Text Dark Mode */
+.v-theme--dark .v-card-text {
+  color: rgba(255, 255, 255, 0.87) !important;
+}
+
+/* Chips Dark Mode */
+.v-theme--dark .v-chip {
+  background: rgba(33, 150, 243, 0.2) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.v-theme--dark .v-chip .v-icon {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+
+/* ============================================
+   NEW MODERN IMPORT DIALOG STYLES
+   ============================================ */
+
+.import-header-gradient {
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  position: relative;
+}
+
+.close-button-import {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.template-download-card {
+  border: 1px solid rgba(var(--v-theme-success), 0.2) !important;
+  background-color: rgba(var(--v-theme-success), 0.02) !important;
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  text-decoration: none !important;
+}
+
+.template-download-card:hover {
+  background-color: rgba(var(--v-theme-success), 0.05) !important;
+  border-color: rgba(var(--v-theme-success), 0.5) !important;
+  transform: translateY(-2px);
+}
+
+.simple-dropzone {
+  border: 2px dashed rgba(var(--v-theme-success), 0.3);
+  background-color: rgba(var(--v-theme-success), 0.02);
+  border-radius: 20px;
+  height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  padding: 24px;
+}
+
+.simple-dropzone:hover {
+  border-color: rgba(var(--v-theme-success), 0.8);
+  background-color: rgba(var(--v-theme-success), 0.05);
+}
+
+.dropzone-active {
+  border-style: solid;
+  border-color: rgba(var(--v-theme-success), 0.8);
+  background-color: rgba(var(--v-theme-success), 0.08);
+}
+
+.error-item-modern {
+  border-bottom: 1px solid rgba(var(--v-theme-error), 0.1);
+}
+
+.error-item-modern:last-child {
+  border-bottom: none;
+}
+
+.border-right-md {
+  border-right: 1px solid rgba(var(--v-theme-outline-variant), 0.5);
+}
+
+@media (max-width: 959px) {
+  .border-right-md {
+    border-right: none;
+    border-bottom: 1px solid rgba(var(--v-theme-outline-variant), 0.5);
+    padding-bottom: 24px;
+    margin-bottom: 24px;
+  }
+}
+
+.import-cta-btn {
+  letter-spacing: 0;
+  height: 48px !important;
+}
+
+.format-info {
+  background-color: rgba(var(--v-theme-surface-variant), 0.3) !important;
+}
+
+</style>

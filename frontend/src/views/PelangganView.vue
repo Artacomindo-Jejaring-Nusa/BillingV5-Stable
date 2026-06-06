@@ -1,0 +1,2937 @@
+<template>
+  <v-container fluid class="pa-4 pa-md-6">
+    <div class="header-card mb-4 mb-md-6">
+      <div class="d-flex flex-column align-center gap-4">
+        <div class="d-flex align-center header-info">
+          <div class="header-avatar-wrapper">
+            <v-avatar class="header-avatar" color="transparent" size="50">
+              <v-icon color="white" size="28">mdi-account-group</v-icon>
+            </v-avatar>
+          </div>
+          <div class="ml-4">
+            <h1 class="header-title">Data Pelanggan</h1>
+            <p class="header-subtitle">Kelola semua data pelanggan Anda dengan mudah</p>
+          </div>
+        </div>
+        
+        <!-- Mobile Action Buttons -->
+        <div class="action-buttons-container">
+          <v-btn
+            color="success"
+            @click="dialogImport = true"
+            prepend-icon="mdi-file-upload-outline"
+            :loading="importing"
+            class="action-btn text-none mobile-btn"
+            size="default"
+            block
+          >
+            Import Data
+          </v-btn>
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn
+                color="primary"
+                v-bind="props"
+                :loading="exporting"
+                prepend-icon="mdi-file-download-outline"
+                class="action-btn text-none mobile-btn"
+                size="default"
+                block
+              >
+                Export Data
+                <v-icon end>mdi-menu-down</v-icon>
+              </v-btn>
+            </template>
+            <v-list>
+              <v-list-item @click="exportData('csv')">
+                <v-list-item-title>
+                  <v-icon class="mr-2">mdi-file-delimited</v-icon>
+                  Export sebagai CSV
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item @click="exportData('excel')">
+                <v-list-item-title>
+                  <v-icon class="mr-2">mdi-file-excel</v-icon>
+                  Export sebagai Excel
+                </v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+          <v-btn 
+            color="primary" 
+            @click="openDialog()" 
+            prepend-icon="mdi-account-plus" 
+            class="primary-btn text-none mobile-btn" 
+            size="default"
+            block
+            elevation="3"
+          >
+            Tambah Pelanggan
+          </v-btn>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Card - Modern Redesign -->
+    <v-card class="filter-card mb-4 mb-md-6" elevation="0">
+      <!-- Primary Search Row -->
+      <div class="filter-primary-row">
+        <v-text-field
+          v-model="searchQuery"
+          placeholder="Cari berdasarkan nama, email, atau no. telepon..."
+          prepend-inner-icon="mdi-magnify"
+          variant="solo-filled"
+          density="comfortable"
+          hide-details
+          class="filter-search-field"
+          flat
+        ></v-text-field>
+        
+        <v-btn
+          :color="showAdvancedFilters ? 'primary' : undefined"
+          :variant="showAdvancedFilters ? 'tonal' : 'outlined'"
+          @click="showAdvancedFilters = !showAdvancedFilters"
+          class="filter-toggle-btn text-none"
+          :prepend-icon="showAdvancedFilters ? 'mdi-filter-minus' : 'mdi-filter-plus'"
+          size="large"
+        >
+          <span class="d-none d-sm-inline">Filter</span>
+          <v-badge
+            v-if="activeFilterCount > 0"
+            :content="activeFilterCount"
+            color="primary"
+            floating
+            class="filter-badge"
+          ></v-badge>
+        </v-btn>
+      </div>
+
+      <!-- Active Filter Chips -->
+      <v-expand-transition>
+        <div v-if="activeFilterCount > 0" class="filter-active-chips">
+          <div class="d-flex align-center flex-wrap gap-2">
+            <v-icon size="16" class="text-medium-emphasis mr-1">mdi-filter-check</v-icon>
+            <span class="text-caption text-medium-emphasis font-weight-medium mr-2">Filter aktif:</span>
+            
+            <v-chip
+              v-if="selectedAlamat"
+              closable
+              size="small"
+              color="primary"
+              variant="tonal"
+              class="filter-chip"
+              @click:close="selectedAlamat = null"
+            >
+              <v-icon start size="14">mdi-map-marker</v-icon>
+              {{ selectedAlamat }}
+            </v-chip>
+            
+            <v-chip
+              v-if="selectedBrand"
+              closable
+              size="small"
+              color="deep-purple"
+              variant="tonal"
+              class="filter-chip"
+              @click:close="selectedBrand = null"
+            >
+              <v-icon start size="14">mdi-domain</v-icon>
+              {{ getBrandLabel(selectedBrand) }}
+            </v-chip>
+            
+            <v-chip
+              v-if="selectedLayanan"
+              closable
+              size="small"
+              color="teal"
+              variant="tonal"
+              class="filter-chip"
+              @click:close="selectedLayanan = null"
+            >
+              <v-icon start size="14">mdi-wifi</v-icon>
+              {{ selectedLayanan }}
+            </v-chip>
+            
+            <v-chip
+              v-if="selectedConnectionStatus"
+              closable
+              size="small"
+              color="orange"
+              variant="tonal"
+              class="filter-chip"
+              @click:close="selectedConnectionStatus = null"
+            >
+              <v-icon start size="14">mdi-lan-connect</v-icon>
+              {{ selectedConnectionStatus === 'configured' ? 'Terkonfigurasi' : 'Belum Konfigurasi' }}
+            </v-chip>
+            
+            <v-chip
+              v-if="dateFrom || dateTo"
+              closable
+              size="small"
+              color="blue"
+              variant="tonal"
+              class="filter-chip"
+              @click:close="dateFrom = null; dateTo = null"
+            >
+              <v-icon start size="14">mdi-calendar-range</v-icon>
+              {{ dateFrom || '...' }} — {{ dateTo || '...' }}
+            </v-chip>
+
+            <v-btn
+              variant="text"
+              size="x-small"
+              color="error"
+              class="text-none ml-1"
+              @click="resetFilters"
+              prepend-icon="mdi-close-circle-outline"
+            >
+              Hapus Semua
+            </v-btn>
+          </div>
+        </div>
+      </v-expand-transition>
+
+      <!-- Advanced Filters Panel -->
+      <v-expand-transition>
+        <div v-show="showAdvancedFilters" class="filter-advanced-panel">
+          <v-divider class="mb-4"></v-divider>
+          
+          <div class="filter-grid">
+            <!-- Filter Alamat -->
+            <div class="filter-grid-item">
+              <label class="filter-label">
+                <v-icon size="16" class="mr-1">mdi-map-marker</v-icon>
+                Alamat
+              </label>
+              <v-select
+                v-model="selectedAlamat"
+                :items="alamatOptions"
+                placeholder="Semua alamat"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                class="filter-input"
+              ></v-select>
+            </div>
+
+            <!-- Filter Brand -->
+            <div class="filter-grid-item">
+              <label class="filter-label">
+                <v-icon size="16" class="mr-1">mdi-domain</v-icon>
+                Brand Provider
+              </label>
+              <v-select
+                v-model="selectedBrand"
+                :items="hargaLayananList"
+                item-title="brand"
+                item-value="id_brand"
+                placeholder="Semua brand"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                class="filter-input"
+              ></v-select>
+            </div>
+
+            <!-- Filter Layanan -->
+            <div class="filter-grid-item">
+              <label class="filter-label">
+                <v-icon size="16" class="mr-1">mdi-wifi</v-icon>
+                Paket Layanan
+              </label>
+              <v-select
+                v-model="selectedLayanan"
+                :items="layananOptions"
+                placeholder="Semua layanan"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                class="filter-input"
+              ></v-select>
+            </div>
+            
+            <!-- Filter Status Koneksi -->
+            <div class="filter-grid-item">
+              <label class="filter-label">
+                <v-icon size="16" class="mr-1">mdi-lan-connect</v-icon>
+                Status Koneksi
+              </label>
+              <v-select
+                v-model="selectedConnectionStatus"
+                :items="connectionStatusOptions"
+                item-title="label"
+                item-value="value"
+                placeholder="Semua status"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                class="filter-input"
+              ></v-select>
+            </div>
+
+            <!-- Filter Tanggal Instalasi - Date Range -->
+            <div class="filter-grid-item filter-grid-item-wide">
+              <label class="filter-label">
+                <v-icon size="16" class="mr-1">mdi-calendar-range</v-icon>
+                Tanggal Instalasi
+              </label>
+              <div class="d-flex gap-2 align-center">
+                <v-text-field
+                  v-model="dateFrom"
+                  type="date"
+                  label="Dari"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  clearable
+                  class="filter-input"
+                ></v-text-field>
+                <v-icon size="18" class="text-medium-emphasis flex-shrink-0">mdi-arrow-right</v-icon>
+                <v-text-field
+                  v-model="dateTo"
+                  type="date"
+                  label="Sampai"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  clearable
+                  class="filter-input"
+                ></v-text-field>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter Actions -->
+          <div class="filter-actions">
+            <v-btn
+              variant="text"
+              @click="resetFilters"
+              class="text-none"
+              prepend-icon="mdi-refresh"
+              color="medium-emphasis"
+              size="small"
+            >
+              Reset Semua Filter
+            </v-btn>
+          </div>
+        </div>
+      </v-expand-transition>
+    </v-card>
+
+    <!-- Data Table Card -->
+    <v-card class="data-table-card" elevation="0">
+      <div class="card-header">
+        <div class="d-flex align-center">
+          <div class="header-icon-wrapper">
+            <v-icon color="primary" size="20">mdi-format-list-bulleted-square</v-icon>
+          </div>
+          <span class="card-title ml-3">Daftar Pelanggan</span>
+        </div>
+        <v-chip color="primary" variant="tonal" size="small" class="count-chip">
+          <v-icon start size="small">mdi-account-multiple</v-icon>
+          {{ pelangganList.length }}
+        </v-chip>
+      </div>
+      
+      <v-expand-transition>
+        <div v-if="selectedPelanggan.length > 0" class="selection-toolbar">
+          <span class="font-weight-bold text-primary">{{ selectedPelanggan.length }} pelanggan terpilih</span>
+          <v-spacer></v-spacer>
+          <v-btn 
+            color="error" 
+            variant="tonal" 
+            prepend-icon="mdi-delete-sweep"
+            @click="deleteSelectedPelanggan"
+            size="small"
+          >
+            <span class="d-none d-sm-inline">Hapus Terpilih</span>
+            <span class="d-inline d-sm-none">Hapus</span>
+          </v-btn>
+        </div>
+      </v-expand-transition>
+
+      <div class="d-block d-md-none">
+        <div v-if="loading" class="px-4 py-4">
+          <SkeletonLoader type="list" :items="5" />
+        </div>
+        
+        <div v-else-if="pelangganList.length === 0" class="no-data-wrapper">
+          <v-icon size="64" color="surface-variant">mdi-account-off</v-icon>
+          <div class="no-data-text">Belum ada data pelanggan</div>
+          <p class="text-medium-emphasis mt-2">Mulai dengan menambahkan pelanggan pertama Anda</p>
+          <v-btn 
+            color="primary" 
+            variant="elevated" 
+            @click="openDialog()" 
+            class="mt-6 text-none"
+            prepend-icon="mdi-account-plus"
+          >
+            Tambah Pelanggan
+          </v-btn>
+        </div>
+
+        <div v-else class="mobile-cards-container">
+          <v-card
+            v-for="item in paginatedPelanggan"
+            :key="item.id"
+            class="mobile-customer-card mb-3"
+            elevation="2"
+          >
+            <v-card-text class="pa-4">
+              <div class="d-flex align-center mb-3">
+                <v-checkbox
+                  v-model="selectedPelanggan"
+                  :value="item"
+                  hide-details
+                  class="me-3"
+                ></v-checkbox>
+                <div class="flex-grow-1">
+                  <h3 class="mobile-customer-name">{{ item.nama }}</h3>
+                  <p class="mobile-customer-email text-medium-emphasis">{{ item.email }}</p>
+                </div>
+              </div>
+
+              <!-- Customer Details -->
+              <div class="mobile-details">
+                <div class="detail-row">
+                  <v-icon size="small" class="me-2 text-medium-emphasis">mdi-card-account-details</v-icon>
+                  <span class="detail-label">No. KTP:</span>
+                  <span class="detail-value">{{ item.no_ktp }}</span>
+                </div>
+                <div class="detail-row">
+                  <v-icon size="small" class="me-2 text-medium-emphasis">mdi-map-marker</v-icon>
+                  <span class="detail-label">Alamat:</span>
+                  <span class="detail-value">{{ item.alamat }}</span>
+                </div>
+                <div v-if="item.alamat_custom" class="detail-row">
+                  <v-icon size="small" class="me-2 text-medium-emphasis">mdi-map-marker-outline</v-icon>
+                  <span class="detail-label">Alamat 2:</span>
+                  <span class="detail-value">{{ item.alamat_custom }}</span>
+                </div>
+                 <div class="detail-row">
+                  <v-icon size="small" class="me-2 text-medium-emphasis">mdi-home-variant</v-icon>
+                  <span class="detail-label">Blok/Unit:</span>
+                  <span class="detail-value">{{ item.blok }} / {{ item.unit }}</span>
+                </div>
+                <div class="detail-row">
+                  <v-icon size="small" class="me-2 text-medium-emphasis">mdi-phone</v-icon>
+                  <span class="detail-label">Telepon:</span>
+                  <span class="detail-value">{{ item.no_telp }}</span>
+                </div>
+                <div class="detail-row">
+                  <v-icon size="small" class="me-2 text-medium-emphasis">mdi-wifi</v-icon>
+                  <span class="detail-label">Layanan:</span>
+                  <span class="detail-value">{{ item.layanan }}</span>
+                </div>
+                <div class="detail-row">
+                  <v-icon size="small" class="me-2 text-medium-emphasis">mdi-domain</v-icon>
+                  <span class="detail-label">Brand:</span>
+                  <v-chip v-if="item.id_brand"
+                    size="small"
+                    :color="getBrandChipColor(item.id_brand)"
+                    variant="tonal"
+                    class="ml-2"
+                  >
+                    {{ getBrandLabel(item.id_brand) }}
+                  </v-chip>
+                  <span v-else class="detail-value text-medium-emphasis">N/A</span>
+                </div>
+                <div class="detail-row">
+                  <v-icon size="small" class="me-2 text-medium-emphasis">mdi-calendar</v-icon>
+                  <span class="detail-label">Instalasi:</span>
+                  <span class="detail-value">{{ formatDate(item.tgl_instalasi) }}</span>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="d-flex gap-2 mt-4">
+                <v-btn 
+                  size="small" 
+                  variant="tonal" 
+                  color="primary" 
+                  @click="openDialog(item)" 
+                  prepend-icon="mdi-pencil"
+                  class="flex-grow-1"
+                >
+                  Edit
+                </v-btn>
+                <v-btn 
+                  size="small" 
+                  variant="tonal" 
+                  color="error" 
+                  @click="openDeleteDialog(item)" 
+                  prepend-icon="mdi-delete"
+                  class="flex-grow-1"
+                >
+                  Hapus
+                </v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- Tombol Load More -->
+          <div v-if="hasMoreData" class="text-center pa-4">
+            <v-btn
+              variant="tonal"
+              color="primary"
+              @click="loadMore"
+              :loading="loadingMore"
+              class="text-none"
+            >
+              Muat Lebih Banyak
+            </v-btn>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Desktop Table -->
+      <div class="d-none d-md-block table-container">
+        <v-data-table
+          v-model="selectedPelanggan"
+          :headers="headers"
+          :items="pelangganList"
+          :loading="loading"
+          item-value="id"
+          class="elegant-table"
+          :server-items-length="totalPelangganCount"
+          :items-per-page="itemsPerPage"
+          hover
+          show-select
+          return-object
+          hide-default-footer
+        >
+
+          <template v-slot:loading>
+            <SkeletonLoader type="table" :rows="10" />
+          </template>
+
+          <template v-slot:item.nomor="{ index }">
+            {{ (desktopPage - 1) * itemsPerPage + index + 1 }}
+          </template>
+
+          <template v-slot:item.nama="{ item }">
+            <div class="customer-info">
+              <div class="customer-name">{{ item.nama }}</div>
+            </div>
+          </template>
+                    
+          <template v-slot:item.id_brand="{ item }">
+            <v-chip v-if="item.id_brand"
+              size="small"
+              :color="getBrandChipColor(item.id_brand)"
+              variant="tonal"
+              class="brand-chip"
+            >
+              <v-icon start size="small">mdi-wifi</v-icon>
+              {{ getBrandLabel(item.id_brand) }}
+            </v-chip>
+            <span v-else class="text-medium-emphasis">N/A</span>
+          </template>
+          
+          <template v-slot:item.tgl_instalasi="{ item }">
+            <div class="date-cell">
+              <v-icon size="small" class="mr-1">mdi-calendar</v-icon>
+              {{ formatDate(item.tgl_instalasi) }}
+            </div>
+          </template>
+          
+          <template v-slot:item.actions="{ item }">
+            <div class="action-buttons">
+              <v-btn 
+                size="small" 
+                variant="tonal" 
+                color="primary" 
+                @click="openDialog(item)" 
+                icon="mdi-pencil"
+                class="action-btn-small"
+              ></v-btn>
+              <v-btn 
+                size="small" 
+                variant="tonal" 
+                color="error" 
+                @click="openDeleteDialog(item)" 
+                icon="mdi-delete"
+                class="action-btn-small"
+              ></v-btn>
+            </div>
+          </template>
+          
+          <template v-slot:no-data>
+            <div class="no-data-wrapper">
+              <v-icon size="64" color="surface-variant">mdi-account-off</v-icon>
+              <div class="no-data-text">Belum ada data pelanggan</div>
+              <p class="text-medium-emphasis mt-2">Mulai dengan menambahkan pelanggan pertama Anda</p>
+              <v-btn 
+                color="primary" 
+                variant="elevated" 
+                @click="openDialog()" 
+                class="mt-6 text-none"
+                prepend-icon="mdi-account-plus"
+              >
+                Tambah Pelanggan
+              </v-btn>
+            </div>
+          </template>
+        </v-data-table>
+      </div>
+
+      <!-- Custom Pagination Controls untuk Desktop -->
+      <div class="d-none d-md-block pa-2">
+        <v-card class="pa-3">
+          <div class="d-flex align-center justify-space-between">
+            <!-- Total Count -->
+            <v-chip variant="outlined" color="primary" size="large">
+              Total: {{ totalPelangganCount }} pelanggan di server
+            </v-chip>
+
+            <!-- Custom Pagination -->
+            <div class="d-flex align-center">
+              <v-select
+                v-model="itemsPerPage"
+                :items="[5, 10, 15, 25, 50]"
+                variant="outlined"
+                density="compact"
+                hide-details
+                style="width: 80px"
+                class="mr-3"
+                @update:model-value="onItemsPerPageChange"
+              ></v-select>
+
+              <span class="text-body-2 mr-3">
+                {{ (desktopPage - 1) * itemsPerPage + 1 }}-{{ Math.min(desktopPage * itemsPerPage, totalPelangganCount) }} of {{ totalPelangganCount }}
+              </span>
+
+              <v-btn
+                icon="mdi-chevron-left"
+                variant="text"
+                :disabled="desktopPage === 1"
+                @click="goToPreviousPage"
+                class="mr-1"
+              ></v-btn>
+
+              <v-btn
+                icon="mdi-chevron-right"
+                variant="text"
+                :disabled="desktopPage >= Math.ceil(totalPelangganCount / itemsPerPage)"
+                @click="goToNextPage"
+              ></v-btn>
+            </div>
+          </div>
+        </v-card>
+      </div>
+    </v-card>
+
+    <!-- Dialogs (unchanged) -->
+    <v-dialog v-model="dialog" max-width="1000px" :fullscreen="display.mobile.value" persistent class="form-dialog">
+      <v-card class="form-card">
+        <div class="form-header">
+          <div class="form-header-content">
+            <v-icon class="mr-3" size="24">mdi-account-edit</v-icon>
+            <span class="form-title">{{ formTitle }}</span>
+          </div>
+          <v-btn
+            v-if="display.mobile.value"
+            icon
+            variant="text"
+            @click="closeDialog"
+            class="mobile-close-btn"
+          >
+            <v-icon color="white">mdi-close</v-icon>
+          </v-btn>
+        </div>
+        
+        <v-card-text class="form-content">
+          <v-form ref="form" v-model="isFormValid">
+            <v-stepper v-model="currentStep" flat class="elegant-stepper" :mobile="display.mobile.value">
+              <v-stepper-header class="stepper-header">
+                <v-stepper-item 
+                  title="Info Pribadi" 
+                  :value="1" 
+                  :complete="currentStep > 1" 
+                  color="primary"
+                ></v-stepper-item>
+                <v-divider class="stepper-divider"></v-divider>
+                <v-stepper-item 
+                  title="Alamat & Layanan" 
+                  :value="2" 
+                  color="primary"
+                ></v-stepper-item>
+              </v-stepper-header>
+              
+              <v-stepper-window class="stepper-content">
+                <v-stepper-window-item :value="1" class="step-content">
+                  <div class="step-header">
+                    <h3 class="step-title">Informasi Pribadi</h3>
+                    <p class="step-subtitle">Masukkan data pribadi pelanggan dengan lengkap</p>
+                  </div>
+                  
+                  <v-row class="form-row">
+                    <v-col cols="12" md="6">
+                      <div class="input-group">
+                        <label class="input-label">
+                          <v-icon size="small" class="mr-2">mdi-account</v-icon>
+                          Nama Lengkap
+                          <span class="required-flag text-error">*</span>
+                        </label>
+                        <v-text-field 
+                          v-model="editedItem.nama" 
+                          :rules="[rules.required]" 
+                          variant="outlined"
+                          class="elegant-input"
+                          density="comfortable"
+                        ></v-text-field>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" md="6">
+                      <div class="input-group">
+                        <label class="input-label">
+                          <v-icon size="small" class="mr-2">mdi-card-account-details</v-icon>
+                          Nomor KTP
+                          <span class="required-flag text-error">*</span>
+                        </label>
+                        <v-text-field 
+                          v-model="editedItem.no_ktp" 
+                          :rules="[rules.required, rules.ktp]" 
+                          variant="outlined" 
+                          counter="16"
+                          class="elegant-input"
+                          density="comfortable"
+                        ></v-text-field>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" md="6">
+                      <div class="input-group">
+                        <label class="input-label">
+                          <v-icon size="small" class="mr-2">mdi-email</v-icon>
+                          Email
+                          <span class="required-flag text-error">*</span>
+                        </label>
+                        <v-text-field 
+                          v-model="editedItem.email" 
+                          :rules="[rules.required, rules.email]" 
+                          variant="outlined"
+                          class="elegant-input"
+                          density="comfortable"
+                        ></v-text-field>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" md="6">
+                      <div class="input-group">
+                        <label class="input-label">
+                          <v-icon size="small" class="mr-2">mdi-phone</v-icon>
+                          Nomor Telepon
+                          <span class="required-flag text-error">*</span>
+                        </label>
+                        <v-text-field
+                          v-model="editedItem.no_telp"
+                          :rules="[rules.required, rules.phone]"
+                          variant="outlined"
+                          class="elegant-input"
+                          density="comfortable"
+                          @input="formatPhoneNumber"
+                        ></v-text-field>
+                      </div>
+                    </v-col>
+                  </v-row>
+                </v-stepper-window-item>
+                
+                <v-stepper-window-item :value="2" class="step-content">
+                  <div class="step-header">
+                    <h3 class="step-title">Alamat & Layanan</h3>
+                    <p class="step-subtitle">Lengkapi informasi alamat dan layanan pelanggan</p>
+                  </div>
+                  
+                  <v-row class="form-row">
+                    <v-col cols="12">
+                      <div class="input-group">
+                        <label class="input-label">
+                          <v-icon size="small" class="mr-2">mdi-map-marker</v-icon>
+                          Alamat Utama
+                          <span class="required-flag text-error">*</span>
+                        </label>
+                        <v-combobox
+                          v-model="editedItem.alamat"
+                          :items="alamatOptions"
+                          :rules="[rules.required]"
+                          variant="outlined"
+                          class="elegant-input"
+                          density="comfortable"
+                          placeholder="Pilih atau ketik alamat"
+                        ></v-combobox>
+                        </div>
+                    </v-col>
+                    <v-col cols="12">
+                      <div class="input-group">
+                        <label class="input-label">
+                          <v-icon size="small" class="mr-2">mdi-map-marker-outline</v-icon>
+                          Alamat Tambahan (Opsional)
+                        </label>
+                        <v-text-field 
+                          v-model="editedItem.alamat_custom" 
+                          variant="outlined"
+                          class="elegant-input"
+                          density="comfortable"
+                        ></v-text-field>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" md="6">
+                      <div class="input-group">
+                        <label class="input-label">
+                          <v-icon size="small" class="mr-2">mdi-home-variant</v-icon>
+                          Blok
+                          <span class="required-flag text-error">*</span>
+                        </label>
+                        <v-combobox
+                          v-model="editedItem.blok" 
+                          :items="editedItem.alamat === 'Rusun Pulogebang' ? pulogebangBlokOptions : []"
+                          :rules="[rules.required]" 
+                          variant="outlined"
+                          class="elegant-input"
+                          density="comfortable"
+                          placeholder="Pilih atau ketik Blok/Tower"
+                        ></v-combobox>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" md="6">
+                      <div class="input-group">
+                        <label class="input-label">
+                          <v-icon size="small" class="mr-2">mdi-door</v-icon>
+                          Unit
+                          <span class="required-flag text-error">*</span>
+                        </label>
+                        <v-text-field 
+                          v-model="editedItem.unit" 
+                          :rules="[rules.required]" 
+                          variant="outlined"
+                          class="elegant-input"
+                          density="comfortable"
+                        ></v-text-field>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" md="4">
+                      <div class="input-group">
+                        <label class="input-label">
+                          <v-icon size="small" class="mr-2">mdi-calendar</v-icon>
+                          Tanggal Instalasi
+                        </label>
+                        <v-text-field 
+                          v-model="editedItem.tgl_instalasi" 
+                          type="date" 
+                          variant="outlined"
+                          class="elegant-input"
+                          density="comfortable"
+                        ></v-text-field>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" md="4">
+                      <div class="input-group">
+                        <label class="input-label">
+                          <v-icon size="small" class="mr-2">mdi-wifi</v-icon>
+                          Layanan
+                          <span class="required-flag text-error">*</span>
+                        </label>
+                        <v-select
+                          v-model="editedItem.layanan"
+                          :items="layananOptions"
+                          variant="outlined"
+                          class="elegant-input"
+                          density="comfortable"
+                        ></v-select>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" md="4">
+                      <div class="input-group">
+                        <label class="input-label">
+                          <v-icon size="small" class="mr-2">mdi-domain</v-icon>
+                          Brand Provider
+                          <span class="required-flag text-error">*</span>
+                        </label>
+                        <v-select 
+                          v-model="editedItem.id_brand" 
+                          :items="hargaLayananList" 
+                          item-title="brand" 
+                          item-value="id_brand" 
+                          variant="outlined"
+                          class="elegant-input"
+                          density="comfortable"
+                        ></v-select>
+                      </div>
+                    </v-col>
+                  </v-row>
+                </v-stepper-window-item>
+              </v-stepper-window>
+            </v-stepper>
+          </v-form>
+        </v-card-text>
+        
+        <v-card-actions class="form-actions">
+          <v-btn 
+            v-if="currentStep > 1" 
+            @click="currentStep--" 
+            variant="text"
+            class="nav-btn"
+            prepend-icon="mdi-arrow-left"
+          >
+            Kembali
+          </v-btn>
+          <v-spacer></v-spacer>
+          <v-btn
+            v-if="!display.mobile.value"
+            @click="closeDialog" 
+            variant="text" 
+            class="nav-btn"
+          >
+            Batal
+          </v-btn>
+          <v-btn 
+            v-if="currentStep < 2" 
+            @click="currentStep++" 
+            color="primary"
+            class="nav-btn"
+            append-icon="mdi-arrow-right"
+          >
+            Lanjut
+          </v-btn>
+          <v-btn 
+            v-else 
+            @click="savePelanggan" 
+            :loading="saving" 
+            :disabled="!isFormValid" 
+            color="primary" 
+            variant="elevated"
+            class="save-btn"
+            prepend-icon="mdi-content-save"
+          >
+            Simpan
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Delete Dialog -->
+    <v-dialog v-model="dialogDelete" max-width="500px" class="delete-dialog">
+      <v-card class="delete-card">
+        <div class="delete-header">
+          <v-icon class="mr-3">mdi-delete-alert</v-icon>
+          <span class="delete-title">Konfirmasi Hapus</span>
+        </div>
+        
+        <v-card-text class="delete-content">
+          <div class="delete-message">
+            <v-icon size="72" color="warning" class="mb-4">mdi-alert-circle-outline</v-icon>
+            <p class="delete-text">
+              Anda yakin ingin menghapus pelanggan 
+              <strong class="customer-name-delete">{{ itemToDelete?.nama }}</strong>?
+            </p>
+            <p class="delete-warning">Tindakan ini tidak dapat dibatalkan!</p>
+          </div>
+        </v-card-text>
+        
+        <v-card-actions class="delete-actions">
+          <v-spacer></v-spacer>
+          <v-btn 
+            @click="closeDeleteDialog" 
+            variant="text"
+            class="cancel-btn"
+          >
+            Batal
+          </v-btn>
+          <v-btn 
+            @click="confirmDelete"  
+            :loading="deleting" 
+            color="error" 
+            variant="elevated"
+            class="delete-btn"
+            prepend-icon="mdi-delete"
+          >
+            Ya, Hapus
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Bulk Delete Dialog -->
+    <v-dialog v-model="dialogBulkDelete" max-width="500px" class="delete-dialog">
+      <v-card class="delete-card">
+        <div class="delete-header">
+          <v-icon class="mr-3">mdi-delete-sweep-outline</v-icon>
+          <span class="delete-title">Konfirmasi Hapus Massal</span>
+        </div>
+
+        <v-card-text class="delete-content">
+          <div class="delete-message">
+            <v-icon size="72" color="warning" class="mb-4">mdi-alert-circle-outline</v-icon>
+            <p class="delete-text">
+              Anda yakin ingin menghapus 
+              <strong>{{ selectedPelanggan.length }} pelanggan</strong> yang dipilih?
+            </p>
+            <p class="delete-warning">Tindakan ini tidak dapat dibatalkan!</p>
+          </div>
+        </v-card-text>
+
+        <v-card-actions class="delete-actions">
+          <v-spacer></v-spacer>
+            <v-btn 
+              @click="dialogBulkDelete = false" 
+              variant="text"
+              class="cancel-btn"
+            >
+              Batal
+            </v-btn>
+            <v-btn
+              @click="confirmBulkDelete"
+              :loading="deleting"
+              color="error"
+              variant="elevated"
+              class="delete-btn"
+              prepend-icon="mdi-delete"
+            >
+              Ya, Hapus
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+    </v-dialog>
+
+    <!-- Import Dialog -->
+    <v-dialog v-model="dialogImport" max-width="900px" :fullscreen="display.mobile.value" persistent class="import-dialog">
+      <v-card class="import-card overflow-hidden">
+        <div class="import-header-gradient">
+          <div class="d-flex align-center pa-6">
+            <v-avatar color="white" size="48" class="elevation-4 me-4">
+              <v-icon color="success" size="28">mdi-file-upload-outline</v-icon>
+            </v-avatar>
+            <div class="flex-grow-1">
+              <h2 class="text-h5 font-weight-bold text-white mb-1">Import Data Pelanggan</h2>
+              <p class="text-body-2 text-white mb-0" style="opacity: 0.9;">Pilih file CSV untuk menambahkan data secara massal</p>
+            </div>
+            <v-btn
+              icon="mdi-close"
+              variant="text"
+              color="white"
+              @click="closeImportDialog"
+              size="small"
+              class="close-button-import"
+            ></v-btn>
+          </div>
+        </div>
+
+        <v-card-text class="import-content pa-6">
+          <v-row>
+            <v-col cols="12" md="5" class="border-right-md pe-md-6">
+              <div class="step-guide mb-6">
+                <h3 class="text-subtitle-1 font-weight-bold mb-4 d-flex align-center">
+                  <v-avatar color="success" size="24" class="me-2 text-caption">1</v-avatar>
+                  Persiapkan File
+                </h3>
+                <p class="text-body-2 text-medium-emphasis mb-4">
+                  Pastikan file CSV Anda menggunakan format yang benar. Kami menyarankan untuk mengunduh template terlebih dahulu.
+                </p>
+                <v-hover v-slot="{ isHovering, props }">
+                  <v-card
+                    v-bind="props"
+                    :elevation="isHovering ? 4 : 1"
+                    variant="outlined"
+                    class="template-download-card pa-4 mb-4 cursor-pointer"
+                    @click="downloadCsvTemplate"
+                    :loading="downloadingTemplate"
+                    border-color="success-lighten-4"
+                  >
+                    <div class="d-flex align-center">
+                      <v-icon color="success" size="32" class="me-3">mdi-file-excel-outline</v-icon>
+                      <div class="flex-grow-1">
+                        <div class="text-subtitle-2 font-weight-bold">Template_Pelanggan.csv</div>
+                        <div class="text-caption text-medium-emphasis">Klik untuk mengunduh</div>
+                      </div>
+                      <v-icon color="success">mdi-download</v-icon>
+                    </div>
+                  </v-card>
+                </v-hover>
+                
+                <div class="format-info pa-3 rounded-lg bg-surface-variant">
+                  <div class="text-caption font-weight-bold mb-1">Format Kolom:</div>
+                  <div class="text-caption text-medium-emphasis">
+                    nama, email, no_ktp, no_telp, alamat, blok, unit, tgl_instalasi, layanan, id_brand
+                  </div>
+                </div>
+              </div>
+            </v-col>
+
+            <v-col cols="12" md="7" class="ps-md-6">
+              <div class="step-guide">
+                <h3 class="text-subtitle-1 font-weight-bold mb-4 d-flex align-center">
+                  <v-avatar color="success" size="24" class="me-2 text-caption">2</v-avatar>
+                  Unggah File
+                </h3>
+                
+                <div 
+                  class="simple-dropzone"
+                  :class="{ 'dropzone-active': fileToImport.length > 0 }"
+                  @click="triggerFileSelect"
+                >
+                  <v-file-input
+                    ref="fileInputRef"
+                    :model-value="fileToImport"
+                    @update:model-value="handleFileSelection"
+                    accept=".csv"
+                    class="d-none"
+                  ></v-file-input>
+                  
+                  <template v-if="fileToImport.length === 0">
+                    <v-icon size="48" color="success" class="mb-3 opacity-60">mdi-cloud-upload-outline</v-icon>
+                    <div class="text-subtitle-1 font-weight-bold">Klik untuk Pilih File</div>
+                    <div class="text-caption text-medium-emphasis">Hanya mendukung format .CSV</div>
+                  </template>
+                  <template v-else>
+                    <v-icon size="48" color="success" class="mb-3">mdi-file-check-outline</v-icon>
+                    <div class="text-subtitle-1 font-weight-bold text-success">{{ fileToImport[0].name }}</div>
+                    <div class="text-caption text-medium-emphasis">{{ (fileToImport[0].size / 1024).toFixed(2) }} KB</div>
+                    <v-btn
+                      variant="text"
+                      color="error"
+                      size="small"
+                      class="mt-2 text-none"
+                      @click.stop="fileToImport = []"
+                    >
+                      Hapus & Ganti
+                    </v-btn>
+                  </template>
+                </div>
+              </div>
+            </v-col>
+          </v-row>
+
+          <v-expand-transition>
+            <div v-if="importErrors.length > 0" class="mt-6">
+              <v-alert
+                type="error"
+                variant="tonal"
+                prominent
+                border="start"
+                class="error-alert rounded-xl pa-4"
+              >
+                <template v-slot:title>
+                  <div class="d-flex justify-space-between align-center">
+                    <span class="font-weight-bold">Terjadi Kesalahan</span>
+                    <v-chip color="error" size="small" class="font-weight-bold">
+                      {{ importErrors.length }} Baris Bermasalah
+                    </v-chip>
+                  </div>
+                </template>
+
+                <div class="error-list mt-4">
+                  <v-virtual-scroll
+                    :items="importErrors"
+                    height="120"
+                    class="rounded-lg bg-surface-variant overflow-y-auto"
+                  >
+                    <template v-slot:default="{ item, index }">
+                      <div class="error-item-modern d-flex align-start pa-2 border-bottom">
+                        <v-icon size="16" color="error" class="me-2 mt-1">mdi-alert-circle</v-icon>
+                        <span class="text-caption">{{ item }}</span>
+                      </div>
+                    </template>
+                  </v-virtual-scroll>
+                </div>
+              </v-alert>
+            </div>
+          </v-expand-transition>
+        </v-card-text>
+
+        <v-divider></v-divider>
+
+        <v-card-actions class="pa-6 bg-grey-lighten-5">
+          <v-btn
+            variant="text"
+            @click="closeImportDialog"
+            class="px-6 text-none font-weight-medium rounded-lg"
+          >
+            Batal
+          </v-btn>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="success"
+            variant="elevated"
+            @click="importFromCsv"
+            :loading="importing"
+            :disabled="fileToImport.length === 0"
+            prepend-icon="mdi-upload"
+            class="px-8 text-none font-weight-bold rounded-lg elevation-4 import-cta-btn"
+          >
+            Mulai Import Sekarang
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Snackbar -->
+    <v-snackbar 
+      v-model="snackbar.show" 
+      :color="snackbar.color" 
+      :timeout="4000" 
+      location="top right"
+      class="enhanced-snackbar"
+    >
+      <div class="d-flex align-center">
+        <v-icon class="mr-2">
+          {{ snackbar.color === 'success' ? 'mdi-check-circle' : 
+             snackbar.color === 'error' ? 'mdi-alert-circle' : 'mdi-information' }}
+        </v-icon>
+        {{ snackbar.text }}
+      </div>
+    </v-snackbar>
+  </v-container>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, computed, watch, nextTick } from 'vue';
+import { useDisplay } from 'vuetify';
+import apiClient from '@/services/api';
+import type { Pelanggan as BasePelanggan } from '@/interfaces/pelanggan';
+import { debounce } from 'lodash-es';
+import SkeletonLoader from '@/components/SkeletonLoader.vue';
+
+// --- VUETIFY DISPLAY ---
+const display = useDisplay();
+
+// --- INTERFACES ---
+interface HargaLayanan {
+  id_brand: string;
+  brand: string;
+}
+interface Pelanggan extends BasePelanggan {
+  alamat_custom?: string | null;
+  id_brand?: string | null;
+  harga_layanan?: HargaLayanan | null;
+}
+
+// --- STATE MANAGEMENT ---
+const pelangganList = ref<Pelanggan[]>([]);
+const totalPelangganCount = ref(0); // Total count of customers in database
+const hargaLayananList = ref<HargaLayanan[]>([]);
+const loading = ref(true);
+const saving = ref(false);
+const deleting = ref(false);
+const dialog = ref(false);
+const dialogDelete = ref(false);
+const dialogBulkDelete = ref(false);
+const editedIndex = ref(-1);
+const currentStep = ref(1);
+const isFormValid = ref(false);
+const selectedPelanggan = ref<any[]>([]);
+
+const dialogImport = ref(false);
+const importing = ref(false);
+const exporting = ref(false);
+const downloadingTemplate = ref(false);
+const fileToImport = ref<File[]>([]);
+const importErrors = ref<string[]>([]);
+const fileInputRef = ref<any>(null);
+
+function triggerFileSelect() {
+  fileInputRef.value?.click();
+}
+
+const searchQuery = ref('');
+const selectedAlamat = ref<string | null>(null);
+const selectedBrand = ref<string | null>(null);
+const selectedLayanan = ref<string | null>(null);
+const selectedConnectionStatus = ref<string | null>(null);
+const dateFrom = ref<string | null>(null);
+const dateTo = ref<string | null>(null);
+const showAdvancedFilters = ref(false);
+
+const connectionStatusOptions = ref([
+  { label: 'Terkonfigurasi (Ada Data Teknis)', value: 'configured' },
+  { label: 'Belum Konfigurasi (Belum Ada Data Teknis)', value: 'unconfigured' },
+]);
+
+const activeFilterCount = computed(() => {
+  let count = 0;
+  if (selectedAlamat.value) count++;
+  if (selectedBrand.value) count++;
+  if (selectedLayanan.value) count++;
+  if (selectedConnectionStatus.value) count++;
+  if (dateFrom.value || dateTo.value) count++;
+  return count;
+});
+
+// --- State Baru untuk Paginasi Mobile dan Desktop ---
+const mobilePage = ref(1);
+const desktopPage = ref(1);
+const itemsPerPage = ref(10);
+const hasMoreData = ref(true);
+const loadingMore = ref(false);
+
+const defaultItem: Partial<Pelanggan> = { 
+  id: undefined, 
+  nama: '', 
+  no_ktp: '', 
+  email: '', 
+  no_telp: '', 
+  layanan: '',
+  alamat: '', 
+  blok: '', 
+  unit: '', 
+  tgl_instalasi: new Date().toISOString().split('T')[0], 
+  alamat_custom: '',
+  id_brand: null
+};
+const editedItem = ref<Partial<Pelanggan>>({ ...defaultItem });
+const itemToDelete = ref<Pelanggan | null>(null);
+const snackbar = ref({ show: false, text: '', color: 'success' as 'success' | 'error' | 'warning' });
+
+
+const alamatOptions = ref([
+  'Tambun',
+  'Rusun Pinus Elok',
+  'Luar Pinus Elok',
+  'Rusun Pulogebang',
+  'Rusun Cakung KM2',
+  'Rusun Tipar Cakung',
+  'Rusun Albo',
+  'Rusun Nagrak',
+  'Waringin',
+  'Parama'
+]);
+
+const layananOptions = ref([
+  'Internet 10 Mbps',
+  'Internet 20 Mbps',
+  'Internet 30 Mbps',
+  'Internet 50 Mbps'
+]);
+
+const pulogebangBlokOptions = [
+  'Tower',
+  'A',
+  'B',
+  'C',
+  'D',
+  'E',
+  'F',
+  'G',
+  'H'
+];
+
+// --- VALIDATION RULES ---
+const rules = {
+  required: (value: any) => !!value || 'Field ini wajib diisi',
+  email: (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || 'Format email tidak valid',
+  phone: (value: string) => /^[\+]?[0-9\s\(\)]{10,}$/.test(value) || 'Format nomor telepon tidak valid. Nomor telepon tidak boleh mengandung karakter "-"',
+  ktp: (value: string) => (value && value.length === 16 && /^[0-9]+$/.test(value)) || 'Nomor KTP harus 16 digit angka',
+};
+
+// --- TABLE HEADERS ---
+const headers = [
+  { title: 'No', key: 'nomor', sortable: false, align: 'center', width: '60px' },
+  { title: 'Pelanggan', key: 'nama', sortable: true, minWidth: '160px' },
+  { title: 'No. KTP', key: 'no_ktp', sortable: true },
+  { title: 'Email', key: 'email', sortable: true },
+  { title: 'Alamat', key: 'alamat', sortable: false },
+  { title: 'Alamat Tambahan', key: 'alamat_custom', sortable: false },
+  { title: 'Blok', key: 'blok', sortable: false },
+  { title: 'Unit', key: 'unit', sortable: false },
+  { title: 'No. Telepon', key: 'no_telp', sortable: false },
+  { title: 'Layanan', key: 'layanan', sortable: false },
+  { title: 'Brand', key: 'id_brand', sortable: true },
+  { title: 'Tgl Instalasi', key: 'tgl_instalasi', align: 'center', sortable: true },
+  { title: 'Aksi', key: 'actions', sortable: false, align: 'center', width: '120px' },
+] as const;
+
+// --- COMPUTED PROPERTIES ---
+const formTitle = computed(() => editedIndex.value === -1 ? 'Tambah Pelanggan Baru' : 'Edit Pelanggan');
+
+const paginatedPelanggan = computed(() => {
+  if (pelangganList.value.length === 0) return [];
+  return pelangganList.value;
+});
+
+
+
+// --- LIFECYCLE HOOK ---
+onMounted(() => {
+  fetchPelanggan();
+  fetchHargaLayanan();
+});
+
+// --- DELETE FUNCTIONS ---
+function deleteSelectedPelanggan() {
+  if (selectedPelanggan.value.length === 0) {
+    showSnackbar('Tidak ada pelanggan yang dipilih.', 'warning');
+    return;
+  }
+  dialogBulkDelete.value = true;
+}
+
+async function confirmBulkDelete() {
+  const itemsToDelete = [...selectedPelanggan.value];
+  deleting.value = true;
+
+  try {
+    const deletePromises = itemsToDelete.map(pelanggan =>
+      apiClient.delete(`/pelanggan/${pelanggan.id}`)
+    );
+
+    await Promise.all(deletePromises);
+    showSnackbar(`${itemsToDelete.length} pelanggan berhasil dihapus.`, 'success');
+    await fetchPelanggan();
+    selectedPelanggan.value = [];
+
+  } catch (error) {
+    console.error("Gagal melakukan hapus massal:", error);
+    showSnackbar('Terjadi kesalahan saat menghapus data.', 'error');
+  } finally {
+    deleting.value = false;
+    dialogBulkDelete.value = false;
+  }
+}
+
+async function fetchPelanggan(isLoadMore = false, preservePage = false) {
+  if (isLoadMore) {
+    loadingMore.value = true;
+  } else {
+    loading.value = true;
+    // Reset pagination untuk kedua mode (mobile dan desktop) saat bukan load more
+    if (!preservePage) {
+      mobilePage.value = 1;
+      desktopPage.value = 1;
+    }
+    hasMoreData.value = true;
+  }
+
+  try {
+    const params = new URLSearchParams();
+    if (searchQuery.value) {
+      params.append('search', searchQuery.value);
+    }
+    if (selectedAlamat.value) {
+      params.append('alamat', selectedAlamat.value);
+    }
+    if (selectedBrand.value) {
+      params.append('id_brand', selectedBrand.value);
+    }
+    if (selectedLayanan.value) {
+      params.append('layanan', selectedLayanan.value);
+    }
+    if (selectedConnectionStatus.value) {
+      params.append('connection_status', selectedConnectionStatus.value);
+    }
+    if (dateFrom.value) {
+      params.append('tgl_instalasi_from', dateFrom.value);
+    }
+    if (dateTo.value) {
+      params.append('tgl_instalasi_to', dateTo.value);
+    }
+
+    // Gunakan page yang sesuai tergantung apakah sedang load more (mobile) atau tidak (desktop)
+    const currentPage = isLoadMore ? mobilePage.value : desktopPage.value;
+    const skip = (currentPage - 1) * itemsPerPage.value;
+    params.append('skip', String(skip));
+    params.append('limit', String(itemsPerPage.value));
+    params.append('use_minimal_loading', 'true');
+
+    // Fetch data with total count (the backend already returns this in the response)
+    const response = await apiClient.get(`/pelanggan?${params.toString()}`);
+    
+    // Check if the response has the expected structure with data and total_count
+    let newData, totalCount;
+    if (response.data && response.data.data && response.data.total_count !== undefined) {
+      // Response has the expected structure from backend
+      newData = response.data.data;
+      totalCount = response.data.total_count;
+    } else {
+      // Fallback: if response doesn't have expected structure, treat as before
+      newData = response.data;
+      totalCount = newData.length; // This is not accurate but provides fallback
+    }
+
+    if (isLoadMore) {
+      pelangganList.value.push(...newData);
+    } else {
+      pelangganList.value = newData;
+    }
+
+    // Update the total count
+    if (!isLoadMore) {
+      totalPelangganCount.value = totalCount;
+    }
+
+    if (newData.length < itemsPerPage.value) {
+      hasMoreData.value = false;
+    }
+
+  } catch (error) { 
+    console.error("Gagal mengambil data pelanggan:", error);
+    showSnackbar('Gagal mengambil data pelanggan', 'error');
+  } finally { 
+    loading.value = false; 
+    loadingMore.value = false;
+  }
+}
+
+function loadMore() {
+  mobilePage.value++;
+  fetchPelanggan(true);
+}
+
+
+function onItemsPerPageChange(newItemsPerPage: number) {
+  itemsPerPage.value = newItemsPerPage;
+  desktopPage.value = 1; // Reset ke halaman pertama saat mengubah items per page
+  fetchPelanggan();
+}
+
+// Custom pagination functions
+function goToPreviousPage() {
+  if (desktopPage.value > 1) {
+    desktopPage.value = desktopPage.value - 1;
+    fetchPelanggan(false, true); // preserve current page
+  }
+}
+
+async function goToNextPage() {
+  const maxPage = Math.ceil(totalPelangganCount.value / itemsPerPage.value);
+  if (desktopPage.value < maxPage) {
+    desktopPage.value = desktopPage.value + 1;
+    await nextTick();
+    fetchPelanggan(false, true); // preserve current page
+  }
+}
+
+const applyFilters = debounce(() => {
+  fetchPelanggan();
+}, 500);
+
+watch([searchQuery, selectedAlamat, selectedBrand, selectedLayanan, selectedConnectionStatus, dateFrom, dateTo], () => {
+  applyFilters();
+});
+
+function resetFilters() {
+  searchQuery.value = '';
+  selectedAlamat.value = null;
+  selectedBrand.value = null;
+  selectedLayanan.value = null;
+  selectedConnectionStatus.value = null;
+  dateFrom.value = null;
+  dateTo.value = null;
+}
+
+function getBrandLabel(brandId: string): string {
+  const brand = hargaLayananList.value.find(b => b.id_brand === brandId);
+  return brand ? brand.brand : brandId;
+}
+
+function handleFileSelection(newFiles: File | File[]) {
+  importErrors.value = [];
+
+  if (Array.isArray(newFiles)) {
+    fileToImport.value = newFiles;
+  } else if (newFiles) {
+    fileToImport.value = [newFiles];
+  } else {
+    fileToImport.value = [];
+  }
+}
+
+async function fetchHargaLayanan() {
+  try {
+    const response = await apiClient.get('/harga_layanan');
+    hargaLayananList.value = response.data;
+  } catch (error) { 
+    console.error("Gagal mengambil data harga layanan:", error);
+  }
+}
+
+function openDialog(item?: Pelanggan) {
+  editedIndex.value = item ? pelangganList.value.findIndex(p => p.id === item.id) : -1;
+  const targetItem = item ? { ...item } : { ...defaultItem };
+  if (targetItem.tgl_instalasi) {
+    targetItem.tgl_instalasi = new Date(targetItem.tgl_instalasi).toISOString().split('T')[0];
+  }
+  editedItem.value = targetItem;
+  currentStep.value = 1;
+  dialog.value = true;
+}
+
+function closeDialog() {
+  dialog.value = false;
+  editedItem.value = { ...defaultItem };
+  editedIndex.value = -1;
+  currentStep.value = 1;
+}
+
+async function savePelanggan() {
+  if (!isFormValid.value) return;
+  saving.value = true;
+  try {
+    if (editedIndex.value > -1) {
+      await apiClient.patch(`/pelanggan/${editedItem.value.id}`, editedItem.value);
+      showSnackbar('Data pelanggan berhasil diperbarui', 'success');
+    } else {
+      await apiClient.post('/pelanggan', editedItem.value);
+      showSnackbar('Data pelanggan berhasil ditambahkan', 'success');
+    }
+    await fetchPelanggan();
+    closeDialog();
+  } catch (error: any) {
+    console.error("Gagal menyimpan data pelanggan:", error);
+    const msg = error.response?.data?.error || 'Gagal menyimpan data pelanggan';
+    showSnackbar(msg, 'error');
+  } finally {
+    saving.value = false;
+  }
+}
+
+function openDeleteDialog(item: Pelanggan) {
+  itemToDelete.value = item;
+  dialogDelete.value = true;
+}
+
+function closeDeleteDialog() {
+  dialogDelete.value = false;
+  itemToDelete.value = null;
+}
+
+async function confirmDelete() {
+  if (!itemToDelete.value) return;
+  deleting.value = true;
+  try {
+    await apiClient.delete(`/pelanggan/${itemToDelete.value.id}`);
+    await fetchPelanggan();
+    showSnackbar('Data pelanggan berhasil dihapus', 'success');
+    closeDeleteDialog();
+  } catch (error) {
+    console.error("Gagal menghapus data pelanggan:", error);
+    showSnackbar('Gagal menghapus data pelanggan', 'error');
+  } finally {
+    deleting.value = false;
+  }
+}
+
+// --- IMPORT/EXPORT METHODS ---
+function closeImportDialog() {
+  dialogImport.value = false;
+  importing.value = false;
+  fileToImport.value = [];
+  importErrors.value = [];
+}
+
+async function downloadCsvTemplate() {
+  downloadingTemplate.value = true;
+  try {
+    const response = await apiClient.get('/pelanggan/template/csv', { responseType: 'blob' });
+    downloadFile(response.data, 'template_import_pelanggan.csv');
+  } catch (error) {
+    console.error("Gagal mengunduh template:", error);
+    showSnackbar('Gagal mengunduh template.', 'error');
+  } finally {
+    downloadingTemplate.value = false;
+  }
+}
+
+async function exportData(format = 'csv') {
+  exporting.value = true;
+  try {
+    // Bangun URL dengan parameter filter agar export mengikuti filter yang sedang aktif
+    const params = new URLSearchParams();
+    if (searchQuery.value) {
+      params.append('search', searchQuery.value);
+    }
+    if (selectedAlamat.value) {
+      params.append('alamat', selectedAlamat.value);
+    }
+    if (selectedBrand.value) {
+      params.append('id_brand', selectedBrand.value);
+    }
+    if (selectedLayanan.value) {
+      params.append('layanan', selectedLayanan.value);
+    }
+    if (selectedConnectionStatus.value) {
+      params.append('connection_status', selectedConnectionStatus.value);
+    }
+    if (dateFrom.value) {
+      params.append('tgl_instalasi_from', dateFrom.value);
+    }
+    if (dateTo.value) {
+      params.append('tgl_instalasi_to', dateTo.value);
+    }
+    // Tambahkan parameter untuk format export
+    params.append('format', format);
+
+    const queryString = params.toString();
+    const exportUrl = `/pelanggan/export${queryString ? '?' + queryString : ''}`;
+
+    const response = await apiClient.get(exportUrl, { responseType: 'blob' });
+    const date = new Date().toISOString().split('T')[0];
+    const fileExtension = format === 'excel' ? 'xlsx' : 'csv';
+    downloadFile(response.data, `export_pelanggan_${date}.${fileExtension}`);
+  } catch (error) {
+    console.error("Gagal mengekspor data:", error);
+    showSnackbar('Tidak ada data untuk diekspor atau terjadi kesalahan.', 'error');
+  } finally {
+    exporting.value = false;
+  }
+}
+
+async function importFromCsv() {
+  const file = fileToImport.value[0]; 
+
+  if (!file) {
+    showSnackbar('Silakan pilih file CSV terlebih dahulu.', 'warning');
+    return;
+  }
+
+  importing.value = true;
+  importErrors.value = []; // Selalu bersihkan error lama
+  
+  const formData = new FormData();
+  formData.append('file', file); 
+  
+  try {
+    const response = await apiClient.post('/pelanggan/import', formData);
+    showSnackbar(response.data.message, 'success');
+    await fetchPelanggan();
+    closeImportDialog();
+
+  } catch (error: any) {
+    
+    console.error("Gagal mengimpor data:", error);
+    if (error.response?.data?.errors) {
+      // Jika backend mengirimkan daftar error yang spesifik secara langsung
+      importErrors.value = error.response.data.errors;
+    } else if (error.response?.data?.detail) {
+      // Jika backend mengirimkan lewat HTTPException detail
+      const detailMsg = error.response.data.detail;
+      if (typeof detailMsg === 'string') {
+        importErrors.value = [detailMsg];
+      } else if (typeof detailMsg === 'object' && detailMsg.errors && Array.isArray(detailMsg.errors)) {
+        // Tangkap isi detail.errors dari bulk_import service
+        importErrors.value = detailMsg.errors;
+      } else {
+        importErrors.value = ["Terjadi kesalahan yang tidak diketahui."];
+      }
+    } else {
+      // Fallback untuk error jaringan atau lainnya
+      importErrors.value = ["Tidak dapat terhubung ke server atau terjadi error."];
+    }
+  } finally {
+    importing.value = false;
+  }
+}
+// --- HELPER FUNCTIONS ---
+function downloadFile(blobData: any, filename: string) {
+  const url = window.URL.createObjectURL(new Blob([blobData]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
+function getBrandChipColor(idBrand: string): string {
+  const brand = hargaLayananList.value.find(b => b.id_brand === idBrand);
+  const brandName = brand?.brand || '';
+
+  if (brandName.includes('JAKINET')) return 'blue';
+  if (brandName.includes('JELANTIK')) return 'purple';
+  if (brandName.includes('JELANTIK NAGRAK')) return 'emerald';
+  return 'grey';
+}
+
+function formatDate(date: string | Date | null): string {
+  if (!date) return '-';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '-';
+  const offset = d.getTimezoneOffset();
+  const correctedDate = new Date(d.getTime() + (offset * 60 * 1000));
+  return correctedDate.toLocaleDateString('id-ID', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+}
+
+function formatPhoneNumber() {
+  if (editedItem.value.no_telp) {
+    editedItem.value.no_telp = editedItem.value.no_telp.replace(/-/g, '');
+  }
+}
+
+function showSnackbar(text: string, color: 'success' | 'error' | 'warning') {
+  snackbar.value = { show: true, text, color };
+}
+</script>
+
+<style scoped>
+/* ============================================
+   OPTIMIZED MOBILE-FIRST RESPONSIVE DESIGN
+   ============================================ */
+
+/* Base Styles */
+.modern-app {
+  background-color: rgb(var(--v-theme-background));
+}
+
+/* Header Card - Mobile Optimized - REDUCED SHADOW */
+.header-card {
+  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
+  border-radius: 20px;
+  padding: 24px;
+  color: rgb(var(--v-theme-on-primary));
+  box-shadow: 0 2px 8px rgba(var(--v-theme-primary), 0.15);
+}
+
+.header-card .d-flex.flex-column {
+  align-items: stretch !important; /* Changed from align-center to stretch */
+}
+
+.header-info {
+  width: 100%;
+  justify-content: flex-start;
+  margin-bottom: 0; /* Reset margin */
+}
+
+.header-avatar-wrapper {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.header-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.header-subtitle {
+  font-size: 0.95rem;
+  opacity: 0.85;
+  line-height: 1.3;
+}
+
+/* Action Buttons Container - Fixed Positioning */
+.action-buttons-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-self: flex-end; /* Align to the right on desktop */
+}
+
+.mobile-btn {
+  border-radius: 14px;
+  font-weight: 600;
+  height: 48px;
+  transition: background-color 0.2s ease;
+}
+
+.action-btn {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(5px);
+}
+
+.action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.primary-btn {
+  background: white !important;
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+/* Filter Card - Modern Redesigned */
+.filter-card {
+  border-radius: 16px;
+  border: 1px solid rgba(var(--v-theme-primary), 0.12);
+  background: rgb(var(--v-theme-surface));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+/* Primary Search Row */
+.filter-primary-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.filter-search-field {
+  flex: 1;
+}
+
+.filter-search-field :deep(.v-field) {
+  border-radius: 12px !important;
+  background: rgba(var(--v-theme-on-surface), 0.04) !important;
+  min-height: 48px;
+}
+
+.filter-search-field :deep(.v-field--focused) {
+  background: rgba(var(--v-theme-primary), 0.04) !important;
+}
+
+.filter-toggle-btn {
+  border-radius: 12px !important;
+  min-width: 48px;
+  height: 48px !important;
+  font-weight: 600;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.filter-badge :deep(.v-badge__badge) {
+  font-size: 0.65rem;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+}
+
+/* Active Filter Chips */
+.filter-active-chips {
+  padding: 0 20px 14px 20px;
+}
+
+.filter-chip {
+  font-weight: 500;
+  letter-spacing: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.filter-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Advanced Filters Panel */
+.filter-advanced-panel {
+  padding: 0 20px 20px 20px;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.filter-grid-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-grid-item-wide {
+  grid-column: span 2;
+}
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.filter-input :deep(.v-field) {
+  border-radius: 10px !important;
+}
+
+.filter-input :deep(.v-field--focused) {
+  border-color: rgba(var(--v-theme-primary), 0.5);
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(var(--v-theme-outline-variant), 0.5);
+}
+
+/* Data Table Card - NO SHADOW */
+.data-table-card {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  background: rgb(var(--v-theme-surface));
+}
+
+.card-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(var(--v-theme-primary), 0.03);
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.count-chip {
+  font-size: 0.8rem;
+}
+
+/* Selection Toolbar */
+.selection-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 12px 24px;
+  background-color: rgba(var(--v-theme-primary), 0.08);
+  border-bottom: 1px solid rgba(var(--v-theme-primary), 0.15);
+}
+
+/* Mobile Cards Container */
+.mobile-cards-container {
+  padding: 16px;
+}
+
+.mobile-customer-card {
+  border-radius: 12px;
+  border: 1px solid rgba(var(--v-theme-outline-variant), 0.5);
+}
+
+.mobile-customer-card:hover {
+  border-color: rgba(var(--v-theme-primary), 0.3);
+}
+
+.mobile-customer-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+  margin-bottom: 2px;
+}
+
+.mobile-customer-email {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* Mobile Details */
+.mobile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  margin-left: 8px;
+  margin-right: 8px;
+  min-width: 70px;
+}
+
+.detail-value {
+  color: rgba(var(--v-theme-on-surface), 0.8);
+  flex: 1;
+}
+
+/* Desktop Table Styles - Clean & Minimalist - NO TRANSITIONS */
+.elegant-table {
+  background: #ffffff !important;
+}
+
+.elegant-table :deep(thead) {
+  background: #fafafa;
+}
+
+.elegant-table :deep(th) {
+  font-weight: 700 !important;
+  font-size: 0.75rem !important;
+  color: #424242 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 16px 12px !important;
+  border-bottom: 2px solid #e0e0e0 !important;
+  white-space: nowrap;
+}
+
+.elegant-table :deep(td) {
+  padding: 14px 12px !important;
+  border-bottom: 1px solid #f5f5f5 !important;
+  font-size: 0.875rem;
+  color: #616161;
+  vertical-align: middle;
+}
+
+.elegant-table :deep(tbody tr:hover) {
+  background-color: #fafafa !important;
+}
+
+.elegant-table :deep(tbody tr:last-child td) {
+  border-bottom: none !important;
+}
+
+.customer-name {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 0.875rem;
+}
+
+.customer-email {
+  font-size: 0.8125rem;
+  color: #757575;
+  margin-top: 2px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.action-btn-small {
+  min-width: 36px;
+  height: 36px;
+}
+
+/* No Data State */
+.no-data-wrapper {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.no-data-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  margin-top: 16px;
+}
+
+/* Form Dialog - Mobile Optimized */
+.form-card {
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgb(var(--v-theme-background));
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.form-header {
+  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
+  padding: 24px 28px;
+  color: rgb(var(--v-theme-on-primary));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.form-header-content {
+  display: flex;
+  align-items: center;
+}
+
+.form-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.mobile-close-btn {
+  color: white !important;
+}
+
+.form-content {
+  padding: 28px !important;
+  background: rgb(var(--v-theme-background));
+}
+
+.stepper-header, .stepper-content {
+  background: rgb(var(--v-theme-surface));
+  border-radius: 12px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.stepper-header {
+  margin-bottom: 20px;
+  padding: 12px;
+}
+
+.stepper-content {
+  padding: 24px;
+}
+
+.step-header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.step-title {
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 700;
+  font-size: 1.3rem;
+  margin-bottom: 8px;
+}
+
+.step-subtitle {
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.input-label {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.elegant-input :deep(.v-field) {
+  border-radius: 12px;
+  background: rgb(var(--v-theme-background));
+}
+
+.form-actions {
+  padding: 20px 28px !important;
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+  background: rgb(var(--v-theme-surface));
+}
+
+.nav-btn, .save-btn {
+  border-radius: 12px;
+  font-weight: 600;
+  height: 44px;
+  text-transform: none;
+}
+
+/* Delete Dialog */
+.delete-card, .import-card {
+  border-radius: 16px;
+  background: rgb(var(--v-theme-surface));
+}
+
+.delete-header {
+  background: rgb(var(--v-theme-error));
+  color: rgb(var(--v-theme-on-error));
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+}
+
+.delete-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.delete-content {
+  padding: 28px !important;
+  text-align: center;
+}
+
+.delete-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.delete-text {
+  font-size: 1rem;
+  margin-bottom: 8px;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.delete-warning {
+  font-size: 0.9rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  font-style: italic;
+}
+
+.customer-name-delete {
+  color: rgb(var(--v-theme-error));
+}
+
+.delete-actions {
+  padding: 16px 24px !important;
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.cancel-btn, .delete-btn {
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+/* Import Dialog */
+.import-header {
+  background: rgb(var(--v-theme-success));
+  color: rgb(var(--v-theme-on-success));
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+}
+
+.import-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.import-content {
+  padding: 28px !important;
+}
+
+.template-card {
+  border: 2px dashed rgba(var(--v-theme-success), 0.3);
+  background: rgba(var(--v-theme-success), 0.05);
+  border-radius: 12px;
+}
+
+.template-card:hover {
+  border-color: rgba(var(--v-theme-success), 0.5);
+}
+
+.template-title, .upload-title {
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+  margin-bottom: 6px;
+  font-size: 1rem;
+}
+
+.template-subtitle {
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  line-height: 1.4;
+  font-size: 0.9rem;
+}
+
+.file-input :deep(.v-field) {
+  border: 2px dashed rgb(var(--v-theme-outline-variant)) !important;
+  background: rgb(var(--v-theme-surface)) !important;
+  border-radius: 12px;
+}
+
+.file-input :deep(.v-field:hover) {
+  border-color: rgba(var(--v-theme-success), 0.5) !important;
+}
+
+.error-alert {
+  border-radius: 12px;
+}
+
+.error-item {
+  background: rgba(var(--v-theme-error), 0.05);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.import-actions {
+  padding: 16px 24px !important;
+  background: rgb(var(--v-theme-surface));
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.import-btn {
+  background: rgb(var(--v-theme-success)) !important;
+  color: rgb(var(--v-theme-on-success)) !important;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.nav-btn {
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.template-btn {
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.error-item {
+  background: rgba(var(--v-theme-error), 0.05);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.import-actions {
+  padding: 16px 24px !important;
+  background: rgb(var(--v-theme-surface));
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.import-btn {
+  background: rgb(var(--v-theme-success)) !important;
+  color: rgb(var(--v-theme-on-success)) !important;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.template-btn {
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+/* Snackbar */
+.enhanced-snackbar {
+  border-radius: 12px;
+}
+
+/* ============================================
+   RESPONSIVE BREAKPOINTS - FIXED POSITIONING
+   ============================================ */
+
+/* Tablet (768px and up) */
+@media (min-width: 768px) {
+  .header-card {
+    padding: 32px;
+    border-radius: 24px;
+  }
+
+  /* FIXED: Header layout for desktop */
+  .header-card .d-flex.flex-column {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .header-info {
+    flex: 1;
+    margin-right: 24px;
+  }
+  
+  .header-title {
+    font-size: 2.25rem;
+  }
+  
+  .header-subtitle {
+    font-size: 1.1rem;
+  }
+  
+  .action-buttons-container {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 16px;
+    width: auto;
+    flex-shrink: 0;
+    align-self: center; /* Center vertically with header info */
+  }
+  
+  .mobile-btn {
+    width: auto;
+    min-width: 140px;
+  }
+  
+  .card-header {
+    padding: 24px 28px;
+  }
+  
+  .card-title {
+    font-size: 1.5rem;
+  }
+  
+  .form-content {
+    padding: 36px !important;
+  }
+  
+  .stepper-content {
+    padding: 32px;
+  }
+  
+  .step-title {
+    font-size: 1.5rem;
+  }
+  
+  .step-subtitle {
+    font-size: 1rem;
+  }
+  
+  .template-card .d-flex {
+    align-items: center;
+  }
+  
+  .template-btn {
+    width: auto;
+  }
+}
+
+/* Large Desktop (1024px and up) */
+@media (min-width: 1024px) {
+  .filter-card {
+    border-radius: 20px;
+  }
+  
+  .filter-card .d-flex {
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+  }
+  
+  .data-table-card {
+    border-radius: 20px;
+  }
+
+  /* Enhanced button sizing for larger screens */
+  .action-buttons-container {
+    gap: 20px;
+  }
+
+  .mobile-btn {
+    min-width: 160px;
+    height: 52px;
+    font-size: 0.95rem;
+  }
+}
+
+/* Mobile Specific Adjustments */
+@media (max-width: 767px) {
+  .v-container {
+    padding: 12px !important;
+  }
+
+  /* FIXED: Mobile header remains column layout */
+  .header-card .d-flex.flex-column {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 20px;
+  }
+
+  .header-info {
+    margin-right: 0;
+  }
+  
+  .header-card {
+    margin-bottom: 16px;
+  }
+  
+  .filter-card {
+    margin-bottom: 16px;
+  }
+  
+  .card-header {
+    padding: 16px 20px;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .card-title {
+    font-size: 1.1rem;
+  }
+  
+  .count-chip {
+    align-self: flex-end;
+  }
+  
+  .selection-toolbar {
+    padding: 12px 20px;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .selection-toolbar .v-btn {
+    width: 100%;
+  }
+  
+  .mobile-cards-container {
+    padding: 12px;
+  }
+  
+  .mobile-customer-card {
+    margin-bottom: 12px;
+  }
+  
+  .mobile-customer-card .v-card-text {
+    padding: 16px !important;
+  }
+  
+  .mobile-customer-name {
+    font-size: 1rem;
+  }
+  
+  .detail-row {
+    font-size: 0.8rem;
+  }
+  
+  .detail-label {
+    min-width: 60px;
+    font-size: 0.8rem;
+  }
+  
+  .form-header {
+    padding: 20px 24px;
+  }
+  
+  .form-title {
+    font-size: 1.2rem;
+  }
+  
+  .form-content {
+    padding: 20px !important;
+  }
+  
+  .stepper-content {
+    padding: 20px;
+  }
+  
+  .step-title {
+    font-size: 1.2rem;
+  }
+  
+  .step-subtitle {
+    font-size: 0.9rem;
+  }
+  
+  .input-label {
+    font-size: 0.85rem;
+  }
+  
+  .form-actions {
+    padding: 16px 20px !important;
+    flex-wrap: wrap;
+  }
+  
+  .nav-btn, .save-btn {
+    height: 40px;
+    font-size: 0.9rem;
+  }
+  
+  .delete-content, .import-content {
+    padding: 20px !important;
+  }
+  
+  .delete-text {
+    font-size: 0.9rem;
+  }
+  
+  .delete-warning {
+    font-size: 0.8rem;
+  }
+  
+  .template-card .d-flex {
+    text-align: center;
+  }
+  
+  .template-title {
+    font-size: 0.95rem;
+  }
+  
+  .template-subtitle {
+    font-size: 0.85rem;
+  }
+}
+
+/* Extra Small Mobile (480px and below) */
+@media (max-width: 480px) {
+  .header-card {
+    padding: 20px;
+    border-radius: 16px;
+  }
+  
+  .header-title {
+    font-size: 1.4rem;
+  }
+  
+  .header-subtitle {
+    font-size: 0.85rem;
+  }
+  
+  .header-avatar-wrapper {
+    padding: 10px;
+  }
+  
+  .header-avatar {
+    size: 40px;
+  }
+  
+  .mobile-btn {
+    height: 44px;
+    font-size: 0.9rem;
+  }
+  
+  .filter-card, .data-table-card {
+    border-radius: 12px;
+  }
+  
+  .mobile-customer-name {
+    font-size: 0.95rem;
+  }
+  
+  .mobile-customer-email {
+    font-size: 0.8rem;
+  }
+  
+  .detail-row {
+    font-size: 0.75rem;
+  }
+  
+  .detail-label {
+    min-width: 55px;
+  }
+  
+  .no-data-text {
+    font-size: 1rem;
+  }
+  
+  .form-title {
+    font-size: 1.1rem;
+  }
+  
+  .step-title {
+    font-size: 1.1rem;
+  }
+}
+
+/* Dark Theme Adjustments - SIMPLIFIED SHADOWS */
+.v-theme--dark .header-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.v-theme--dark .filter-card,
+.v-theme--dark .data-table-card,
+.v-theme--dark .form-card,
+.v-theme--dark .delete-card,
+.v-theme--dark .import-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.v-theme--dark .mobile-customer-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.v-theme--dark .card-header {
+  background-color: rgba(var(--v-theme-primary), 0.1);
+  border-color: #334155;
+}
+
+.v-theme--dark .selection-toolbar {
+  background-color: rgba(var(--v-theme-primary), 0.15);
+  border-color: rgba(var(--v-theme-primary), 0.3);
+}
+
+.v-theme--dark .stepper-header,
+.v-theme--dark .stepper-content {
+  background: #0f1629;
+  border-color: #334155;
+}
+
+.v-theme--dark .template-card {
+  background: rgba(var(--v-theme-success), 0.1);
+  border-color: rgba(var(--v-theme-success), 0.3);
+}
+
+.v-theme--dark .elegant-table {
+  background: #1e293b !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.v-theme--dark .elegant-table :deep(thead) {
+  background: #0f1629 !important;
+}
+
+.v-theme--dark .elegant-table :deep(th) {
+  background: #0f1629 !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  border-bottom: 2px solid #334155 !important;
+}
+
+.v-theme--dark .elegant-table :deep(td) {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  border-bottom: 1px solid #334155 !important;
+}
+
+.v-theme--dark .elegant-table :deep(tbody tr:hover) {
+  background-color: rgba(var(--v-theme-primary), 0.05) !important;
+}
+
+.v-theme--dark .customer-name {
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.v-theme--dark .customer-email {
+  color: rgba(var(--v-theme-on-surface), 0.7) !important;
+}
+
+.v-theme--dark .error-item {
+  background: rgba(var(--v-theme-error), 0.1);
+}
+
+/* Accessibility Improvements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Focus States */
+.mobile-customer-card:focus-within {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
+}
+
+.action-btn:focus-visible,
+.primary-btn:focus-visible,
+.mobile-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 2px;
+}
+
+/* Loading States */
+.mobile-customer-card.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Print Styles */
+@media print {
+  .header-card,
+  .filter-card,
+  .v-btn,
+  .selection-toolbar {
+    display: none !important;
+  }
+  
+  .mobile-customer-card {
+    break-inside: avoid;
+    border: 1px solid #000;
+    margin-bottom: 16px;
+  }
+  
+  .mobile-customer-name {
+    color: #000 !important;
+  }
+  
+  .detail-value {
+    color: #000 !important;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .mobile-customer-card {
+    border: 2px solid;
+  }
+  
+  .detail-label {
+    font-weight: 700;
+  }
+  
+  .mobile-customer-name {
+    font-weight: 800;
+  }
+}
+
+.required-flag {
+  margin-left: 4px;
+  font-size: 1.1em;
+  font-weight: bold;
+  vertical-align: middle;
+}
+
+
+/* ============================================
+   NEW MODERN IMPORT DIALOG STYLES
+   ============================================ */
+
+.import-header-gradient {
+  background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
+  position: relative;
+}
+
+.close-button-import {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.template-download-card {
+  border: 1px solid rgba(var(--v-theme-success), 0.2) !important;
+  background-color: rgba(var(--v-theme-success), 0.02) !important;
+  transition: all 0.3s ease;
+  border-radius: 12px;
+}
+
+.template-download-card:hover {
+  background-color: rgba(var(--v-theme-success), 0.05) !important;
+  border-color: rgba(var(--v-theme-success), 0.5) !important;
+  transform: translateY(-2px);
+}
+
+.simple-dropzone {
+  border: 2px dashed rgba(var(--v-theme-success), 0.3);
+  background-color: rgba(var(--v-theme-success), 0.02);
+  border-radius: 20px;
+  height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  padding: 24px;
+}
+
+.simple-dropzone:hover {
+  border-color: rgba(var(--v-theme-success), 0.8);
+  background-color: rgba(var(--v-theme-success), 0.05);
+}
+
+.dropzone-active {
+  border-style: solid;
+  border-color: rgba(var(--v-theme-success), 0.8);
+  background-color: rgba(var(--v-theme-success), 0.08);
+}
+
+.error-item-modern {
+  border-bottom: 1px solid rgba(var(--v-theme-error), 0.1);
+}
+
+.error-item-modern:last-child {
+  border-bottom: none;
+}
+
+.border-right-md {
+  border-right: 1px solid rgba(var(--v-theme-outline-variant), 0.5);
+}
+
+@media (max-width: 959px) {
+  .border-right-md {
+    border-right: none;
+    border-bottom: 1px solid rgba(var(--v-theme-outline-variant), 0.5);
+    padding-bottom: 24px;
+    margin-bottom: 24px;
+  }
+}
+
+.import-cta-btn {
+  letter-spacing: 0;
+  height: 48px !important;
+}
+
+.format-info {
+  background-color: rgba(var(--v-theme-surface-variant), 0.3) !important;
+}
+
+</style>
