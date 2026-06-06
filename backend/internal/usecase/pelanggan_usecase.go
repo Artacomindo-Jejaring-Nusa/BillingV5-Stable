@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"billing-backend/internal/domain"
+	"billing-backend/internal/websocket"
 )
 
 type pelangganUsecase struct {
@@ -65,7 +66,17 @@ func (u *pelangganUsecase) Store(ctx context.Context, pelanggan *domain.Pelangga
 		}
 	}
 
-	return u.pelangganRepo.Create(ctx, pelanggan)
+	if err := u.pelangganRepo.Create(ctx, pelanggan); err != nil {
+		return err
+	}
+
+	if websocket.GlobalHub != nil {
+		websocket.GlobalHub.BroadcastNotification("new_customer", map[string]interface{}{
+			"pelanggan_nama": pelanggan.Nama,
+		})
+	}
+
+	return nil
 }
 
 func (u *pelangganUsecase) Update(ctx context.Context, id uint64, req *domain.Pelanggan) error {

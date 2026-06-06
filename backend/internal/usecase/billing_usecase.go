@@ -16,6 +16,7 @@ import (
 
 	"billing-backend/config"
 	"billing-backend/internal/domain"
+	"billing-backend/internal/websocket"
 	"billing-backend/pkg/mikrotik"
 	"billing-backend/pkg/utils"
 
@@ -972,6 +973,18 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, invoice *
 				}
 			}
 		}
+	}
+
+	// Trigger WebSocket notification for new payment
+	if websocket.GlobalHub != nil {
+		pelangganNama := ""
+		if pelanggan != nil {
+			pelangganNama = pelanggan.Nama
+		}
+		websocket.GlobalHub.BroadcastNotification("new_payment", map[string]interface{}{
+			"invoice_number": invoice.InvoiceNumber,
+			"pelanggan_nama": pelangganNama,
+		})
 	}
 
 	return nil

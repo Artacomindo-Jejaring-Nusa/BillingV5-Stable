@@ -16,6 +16,7 @@ import (
 	"billing-backend/internal/repository"
 	"billing-backend/internal/scheduler"
 	"billing-backend/internal/usecase"
+	"billing-backend/internal/websocket"
 	"billing-backend/pkg/database"
 	"billing-backend/pkg/utils"
 
@@ -87,10 +88,11 @@ func main() {
 	db.Exec("UPDATE pelanggans SET email = CONCAT('deleted_', UNIX_TIMESTAMP(), '_', email) WHERE deleted_at IS NOT NULL AND email NOT LIKE 'deleted_%';")
 	db.Exec("UPDATE pelanggans SET no_ktp = CONCAT('deleted_', UNIX_TIMESTAMP(), '_', no_ktp) WHERE deleted_at IS NOT NULL AND no_ktp != '' AND no_ktp NOT LIKE 'deleted_%';")
 
-	// 4. Setup Gin Router
-	if cfg.Environment == "production" {
-		gin.SetMode(gin.ReleaseMode)
-	}
+	// Initialize WebSocket Hub
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+	websocket.GlobalHub = wsHub
+
 	router := gin.Default()
 
 	// 5. Setup Middleware (CORS)

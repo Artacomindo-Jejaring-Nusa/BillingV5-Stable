@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"billing-backend/internal/domain"
+	"billing-backend/internal/websocket"
 	"billing-backend/pkg/mikrotik"
 	"billing-backend/pkg/utils"
 
@@ -160,6 +161,13 @@ func (u *dataTeknisUsecase) Store(ctx context.Context, data *domain.DataTeknis) 
 	err = u.dataTeknisRepo.Create(ctx, data)
 	if err != nil {
 		return err
+	}
+
+	// Trigger WebSocket notification
+	if websocket.GlobalHub != nil {
+		websocket.GlobalHub.BroadcastNotification("new_technical_data", map[string]interface{}{
+			"pelanggan_nama": cust.Nama,
+		})
 	}
 
 	// Sync with Mikrotik
