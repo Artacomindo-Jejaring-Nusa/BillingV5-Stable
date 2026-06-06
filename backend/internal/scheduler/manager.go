@@ -3,11 +3,11 @@ package scheduler
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
 	"billing-backend/internal/domain"
+	"billing-backend/pkg/logger"
 
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
@@ -116,21 +116,21 @@ func (m *SchedulerManager) Start(ctx context.Context) {
 			m.executeJob(jobKey, jobFunc)
 		})
 		if err != nil {
-			log.Printf("SchedulerManager: Failed to schedule job %s with pattern %s: %v", jobKey, schedule, err)
+			logger.Error("SchedulerManager: Failed to schedule job %s with pattern %s: %v", jobKey, schedule, err)
 			continue
 		}
 		m.entryIDs[jobKey] = entryID
 	}
 
 	m.cronInst.Start()
-	log.Println("SchedulerManager: Started successfully")
+	logger.Info("SchedulerManager: Started successfully")
 }
 
 func (m *SchedulerManager) executeJob(key string, jobFunc func(ctx context.Context) error) {
 	m.mu.Lock()
 	if m.runningJobs[key] {
 		m.mu.Unlock()
-		log.Printf("SchedulerManager: Job %s is already running, skipping", key)
+		logger.Warn("SchedulerManager: Job %s is already running, skipping", key)
 		return
 	}
 	m.runningJobs[key] = true
@@ -143,29 +143,27 @@ func (m *SchedulerManager) executeJob(key string, jobFunc func(ctx context.Conte
 		m.mu.Unlock()
 	}()
 
-	log.Printf("SchedulerManager: Starting job %s...", key)
+	logger.Info("SchedulerManager: Starting job %s...", key)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
 	if err := jobFunc(ctx); err != nil {
-		log.Printf("SchedulerManager: Job %s failed: %v", key, err)
-		_ = m.systemUsecase.LogSystem(context.Background(), "ERROR", fmt.Sprintf("Job %s failed: %v", key, err))
+		logger.Error("SchedulerManager: Job %s failed: %v", key, err)
 	} else {
-		log.Printf("SchedulerManager: Job %s completed successfully", key)
-		_ = m.systemUsecase.LogSystem(context.Background(), "INFO", fmt.Sprintf("Job %s completed successfully", key))
+		logger.Info("SchedulerManager: Job %s completed successfully", key)
 	}
 }
 
 func (m *SchedulerManager) Reload(ctx context.Context) {
 	m.mu.Lock()
 	if m.cronInst != nil {
-		log.Println("SchedulerManager: Stopping existing cron scheduler...")
+		logger.Info("SchedulerManager: Stopping existing cron scheduler...")
 		stopCtx := m.cronInst.Stop()
 		select {
 		case <-stopCtx.Done():
-			log.Println("SchedulerManager: Cron scheduler stopped gracefully")
+			logger.Info("SchedulerManager: Cron scheduler stopped gracefully")
 		case <-time.After(10 * time.Second):
-			log.Println("SchedulerManager: Cron scheduler shutdown timed out")
+			logger.Warn("SchedulerManager: Cron scheduler shutdown timed out")
 		}
 	}
 	m.entryIDs = make(map[string]cron.EntryID)
@@ -181,9 +179,9 @@ func (m *SchedulerManager) Stop() {
 		stopCtx := m.cronInst.Stop()
 		select {
 		case <-stopCtx.Done():
-			log.Println("SchedulerManager: Stopped gracefully")
+			logger.Info("SchedulerManager: Stopped gracefully")
 		case <-time.After(10 * time.Second):
-			log.Println("SchedulerManager: Shutdown timed out")
+			logger.Warn("SchedulerManager: Shutdown timed out")
 		}
 	}
 }

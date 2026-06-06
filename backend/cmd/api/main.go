@@ -18,6 +18,7 @@ import (
 	"billing-backend/internal/usecase"
 	"billing-backend/internal/websocket"
 	"billing-backend/pkg/database"
+	"billing-backend/pkg/logger"
 	"billing-backend/pkg/utils"
 
 	"github.com/gin-contrib/cors"
@@ -25,6 +26,9 @@ import (
 )
 
 func main() {
+	// 0. Print Banner ASCII BILLING ARTACOM V5
+	logger.PrintBanner()
+
 	// 1. Load Configurations
 	cfg := config.LoadConfig()
 
@@ -33,14 +37,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize encryption service: %v", err)
 	}
-	log.Println("Encryption service initialized successfully")
+	logger.Info("Encryption service initialized successfully")
 
 	// 3. Initialize Database Connection
 	db, err := database.InitDatabase(cfg)
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
-	log.Println("Database connection established successfully")
+	
+	// Initialize structured logger with DB connection
+	logger.Init(db)
+	logger.Info("Database connection established successfully and logger initialized")
 
 	// Auto Migrate schemas to ensure tables are up-to-date
 	db.Exec("SET FOREIGN_KEY_CHECKS = 0;")
@@ -75,16 +82,16 @@ func main() {
 	)
 	db.Exec("SET FOREIGN_KEY_CHECKS = 1;")
 	if err != nil {
-		log.Printf("AutoMigration warning: %v", err)
+		logger.Warn("AutoMigration warning: %v", err)
 	}
 
 	// Run Database Seeder
 	if err := database.Seed(db); err != nil {
-		log.Printf("Seeding warning: %v", err)
+		logger.Warn("Seeding warning: %v", err)
 	}
 
 	// Clean up legacy soft-deleted customer emails & NIKs so they are released
-	log.Println("Cleaning up legacy soft-deleted customer constraints...")
+	logger.Info("Cleaning up legacy soft-deleted customer constraints...")
 	db.Exec("UPDATE pelanggans SET email = CONCAT('deleted_', UNIX_TIMESTAMP(), '_', email) WHERE deleted_at IS NOT NULL AND email NOT LIKE 'deleted_%';")
 	db.Exec("UPDATE pelanggans SET no_ktp = CONCAT('deleted_', UNIX_TIMESTAMP(), '_', no_ktp) WHERE deleted_at IS NOT NULL AND no_ktp != '' AND no_ktp NOT LIKE 'deleted_%';")
 
@@ -236,9 +243,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Server is running on port %s\n", port)
+		logger.Info("Server is running on port %s", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v\n", err)
+			logger.Error("Failed to start server: %v", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -246,17 +254,18 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server...")
+	logger.Info("Shutting down server...")
 
 	// Stop cron scheduler
-	log.Println("Stopping cron scheduler...")
+	logger.Info("Stopping cron scheduler...")
 	schedulerMgr.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown: ", err)
+		logger.Error("Server forced to shutdown: %v", err)
+		os.Exit(1)
 	}
 
-	log.Println("Server exiting")
+	logger.Info("Server exiting")
 }
