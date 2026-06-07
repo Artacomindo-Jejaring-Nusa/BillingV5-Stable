@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import { configDefaults } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 import { visualizer } from 'rollup-plugin-visualizer'
@@ -15,6 +16,16 @@ export default defineConfig({
       brotliSize: true,
     }),
   ],
+  test: {
+    environment: 'jsdom',
+    exclude: [...configDefaults.exclude, 'e2e/*'],
+    root: resolve(__dirname, './'),
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'lcov'],
+      reportsDirectory: './coverage'
+    },
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

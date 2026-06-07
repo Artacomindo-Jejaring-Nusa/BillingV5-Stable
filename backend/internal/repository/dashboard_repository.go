@@ -639,14 +639,6 @@ func (r *dashboardRepository) GetInvoiceGenerationMonitor(ctx context.Context, t
 		}
 	}
 
-	var totalShouldHave int64
-	err = r.db.WithContext(ctx).Table("langganans").
-		Where("tgl_jatuh_tempo = ? AND status = ?", targetDateObj, "Aktif").
-		Count(&totalShouldHave).Error
-	if err != nil {
-		return nil, err
-	}
-
 	targetYear, targetMonth := targetDateObj.Year(), targetDateObj.Month()
 	startOfMonth := time.Date(targetYear, targetMonth, 1, 0, 0, 0, 0, targetDateObj.Location())
 	var endOfMonth time.Time
@@ -654,6 +646,14 @@ func (r *dashboardRepository) GetInvoiceGenerationMonitor(ctx context.Context, t
 		endOfMonth = time.Date(targetYear+1, 1, 1, 0, 0, 0, 0, targetDateObj.Location()).Add(-24 * time.Hour)
 	} else {
 		endOfMonth = time.Date(targetYear, targetMonth+1, 1, 0, 0, 0, 0, targetDateObj.Location()).Add(-24 * time.Hour)
+	}
+
+	var totalShouldHave int64
+	err = r.db.WithContext(ctx).Table("langganans").
+		Where("tgl_jatuh_tempo BETWEEN ? AND ? AND status = ?", startOfMonth, endOfMonth, "Aktif").
+		Count(&totalShouldHave).Error
+	if err != nil {
+		return nil, err
 	}
 
 	var totalGenerated int64

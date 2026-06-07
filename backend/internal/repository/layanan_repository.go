@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"billing-backend/internal/domain"
@@ -130,8 +131,10 @@ func (r *layananRepository) GetDiskonByID(ctx context.Context, id uint64) (*doma
 func (r *layananRepository) GetActiveForCluster(ctx context.Context, cluster string, checkDate time.Time) (*domain.Diskon, error) {
 	var diskon domain.Diskon
 	// Get diskon with highest percentage active for cluster on given date
+	// Using more flexible matching: case-insensitive and trimming
+	clusterClean := strings.TrimSpace(cluster)
 	err := r.db.WithContext(ctx).
-		Where("cluster = ? AND is_active = ?", cluster, true).
+		Where("(LOWER(TRIM(cluster)) = LOWER(?) OR ? LIKE CONCAT('%', cluster, '%')) AND is_active = ?", clusterClean, clusterClean, true).
 		Where("(tgl_mulai IS NULL OR tgl_mulai <= ?)", checkDate).
 		Where("(tgl_selesai IS NULL OR tgl_selesai >= ?)", checkDate).
 		Order("persentase_diskon DESC").

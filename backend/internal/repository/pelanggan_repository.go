@@ -131,7 +131,7 @@ func (r *pelangganRepository) GetByEmails(ctx context.Context, emails []string) 
 
 func (r *pelangganRepository) GetByNoKtp(ctx context.Context, noKtp string) (*domain.Pelanggan, error) {
 	var pelanggan domain.Pelanggan
-	err := r.db.WithContext(ctx).Unscoped().Where("no_ktp = ?", noKtp).First(&pelanggan).Error
+	err := r.db.WithContext(ctx).Where("no_ktp = ?", noKtp).First(&pelanggan).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -139,5 +139,15 @@ func (r *pelangganRepository) GetByNoKtp(ctx context.Context, noKtp string) (*do
 		return nil, err
 	}
 	return &pelanggan, nil
+}
+
+func (r *pelangganRepository) GetUniqueLocations(ctx context.Context) ([]string, error) {
+	var locations []string
+	err := r.db.WithContext(ctx).Model(&domain.Pelanggan{}).
+		Where("alamat IS NOT NULL AND alamat != ''").
+		Distinct("alamat").
+		Order("alamat asc").
+		Pluck("alamat", &locations).Error
+	return locations, err
 }
 

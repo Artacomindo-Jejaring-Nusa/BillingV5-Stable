@@ -3,10 +3,12 @@ package repository
 import (
 	"context"
 	"errors"
+	"math"
 	"time"
 
 	"billing-backend/internal/domain"
 
+	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
 
@@ -194,6 +196,201 @@ func (r *invoiceRepository) GetInvoiceSummary(ctx context.Context) (*domain.Invo
 	return &summary, nil
 }
 
+func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain.RevenueReportParams) (*domain.RevenueReportResponse, error) {
+	var report domain.RevenueReportResponse
+
+	// Helper to build base query
+	buildBaseQuery := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Table("invoices").
+			Joins("LEFT JOIN pelanggans ON invoices.pelanggan_id = pelanggans.id").
+			Where("invoices.deleted_at IS NULL")
+
+		if params.StartDate != "" {
+			q = q.Where("invoices.tgl_invoice >= ?", params.StartDate)
+		}
+		if params.EndDate != "" {
+			// Using 23:59:59 to cover the whole end day if it's a datetime column
+			q = q.Where("invoices.tgl_invoice <= ?", params.EndDate+" 23:59:59")
+		}
+		if params.Alamat != "" {
+			q = q.Where("pelanggans.alamat = ?", params.Alamat)
+		}
+		if params.IDBrand != "" {
+			q = q.Where("pelanggans.id_brand = ?", params.IDBrand)
+		}
+		return q
+	}
+
+	// 1. Total Invoices
+	var totalInvoices int64
+	if err := buildBaseQuery().Count(&totalInvoices).Error; err != nil {
+		return nil, err
+	}
+	report.TotalInvoices = int(totalInvoices)
+	report.BillingSummary.TotalTagihan.Count = int(totalInvoices)
+
+	// 2. Billing Summary by Status
+	type StatusResult struct {
+		Status      string
+		Count       int
+		TotalAmount float64
+	}
+	var statusResults []StatusResult
+	err := buildBaseQuery().
+		Select("status_invoice as status, COUNT(*) as count, SUM(total_harga) as total_amount").
+		Group("status_invoice").
+		Scan(&statusResults).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, res := range statusResults {
+		stat := domain.BillStat{Count: res.Count, TotalAmount: res.TotalAmount}
+		report.BillingSummary.TotalTagihan.TotalAmount += res.TotalAmount
+		switch res.Status {
+		case "Lunas":
+			report.BillingSummary.Lunas = stat
+			report.TotalPendapatan = res.TotalAmount
+			report.FinancialSummary.TotalPemasukan = res.TotalAmount
+		case "Belum Dibayar":
+			report.BillingSummary.Pending = stat
+		case "Expired":
+			report.BillingSummary.Telat = stat
+		}
+	}
+	report.FinancialSummary.SaldoAkhir = report.FinancialSummary.TotalPemasukan
+
+	// 3. Tax Summary (Simplified: based on paid invoices)
+	paidRevenue := report.FinancialSummary.TotalPemasukan
+	if paidRevenue > 0 {
+		report.TaxSummary.Total.Ppn = math.Floor(paidRevenue - (paidRevenue / 1.11) + 0.5)
+		revenueExclPpn := paidRevenue - report.TaxSummary.Total.Ppn
+		report.TaxSummary.Total.Bhp = math.Floor(revenueExclPpn * 0.005 + 0.5)   // 0.5% BHP
+		report.TaxSummary.Total.Uso = math.Floor(revenueExclPpn * 0.0125 + 0.5)  // 1.25% USO
+		report.TaxSummary.Total.TotalPajak = report.TaxSummary.Total.Ppn + report.TaxSummary.Total.Bhp + report.TaxSummary.Total.Uso
+	}
+
+	// 4. Payment Methods (Only for Lunas)
+	type MethodResult struct {
+		Method      string
+		Count       int
+		TotalAmount float64
+		Pajak       float64
+		Diskon      float64
+	}
+	var methodResults []MethodResult
+	err = buildBaseQuery().
+		Select("metode_pembayaran as method, COUNT(*) as count, SUM(total_harga) as total_amount, SUM(diskon_amount) as diskon").
+		Where("status_invoice = ?", "Lunas").
+		Group("metode_pembayaran").
+		Scan(&methodResults).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, res := range methodResults {
+		method := res.Method
+		if method == "" {
+			method = "Lainnya"
+		}
+		// Calculate PPN for this method
+		ppn := math.Floor(res.TotalAmount - (res.TotalAmount / 1.11) + 0.5)
+		
+		report.PaymentMethods = append(report.PaymentMethods, domain.PaymentMethodStat{
+			Method:      method,
+			Count:       res.Count,
+			TotalAmount: res.TotalAmount,
+			Pajak:       ppn,
+			Diskon:      res.Diskon,
+		})
+	}
+
+	return &report, nil
+}
+
+func (r *invoiceRepository) GetRevenueReportDetails(ctx context.Context, params *domain.RevenueReportParams) ([]domain.InvoiceReportItem, error) {
+	var items []domain.InvoiceReportItem
+
+	query := r.db.WithContext(ctx).Table("invoices").
+		Select("invoices.id, invoices.invoice_number, pelanggans.nama as pelanggan_nama, pelanggans.alamat, invoices.total_harga, invoices.status_invoice, invoices.tgl_invoice, invoices.paid_at as tgl_lunas, invoices.metode_pembayaran as metode, invoices.brand").
+		Joins("LEFT JOIN pelanggans ON invoices.pelanggan_id = pelanggans.id").
+		Where("invoices.deleted_at IS NULL")
+
+	if params.StartDate != "" {
+		query = query.Where("invoices.tgl_invoice >= ?", params.StartDate)
+	}
+	if params.EndDate != "" {
+		query = query.Where("invoices.tgl_invoice <= ?", params.EndDate+" 23:59:59")
+	}
+	if params.Alamat != "" {
+		query = query.Where("pelanggans.alamat = ?", params.Alamat)
+	}
+	if params.IDBrand != "" {
+		query = query.Where("pelanggans.id_brand = ?", params.IDBrand)
+	}
+
+	if params.Limit > 0 {
+		query = query.Limit(params.Limit)
+	}
+	if params.Skip > 0 {
+		query = query.Offset(params.Skip)
+	}
+
+	err := query.Order("invoices.tgl_invoice desc").Scan(&items).Error
+	return items, err
+}
+
+func (r *invoiceRepository) ExportPaymentLinksExcel(ctx context.Context, filters map[string]string) ([]byte, error) {
+	var invoices []domain.Invoice
+	query := r.db.WithContext(ctx).Preload("Pelanggan").Where("deleted_at IS NULL")
+
+	if s, ok := filters["search"]; ok && s != "" {
+		query = query.Joins("Pelanggan").Where("pelanggans.nama LIKE ? OR invoices.invoice_number LIKE ?", "%"+s+"%", "%"+s+"%")
+	}
+	if s, ok := filters["status_invoice"]; ok && s != "" {
+		query = query.Where("status_invoice = ?", s)
+	}
+	if s, ok := filters["start_date"]; ok && s != "" {
+		query = query.Where("tgl_invoice >= ?", s)
+	}
+	if s, ok := filters["end_date"]; ok && s != "" {
+		query = query.Where("tgl_invoice <= ?", s+" 23:59:59")
+	}
+
+	if err := query.Order("tgl_invoice desc").Find(&invoices).Error; err != nil {
+		return nil, err
+	}
+
+	f := excelize.NewFile()
+	sheet := "Payment Links"
+	f.SetSheetName("Sheet1", sheet)
+
+	headers := []string{"No", "Pelanggan", "Invoice Number", "Alamat", "Total", "Status", "Link Pembayaran"}
+	for i, h := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sheet, cell, h)
+	}
+
+	for r, inv := range invoices {
+		row := r + 2
+		pName := ""; if inv.Pelanggan != nil { pName = inv.Pelanggan.Nama }
+		addr := ""; if inv.Pelanggan != nil { addr = inv.Pelanggan.Alamat }
+		link := ""; if inv.PaymentLink != nil { link = *inv.PaymentLink }
+
+		vals := []interface{}{r + 1, pName, inv.InvoiceNumber, addr, inv.TotalHarga, inv.StatusInvoice, link}
+		for c, v := range vals {
+			cell, _ := excelize.CoordinatesToCellName(c+1, row)
+			f.SetCellValue(sheet, cell, v)
+		}
+	}
+
+	buf, err := f.WriteToBuffer()
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 // Langganan Repository
 type langgananRepository struct {
 	db *gorm.DB
@@ -249,7 +446,7 @@ func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, sea
 
 func (r *langgananRepository) GetByID(ctx context.Context, id uint64) (*domain.Langganan, error) {
 	var lng domain.Langganan
-	err := r.db.WithContext(ctx).Preload("Pelanggan").Preload("PaketLayanan").First(&lng, id).Error
+	err := r.db.WithContext(ctx).Preload("Pelanggan").Preload("Pelanggan.DataTeknis").Preload("PaketLayanan").First(&lng, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("langganan not found")

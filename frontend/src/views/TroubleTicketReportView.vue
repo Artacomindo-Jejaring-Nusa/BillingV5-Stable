@@ -515,7 +515,7 @@
             ></v-progress-circular>
             <p class="loading-text">Analyzing downtime data...</p>
           </div>
-          <div v-else-if="downtimeAnalysis" class="downtime-content">
+          <div v-else-if="downtimeAnalysis && downtimeAnalysis.overall_statistics" class="downtime-content">
             <!-- Overall Statistics -->
             <div class="downtime-overview">
               <h4 class="subsection-title">
@@ -563,7 +563,7 @@
             </div>
 
             <!-- Top Customers with Downtime -->
-            <div class="top-customers" v-if="downtimeAnalysis.top_customers.length > 0">
+            <div class="top-customers" v-if="downtimeAnalysis.top_customers && downtimeAnalysis.top_customers.length > 0">
               <h4 class="subsection-title">
                 <v-icon size="20" class="me-2">mdi-account-alert</v-icon>
                 Top Customers by Downtime
@@ -739,15 +739,17 @@
                 <div class="customer-info-cell">
                   <div class="customer-name-row">
                     <v-icon size="16" color="primary" class="me-1">mdi-account</v-icon>
-                    <span class="customer-name-text">{{ item.customer_name }}</span>
+                    <span class="customer-name-text">{{ item.customer_name || 'N/A' }}</span>
                   </div>
                   <div class="customer-detail-row">
                     <v-icon size="14" color="primary-lighten-1" class="me-1">mdi-phone</v-icon>
-                    <span class="customer-detail-text">{{ item.customer_phone }}</span>
+                    <span class="customer-detail-text">{{ item.customer_phone || 'N/A' }}</span>
                   </div>
                   <div class="customer-detail-row">
                     <v-icon size="14" color="primary-lighten-1" class="me-1">mdi-map-marker</v-icon>
-                    <span class="customer-detail-text">{{ item.customer_address.substring(0, 50) }}{{ item.customer_address.length > 50 ? '...' : '' }}</span>
+                    <span class="customer-detail-text">
+                      {{ (item.customer_address || 'N/A').substring(0, 50) }}{{ (item.customer_address || '').length > 50 ? '...' : '' }}
+                    </span>
                   </div>
                 </div>
               </template>
@@ -1486,7 +1488,13 @@ const loadDowntimeAnalysis = async () => {
     if (dateRange.to) params.date_to = dateRange.to
 
     const response = await apiClient.get('/trouble-tickets/reports/downtime-analysis', { params })
-    downtimeAnalysis.value = response.data
+    
+    // Safety check: Ensure the response contains the expected structure
+    if (response.data && response.data.overall_statistics) {
+      downtimeAnalysis.value = response.data
+    } else {
+      downtimeAnalysis.value = null
+    }
   } catch (error: any) {
     console.error('Failed to load downtime analysis:', error)
     showNotification('Failed to load downtime analysis data. Please try again later.', 'error')

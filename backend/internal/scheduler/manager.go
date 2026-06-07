@@ -95,6 +95,16 @@ func (m *SchedulerManager) Start(ctx context.Context) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Check for global enable/disable
+	globalEnabledStr := m.getSettingOrSetDefault(ctx, "scheduler_global_enabled", "true")
+	if globalEnabledStr == "false" {
+		logger.Warn("SchedulerManager: Global scheduler is DISABLED. No jobs will be scheduled.")
+		if m.cronInst != nil {
+			m.cronInst.Stop()
+		}
+		return
+	}
+
 	m.cronInst = cron.New()
 
 	for key, config := range m.jobs {
@@ -277,4 +287,23 @@ func (m *SchedulerManager) RunJobNow(ctx context.Context, key string) error {
 	go m.executeJob(key, config.Func)
 
 	return nil
+}
+
+func (m *SchedulerManager) ToggleGlobal(ctx context.Context, enabled bool) error {
+	enabledStr := "true"
+	if !enabled {
+		enabledStr = "false"
+	}
+
+	if err := m.systemUsecase.SetSetting(ctx, "scheduler_global_enabled", enabledStr); err != nil {
+		return err
+	}
+
+	go m.Reload(context.Background())
+	return nil
+}
+
+func (m *SchedulerManager) IsGlobalEnabled(ctx context.Context) bool {
+	val := m.getSettingOrSetDefault(ctx, "scheduler_global_enabled", "true")
+	return val == "true"
 }

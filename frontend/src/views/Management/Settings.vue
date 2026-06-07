@@ -133,6 +133,34 @@
       <v-divider></v-divider>
 
       <v-card-text class="pa-6">
+        <!-- Global Scheduler Control -->
+        <div class="description-section mb-6" :class="schedulerEnabled ? 'bg-primary-lighten-5' : 'bg-error-lighten-5'">
+          <v-row align="center" no-gutters>
+            <v-col cols="12" md="8">
+              <h3 class="text-subtitle-1 font-weight-bold mb-1 d-flex align-center">
+                <v-icon :color="schedulerEnabled ? 'primary' : 'error'" class="me-2">
+                  {{ schedulerEnabled ? 'mdi-check-circle' : 'mdi-pause-circle' }}
+                </v-icon>
+                Status Scheduler Global: {{ schedulerEnabled ? 'AKTIF' : 'BERHENTI (PAUSED)' }}
+              </h3>
+              <p class="text-body-2 text-medium-emphasis mb-0">
+                Gunakan sakelar ini untuk mematikan <strong>seluruh</strong> tugas otomatis secara instan. Sangat disarankan dimatikan saat melakukan import data massal.
+              </p>
+            </v-col>
+            <v-col cols="12" md="4" class="d-flex justify-md-end mt-4 mt-md-0">
+              <v-switch
+                v-model="schedulerEnabled"
+                :label="schedulerEnabled ? 'Scheduler Aktif' : 'Scheduler Berhenti'"
+                :color="schedulerEnabled ? 'primary' : 'error'"
+                inset
+                hide-details
+                :loading="togglingGlobal"
+                @change="toggleGlobalScheduler"
+              ></v-switch>
+            </v-col>
+          </v-row>
+        </div>
+
         <div v-if="loadingJobs" class="d-flex justify-center align-center py-6">
           <v-progress-circular indeterminate color="primary"></v-progress-circular>
           <span class="ms-3 text-medium-emphasis">Memuat data scheduler...</span>
@@ -267,6 +295,8 @@ const saving = ref(false);
 const snackbar = ref({ show: false, text: '', color: 'success' });
 
 const loadingJobs = ref(false);
+const togglingGlobal = ref(false);
+const schedulerEnabled = ref(true);
 const savingScheduler = ref(false);
 const triggeringJob = ref('');
 const localJobs = ref<Job[]>([]);
@@ -276,6 +306,7 @@ const successJobs = ref<Record<string, boolean>>({});
 onMounted(async () => {
   maintenanceActive.value = settingsStore.maintenanceMode.isActive;
   maintenanceMessage.value = settingsStore.maintenanceMode.message;
+  await fetchSchedulerStatus();
   await fetchSchedulerJobs();
 });
 
@@ -297,6 +328,31 @@ async function saveSettings() {
     showSnackbar('Gagal menyimpan pengaturan.', 'error');
   } finally {
     saving.value = false;
+  }
+}
+
+async function fetchSchedulerStatus() {
+  try {
+    const response = await apiClient.get('/system/scheduler/status');
+    schedulerEnabled.value = response.data?.data?.enabled ?? true;
+  } catch (error) {
+    console.error("Gagal memuat status global scheduler:", error);
+  }
+}
+
+async function toggleGlobalScheduler() {
+  togglingGlobal.value = true;
+  try {
+    await apiClient.post('/system/scheduler/toggle', { enabled: schedulerEnabled.value });
+    showSnackbar(`Scheduler global berhasil ${schedulerEnabled.value ? 'diaktifkan' : 'dimatikan'}.`, 'success');
+    await fetchSchedulerJobs(); // Refresh jobs to see next run times
+  } catch (error: any) {
+    console.error("Gagal mengubah status global scheduler:", error);
+    showSnackbar('Gagal mengubah status global scheduler.', 'error');
+    // Revert local state on failure
+    schedulerEnabled.value = !schedulerEnabled.value;
+  } finally {
+    togglingGlobal.value = false;
   }
 }
 
