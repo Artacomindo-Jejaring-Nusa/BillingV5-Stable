@@ -137,3 +137,19 @@ type mockDataTeknisRepo struct {
 func (m *mockDataTeknisRepo) GetAll(ctx context.Context, skip, limit int, search string, olt string, profile string, vlan string, onuPowerMin, onuPowerMax *int) ([]domain.DataTeknis, int64, error) {
 	return []domain.DataTeknis{}, 0, nil
 }
+
+type mockSystemRepo struct {
+	domain.SystemRepository
+	systemLogs   []domain.SystemLog
+	activityLogs []domain.ActivityLog
+}
+
+func (m *mockSystemRepo) CreateSystemLog(ctx context.Context, log *domain.SystemLog) error {
+	m.systemLogs = append(m.systemLogs, *log)
+	return nil
+}
+
+func (m *mockSystemRepo) CreateActivityLog(ctx context.Context, log *domain.ActivityLog) error {
+	m.activityLogs = append(m.activityLogs, *log)
+	return nil
+}

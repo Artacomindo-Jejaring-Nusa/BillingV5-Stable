@@ -150,16 +150,6 @@ func (m *mockPelangganRepositoryForInventory) GetByID(ctx context.Context, id ui
 	return p, nil
 }
 
-type mockSystemRepo struct {
-	domain.SystemRepository
-	logs []domain.ActivityLog
-}
-
-func (m *mockSystemRepo) CreateActivityLog(ctx context.Context, log *domain.ActivityLog) error {
-	m.logs = append(m.logs, *log)
-	return nil
-}
-
 func TestInventoryUsecase_AssignAndUnassign(t *testing.T) {
 	// Setup mocks
 	itemTypes := map[uint64]*domain.InventoryItemType{

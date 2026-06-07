@@ -449,11 +449,3 @@ func TestAutoVerifyPayments(t *testing.T) {
 	if err != nil { t.Fatalf("unexpected error: %v", err) }
 }
 
-type mockSystemRepo struct {
-	domain.SystemRepository
-}
-
-func (m *mockSystemRepo) CreateLog(ctx context.Context, log *domain.SystemLog) error {
-	return nil
-}
-
