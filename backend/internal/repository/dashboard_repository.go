@@ -659,7 +659,7 @@ func (r *dashboardRepository) GetInvoiceGenerationMonitor(ctx context.Context, t
 	var totalGenerated int64
 	err = r.db.WithContext(ctx).Table("invoices").
 		Select("COUNT(DISTINCT pelanggan_id)").
-		Where("tgl_jatuh_tempo BETWEEN ? AND ?", startOfMonth, endOfMonth).
+		Where("DATE(tgl_jatuh_tempo) BETWEEN ? AND ?", startOfMonth.Format("2006-01-02"), endOfMonth.Format("2006-01-02")).
 		Where("deleted_at IS NULL").
 		Row().Scan(&totalGenerated)
 	if err != nil {
@@ -761,7 +761,7 @@ func (r *dashboardRepository) GetFutureInvoiceProjection(ctx context.Context, ta
 
 	var estimatedCustomers int64
 	err = r.db.WithContext(ctx).Table("langganan").
-		Where("tgl_jatuh_tempo = ? AND status = ?", targetDateObj, "Aktif").
+		Where("DATE(tgl_jatuh_tempo) = ? AND status = ?", targetDateObj.Format("2006-01-02"), "Aktif").
 		Count(&estimatedCustomers).Error
 	if err != nil {
 		return nil, err
