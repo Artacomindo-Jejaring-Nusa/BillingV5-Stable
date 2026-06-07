@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/1436</span>
+                <span class='fraction'>0/1434</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/1436</span>
+                <span class='fraction'>0/1434</span>
             </div>
         
             
@@ -2408,9 +2408,7 @@
 <a name='L2343'></a><a href='#L2343'>2343</a>
 <a name='L2344'></a><a href='#L2344'>2344</a>
 <a name='L2345'></a><a href='#L2345'>2345</a>
-<a name='L2346'></a><a href='#L2346'>2346</a>
-<a name='L2347'></a><a href='#L2347'>2347</a>
-<a name='L2348'></a><a href='#L2348'>2348</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L2346'></a><a href='#L2346'>2346</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -3543,7 +3541,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -3566,7 +3563,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -4827,7 +4823,7 @@
 <span class="cstat-no" title="statement not covered" >            &lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >            &lt;div&gt;</span>
 <span class="cstat-no" title="statement not covered" >              &lt;div class="text-subtitle-1 text-md-h6 font-weight-bold"&gt;{{ getOverdueCount() }}&lt;/div&gt;</span>
-<span class="cstat-no" title="statement not covered" >              &lt;div class="text-caption text-medium-emphasis text-truncate"&gt;Kadaluarsa&lt;/div&gt;</span>
+<span class="cstat-no" title="statement not covered" >              &lt;div class="text-caption text-medium-emphasis text-truncate"&gt;Expired&lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >            &lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >          &lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >        &lt;/v-card&gt;</span>
@@ -4927,7 +4923,7 @@
 <span class="cstat-no" title="statement not covered" >              @click:close="showPaidInvoices = false"</span>
             &gt;
 <span class="cstat-no" title="statement not covered" >              &lt;v-icon start size="14"&gt;mdi-eye-check&lt;/v-icon&gt;</span>
-              Semua (Lunas &amp; Kadaluarsa)
+              Semua (Lunas &amp; Expired)
 <span class="cstat-no" title="statement not covered" >            &lt;/v-chip&gt;</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >            &lt;v-btn</span>
@@ -5022,7 +5018,7 @@
 <span class="cstat-no" title="statement not covered" >              &lt;v-switch</span>
 <span class="cstat-no" title="statement not covered" >                v-model="showPaidInvoices"</span>
 <span class="cstat-no" title="statement not covered" >                color="success"</span>
-<span class="cstat-no" title="statement not covered" >                label="Tampilkan Lunas &amp; Kadaluarsa"</span>
+<span class="cstat-no" title="statement not covered" >                label="Tampilkan Lunas &amp; Expired"</span>
 <span class="cstat-no" title="statement not covered" >                hide-details</span>
 <span class="cstat-no" title="statement not covered" >                density="comfortable"</span>
 <span class="cstat-no" title="statement not covered" >              &gt;&lt;/v-switch&gt;</span>
@@ -5169,7 +5165,7 @@
 <span class="cstat-no" title="statement not covered" >              &lt;div</span>
 <span class="cstat-no" title="statement not covered" >                v-if="item.status_invoice !== 'Lunas'"</span>
 <span class="cstat-no" title="statement not covered" >                class="text-caption"</span>
-<span class="cstat-no" title="statement not covered" >                :class="item.status_invoice === 'Kadaluarsa' ? 'text-error' : 'text-warning'"</span>
+<span class="cstat-no" title="statement not covered" >                :class="item.status_invoice === 'Expired' ? 'text-error' : 'text-warning'"</span>
               &gt;
 <span class="cstat-no" title="statement not covered" >                {{ getDueDateLabel(item) }}</span>
 <span class="cstat-no" title="statement not covered" >              &lt;/div&gt;</span>
@@ -5345,13 +5341,13 @@
 <span class="cstat-no" title="statement not covered" >              &lt;/v-list-item&gt;</span>
 <span class="cstat-no" title="statement not covered" >              &lt;v-list-item class="px-0"&gt;</span>
 <span class="cstat-no" title="statement not covered" >                &lt;template v-slot:prepend&gt;</span>
-<span class="cstat-no" title="statement not covered" >                  &lt;v-icon :color="item.status_invoice === 'Kadaluarsa' ? 'error' : 'warning'" class="me-4"&gt;mdi-calendar-alert&lt;/v-icon&gt;</span>
+<span class="cstat-no" title="statement not covered" >                  &lt;v-icon :color="item.status_invoice === 'Expired' ? 'error' : 'warning'" class="me-4"&gt;mdi-calendar-alert&lt;/v-icon&gt;</span>
                 &lt;/template&gt;
 <span class="cstat-no" title="statement not covered" >                &lt;v-list-item-title&gt;Periode&lt;/v-list-item-title&gt;</span>
 <span class="cstat-no" title="statement not covered" >                &lt;template v-slot:append&gt;</span>
 <span class="cstat-no" title="statement not covered" >                  &lt;div class="text-right"&gt;</span>
 <span class="cstat-no" title="statement not covered" >                    &lt;div&gt;{{ formatDate(item.tgl_jatuh_tempo) }}&lt;/div&gt;</span>
-<span class="cstat-no" title="statement not covered" >                    &lt;div v-if="item.status_invoice !== 'Lunas'" class="text-caption" :class="item.status_invoice === 'Kadaluarsa' ? 'text-error' : 'text-warning'"&gt;</span>
+<span class="cstat-no" title="statement not covered" >                    &lt;div v-if="item.status_invoice !== 'Lunas'" class="text-caption" :class="item.status_invoice === 'Expired' ? 'text-error' : 'text-warning'"&gt;</span>
 <span class="cstat-no" title="statement not covered" >                      {{ getDueDateLabel(item) }}</span>
 <span class="cstat-no" title="statement not covered" >                    &lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >                  &lt;/div&gt;</span>
@@ -5714,7 +5710,7 @@ import type { Invoice, PelangganSelectItem } from '@/interfaces/invoice';
 <span class="cstat-no" title="statement not covered" >const selectedStatus = ref&lt;string | null&gt;(null);</span>
 <span class="cstat-no" title="statement not covered" >const startDate = ref&lt;string | null&gt;(null);</span>
 <span class="cstat-no" title="statement not covered" >const endDate = ref&lt;string | null&gt;(null);</span>
-<span class="cstat-no" title="statement not covered" >const statusOptions = ref(['Lunas', 'Belum Dibayar', 'Kadaluarsa', 'Expired']);</span>
+<span class="cstat-no" title="statement not covered" >const statusOptions = ref(['Lunas', 'Belum Dibayar', 'Expired']);</span>
 <span class="cstat-no" title="statement not covered" >const showPaidInvoices = ref(false);</span>
 <span class="cstat-no" title="statement not covered" >const selectedLimit = ref(10);</span>
 <span class="cstat-no" title="statement not covered" >const limitOptions = ref([</span>
@@ -5863,8 +5859,8 @@ import type { Invoice, PelangganSelectItem } from '@/interfaces/invoice';
 <span class="cstat-no" title="statement not covered" >};</span>
 <span class="cstat-no" title="statement not covered" >const getOverdueCount = () =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  if (!invoices.value) return 0;</span>
-  // Hitung berdasarkan status invoice yang kadaluarsa
-<span class="cstat-no" title="statement not covered" >  return invoices.value.filter(inv =&gt; inv.status_invoice === 'Kadaluarsa').length;</span>
+  // Hitung berdasarkan status invoice yang expired
+<span class="cstat-no" title="statement not covered" >  return invoices.value.filter(inv =&gt; inv.status_invoice === 'Expired').length;</span>
 <span class="cstat-no" title="statement not covered" >};</span>
 &nbsp;
 // --- Helper Functions --- (Menjadi lebih sederhana)
@@ -5885,7 +5881,6 @@ import type { Invoice, PelangganSelectItem } from '@/interfaces/invoice';
 <span class="cstat-no" title="statement not covered" >function getStatusColor(status: string): string {</span>
 <span class="cstat-no" title="statement not covered" >  switch (status) {</span>
 <span class="cstat-no" title="statement not covered" >    case 'Lunas': return 'success';</span>
-<span class="cstat-no" title="statement not covered" >    case 'Kadaluarsa': return 'error';</span>
 <span class="cstat-no" title="statement not covered" >    case 'Expired': return 'error';  // Status Expired menggunakan warna merah</span>
 <span class="cstat-no" title="statement not covered" >    case 'Belum Dibayar': return 'warning';</span>
 <span class="cstat-no" title="statement not covered" >    default: return 'grey';</span>
@@ -5896,12 +5891,12 @@ import type { Invoice, PelangganSelectItem } from '@/interfaces/invoice';
   // Filter data di client-side untuk mengecek payment link status yang expired
 <span class="cstat-no" title="statement not covered" >  let filtered = invoices.value;</span>
 &nbsp;
-  // Jika switch "Tampilkan Lunas &amp; Kadaluarsa" tidak aktif, exclude invoice yang lunas saja
-  // TAPI TETAP TAMPILKAN invoice kadaluarsa agar bisa direinvoice
+  // Jika switch "Tampilkan Lunas &amp; Expired" tidak aktif, exclude invoice yang lunas saja
+  // TAPI TETAP TAMPILKAN invoice expired agar bisa direinvoice
 <span class="cstat-no" title="statement not covered" >  if (!showPaidInvoices.value &amp;&amp; filtered) {</span>
 <span class="cstat-no" title="statement not covered" >    filtered = filtered.filter(invoice =&gt; {</span>
       // Exclude invoice yang sudah lunas saja
-      // Invoice kadaluarsa tetap ditampilkan agar bisa direinvoice
+      // Invoice expired tetap ditampilkan agar bisa direinvoice
 <span class="cstat-no" title="statement not covered" >      return invoice.status_invoice !== 'Lunas';</span>
 <span class="cstat-no" title="statement not covered" >    });</span>
 <span class="cstat-no" title="statement not covered" >  }</span>
@@ -5916,8 +5911,7 @@ import type { Invoice, PelangganSelectItem } from '@/interfaces/invoice';
 <span class="cstat-no" title="statement not covered" >function getStatusIcon(status: string): string {</span>
 <span class="cstat-no" title="statement not covered" >  switch (status) {</span>
 <span class="cstat-no" title="statement not covered" >    case 'Lunas': return 'mdi-check-circle';</span>
-<span class="cstat-no" title="statement not covered" >    case 'Kadaluarsa': return 'mdi-alert-circle';</span>
-<span class="cstat-no" title="statement not covered" >    case 'Expired': return 'mdi-timer-off';  // Icon untuk link expired</span>
+<span class="cstat-no" title="statement not covered" >    case 'Expired': return 'mdi-alert-circle';</span>
 <span class="cstat-no" title="statement not covered" >    case 'Belum Dibayar': return 'mdi-clock-outline';</span>
 <span class="cstat-no" title="statement not covered" >    default: return 'mdi-help-circle';</span>
 <span class="cstat-no" title="statement not covered" >  }</span>
@@ -5925,7 +5919,7 @@ import type { Invoice, PelangganSelectItem } from '@/interfaces/invoice';
 &nbsp;
 /**
  * Menampilkan label sisa waktu atau keterlambatan.
- * Fungsi ini tidak lagi menentukan status 'Kadaluarsa'.
+ * Fungsi ini tidak lagi menentukan status 'Expired'.
  */
 <span class="cstat-no" title="statement not covered" >function getDueDateLabel(item: Invoice): string {</span>
 <span class="cstat-no" title="statement not covered" >  if (item.status_invoice === 'Lunas') return '';</span>
@@ -5981,7 +5975,7 @@ import type { Invoice, PelangganSelectItem } from '@/interfaces/invoice';
 <span class="cstat-no" title="statement not covered" >    if (startDate.value) params.append('start_date', startDate.value);</span>
 <span class="cstat-no" title="statement not covered" >    if (endDate.value) params.append('end_date', endDate.value);</span>
 &nbsp;
-    // Optimasi: Jika switch "Tampilkan Lunas &amp; Kadaluarsa" tidak aktif,
+    // Optimasi: Jika switch "Tampilkan Lunas &amp; Expired" tidak aktif,
     // filter hanya invoice yang belum dibayar
 <span class="cstat-no" title="statement not covered" >    if (!showPaidInvoices.value) {</span>
 <span class="cstat-no" title="statement not covered" >      if (!selectedStatus.value) {  // Jika tidak ada filter status spesifik</span>
@@ -6387,7 +6381,7 @@ import type { Invoice, PelangganSelectItem } from '@/interfaces/invoice';
 <span class="cstat-no" title="statement not covered" >    if (startDate.value) params.append('start_date', startDate.value);</span>
 <span class="cstat-no" title="statement not covered" >    if (endDate.value) params.append('end_date', endDate.value);</span>
 &nbsp;
-    // Jika switch "Tampilkan Lunas &amp; Kadaluarsa" tidak aktif dan tidak ada filter status spesifik,
+    // Jika switch "Tampilkan Lunas &amp; Expired" tidak aktif dan tidak ada filter status spesifik,
     // maka kita hanya ingin mengekspor invoice yang belum dibayar
 <span class="cstat-no" title="statement not covered" >    if (!showPaidInvoices.value &amp;&amp; !selectedStatus.value) {</span>
 <span class="cstat-no" title="statement not covered" >      params.append('status_invoice', 'Belum Dibayar');</span>
@@ -6425,12 +6419,12 @@ import type { Invoice, PelangganSelectItem } from '@/interfaces/invoice';
 <span class="cstat-no" title="statement not covered" >  const dueDate = new Date(item.tgl_jatuh_tempo);</span>
 &nbsp;
   // Bisa direinvoice jika:
-  // 1. Statusnya Expired atau Kadaluarsa
+  // 1. Statusnya Expired atau Expired
   // 2. Atau status Belum Dibayar dan sudah lewat jatuh tempo
   // 3. Dan bukan reinvoice sebelumnya
 <span class="cstat-no" title="statement not covered" >  return (</span>
 <span class="cstat-no" title="statement not covered" >    (item.status_invoice === 'Expired' ||</span>
-<span class="cstat-no" title="statement not covered" >     item.status_invoice === 'Kadaluarsa' ||</span>
+<span class="cstat-no" title="statement not covered" >     item.status_invoice === 'Expired' ||</span>
 <span class="cstat-no" title="statement not covered" >    (item.status_invoice === 'Belum Dibayar' &amp;&amp; today &gt; dueDate)) &amp;&amp;</span>
 <span class="cstat-no" title="statement not covered" >    !item.is_reinvoice</span>
   );
@@ -7111,7 +7105,7 @@ import type { Invoice, PelangganSelectItem } from '@/interfaces/invoice';
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-07T02:53:42.689Z
+                at 2026-06-07T15:09:51.479Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

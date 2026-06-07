@@ -1705,10 +1705,10 @@
 <span class="cstat-no" title="statement not covered" >                 &lt;v-card-text&gt;</span>
 <span class="cstat-no" title="statement not covered" >                  &lt;div class="text-caption text-grey mb-1"&gt;Belum Terbayar&lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >                  &lt;div class="text-h5 font-weight-bold text-warning darken-2"&gt;</span>
-<span class="cstat-no" title="statement not covered" >                    {{ formatCurrency((reportSummary.billing_summary?.pending?.total || 0) + (reportSummary.billing_summary?.telat?.total || 0)) }}</span>
+<span class="cstat-no" title="statement not covered" >                    {{ formatCurrency((reportSummary.billing_summary?.pending?.total || 0) + (reportSummary.billing_summary?.expired?.total || 0)) }}</span>
 <span class="cstat-no" title="statement not covered" >                  &lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >                   &lt;div class="text-caption text-grey mt-2"&gt;</span>
-                    Potensi pendapatan (Pending + Telat)
+                    Potensi pendapatan (Pending + Expired)
 <span class="cstat-no" title="statement not covered" >                  &lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >                &lt;/v-card-text&gt;</span>
 <span class="cstat-no" title="statement not covered" >              &lt;/v-card&gt;</span>
@@ -1808,28 +1808,28 @@
 <span class="cstat-no" title="statement not covered" >               &lt;/v-card&gt;</span>
 <span class="cstat-no" title="statement not covered" >             &lt;/v-col&gt;</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >             &lt;!-- Telat --&gt;</span>
+<span class="cstat-no" title="statement not covered" >             &lt;!-- Expired --&gt;</span>
 <span class="cstat-no" title="statement not covered" >             &lt;v-col cols="12" sm="6" md="3"&gt;</span>
 <span class="cstat-no" title="statement not covered" >               &lt;v-card class="stats-card h-100" elevation="0"&gt;</span>
 <span class="cstat-no" title="statement not covered" >                 &lt;v-card-text&gt;</span>
-<span class="cstat-no" title="statement not covered" >                   &lt;div class="text-subtitle-2 text-error mb-2"&gt;Telat&lt;/div&gt;</span>
-<span class="cstat-no" title="statement not covered" >                   &lt;div class="text-h4 font-weight-black text-error mb-4"&gt;{{ reportSummary.billing_summary?.telat?.count || 0 }}&lt;/div&gt;</span>
+<span class="cstat-no" title="statement not covered" >                   &lt;div class="text-subtitle-2 text-error mb-2"&gt;Expired&lt;/div&gt;</span>
+<span class="cstat-no" title="statement not covered" >                   &lt;div class="text-h4 font-weight-black text-error mb-4"&gt;{{ reportSummary.billing_summary?.expired?.count || 0 }}&lt;/div&gt;</span>
                    
 <span class="cstat-no" title="statement not covered" >                   &lt;div class="stats-detail-row"&gt;</span>
 <span class="cstat-no" title="statement not covered" >                      &lt;span&gt;Nominal:&lt;/span&gt;</span>
-<span class="cstat-no" title="statement not covered" >                      &lt;span class="font-weight-medium"&gt;{{ formatCurrency(reportSummary.billing_summary?.telat?.nominal || 0) }}&lt;/span&gt;</span>
+<span class="cstat-no" title="statement not covered" >                      &lt;span class="font-weight-medium"&gt;{{ formatCurrency(reportSummary.billing_summary?.expired?.nominal || 0) }}&lt;/span&gt;</span>
 <span class="cstat-no" title="statement not covered" >                   &lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >                   &lt;div class="stats-detail-row text-error"&gt;</span>
 <span class="cstat-no" title="statement not covered" >                      &lt;span&gt;Diskon:&lt;/span&gt;</span>
-<span class="cstat-no" title="statement not covered" >                      &lt;span class="font-weight-medium"&gt;{{ formatCurrency(reportSummary.billing_summary?.telat?.diskon || 0) }}&lt;/span&gt;</span>
+<span class="cstat-no" title="statement not covered" >                      &lt;span class="font-weight-medium"&gt;{{ formatCurrency(reportSummary.billing_summary?.expired?.diskon || 0) }}&lt;/span&gt;</span>
 <span class="cstat-no" title="statement not covered" >                   &lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >                    &lt;div class="stats-detail-row"&gt;</span>
 <span class="cstat-no" title="statement not covered" >                      &lt;span&gt;Biaya Pasang:&lt;/span&gt;</span>
-<span class="cstat-no" title="statement not covered" >                      &lt;span class="font-weight-medium"&gt;{{ formatCurrency(reportSummary.billing_summary?.telat?.biaya_pasang || 0) }}&lt;/span&gt;</span>
+<span class="cstat-no" title="statement not covered" >                      &lt;span class="font-weight-medium"&gt;{{ formatCurrency(reportSummary.billing_summary?.expired?.biaya_pasang || 0) }}&lt;/span&gt;</span>
 <span class="cstat-no" title="statement not covered" >                   &lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >                   &lt;div class="stats-detail-row total mt-2 pt-2 border-t text-error"&gt;</span>
 <span class="cstat-no" title="statement not covered" >                      &lt;span&gt;Total:&lt;/span&gt;</span>
-<span class="cstat-no" title="statement not covered" >                      &lt;span class="font-weight-bold"&gt;{{ formatCurrency(reportSummary.billing_summary?.telat?.total || 0) }}&lt;/span&gt;</span>
+<span class="cstat-no" title="statement not covered" >                      &lt;span class="font-weight-bold"&gt;{{ formatCurrency(reportSummary.billing_summary?.expired?.total || 0) }}&lt;/span&gt;</span>
 <span class="cstat-no" title="statement not covered" >                   &lt;/div&gt;</span>
 <span class="cstat-no" title="statement not covered" >                 &lt;/v-card-text&gt;</span>
 <span class="cstat-no" title="statement not covered" >               &lt;/v-card&gt;</span>
@@ -1872,11 +1872,11 @@
 <span class="cstat-no" title="statement not covered" >                      &lt;td class="text-right font-weight-bold text-warning"&gt;{{ formatCurrency(reportSummary.tax_summary?.pending?.total_pajak || 0) }}&lt;/td&gt;</span>
 <span class="cstat-no" title="statement not covered" >                    &lt;/tr&gt;</span>
 <span class="cstat-no" title="statement not covered" >                     &lt;tr&gt;</span>
-<span class="cstat-no" title="statement not covered" >                      &lt;td class="font-weight-medium"&gt;Telat&lt;/td&gt;</span>
-<span class="cstat-no" title="statement not covered" >                       &lt;td class="text-right text-error"&gt;{{ formatCurrency(reportSummary.tax_summary?.telat?.ppn || 0) }}&lt;/td&gt;</span>
-<span class="cstat-no" title="statement not covered" >                      &lt;td class="text-right"&gt;{{ formatCurrency(reportSummary.tax_summary?.telat?.bhp || 0) }}&lt;/td&gt;</span>
-<span class="cstat-no" title="statement not covered" >                      &lt;td class="text-right"&gt;{{ formatCurrency(reportSummary.tax_summary?.telat?.uso || 0) }}&lt;/td&gt;</span>
-<span class="cstat-no" title="statement not covered" >                      &lt;td class="text-right font-weight-bold text-error"&gt;{{ formatCurrency(reportSummary.tax_summary?.telat?.total_pajak || 0) }}&lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                      &lt;td class="font-weight-medium"&gt;Expired&lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                       &lt;td class="text-right text-error"&gt;{{ formatCurrency(reportSummary.tax_summary?.expired?.ppn || 0) }}&lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                      &lt;td class="text-right"&gt;{{ formatCurrency(reportSummary.tax_summary?.expired?.bhp || 0) }}&lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                      &lt;td class="text-right"&gt;{{ formatCurrency(reportSummary.tax_summary?.expired?.uso || 0) }}&lt;/td&gt;</span>
+<span class="cstat-no" title="statement not covered" >                      &lt;td class="text-right font-weight-bold text-error"&gt;{{ formatCurrency(reportSummary.tax_summary?.expired?.total_pajak || 0) }}&lt;/td&gt;</span>
 <span class="cstat-no" title="statement not covered" >                    &lt;/tr&gt;</span>
 <span class="cstat-no" title="statement not covered" >                     &lt;tr class="bg-grey-lighten-4 font-weight-bold"&gt;</span>
 <span class="cstat-no" title="statement not covered" >                      &lt;td&gt;TOTAL&lt;/td&gt;</span>
@@ -1943,11 +1943,11 @@
 <span class="cstat-no" title="statement not covered" >             &lt;template v-slot:item.total_harga="{ item }"&gt;</span>
 <span class="cstat-no" title="statement not covered" >                &lt;span class="font-weight-medium"&gt;{{ formatCurrency(item.total_harga) }}&lt;/span&gt;</span>
              &lt;/template&gt;
-<span class="cstat-no" title="statement not covered" >             &lt;template v-slot:item.paid_at="{ item }"&gt;</span>
-<span class="cstat-no" title="statement not covered" >                {{ item.paid_at ? new Date(item.paid_at).toLocaleString('id-ID') : '-' }}</span>
+<span class="cstat-no" title="statement not covered" >             &lt;template v-slot:item.tgl_lunas="{ item }"&gt;</span>
+<span class="cstat-no" title="statement not covered" >                {{ item.tgl_lunas ? new Date(item.tgl_lunas).toLocaleString('id-ID') : '-' }}</span>
              &lt;/template&gt;
-<span class="cstat-no" title="statement not covered" >             &lt;template v-slot:item.id_brand="{ item }"&gt;</span>
-<span class="cstat-no" title="statement not covered" >                &lt;v-chip size="x-small" variant="tonal" color="primary"&gt;{{ item.id_brand }}&lt;/v-chip&gt;</span>
+<span class="cstat-no" title="statement not covered" >             &lt;template v-slot:item.brand="{ item }"&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;v-chip size="x-small" variant="tonal" color="primary"&gt;{{ item.brand }}&lt;/v-chip&gt;</span>
              &lt;/template&gt;
 <span class="cstat-no" title="statement not covered" >            &lt;/v-data-table-server&gt;</span>
 <span class="cstat-no" title="statement not covered" >         &lt;/v-card&gt;</span>
@@ -1973,11 +1973,11 @@
 interface InvoiceReportItem {
   invoice_number: string;
   pelanggan_nama: string;
-  paid_at: string;
+  tgl_lunas: string;
   total_harga: number;
-  metode_pembayaran?: string;
+  metode: string;
   alamat?: string;
-  id_brand?: string;
+  brand: string;
 }
 &nbsp;
 interface BillStat {
@@ -2015,13 +2015,13 @@ interface RevenueReportResponse {
     total_tagihan: BillStat;
     lunas: BillStat;
     pending: BillStat;
-    telat: BillStat;
+    expired: BillStat;
   };
   tax_summary: {
     total: TaxStat;
     lunas: TaxStat;
     pending: TaxStat;
-    telat: TaxStat;
+    expired: TaxStat;
   };
   payment_methods: PaymentMethodStat[];
   rincian_invoice: InvoiceReportItem[];
@@ -2052,10 +2052,10 @@ interface RevenueReportResponse {
 <span class="cstat-no" title="statement not covered" >const headers = [</span>
 <span class="cstat-no" title="statement not covered" >  { title: 'No. Invoice', key: 'invoice_number' },</span>
 <span class="cstat-no" title="statement not covered" >  { title: 'Pelanggan', key: 'pelanggan_nama' },</span>
-<span class="cstat-no" title="statement not covered" >  { title: 'Brand', key: 'id_brand' },</span>
+<span class="cstat-no" title="statement not covered" >  { title: 'Brand', key: 'brand' },</span>
 <span class="cstat-no" title="statement not covered" >  { title: 'Alamat', key: 'alamat' },</span>
-<span class="cstat-no" title="statement not covered" >  { title: 'Tgl Bayar', key: 'paid_at' },</span>
-<span class="cstat-no" title="statement not covered" >  { title: 'Metode', key: 'metode_pembayaran' },</span>
+<span class="cstat-no" title="statement not covered" >  { title: 'Tgl Bayar', key: 'tgl_lunas' },</span>
+<span class="cstat-no" title="statement not covered" >  { title: 'Metode', key: 'metode' },</span>
 <span class="cstat-no" title="statement not covered" >  { title: 'Total', key: 'total_harga', align: 'end' },</span>
 <span class="cstat-no" title="statement not covered" >] as const;</span>
 &nbsp;
@@ -2175,10 +2175,10 @@ interface RevenueReportResponse {
 <span class="cstat-no" title="statement not covered" >         const dataToExport = allData.map((item: any) =&gt; ({</span>
 <span class="cstat-no" title="statement not covered" >          "Nomor Invoice": item.invoice_number,</span>
 <span class="cstat-no" title="statement not covered" >          "Nama Pelanggan": item.pelanggan_nama,</span>
-<span class="cstat-no" title="statement not covered" >          "Brand": item.id_brand || "",</span>
+<span class="cstat-no" title="statement not covered" >          "Brand": item.brand || "",</span>
 <span class="cstat-no" title="statement not covered" >          "Alamat": item.alamat || "",</span>
-<span class="cstat-no" title="statement not covered" >          "Tanggal Bayar": item.paid_at ? new Date(item.paid_at).toLocaleString() : '-',</span>
-<span class="cstat-no" title="statement not covered" >          "Metode Pembayaran": item.metode_pembayaran || "",</span>
+<span class="cstat-no" title="statement not covered" >          "Tanggal Bayar": item.tgl_lunas ? new Date(item.tgl_lunas).toLocaleString() : '-',</span>
+<span class="cstat-no" title="statement not covered" >          "Metode Pembayaran": item.metode || "",</span>
 <span class="cstat-no" title="statement not covered" >          "Jumlah (Rp)": item.total_harga</span>
 <span class="cstat-no" title="statement not covered" >        }));</span>
 &nbsp;
@@ -2287,7 +2287,7 @@ interface RevenueReportResponse {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-07T02:53:42.689Z
+                at 2026-06-07T15:09:51.479Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

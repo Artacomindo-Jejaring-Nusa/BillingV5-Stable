@@ -46,6 +46,25 @@ func (m *mockBillingUsecase) GetRevenueReport(ctx context.Context, params *domai
 	return &domain.RevenueReportResponse{}, nil
 }
 
+func (m *mockBillingUsecase) GetRevenueReportDetails(ctx context.Context, params *domain.RevenueReportParams) ([]domain.InvoiceReportItem, error) {
+	return []domain.InvoiceReportItem{}, nil
+}
+
+func TestBillingHandler_GetRevenueReportDetails(t *testing.T) {
+	router := setupRouter()
+	mockUsecase := &mockBillingUsecase{}
+	authMiddleware := func(c *gin.Context) { c.Next() }
+	NewBillingHandler(router.Group("/api/v1"), mockUsecase, authMiddleware)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/reports/revenue/details", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
 func setupRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
@@ -90,6 +109,36 @@ func TestBillingHandler_ExportInvoices(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/v1/invoices/export?format=csv", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestBillingHandler_ExportPaymentLinksExcel(t *testing.T) {
+	router := setupRouter()
+	mockUsecase := &mockBillingUsecase{}
+	authMiddleware := func(c *gin.Context) { c.Next() }
+	NewBillingHandler(router.Group("/api/v1"), mockUsecase, authMiddleware)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/invoices/export-payment-links-excel", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestBillingHandler_GetInvoiceSummary(t *testing.T) {
+	router := setupRouter()
+	mockUsecase := &mockBillingUsecase{}
+	authMiddleware := func(c *gin.Context) { c.Next() }
+	NewBillingHandler(router.Group("/api/v1"), mockUsecase, authMiddleware)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/invoices/summary", nil)
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {

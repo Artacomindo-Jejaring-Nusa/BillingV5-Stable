@@ -15,6 +15,9 @@ Write-Host "--- Running Backend (Go) Tests ---" -ForegroundColor Cyan
 Push-Location backend
 go test -v "./..." -coverprofile="coverage.out"
 if ($LASTEXITCODE -ne 0) { Write-Host "Backend tests failed!"; Pop-Location; exit 1 }
+
+# Fix paths in coverage.out (billing-backend/ -> backend/)
+(Get-Content coverage.out) -replace 'billing-backend/', 'backend/' | Set-Content coverage.out
 Pop-Location
 
 # 2. Run Frontend Tests & Coverage

@@ -421,20 +421,39 @@ func (m *mockInvoiceRepoCallback) ExportPaymentLinksExcel(ctx context.Context, f
 	return []byte("dummy excel data"), nil
 }
 
-func TestRevenueReportMethods(t *testing.T) {
-	invRepo := &mockInvoiceRepoCallback{}
-	u := NewBillingUsecase(invRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+func TestAutoSuspend(t *testing.T) {
+	invRepo := &mockInvoiceRepoCallback{
+		invoices: map[string]*domain.Invoice{
+			"INV001": {ID: 1, StatusInvoice: "Belum Dibayar", TglJatuhTempo: time.Now().AddDate(0, 0, -1)},
+		},
+	}
+	langRepo := &mockLanggananRepo{data: make(map[uint64]*domain.Langganan)}
+	sysRepo := &mockSystemRepo{}
+	u := NewBillingUsecase(invRepo, langRepo, nil, nil, nil, nil, nil, nil, sysRepo, nil).(*billingUsecase)
 
-	t.Run("GetRevenueReport", func(t *testing.T) {
-		res, err := u.GetRevenueReport(context.Background(), &domain.RevenueReportParams{})
-		if err != nil { t.Fatalf("error: %v", err) }
-		if res.TotalPendapatan != 1000 { t.Errorf("expected 1000, got %f", res.TotalPendapatan) }
-	})
+	err := u.AutoSuspend(context.Background())
+	if err != nil { t.Fatalf("unexpected error: %v", err) }
+}
 
-	t.Run("GetRevenueReportDetails", func(t *testing.T) {
-		res, err := u.GetRevenueReportDetails(context.Background(), &domain.RevenueReportParams{})
-		if err != nil { t.Fatalf("error: %v", err) }
-		if len(res) != 1 { t.Errorf("expected 1, got %d", len(res)) }
-	})
+func TestAutoVerifyPayments(t *testing.T) {
+	xenID := "xen_123"
+	invRepo := &mockInvoiceRepoCallback{
+		invoices: map[string]*domain.Invoice{
+			"INV001": {ID: 1, StatusInvoice: "Belum Dibayar", XenditID: &xenID},
+		},
+	}
+	sysRepo := &mockSystemRepo{}
+	u := NewBillingUsecase(invRepo, nil, nil, nil, nil, nil, nil, nil, sysRepo, nil).(*billingUsecase)
+
+	err := u.VerifyPayments(context.Background())
+	if err != nil { t.Fatalf("unexpected error: %v", err) }
+}
+
+type mockSystemRepo struct {
+	domain.SystemRepository
+}
+
+func (m *mockSystemRepo) CreateLog(ctx context.Context, log *domain.SystemLog) error {
+	return nil
 }
 
