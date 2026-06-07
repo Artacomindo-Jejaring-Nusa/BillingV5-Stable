@@ -56,6 +56,7 @@ type DataTeknisUsecase interface {
 	GetAvailableProfilesForPackage(ctx context.Context, packageID uint64, pelangganID uint64, mikrotikServerID *uint64) ([]map[string]interface{}, error)
 	GetLastUsedIP(ctx context.Context, mikrotikServerID uint64) (map[string]interface{}, error)
 	ImportFromCSV(ctx context.Context, csvContent string) (int, error)
+	Export(ctx context.Context, format string) ([]byte, string, error)
 }
 
 // OLTRepository defines database operations for OLT

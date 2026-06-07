@@ -1,8 +1,11 @@
 package http
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"billing-backend/internal/domain"
 
@@ -23,11 +26,93 @@ func NewPelangganHandler(r *gin.RouterGroup, pu domain.PelangganUsecase, authMid
 	pelangganGroup.Use(authMiddleware)
 	{
 		pelangganGroup.GET("", handler.FetchAll)
+		pelangganGroup.GET("/lokasi/unik", handler.GetUniqueLocations)
+		pelangganGroup.GET("/export", handler.Export)
+		pelangganGroup.POST("/import", handler.Import)
+		pelangganGroup.GET("/template/csv", handler.DownloadCSVTemplate)
 		pelangganGroup.GET("/:id", handler.GetByID)
 		pelangganGroup.POST("", handler.Store)
 		pelangganGroup.PUT("/:id", handler.Update)
 		pelangganGroup.DELETE("/:id", handler.Delete)
 	}
+}
+
+func (h *PelangganHandler) Export(c *gin.Context) {
+	format := c.DefaultQuery("format", "csv")
+	data, contentType, err := h.pelangganUsecase.Export(c.Request.Context(), format)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	filename := "export_pelanggan"
+	if format == "excel" {
+		filename += ".xlsx"
+	} else {
+		filename += ".csv"
+	}
+
+	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Data(http.StatusOK, contentType, data)
+}
+
+func (h *PelangganHandler) Import(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
+		return
+	}
+
+	opened, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
+		return
+	}
+	defer opened.Close()
+
+	buf := new(bytes.Buffer)
+	if _, err := io.Copy(buf, opened); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
+		return
+	}
+
+	count, err := h.pelangganUsecase.ImportFromCSV(c.Request.Context(), buf.String())
+	if err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"message": "Import finished with errors",
+			"errors":  strings.Split(err.Error(), "; "),
+			"count":   count,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Berhasil mengimpor " + strconv.Itoa(count) + " data pelanggan",
+		"count":   count,
+	})
+}
+
+func (h *PelangganHandler) DownloadCSVTemplate(c *gin.Context) {
+	headers := []string{"No KTP", "Nama", "Alamat", "Blok", "Unit", "No Telp", "Email", "Layanan", "ID Brand", "Tgl Instalasi"}
+	buf := new(bytes.Buffer)
+	buf.Write([]byte("\ufeff"))
+	buf.WriteString(strings.Join(headers, ";") + "\n")
+	sample := []string{"3201234567890001", "Budi Santoso", "Jl. Melati No. 123", "A", "101", "08123456789", "budi@example.com", "Internet 20 Mbps", "ajn-01", "2024-01-01"}
+	buf.WriteString(strings.Join(sample, ";") + "\n")
+
+	c.Header("Content-Disposition", "attachment; filename=template_import_pelanggan.csv")
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", buf.Bytes())
+}
+
+func (h *PelangganHandler) GetUniqueLocations(c *gin.Context) {
+	locations, err := h.pelangganUsecase.GetUniqueLocations(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, locations)
 }
 
 func (h *PelangganHandler) FetchAll(c *gin.Context) {
@@ -56,9 +141,8 @@ func (h *PelangganHandler) FetchAll(c *gin.Context) {
 }
 
 func (h *PelangganHandler) GetByID(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+	id, ok := h.parseID(c)
+	if !ok {
 		return
 	}
 
@@ -79,7 +163,7 @@ func (h *PelangganHandler) Store(c *gin.Context) {
 	}
 
 	if err := h.pelangganUsecase.Store(c.Request.Context(), &pelanggan); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err)
 		return
 	}
 
@@ -87,9 +171,8 @@ func (h *PelangganHandler) Store(c *gin.Context) {
 }
 
 func (h *PelangganHandler) Update(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+	id, ok := h.parseID(c)
+	if !ok {
 		return
 	}
 
@@ -100,7 +183,7 @@ func (h *PelangganHandler) Update(c *gin.Context) {
 	}
 
 	if err := h.pelangganUsecase.Update(c.Request.Context(), id, &pelanggan); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err)
 		return
 	}
 
@@ -108,9 +191,8 @@ func (h *PelangganHandler) Update(c *gin.Context) {
 }
 
 func (h *PelangganHandler) Delete(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+	id, ok := h.parseID(c)
+	if !ok {
 		return
 	}
 
@@ -120,4 +202,21 @@ func (h *PelangganHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Pelanggan deleted successfully"})
+}
+
+func (h *PelangganHandler) parseID(c *gin.Context) (uint64, bool) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return 0, false
+	}
+	return id, true
+}
+
+func (h *PelangganHandler) handleError(c *gin.Context, err error) {
+	if strings.Contains(err.Error(), "sudah terdaftar") || strings.Contains(err.Error(), "required") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 }

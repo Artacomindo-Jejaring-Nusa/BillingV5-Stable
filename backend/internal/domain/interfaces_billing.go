@@ -24,6 +24,9 @@ type InvoiceRepository interface {
 	UpdateStatusForUnpaidInvoices(ctx context.Context, pelangganID uint64, targetDueDate, endOfPrevMonth time.Time, newStatus string) (int64, error)
 	GetInvoiceByPelangganAndDueDateRange(ctx context.Context, pelangganID uint64, start, end time.Time) (*Invoice, error)
 	GetInvoiceSummary(ctx context.Context) (*InvoiceSummaryStats, error)
+	GetRevenueReport(ctx context.Context, params *RevenueReportParams) (*RevenueReportResponse, error)
+	GetRevenueReportDetails(ctx context.Context, params *RevenueReportParams) ([]InvoiceReportItem, error)
+	ExportPaymentLinksExcel(ctx context.Context, filters map[string]string) ([]byte, error)
 }
 
 // LanggananRepository defines database operations for Langganan
@@ -66,11 +69,23 @@ type BillingUsecase interface {
 	CalculateProratePlusFull(ctx context.Context, req *LanggananCalculateRequest) (*LanggananCalculateProratePlusFullResponse, error)
 	CalculateProrate(ctx context.Context, req *ProrateCalculationRequest) (*ProrateCalculationResponse, error)
 	CalculateDiskon(ctx context.Context, req *DiskonCalculationRequest) (*DiskonCalculationResponse, error)
+	GetDiscountedPrice(ctx context.Context, cluster string, originalPrice float64) float64
 
 	// Cron Jobs
 	GenerateInvoices(ctx context.Context) error
 	AutoSuspend(ctx context.Context) error
 	VerifyPayments(ctx context.Context) error
+
+	// Reports
+	GetRevenueReport(ctx context.Context, params *RevenueReportParams) (*RevenueReportResponse, error)
+	GetRevenueReportDetails(ctx context.Context, params *RevenueReportParams) ([]InvoiceReportItem, error)
+
+	// Portability
+	ExportLangganan(ctx context.Context, format string) ([]byte, string, error)
+	ExportLanggananMultiSheet(ctx context.Context) ([]byte, string, error)
+	ImportLanggananFromCSV(ctx context.Context, csvContent string) (int, error)
+	ExportInvoices(ctx context.Context, format string) ([]byte, string, error)
+	ExportPaymentLinksExcel(ctx context.Context, filters map[string]string) ([]byte, error)
 }
 
 

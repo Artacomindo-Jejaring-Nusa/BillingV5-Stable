@@ -44,9 +44,29 @@ func NewDataTeknisHandler(r *gin.RouterGroup, du domain.DataTeknisUsecase, authM
 		g.POST("/check-ip", handler.CheckIPAddress)
 		g.GET("/available-profiles/:paket_layanan_id/:pelanggan_id", handler.GetAvailableProfilesForPackage)
 		g.GET("/last-ip/:mikrotik_server_id", handler.GetLastUsedIP)
+		g.GET("/export", handler.Export)
 		g.POST("/import/csv", handler.ImportFromCSV)
 		g.GET("/template/csv", handler.DownloadCSVTemplate)
 	}
+}
+
+func (h *DataTeknisHandler) Export(c *gin.Context) {
+	format := c.DefaultQuery("format", "csv")
+	data, contentType, err := h.dataTeknisUsecase.Export(c.Request.Context(), format)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	filename := "export_data_teknis"
+	if format == "excel" {
+		filename += ".xlsx"
+	} else {
+		filename += ".csv"
+	}
+
+	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Data(http.StatusOK, contentType, data)
 }
 
 func (h *DataTeknisHandler) FetchAll(c *gin.Context) {

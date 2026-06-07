@@ -12,6 +12,7 @@ type PelangganRepository interface {
 	GetByEmail(ctx context.Context, email string) (*Pelanggan, error)
 	GetByEmails(ctx context.Context, emails []string) ([]Pelanggan, error)
 	GetByNoKtp(ctx context.Context, noKtp string) (*Pelanggan, error)
+	GetUniqueLocations(ctx context.Context) ([]string, error)
 }
 
 // PelangganUsecase defines business logic operations for Pelanggan
@@ -21,4 +22,7 @@ type PelangganUsecase interface {
 	Store(ctx context.Context, pelanggan *Pelanggan) error
 	Update(ctx context.Context, id uint64, pelanggan *Pelanggan) error
 	Delete(ctx context.Context, id uint64) error
+	GetUniqueLocations(ctx context.Context) ([]string, error)
+	Export(ctx context.Context, format string) ([]byte, string, error)
+	ImportFromCSV(ctx context.Context, csvContent string) (int, error)
 }

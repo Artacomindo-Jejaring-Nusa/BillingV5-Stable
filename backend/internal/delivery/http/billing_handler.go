@@ -1,6 +1,10 @@
 package http
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"strconv"
@@ -27,6 +31,8 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 	invoiceGroup.Use(authMiddleware)
 	{
 		invoiceGroup.GET("", handler.FetchInvoices)
+		invoiceGroup.GET("/export", handler.ExportInvoices)
+		invoiceGroup.GET("/export-payment-links-excel", handler.ExportPaymentLinksExcel)
 		invoiceGroup.GET("/summary", handler.GetInvoiceSummary)
 		invoiceGroup.GET("/summary/", handler.GetInvoiceSummary)
 		invoiceGroup.GET("/:id", handler.GetInvoice)
@@ -47,6 +53,18 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 		langgananGroup.DELETE("/:id", handler.DeleteLangganan)
 		langgananGroup.POST("/calculate-price", handler.CalculatePrice)
 		langgananGroup.POST("/calculate-prorate-plus-full", handler.CalculateProratePlusFull)
+		
+		langgananGroup.GET("/export", handler.ExportLangganan)
+		langgananGroup.GET("/export/excel/multi-sheet", handler.ExportLanggananMultiSheet)
+		langgananGroup.POST("/import/csv", handler.ImportLangganan)
+		langgananGroup.GET("/template/csv", handler.DownloadLanggananTemplate)
+	}
+
+	reportsGroup := r.Group("/reports")
+	reportsGroup.Use(authMiddleware)
+	{
+		reportsGroup.GET("/revenue", handler.GetRevenueReport)
+		reportsGroup.GET("/revenue/details", handler.GetRevenueReportDetails)
 	}
 
 	calculatorGroup := r.Group("/calculator")
@@ -179,59 +197,9 @@ func (h *BillingHandler) FetchLangganan(c *gin.Context) {
 		return
 	}
 
-	// Convert Langganan to LanggananResponse
 	responses := make([]domain.LanggananResponse, len(langganans))
 	for i, lang := range langganans {
-		resp := domain.LanggananResponse{
-			ID:                 lang.ID,
-			PelangganID:        lang.PelangganID,
-			PaketLayananID:     lang.PaketLayananID,
-			Status:             lang.Status,
-			TglJatuhTempo:      lang.TglJatuhTempo,
-			TglInvoiceTerakhir: lang.TglInvoiceTerakhir,
-			TglMulaiLangganan:  lang.TglMulaiLangganan,
-			TglBerhenti:        lang.TglBerhenti,
-			MetodePembayaran:   lang.MetodePembayaran,
-			HargaAwal:          lang.HargaAwal,
-			AlasanBerhenti:     lang.AlasanBerhenti,
-			StatusModem:        lang.StatusModem,
-			WhatsappStatus:     lang.WhatsappStatus,
-			LastWhatsappSent:   lang.LastWhatsappSent,
-			CreatedAt:          lang.CreatedAt,
-			UpdatedAt:          lang.UpdatedAt,
-		}
-
-		// Add Pelanggan fields
-		if lang.Pelanggan != nil {
-			resp.NamaPelanggan = lang.Pelanggan.Nama
-			resp.NoTelp = lang.Pelanggan.NoTelp
-			resp.Alamat = lang.Pelanggan.Alamat
-			if lang.Pelanggan.IDBrand != nil {
-				resp.IDBrand = *lang.Pelanggan.IDBrand
-			}
-			resp.Pelanggan = &domain.LanggananPelangganResponse{
-				ID:     lang.Pelanggan.ID,
-				Nama:   lang.Pelanggan.Nama,
-				NoTelp: lang.Pelanggan.NoTelp,
-				Alamat: lang.Pelanggan.Alamat,
-				Email:  lang.Pelanggan.Email,
-			}
-		}
-
-		// Add PaketLayanan fields
-		if lang.PaketLayanan != nil {
-			resp.NamaPaket = lang.PaketLayanan.NamaPaket
-			resp.Harga = lang.PaketLayanan.Harga
-			resp.HargaFinal = lang.PaketLayanan.Harga
-
-			// Add Brand from HargaLayanan
-			if lang.PaketLayanan.HargaLayanan != nil {
-				resp.Brand = lang.PaketLayanan.HargaLayanan.Brand
-				resp.HargaFinal = math.Round(lang.PaketLayanan.Harga * (1.0 + lang.PaketLayanan.HargaLayanan.Pajak/100.0))
-			}
-		}
-
-		responses[i] = resp
+		responses[i] = h.mapToLanggananResponse(c.Request.Context(), lang)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -247,65 +215,72 @@ func (h *BillingHandler) GetNewUserLangganans(c *gin.Context) {
 		return
 	}
 
-	// Convert Langganan to LanggananResponse
 	responses := make([]domain.LanggananResponse, len(langganans))
 	for i, lang := range langganans {
-		resp := domain.LanggananResponse{
-			ID:                 lang.ID,
-			PelangganID:        lang.PelangganID,
-			PaketLayananID:     lang.PaketLayananID,
-			Status:             lang.Status,
-			TglJatuhTempo:      lang.TglJatuhTempo,
-			TglInvoiceTerakhir: lang.TglInvoiceTerakhir,
-			TglMulaiLangganan:  lang.TglMulaiLangganan,
-			TglBerhenti:        lang.TglBerhenti,
-			MetodePembayaran:   lang.MetodePembayaran,
-			HargaAwal:          lang.HargaAwal,
-			AlasanBerhenti:     lang.AlasanBerhenti,
-			StatusModem:        lang.StatusModem,
-			WhatsappStatus:     lang.WhatsappStatus,
-			LastWhatsappSent:   lang.LastWhatsappSent,
-			CreatedAt:          lang.CreatedAt,
-			UpdatedAt:          lang.UpdatedAt,
-		}
-
-		// Add Pelanggan fields
-		if lang.Pelanggan != nil {
-			resp.NamaPelanggan = lang.Pelanggan.Nama
-			resp.NoTelp = lang.Pelanggan.NoTelp
-			resp.Alamat = lang.Pelanggan.Alamat
-			if lang.Pelanggan.IDBrand != nil {
-				resp.IDBrand = *lang.Pelanggan.IDBrand
-			}
-			resp.Pelanggan = &domain.LanggananPelangganResponse{
-				ID:     lang.Pelanggan.ID,
-				Nama:   lang.Pelanggan.Nama,
-				NoTelp: lang.Pelanggan.NoTelp,
-				Alamat: lang.Pelanggan.Alamat,
-				Email:  lang.Pelanggan.Email,
-			}
-		}
-
-		// Add PaketLayanan fields
-		if lang.PaketLayanan != nil {
-			resp.NamaPaket = lang.PaketLayanan.NamaPaket
-			resp.Harga = lang.PaketLayanan.Harga
-			resp.HargaFinal = lang.PaketLayanan.Harga
-
-			// Add Brand from HargaLayanan
-			if lang.PaketLayanan.HargaLayanan != nil {
-				resp.Brand = lang.PaketLayanan.HargaLayanan.Brand
-				resp.HargaFinal = math.Round(lang.PaketLayanan.Harga * (1.0 + lang.PaketLayanan.HargaLayanan.Pajak/100.0))
-			}
-		}
-
-		responses[i] = resp
+		responses[i] = h.mapToLanggananResponse(c.Request.Context(), lang)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"data":        responses,
 		"total_count": len(responses),
 	})
+}
+
+func (h *BillingHandler) mapToLanggananResponse(ctx context.Context, lang domain.Langganan) domain.LanggananResponse {
+	resp := domain.LanggananResponse{
+		ID:                 lang.ID,
+		PelangganID:        lang.PelangganID,
+		PaketLayananID:     lang.PaketLayananID,
+		Status:             lang.Status,
+		TglJatuhTempo:      lang.TglJatuhTempo,
+		TglInvoiceTerakhir: lang.TglInvoiceTerakhir,
+		TglMulaiLangganan:  lang.TglMulaiLangganan,
+		TglBerhenti:        lang.TglBerhenti,
+		MetodePembayaran:   lang.MetodePembayaran,
+		HargaAwal:          lang.HargaAwal,
+		AlasanBerhenti:     lang.AlasanBerhenti,
+		StatusModem:        lang.StatusModem,
+		WhatsappStatus:     lang.WhatsappStatus,
+		LastWhatsappSent:   lang.LastWhatsappSent,
+		CreatedAt:          lang.CreatedAt,
+		UpdatedAt:          lang.UpdatedAt,
+	}
+
+	if lang.Pelanggan != nil {
+		resp.NamaPelanggan = lang.Pelanggan.Nama
+		resp.NoTelp = lang.Pelanggan.NoTelp
+		resp.Alamat = lang.Pelanggan.Alamat
+		if lang.Pelanggan.IDBrand != nil {
+			resp.IDBrand = *lang.Pelanggan.IDBrand
+		}
+		resp.Pelanggan = &domain.LanggananPelangganResponse{
+			ID:     lang.Pelanggan.ID,
+			Nama:   lang.Pelanggan.Nama,
+			NoTelp: lang.Pelanggan.NoTelp,
+			Alamat: lang.Pelanggan.Alamat,
+			Email:  lang.Pelanggan.Email,
+		}
+	}
+
+	if lang.PaketLayanan != nil {
+		resp.NamaPaket = lang.PaketLayanan.NamaPaket
+		resp.Harga = lang.PaketLayanan.Harga
+
+		if lang.HargaAwal != nil {
+			resp.HargaFinal = h.billingUsecase.GetDiscountedPrice(ctx, resp.Alamat, *lang.HargaAwal)
+		} else {
+			basePrice := lang.PaketLayanan.Harga
+			if lang.PaketLayanan.HargaLayanan != nil {
+				basePrice = math.Round(lang.PaketLayanan.Harga * (1.0 + lang.PaketLayanan.HargaLayanan.Pajak/100.0))
+			}
+			resp.HargaFinal = h.billingUsecase.GetDiscountedPrice(ctx, resp.Alamat, basePrice)
+		}
+
+		if lang.PaketLayanan.HargaLayanan != nil {
+			resp.Brand = lang.PaketLayanan.HargaLayanan.Brand
+		}
+	}
+	return resp
 }
 
 func (h *BillingHandler) GetLangganan(c *gin.Context) {
@@ -503,4 +478,122 @@ func (h *BillingHandler) ProcessXenditCallback(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Callback processed successfully"})
+}
+
+func (h *BillingHandler) GetRevenueReport(c *gin.Context) {
+	params := &domain.RevenueReportParams{
+		StartDate: c.Query("start_date"),
+		EndDate:   c.Query("end_date"),
+		Alamat:    c.Query("alamat"),
+		IDBrand:   c.Query("id_brand"),
+	}
+
+	report, err := h.billingUsecase.GetRevenueReport(c.Request.Context(), params)
+	if err != nil {
+		// Log the actual error for debugging
+		fmt.Printf("[REPORT ERROR] GetRevenueReport failed: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, report)
+}
+
+func (h *BillingHandler) GetRevenueReportDetails(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
+
+	params := &domain.RevenueReportParams{
+		StartDate: c.Query("start_date"),
+		EndDate:   c.Query("end_date"),
+		Alamat:    c.Query("alamat"),
+		IDBrand:   c.Query("id_brand"),
+		Limit:     limit,
+		Skip:      skip,
+	}
+
+	items, err := h.billingUsecase.GetRevenueReportDetails(c.Request.Context(), params)
+	if err != nil {
+		// Log the actual error for debugging
+		fmt.Printf("[REPORT ERROR] GetRevenueReportDetails failed: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, items)
+}
+
+func (h *BillingHandler) ExportLangganan(c *gin.Context) {
+	format := c.DefaultQuery("format", "csv")
+	data, contentType, err := h.billingUsecase.ExportLangganan(c.Request.Context(), format)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	filename := "export_langganan." + format
+	if format == "excel" { filename = "export_langganan.xlsx" }
+	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Data(http.StatusOK, contentType, data)
+}
+
+func (h *BillingHandler) ExportLanggananMultiSheet(c *gin.Context) {
+	data, contentType, err := h.billingUsecase.ExportLanggananMultiSheet(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Header("Content-Disposition", "attachment; filename=export_langganan_komprehensif.xlsx")
+	c.Data(http.StatusOK, contentType, data)
+}
+
+func (h *BillingHandler) ImportLangganan(c *gin.Context) {
+	file, _ := c.FormFile("file")
+	opened, _ := file.Open()
+	defer opened.Close()
+	buf := new(bytes.Buffer)
+	io.Copy(buf, opened)
+	count, err := h.billingUsecase.ImportLanggananFromCSV(c.Request.Context(), buf.String())
+	if err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "Partial success", "error": err.Error(), "count": count})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Success", "count": count})
+}
+
+func (h *BillingHandler) DownloadLanggananTemplate(c *gin.Context) {
+	buf := new(bytes.Buffer)
+	buf.WriteString("Email Pelanggan;ID Paket\nbudi@example.com;1\n")
+	c.Header("Content-Disposition", "attachment; filename=template_langganan.csv")
+	c.Data(http.StatusOK, "text/csv", buf.Bytes())
+}
+
+func (h *BillingHandler) ExportInvoices(c *gin.Context) {
+	format := c.DefaultQuery("format", "csv")
+	data, contentType, err := h.billingUsecase.ExportInvoices(c.Request.Context(), format)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	filename := "export_invoices." + format
+	if format == "excel" { filename = "export_invoices.xlsx" }
+	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Data(http.StatusOK, contentType, data)
+}
+
+func (h *BillingHandler) ExportPaymentLinksExcel(c *gin.Context) {
+	filters := map[string]string{
+		"search":         c.Query("search"),
+		"status_invoice": c.Query("status_invoice"),
+		"start_date":     c.Query("start_date"),
+		"end_date":       c.Query("end_date"),
+	}
+
+	data, err := h.billingUsecase.ExportPaymentLinksExcel(c.Request.Context(), filters)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Header("Content-Disposition", "attachment; filename=payment-links.xlsx")
+	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data)
 }

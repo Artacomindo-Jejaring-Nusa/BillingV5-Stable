@@ -29,6 +29,8 @@ func NewSystemHandler(r *gin.RouterGroup, su domain.SystemUsecase, sm *scheduler
 		systemGroup.POST("/settings", handler.SetSetting)
 		
 		// Scheduler
+		systemGroup.GET("/scheduler/status", handler.GetSchedulerStatus)
+		systemGroup.POST("/scheduler/toggle", handler.ToggleScheduler)
 		systemGroup.GET("/scheduler/jobs", handler.GetSchedulerJobs)
 		systemGroup.POST("/scheduler/jobs/:job_key", handler.UpdateSchedulerJob)
 		systemGroup.POST("/scheduler/jobs/:job_key/run", handler.RunSchedulerJob)
@@ -225,6 +227,36 @@ func (h *SystemHandler) GetActivityLogs(c *gin.Context) {
 			"limit":     limit,
 		},
 	})
+}
+
+func (h *SystemHandler) GetSchedulerStatus(c *gin.Context) {
+	enabled := h.schedulerMgr.IsGlobalEnabled(c.Request.Context())
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"enabled": enabled}})
+}
+
+type ToggleSchedulerRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (h *SystemHandler) ToggleScheduler(c *gin.Context) {
+	var req ToggleSchedulerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.schedulerMgr.ToggleGlobal(c.Request.Context(), req.Enabled)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	status := "enabled"
+	if !req.Enabled {
+		status = "disabled"
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Scheduler globally %s", status)})
 }
 
 func (h *SystemHandler) GetSchedulerJobs(c *gin.Context) {

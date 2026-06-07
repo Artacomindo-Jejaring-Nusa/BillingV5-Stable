@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"encoding/csv"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"billing-backend/pkg/utils"
 
 	"github.com/go-routeros/routeros"
+	"github.com/xuri/excelize/v2"
 )
 
 type dataTeknisUsecase struct {
@@ -771,4 +773,81 @@ func (u *dataTeknisUsecase) ImportFromCSV(ctx context.Context, csvContent string
 	}
 
 	return successCount, nil
+}
+
+func (u *dataTeknisUsecase) Export(ctx context.Context, format string) ([]byte, string, error) {
+	// Fetch all technical data with relations
+	data, _, err := u.dataTeknisRepo.GetAll(ctx, 0, 10000, "", "", "", "", nil, nil)
+	if err != nil { return nil, "", err }
+
+	headers := []string{
+		"ID", "ID Pelanggan", "Password PPPoE", "Profile PPPoE", "IP Address", 
+		"VLAN", "OLT", "OLT Custom", "PON", "OTB", "ODC", "ODP ID", "ODP Code", "Port ODP", "SN", "ONU Power",
+	}
+
+	if format == "excel" {
+		f := excelize.NewFile()
+		sheet := "Data Teknis"
+		f.SetSheetName("Sheet1", sheet)
+		for i, h := range headers {
+			cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+			f.SetCellValue(sheet, cell, h)
+		}
+		for r, d := range data {
+			row := r + 2
+			
+			// Safely handle pointers and optional fields
+			profile := ""; if d.ProfilePppoe != nil { profile = *d.ProfilePppoe }
+			ip := ""; if d.IPPelanggan != nil { ip = *d.IPPelanggan }
+			vlan := ""; if d.IDVlan != nil { vlan = *d.IDVlan }
+			olt := ""; if d.Olt != nil { olt = *d.Olt }
+			oltCustom := ""; if d.OltCustom != nil { oltCustom = *d.OltCustom }
+			pon := 0; if d.Pon != nil { pon = *d.Pon }
+			otb := 0; if d.Otb != nil { otb = *d.Otb }
+			odc := 0; if d.Odc != nil { odc = *d.Odc }
+			odpID := uint64(0); if d.OdpID != nil { odpID = *d.OdpID }
+			odpCode := ""; if d.Odp != nil { odpCode = d.Odp.KodeOdp }
+			portOdp := 0; if d.PortOdp != nil { portOdp = *d.PortOdp }
+			sn := ""; if d.Sn != nil { sn = *d.Sn }
+			op := 0; if d.OnuPower != nil { op = *d.OnuPower }
+
+			vals := []interface{}{
+				d.ID, d.IDPelanggan, d.PasswordPppoe, profile, ip, 
+				vlan, olt, oltCustom, pon, otb, odc, odpID, odpCode, portOdp, sn, op,
+			}
+			for c, v := range vals {
+				cell, _ := excelize.CoordinatesToCellName(c+1, row)
+				f.SetCellValue(sheet, cell, v)
+			}
+		}
+		buf, _ := f.WriteToBuffer()
+		return buf.Bytes(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nil
+	} else {
+		buf := new(bytes.Buffer)
+		w := csv.NewWriter(buf)
+		w.Comma = ';'
+		w.Write(headers)
+		for _, d := range data {
+			profile := ""; if d.ProfilePppoe != nil { profile = *d.ProfilePppoe }
+			ip := ""; if d.IPPelanggan != nil { ip = *d.IPPelanggan }
+			vlan := ""; if d.IDVlan != nil { vlan = *d.IDVlan }
+			olt := ""; if d.Olt != nil { olt = *d.Olt }
+			oltCustom := ""; if d.OltCustom != nil { oltCustom = *d.OltCustom }
+			pon := "0"; if d.Pon != nil { pon = fmt.Sprintf("%d", *d.Pon) }
+			otb := "0"; if d.Otb != nil { otb = fmt.Sprintf("%d", *d.Otb) }
+			odc := "0"; if d.Odc != nil { odc = fmt.Sprintf("%d", *d.Odc) }
+			odpID := "0"; if d.OdpID != nil { odpID = fmt.Sprintf("%d", *d.OdpID) }
+			odpCode := ""; if d.Odp != nil { odpCode = d.Odp.KodeOdp }
+			portOdp := "0"; if d.PortOdp != nil { portOdp = fmt.Sprintf("%d", *d.PortOdp) }
+			sn := ""; if d.Sn != nil { sn = *d.Sn }
+			op := "0"; if d.OnuPower != nil { op = fmt.Sprintf("%d", *d.OnuPower) }
+
+			w.Write([]string{
+				fmt.Sprintf("%d", d.ID), d.IDPelanggan, d.PasswordPppoe, profile, ip,
+				vlan, olt, oltCustom, pon, otb, odc, odpID, odpCode, portOdp, sn, op,
+			})
+		}
+		w.Flush()
+		return buf.Bytes(), "text/csv", nil
+	}
 }
