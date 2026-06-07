@@ -1575,8 +1575,8 @@ onMounted(async () => {
           },
           {
             type: 'bar',
-            label: 'Kadaluarsa',
-            data: data.invoice_summary_chart.kadaluarsa,
+            label: 'Expired',
+            data: data.invoice_summary_chart.expired,
             backgroundColor: 'rgba(239, 68, 68, 0.8)',
             borderColor: 'rgb(239, 68, 68)',
             borderWidth: 2,
@@ -1666,7 +1666,7 @@ onMounted(async () => {
           },
           {
             type: 'bar',
-            label: 'Kadaluarsa',
+            label: 'Expired',
             data: [0, 0, 0, 0, 0, 0],
             backgroundColor: 'rgba(239, 68, 68, 0.8)',
             borderColor: 'rgb(239, 68, 68)',

@@ -106,7 +106,7 @@ func (m *mockInvoiceRepoCallback) Update(ctx context.Context, invoice *domain.In
 	return nil
 }
 
-func (m *mockInvoiceRepoCallback) GetAll(ctx context.Context, limit, offset int) ([]domain.Invoice, int64, error) {
+func (m *mockInvoiceRepoCallback) GetAll(ctx context.Context, limit, offset int, search, status string) ([]domain.Invoice, int64, error) {
 	var res []domain.Invoice
 	for _, inv := range m.invoices { res = append(res, *inv) }
 	return res, int64(len(res)), nil

@@ -31,6 +31,11 @@ type User struct {
 	InventoryHistories []InventoryHistory `gorm:"foreignKey:UserID" json:"inventory_histories,omitempty"`
 }
 
+// TableName overrides the default table name for User
+func (User) TableName() string {
+	return "users"
+}
+
 // Role represents the roles table.
 type Role struct {
 	ID        uint64       `gorm:"primaryKey;autoIncrement" json:"id"`
@@ -39,11 +44,21 @@ type Role struct {
 	Permissions []Permission `gorm:"many2many:role_has_permissions;" json:"permissions"`
 }
 
+// TableName overrides the default table name for Role
+func (Role) TableName() string {
+	return "roles"
+}
+
 // Permission represents the permissions table.
 type Permission struct {
 	ID    uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name  string `gorm:"type:varchar(191);unique;not null" json:"name"`
 	Roles []Role `gorm:"many2many:role_has_permissions;" json:"roles"`
+}
+
+// TableName overrides the default table name for Permission
+func (Permission) TableName() string {
+	return "permissions"
 }
 
 // RoleHasPermission is the join table for Role and Permission. (Handled automatically by many2many, but we can define if needed).

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -85,24 +86,27 @@ func (h *DashboardHandler) GetLoyaltyUsersBySegment(c *gin.Context) {
 }
 
 func (h *DashboardHandler) GetSidebarBadges(c *gin.Context) {
-	badges, err := h.dashboardUsecase.GetSidebarBadges(c.Request.Context())
+	res, err := h.dashboardUsecase.GetSidebarBadges(c.Request.Context())
 	if err != nil {
+		log.Printf("[DASHBOARD ERROR] Failed to fetch sidebar badges: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, badges)
+	c.JSON(http.StatusOK, res)
 }
 
 func (h *DashboardHandler) GetPaketDetails(c *gin.Context) {
-	details, err := h.dashboardUsecase.GetPaketDetails(c.Request.Context())
+	res, err := h.dashboardUsecase.GetPaketDetails(c.Request.Context())
 	if err != nil {
+		log.Printf("[DASHBOARD ERROR] Failed to fetch paket details: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, details)
+	c.JSON(http.StatusOK, res)
 }
+
 
 func (h *DashboardHandler) GetInvoiceGenerationMonitor(c *gin.Context) {
 	targetDate := c.Query("target_date")
@@ -113,8 +117,11 @@ func (h *DashboardHandler) GetInvoiceGenerationMonitor(c *gin.Context) {
 	}
 	userRole := userRoleVal.(string)
 
+	log.Printf("[DASHBOARD] Fetching monitor for role: '%s', targetDate: '%s'", userRole, targetDate)
+
 	res, err := h.dashboardUsecase.GetInvoiceGenerationMonitor(c.Request.Context(), targetDate, userRole)
 	if err != nil {
+		log.Printf("[DASHBOARD ERROR] Monitor access denied for role '%s': %v", userRole, err)
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}

@@ -6,7 +6,10 @@ import (
 
 type BillStat struct {
 	Count       int     `json:"count"`
-	TotalAmount float64 `json:"total_amount"`
+	Nominal     float64 `json:"nominal"`
+	Diskon      float64 `json:"diskon"`
+	BiayaPasang float64 `json:"biaya_pasang"`
+	Total       float64 `json:"total"`
 }
 
 type TaxStat struct {
@@ -36,10 +39,13 @@ type RevenueReportResponse struct {
 		TotalTagihan BillStat `json:"total_tagihan"`
 		Lunas       BillStat `json:"lunas"`
 		Pending     BillStat `json:"pending"`
-		Telat       BillStat `json:"telat"`
+		Expired     BillStat `json:"expired"`
 	} `json:"billing_summary"`
 	TaxSummary struct {
-		Total TaxStat `json:"total"`
+		Lunas   TaxStat `json:"lunas"`
+		Pending TaxStat `json:"pending"`
+		Expired TaxStat `json:"expired"`
+		Total   TaxStat `json:"total"`
 	} `json:"tax_summary"`
 	PaymentMethods []PaymentMethodStat `json:"payment_methods"`
 }

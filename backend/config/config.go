@@ -85,24 +85,24 @@ func LoadConfig() *Config {
 			"settings", "uploads", "traffic_monitoring",
 		},
 		DashboardWidgetPermissions: map[string][]string{
-			"pendapatan_bulanan":          {"superadmin", "admin", "manager"},
-			"invoice_bulanan":             {"superadmin", "admin", "manager"},
-			"invoice_generation_monitor":  {"superadmin", "admin", "manager"},
-			"future_invoice_projection":   {"superadmin", "admin", "manager"},
-			"statistik_server":            {"superadmin", "admin"},
-			"statistik_pelanggan":         {"superadmin", "admin", "manager", "staff"},
-			"pelanggan_per_lokasi":        {"superadmin", "admin", "manager", "staff"},
-			"pelanggan_per_paket":         {"superadmin", "admin", "manager", "staff"},
-			"tren_pertumbuhan":            {"superadmin", "admin", "manager"},
-			"status_langganan":            {"superadmin", "admin", "manager", "staff"},
-			"alamat_aktif":                {"superadmin", "admin", "manager", "staff"},
-			"pelanggan_statistik_utama":   {"superadmin", "admin", "manager", "staff", "viewer"},
-			"pelanggan_pendapatan_jakinet":{"superadmin", "admin", "manager", "staff"},
-			"pelanggan_distribusi_chart":  {"superadmin", "admin", "manager", "staff", "viewer"},
-			"pelanggan_pertumbuhan_chart": {"superadmin", "admin", "manager", "staff", "viewer"},
-			"pelanggan_status_overview_chart": {"superadmin", "admin", "manager", "staff", "viewer"},
-			"pelanggan_metrik_cepat":      {"superadmin", "admin", "manager", "staff"},
-			"pelanggan_tren_pendapatan_chart": {"superadmin", "admin", "manager", "staff"},
+			"pendapatan_bulanan":          {"superadmin", "admin", "manager", "finance"},
+			"invoice_bulanan":             {"superadmin", "admin", "manager", "finance"},
+			"invoice_generation_monitor":  {"superadmin", "admin", "manager", "finance"},
+			"future_invoice_projection":   {"superadmin", "admin", "manager", "finance"},
+			"statistik_server":            {"superadmin", "admin", "noc"},
+			"statistik_pelanggan":         {"superadmin", "admin", "manager", "staff", "teknisi", "noc", "finance", "bos gudang"},
+			"pelanggan_per_lokasi":        {"superadmin", "admin", "manager", "staff", "teknisi", "noc", "finance", "bos gudang"},
+			"pelanggan_per_paket":         {"superadmin", "admin", "manager", "staff", "teknisi", "noc", "finance", "bos gudang"},
+			"tren_pertumbuhan":            {"superadmin", "admin", "manager", "finance"},
+			"status_langganan":            {"superadmin", "admin", "manager", "staff", "teknisi", "noc", "finance", "bos gudang"},
+			"alamat_aktif":                {"superadmin", "admin", "manager", "staff", "teknisi", "noc", "finance", "bos gudang"},
+			"pelanggan_statistik_utama":   {"superadmin", "admin", "manager", "staff", "teknisi", "noc", "finance", "bos gudang", "viewer"},
+			"pelanggan_pendapatan_jakinet":{"superadmin", "admin", "manager", "staff", "finance"},
+			"pelanggan_distribusi_chart":  {"superadmin", "admin", "manager", "staff", "teknisi", "noc", "finance", "bos gudang", "viewer"},
+			"pelanggan_pertumbuhan_chart": {"superadmin", "admin", "manager", "staff", "teknisi", "noc", "finance", "bos gudang", "viewer"},
+			"pelanggan_status_overview_chart": {"superadmin", "admin", "manager", "staff", "teknisi", "noc", "finance", "bos gudang", "viewer"},
+			"pelanggan_metrik_cepat":      {"superadmin", "admin", "manager", "staff", "teknisi", "noc", "finance", "bos gudang"},
+			"pelanggan_tren_pendapatan_chart": {"superadmin", "admin", "manager", "staff", "finance"},
 		},
 	}
 
@@ -146,17 +146,26 @@ func (c *Config) XENDIT_CALLBACK_TOKENS() map[string]string {
 }
 
 func (c *Config) CanAccessWidget(widgetName string, userRole string) bool {
-	userRole = strings.ToLower(userRole)
+	originalRole := userRole
+	userRole = strings.ToLower(strings.TrimSpace(userRole))
+	log.Printf("[CONFIG DEBUG] Widget: '%s', Role: '%s' (Original: '%s')", widgetName, userRole, originalRole)
+	
+	if userRole == "admin" || userRole == "superadmin" {
+		log.Printf("[CONFIG DEBUG] Access GRANTED for '%s' to '%s' (Admin bypass)", widgetName, userRole)
+		return true
+	}
+
 	if allowedRoles, exists := c.DashboardWidgetPermissions[widgetName]; exists {
 		for _, role := range allowedRoles {
-			if strings.ToLower(role) == userRole {
+			if strings.ToLower(strings.TrimSpace(role)) == userRole {
+				log.Printf("[CONFIG DEBUG] Access GRANTED for '%s' to '%s' (List match)", widgetName, userRole)
 				return true
 			}
 		}
+		log.Printf("[CONFIG DEBUG] Access DENIED for '%s' to '%s' (Not in: %v)", widgetName, userRole, allowedRoles)
 		return false
 	}
-	// Default: only admin and superadmin
-	return userRole == "superadmin" || userRole == "admin"
+	return false
 }
 
 func (c *Config) GetUserWidgets(userRole string) []string {

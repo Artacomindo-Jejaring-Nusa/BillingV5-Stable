@@ -162,10 +162,10 @@
                  <v-card-text>
                   <div class="text-caption text-grey mb-1">Belum Terbayar</div>
                   <div class="text-h5 font-weight-bold text-warning darken-2">
-                    {{ formatCurrency((reportSummary.billing_summary?.pending?.total || 0) + (reportSummary.billing_summary?.telat?.total || 0)) }}
+                    {{ formatCurrency((reportSummary.billing_summary?.pending?.total || 0) + (reportSummary.billing_summary?.expired?.total || 0)) }}
                   </div>
                    <div class="text-caption text-grey mt-2">
-                    Potensi pendapatan (Pending + Telat)
+                    Potensi pendapatan (Pending + Expired)
                   </div>
                 </v-card-text>
               </v-card>
@@ -265,28 +265,28 @@
                </v-card>
              </v-col>
 
-             <!-- Telat -->
+             <!-- Expired -->
              <v-col cols="12" sm="6" md="3">
                <v-card class="stats-card h-100" elevation="0">
                  <v-card-text>
-                   <div class="text-subtitle-2 text-error mb-2">Telat</div>
-                   <div class="text-h4 font-weight-black text-error mb-4">{{ reportSummary.billing_summary?.telat?.count || 0 }}</div>
+                   <div class="text-subtitle-2 text-error mb-2">Expired</div>
+                   <div class="text-h4 font-weight-black text-error mb-4">{{ reportSummary.billing_summary?.expired?.count || 0 }}</div>
                    
                    <div class="stats-detail-row">
                       <span>Nominal:</span>
-                      <span class="font-weight-medium">{{ formatCurrency(reportSummary.billing_summary?.telat?.nominal || 0) }}</span>
+                      <span class="font-weight-medium">{{ formatCurrency(reportSummary.billing_summary?.expired?.nominal || 0) }}</span>
                    </div>
                    <div class="stats-detail-row text-error">
                       <span>Diskon:</span>
-                      <span class="font-weight-medium">{{ formatCurrency(reportSummary.billing_summary?.telat?.diskon || 0) }}</span>
+                      <span class="font-weight-medium">{{ formatCurrency(reportSummary.billing_summary?.expired?.diskon || 0) }}</span>
                    </div>
                     <div class="stats-detail-row">
                       <span>Biaya Pasang:</span>
-                      <span class="font-weight-medium">{{ formatCurrency(reportSummary.billing_summary?.telat?.biaya_pasang || 0) }}</span>
+                      <span class="font-weight-medium">{{ formatCurrency(reportSummary.billing_summary?.expired?.biaya_pasang || 0) }}</span>
                    </div>
                    <div class="stats-detail-row total mt-2 pt-2 border-t text-error">
                       <span>Total:</span>
-                      <span class="font-weight-bold">{{ formatCurrency(reportSummary.billing_summary?.telat?.total || 0) }}</span>
+                      <span class="font-weight-bold">{{ formatCurrency(reportSummary.billing_summary?.expired?.total || 0) }}</span>
                    </div>
                  </v-card-text>
                </v-card>
@@ -329,11 +329,11 @@
                       <td class="text-right font-weight-bold text-warning">{{ formatCurrency(reportSummary.tax_summary?.pending?.total_pajak || 0) }}</td>
                     </tr>
                      <tr>
-                      <td class="font-weight-medium">Telat</td>
-                       <td class="text-right text-error">{{ formatCurrency(reportSummary.tax_summary?.telat?.ppn || 0) }}</td>
-                      <td class="text-right">{{ formatCurrency(reportSummary.tax_summary?.telat?.bhp || 0) }}</td>
-                      <td class="text-right">{{ formatCurrency(reportSummary.tax_summary?.telat?.uso || 0) }}</td>
-                      <td class="text-right font-weight-bold text-error">{{ formatCurrency(reportSummary.tax_summary?.telat?.total_pajak || 0) }}</td>
+                      <td class="font-weight-medium">Expired</td>
+                       <td class="text-right text-error">{{ formatCurrency(reportSummary.tax_summary?.expired?.ppn || 0) }}</td>
+                      <td class="text-right">{{ formatCurrency(reportSummary.tax_summary?.expired?.bhp || 0) }}</td>
+                      <td class="text-right">{{ formatCurrency(reportSummary.tax_summary?.expired?.uso || 0) }}</td>
+                      <td class="text-right font-weight-bold text-error">{{ formatCurrency(reportSummary.tax_summary?.expired?.total_pajak || 0) }}</td>
                     </tr>
                      <tr class="bg-grey-lighten-4 font-weight-bold">
                       <td>TOTAL</td>
@@ -400,11 +400,11 @@
              <template v-slot:item.total_harga="{ item }">
                 <span class="font-weight-medium">{{ formatCurrency(item.total_harga) }}</span>
              </template>
-             <template v-slot:item.paid_at="{ item }">
-                {{ item.paid_at ? new Date(item.paid_at).toLocaleString('id-ID') : '-' }}
+             <template v-slot:item.tgl_lunas="{ item }">
+                {{ item.tgl_lunas ? new Date(item.tgl_lunas).toLocaleString('id-ID') : '-' }}
              </template>
-             <template v-slot:item.id_brand="{ item }">
-                <v-chip size="x-small" variant="tonal" color="primary">{{ item.id_brand }}</v-chip>
+             <template v-slot:item.brand="{ item }">
+                <v-chip size="x-small" variant="tonal" color="primary">{{ item.brand }}</v-chip>
              </template>
             </v-data-table-server>
          </v-card>
@@ -430,11 +430,11 @@ import apiClient from '@/services/api';
 interface InvoiceReportItem {
   invoice_number: string;
   pelanggan_nama: string;
-  paid_at: string;
+  tgl_lunas: string;
   total_harga: number;
-  metode_pembayaran?: string;
+  metode: string;
   alamat?: string;
-  id_brand?: string;
+  brand: string;
 }
 
 interface BillStat {
@@ -472,13 +472,13 @@ interface RevenueReportResponse {
     total_tagihan: BillStat;
     lunas: BillStat;
     pending: BillStat;
-    telat: BillStat;
+    expired: BillStat;
   };
   tax_summary: {
     total: TaxStat;
     lunas: TaxStat;
     pending: TaxStat;
-    telat: TaxStat;
+    expired: TaxStat;
   };
   payment_methods: PaymentMethodStat[];
   rincian_invoice: InvoiceReportItem[];
@@ -509,10 +509,10 @@ const exporting = ref(false);
 const headers = [
   { title: 'No. Invoice', key: 'invoice_number' },
   { title: 'Pelanggan', key: 'pelanggan_nama' },
-  { title: 'Brand', key: 'id_brand' },
+  { title: 'Brand', key: 'brand' },
   { title: 'Alamat', key: 'alamat' },
-  { title: 'Tgl Bayar', key: 'paid_at' },
-  { title: 'Metode', key: 'metode_pembayaran' },
+  { title: 'Tgl Bayar', key: 'tgl_lunas' },
+  { title: 'Metode', key: 'metode' },
   { title: 'Total', key: 'total_harga', align: 'end' },
 ] as const;
 
@@ -632,10 +632,10 @@ async function exportToExcel() {
          const dataToExport = allData.map((item: any) => ({
           "Nomor Invoice": item.invoice_number,
           "Nama Pelanggan": item.pelanggan_nama,
-          "Brand": item.id_brand || "",
+          "Brand": item.brand || "",
           "Alamat": item.alamat || "",
-          "Tanggal Bayar": item.paid_at ? new Date(item.paid_at).toLocaleString() : '-',
-          "Metode Pembayaran": item.metode_pembayaran || "",
+          "Tanggal Bayar": item.tgl_lunas ? new Date(item.tgl_lunas).toLocaleString() : '-',
+          "Metode Pembayaran": item.metode || "",
           "Jumlah (Rp)": item.total_harga
         }));
 

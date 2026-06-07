@@ -27,7 +27,7 @@ func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, con
 
 	if connectionStatus == "unconfigured" {
 		query = query.
-			Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggans.id").
+			Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id").
 			Where("data_teknis.id IS NULL")
 	}
 
@@ -38,7 +38,7 @@ func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, con
 
 	// Fetch with limit and offset, preload relationships
 	fetchQuery := query.
-		Select("pelanggans.*").
+		Select("pelanggan.*").
 		Preload("DataTeknis").
 		Preload("MikrotikServer").
 		Preload("Langganan")
@@ -51,7 +51,7 @@ func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, con
 	}
 
 	err := fetchQuery.
-		Order("pelanggans.id desc").
+		Order("pelanggan.id desc").
 		Find(&pelanggans).Error
 
 	if err != nil {

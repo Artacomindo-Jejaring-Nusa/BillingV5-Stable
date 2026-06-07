@@ -62,11 +62,11 @@ func NewBillingUsecase(
 
 // --- Invoice Logic ---
 
-func (u *billingUsecase) FetchInvoices(ctx context.Context, page, pageSize int) ([]domain.Invoice, int64, error) {
+func (u *billingUsecase) FetchInvoices(ctx context.Context, page, pageSize int, search, status string) ([]domain.Invoice, int64, error) {
 	if page <= 0 { page = 1 }
 	if pageSize <= 0 { pageSize = 10 }
 	offset := (page - 1) * pageSize
-	invoices, total, err := u.invoiceRepo.GetAll(ctx, pageSize, offset)
+	invoices, total, err := u.invoiceRepo.GetAll(ctx, pageSize, offset, search, status)
 	if err != nil { return nil, 0, err }
 	for i := range invoices {
 		if invoices[i].Pelanggan != nil { invoices[i].PelangganNama = invoices[i].Pelanggan.Nama }
@@ -406,7 +406,7 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 	
 	// Find unpaid invoices past due date
 	today := time.Now()
-	invoices, _, err := u.invoiceRepo.GetAll(ctx, 5000, 0) // Simplified fetch
+	invoices, _, err := u.invoiceRepo.GetAll(ctx, 5000, 0, "", "") // Added search and status
 	if err != nil { return err }
 
 	suspendedCount := 0
@@ -554,7 +554,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	// 3. RIWAYAT INVOICE (RIWAYAT PEMBAYARAN)
 	s3 := "Riwayat Invoice"
 	f.NewSheet(s3)
-	invs, _, _ := u.invoiceRepo.GetAll(ctx, 10000, 0)
+	invs, _, _ := u.invoiceRepo.GetAll(ctx, 10000, 0, "", "") // Added search and status
 	headers3 := []string{"No Invoice", "Pelanggan", "Total Tagihan", "Status", "Tgl Invoice", "Tgl Lunas", "Metode Bayar"}
 	for i, h := range headers3 {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
@@ -650,7 +650,7 @@ func (u *billingUsecase) ImportLanggananFromCSV(ctx context.Context, content str
 }
 
 func (u *billingUsecase) ExportInvoices(ctx context.Context, format string) ([]byte, string, error) {
-	invoices, _, err := u.invoiceRepo.GetAll(ctx, 10000, 0)
+	invoices, _, err := u.invoiceRepo.GetAll(ctx, 10000, 0, "", "") // Added search and status
 	if err != nil { return nil, "", err }
 
 	headers := []string{"ID", "Invoice Number", "Pelanggan", "Total", "Status", "Tgl Invoice", "Tgl Lunas"}

@@ -47,7 +47,7 @@ func (r *troubleTicketRepository) GetAll(ctx context.Context, limit, offset int,
 		query = query.Where("title LIKE ? OR description LIKE ? OR ticket_number LIKE ?", searchTerm, searchTerm, searchTerm)
 	}
 	if idBrand, ok := filters["id_brand"]; ok && idBrand != "" {
-		query = query.Joins("JOIN pelanggans ON pelanggans.id = trouble_ticket.pelanggan_id").Where("pelanggans.id_brand = ?", idBrand)
+		query = query.Joins("JOIN pelanggan ON pelanggan.id = trouble_ticket.pelanggan_id").Where("pelanggan.id_brand = ?", idBrand)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -545,8 +545,8 @@ func (r *troubleTicketRepository) GetDowntimeAnalysis(ctx context.Context, dateF
 		AvgDowntime   float64
 	}
 	custQuery := r.db.WithContext(ctx).Table("trouble_ticket").
-		Select("pelanggans.id as customer_id, pelanggans.nama as customer_name, SUM(COALESCE(trouble_ticket.total_downtime_minutes, 0)) as total_downtime, COUNT(trouble_ticket.id) as ticket_count, AVG(COALESCE(trouble_ticket.total_downtime_minutes, 0)) as avg_downtime").
-		Joins("JOIN pelanggans ON trouble_ticket.pelanggan_id = pelanggans.id").
+		Select("pelanggan.id as customer_id, pelanggan.nama as customer_name, SUM(COALESCE(trouble_ticket.total_downtime_minutes, 0)) as total_downtime, COUNT(trouble_ticket.id) as ticket_count, AVG(COALESCE(trouble_ticket.total_downtime_minutes, 0)) as avg_downtime").
+		Joins("JOIN pelanggan ON trouble_ticket.pelanggan_id = pelanggan.id").
 		Where("trouble_ticket.total_downtime_minutes IS NOT NULL AND trouble_ticket.total_downtime_minutes > 0")
 
 	if dateFrom != nil {
@@ -557,7 +557,7 @@ func (r *troubleTicketRepository) GetDowntimeAnalysis(ctx context.Context, dateF
 	}
 
 	var custRows []CustDowntimeRow
-	_ = custQuery.Group("pelanggans.id, pelanggans.nama").Order("total_downtime DESC").Limit(20).Scan(&custRows)
+	_ = custQuery.Group("pelanggan.id, pelanggan.nama").Order("total_downtime DESC").Limit(20).Scan(&custRows)
 
 	var customerDowntime []map[string]interface{}
 	for _, row := range custRows {

@@ -7,7 +7,7 @@ import (
 
 // InvoiceRepository defines database operations for Invoice
 type InvoiceRepository interface {
-	GetAll(ctx context.Context, limit, offset int) ([]Invoice, int64, error)
+	GetAll(ctx context.Context, limit, offset int, search, status string) ([]Invoice, int64, error)
 	GetByID(ctx context.Context, id uint64) (*Invoice, error)
 	GetByInvoiceNumber(ctx context.Context, invNumber string) (*Invoice, error)
 	Create(ctx context.Context, invoice *Invoice) error
@@ -46,7 +46,7 @@ type LanggananRepository interface {
 // BillingUsecase defines business logic for Invoices and Subscriptions
 type BillingUsecase interface {
 	// Invoice
-	FetchInvoices(ctx context.Context, page, pageSize int) ([]Invoice, int64, error)
+	FetchInvoices(ctx context.Context, page, pageSize int, search, status string) ([]Invoice, int64, error)
 	GetInvoice(ctx context.Context, id uint64) (*Invoice, error)
 	CreateInvoice(ctx context.Context, invoice *Invoice) error
 	UpdateInvoiceStatus(ctx context.Context, id uint64, status string) error

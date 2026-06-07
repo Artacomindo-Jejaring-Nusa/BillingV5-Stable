@@ -68,7 +68,7 @@
             </div>
             <div>
               <div class="text-subtitle-1 text-md-h6 font-weight-bold">{{ getOverdueCount() }}</div>
-              <div class="text-caption text-medium-emphasis text-truncate">Kadaluarsa</div>
+              <div class="text-caption text-medium-emphasis text-truncate">Expired</div>
             </div>
           </div>
         </v-card>
@@ -168,7 +168,7 @@
               @click:close="showPaidInvoices = false"
             >
               <v-icon start size="14">mdi-eye-check</v-icon>
-              Semua (Lunas & Kadaluarsa)
+              Semua (Lunas & Expired)
             </v-chip>
 
             <v-btn
@@ -263,7 +263,7 @@
               <v-switch
                 v-model="showPaidInvoices"
                 color="success"
-                label="Tampilkan Lunas & Kadaluarsa"
+                label="Tampilkan Lunas & Expired"
                 hide-details
                 density="comfortable"
               ></v-switch>
@@ -410,7 +410,7 @@
               <div
                 v-if="item.status_invoice !== 'Lunas'"
                 class="text-caption"
-                :class="item.status_invoice === 'Kadaluarsa' ? 'text-error' : 'text-warning'"
+                :class="item.status_invoice === 'Expired' ? 'text-error' : 'text-warning'"
               >
                 {{ getDueDateLabel(item) }}
               </div>
@@ -586,13 +586,13 @@
               </v-list-item>
               <v-list-item class="px-0">
                 <template v-slot:prepend>
-                  <v-icon :color="item.status_invoice === 'Kadaluarsa' ? 'error' : 'warning'" class="me-4">mdi-calendar-alert</v-icon>
+                  <v-icon :color="item.status_invoice === 'Expired' ? 'error' : 'warning'" class="me-4">mdi-calendar-alert</v-icon>
                 </template>
                 <v-list-item-title>Periode</v-list-item-title>
                 <template v-slot:append>
                   <div class="text-right">
                     <div>{{ formatDate(item.tgl_jatuh_tempo) }}</div>
-                    <div v-if="item.status_invoice !== 'Lunas'" class="text-caption" :class="item.status_invoice === 'Kadaluarsa' ? 'text-error' : 'text-warning'">
+                    <div v-if="item.status_invoice !== 'Lunas'" class="text-caption" :class="item.status_invoice === 'Expired' ? 'text-error' : 'text-warning'">
                       {{ getDueDateLabel(item) }}
                     </div>
                   </div>
@@ -955,7 +955,7 @@ const paymentMethod = ref('Cash');
 const selectedStatus = ref<string | null>(null);
 const startDate = ref<string | null>(null);
 const endDate = ref<string | null>(null);
-const statusOptions = ref(['Lunas', 'Belum Dibayar', 'Kadaluarsa', 'Expired']);
+const statusOptions = ref(['Lunas', 'Belum Dibayar', 'Expired']);
 const showPaidInvoices = ref(false);
 const selectedLimit = ref(10);
 const limitOptions = ref([
@@ -1104,8 +1104,8 @@ const getPendingCount = () => {
 };
 const getOverdueCount = () => {
   if (!invoices.value) return 0;
-  // Hitung berdasarkan status invoice yang kadaluarsa
-  return invoices.value.filter(inv => inv.status_invoice === 'Kadaluarsa').length;
+  // Hitung berdasarkan status invoice yang expired
+  return invoices.value.filter(inv => inv.status_invoice === 'Expired').length;
 };
 
 // --- Helper Functions --- (Menjadi lebih sederhana)
@@ -1126,7 +1126,6 @@ function getPelangganName(pelangganId: number, item?: Invoice): string {
 function getStatusColor(status: string): string {
   switch (status) {
     case 'Lunas': return 'success';
-    case 'Kadaluarsa': return 'error';
     case 'Expired': return 'error';  // Status Expired menggunakan warna merah
     case 'Belum Dibayar': return 'warning';
     default: return 'grey';
@@ -1137,12 +1136,12 @@ const filteredInvoices = computed(() => {
   // Filter data di client-side untuk mengecek payment link status yang expired
   let filtered = invoices.value;
 
-  // Jika switch "Tampilkan Lunas & Kadaluarsa" tidak aktif, exclude invoice yang lunas saja
-  // TAPI TETAP TAMPILKAN invoice kadaluarsa agar bisa direinvoice
+  // Jika switch "Tampilkan Lunas & Expired" tidak aktif, exclude invoice yang lunas saja
+  // TAPI TETAP TAMPILKAN invoice expired agar bisa direinvoice
   if (!showPaidInvoices.value && filtered) {
     filtered = filtered.filter(invoice => {
       // Exclude invoice yang sudah lunas saja
-      // Invoice kadaluarsa tetap ditampilkan agar bisa direinvoice
+      // Invoice expired tetap ditampilkan agar bisa direinvoice
       return invoice.status_invoice !== 'Lunas';
     });
   }
@@ -1157,8 +1156,7 @@ const filteredInvoices = computed(() => {
 function getStatusIcon(status: string): string {
   switch (status) {
     case 'Lunas': return 'mdi-check-circle';
-    case 'Kadaluarsa': return 'mdi-alert-circle';
-    case 'Expired': return 'mdi-timer-off';  // Icon untuk link expired
+    case 'Expired': return 'mdi-alert-circle';
     case 'Belum Dibayar': return 'mdi-clock-outline';
     default: return 'mdi-help-circle';
   }
@@ -1166,7 +1164,7 @@ function getStatusIcon(status: string): string {
 
 /**
  * Menampilkan label sisa waktu atau keterlambatan.
- * Fungsi ini tidak lagi menentukan status 'Kadaluarsa'.
+ * Fungsi ini tidak lagi menentukan status 'Expired'.
  */
 function getDueDateLabel(item: Invoice): string {
   if (item.status_invoice === 'Lunas') return '';
@@ -1222,7 +1220,7 @@ async function fetchInvoices() {
     if (startDate.value) params.append('start_date', startDate.value);
     if (endDate.value) params.append('end_date', endDate.value);
 
-    // Optimasi: Jika switch "Tampilkan Lunas & Kadaluarsa" tidak aktif,
+    // Optimasi: Jika switch "Tampilkan Lunas & Expired" tidak aktif,
     // filter hanya invoice yang belum dibayar
     if (!showPaidInvoices.value) {
       if (!selectedStatus.value) {  // Jika tidak ada filter status spesifik
@@ -1628,7 +1626,7 @@ async function exportPaymentLinksExcel() {
     if (startDate.value) params.append('start_date', startDate.value);
     if (endDate.value) params.append('end_date', endDate.value);
 
-    // Jika switch "Tampilkan Lunas & Kadaluarsa" tidak aktif dan tidak ada filter status spesifik,
+    // Jika switch "Tampilkan Lunas & Expired" tidak aktif dan tidak ada filter status spesifik,
     // maka kita hanya ingin mengekspor invoice yang belum dibayar
     if (!showPaidInvoices.value && !selectedStatus.value) {
       params.append('status_invoice', 'Belum Dibayar');
@@ -1666,12 +1664,12 @@ function canCreateReinvoice(item: Invoice): boolean {
   const dueDate = new Date(item.tgl_jatuh_tempo);
 
   // Bisa direinvoice jika:
-  // 1. Statusnya Expired atau Kadaluarsa
+  // 1. Statusnya Expired atau Expired
   // 2. Atau status Belum Dibayar dan sudah lewat jatuh tempo
   // 3. Dan bukan reinvoice sebelumnya
   return (
     (item.status_invoice === 'Expired' ||
-     item.status_invoice === 'Kadaluarsa' ||
+     item.status_invoice === 'Expired' ||
     (item.status_invoice === 'Belum Dibayar' && today > dueDate)) &&
     !item.is_reinvoice
   );

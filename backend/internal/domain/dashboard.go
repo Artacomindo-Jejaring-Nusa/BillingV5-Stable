@@ -31,7 +31,7 @@ type InvoiceSummary struct {
 	Total      []int    `json:"total"`
 	Lunas      []int    `json:"lunas"`
 	Menunggu   []int    `json:"menunggu"`
-	Kadaluarsa []int    `json:"kadaluarsa"`
+	Expired    []int    `json:"expired"`
 	Otomatis   []int    `json:"otomatis"`
 	Manual     []int    `json:"manual"`
 	Reinvoice  []int    `json:"reinvoice"`

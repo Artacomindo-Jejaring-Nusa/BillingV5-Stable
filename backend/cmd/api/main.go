@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -26,7 +27,7 @@ import (
 )
 
 func main() {
-	// 0. Print Banner ASCII BILLING ARTACOM V5
+	// 0. Print Banner
 	logger.PrintBanner()
 
 	// 1. Load Configurations
@@ -37,19 +38,52 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize encryption service: %v", err)
 	}
-	logger.Info("Encryption service initialized successfully")
 
 	// 3. Initialize Database Connection
 	db, err := database.InitDatabase(cfg)
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
-	
-	// Initialize structured logger with DB connection
-	logger.Init(db)
-	logger.Info("Database connection established successfully and logger initialized")
 
-	// Auto Migrate schemas to ensure tables are up-to-date
+	// 3.1. Ensure core system tables and columns exist immediately
+	// This fixes errors where GORM expects certain columns but legacy dump doesn't have them
+	db.Exec("CREATE TABLE IF NOT EXISTS system_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, timestamp DATETIME(6), level VARCHAR(50), message TEXT);")
+	
+	ensureDeletedAt := func(tableName string) {
+		var columnCount int
+		// Check if column exists in the current database
+		err := db.Raw("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = 'deleted_at'", tableName).Scan(&columnCount).Error
+		if err == nil && columnCount == 0 {
+			log.Printf("[DB FIX] Adding missing 'deleted_at' column to '%s' table...", tableName)
+			db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL;", tableName))
+			db.Exec(fmt.Sprintf("CREATE INDEX idx_%s_deleted_at ON %s (deleted_at);", tableName, tableName))
+		}
+	}
+
+	// Tables that use soft delete (gorm.DeletedAt) in the new backend
+	ensureDeletedAt("pelanggan")
+	ensureDeletedAt("invoices")
+	ensureDeletedAt("mikrotik_servers")
+	ensureDeletedAt("trouble_ticket")
+	ensureDeletedAt("action_taken")
+	ensureDeletedAt("inventory_items")
+	ensureDeletedAt("users")
+	ensureDeletedAt("langganan")
+	ensureDeletedAt("odp")
+	ensureDeletedAt("olt")
+	ensureDeletedAt("diskon")
+	ensureDeletedAt("paket_layanan")
+	ensureDeletedAt("harga_layanan")
+	ensureDeletedAt("syarat_ketentuan")
+	ensureDeletedAt("activity_logs")
+	ensureDeletedAt("payment_callback_logs")
+
+	// Initialize structured logger
+	logger.Init(db)
+	logger.Info("Database connection established successfully")
+
+	// 4. Auto Migrate schemas
+	// We disable foreign key checks during migration to avoid issues with legacy type mismatches
 	db.Exec("SET FOREIGN_KEY_CHECKS = 0;")
 	err = db.AutoMigrate(
 		&domain.Role{},
@@ -83,17 +117,21 @@ func main() {
 	db.Exec("SET FOREIGN_KEY_CHECKS = 1;")
 	if err != nil {
 		logger.Warn("AutoMigration warning: %v", err)
+	} else {
+		logger.Info("Database AutoMigration completed successfully")
 	}
+
+	// Standardize legacy data
+	logger.Info("Standardizing legacy data...")
+	db.Exec("UPDATE invoices SET status_invoice = 'Expired' WHERE status_invoice = 'Kadaluarsa';")
+	db.Exec("UPDATE invoices_archive SET status_invoice = 'Expired' WHERE status_invoice = 'Kadaluarsa';")
+	db.Exec("UPDATE pelanggan SET email = CONCAT('deleted_', UNIX_TIMESTAMP(), '_', email) WHERE deleted_at IS NOT NULL AND email NOT LIKE 'deleted_%';")
+	db.Exec("UPDATE pelanggan SET no_ktp = CONCAT('deleted_', UNIX_TIMESTAMP(), '_', no_ktp) WHERE deleted_at IS NOT NULL AND no_ktp != '' AND no_ktp NOT LIKE 'deleted_%';")
 
 	// Run Database Seeder
 	if err := database.Seed(db); err != nil {
 		logger.Warn("Seeding warning: %v", err)
 	}
-
-	// Clean up legacy soft-deleted customer emails & NIKs so they are released
-	logger.Info("Cleaning up legacy soft-deleted customer constraints...")
-	db.Exec("UPDATE pelanggans SET email = CONCAT('deleted_', UNIX_TIMESTAMP(), '_', email) WHERE deleted_at IS NOT NULL AND email NOT LIKE 'deleted_%';")
-	db.Exec("UPDATE pelanggans SET no_ktp = CONCAT('deleted_', UNIX_TIMESTAMP(), '_', no_ktp) WHERE deleted_at IS NOT NULL AND no_ktp != '' AND no_ktp NOT LIKE 'deleted_%';")
 
 	// Initialize WebSocket Hub
 	wsHub := websocket.NewHub()
@@ -104,9 +142,7 @@ func main() {
 
 	// 5. Setup Middleware (CORS)
 	router.Use(cors.New(cors.Config{
-		AllowOriginFunc: func(origin string) bool {
-			return true
-		},
+		AllowOriginFunc: func(origin string) bool { return true },
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -114,45 +150,31 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	// Serve static files from uploads directory
 	router.Static("/static/uploads", "./uploads")
-
-	// Setup WebSocket Endpoint for Notifications
 	router.GET("/ws/notifications", httpDelivery.HandleWebSocket)
 
-	// 6. Setup Health Check Endpoint
+	// 6. Setup Health Check
 	router.GET("/health", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-
-		dbErr := database.HealthCheck(ctx)
-		if dbErr != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"status":  "error",
-				"message": "Database connection unhealthy",
-				"error":   dbErr.Error(),
-			})
+		if err := database.HealthCheck(ctx); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "error", "message": err.Error()})
 			return
 		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"status":      "ok",
-			"environment": cfg.Environment,
-			"timestamp":   time.Now(),
-		})
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "environment": cfg.Environment, "timestamp": time.Now()})
 	})
 
-	// 7. Setup Clean Architecture Layers (Repositories, Usecases, Handlers)
+	// 7. Setup Clean Architecture Layers
 	api := router.Group("/api/v1")
 	authMw := middleware.AuthMiddleware(cfg)
 
-	// User & Auth Module
+	// User & Auth
 	userRepo := repository.NewUserRepository(db)
 	tokenBlacklistRepo := repository.NewTokenBlacklistRepository(db)
 	userUsecase := usecase.NewUserUsecase(userRepo, tokenBlacklistRepo, cfg)
 	httpDelivery.NewUserHandler(api, userUsecase, authMw)
 
-	// Role & Permission Module
+	// Role & Permission
 	roleRepo := repository.NewRoleRepository(db)
 	permissionRepo := repository.NewPermissionRepository(db)
 	roleUsecase := usecase.NewRoleUsecase(roleRepo)
@@ -160,7 +182,7 @@ func main() {
 	httpDelivery.NewRoleHandler(api, roleUsecase, authMw)
 	httpDelivery.NewPermissionHandler(api, permissionUsecase, authMw)
 
-	// Layanan Module (HargaLayanan, PaketLayanan, Diskon)
+	// Layanan
 	hargaLayananRepo := repository.NewHargaLayananRepository(db)
 	paketLayananRepo := repository.NewPaketLayananRepository(db)
 	diskonRepo := repository.NewDiskonRepository(db)
@@ -169,27 +191,27 @@ func main() {
 	diskonUsecase := usecase.NewDiskonUsecase(diskonRepo)
 	httpDelivery.NewLayananHandler(api, hargaLayananUsecase, paketLayananUsecase, diskonUsecase, authMw)
 
-	// Pelanggan Module
+	// Pelanggan
 	pelangganRepo := repository.NewPelangganRepository(db)
 	pelangganUsecase := usecase.NewPelangganUsecase(pelangganRepo)
 	httpDelivery.NewPelangganHandler(api, pelangganUsecase, authMw)
 
-	// Mikrotik Module
+	// Mikrotik
 	mikrotikRepo := repository.NewMikrotikRepository(db)
 	mikrotikUsecase := usecase.NewMikrotikUsecase(mikrotikRepo)
 	httpDelivery.NewMikrotikHandler(api, mikrotikUsecase, authMw)
 
-	// OLT Module
+	// OLT
 	oltRepo := repository.NewOLTRepository(db)
 	oltUsecase := usecase.NewOLTUsecase(oltRepo)
 	httpDelivery.NewOLTHandler(api, oltUsecase, authMw)
 
-	// ODP Module
+	// ODP
 	odpRepo := repository.NewODPRepository(db)
 	odpUsecase := usecase.NewODPUsecase(odpRepo)
 	httpDelivery.NewODPHandler(api, odpUsecase, authMw)
 
-	// DataTeknis Module
+	// DataTeknis
 	dataTeknisRepo := repository.NewDataTeknisRepository(db)
 	dataTeknisUsecase := usecase.NewDataTeknisUsecase(dataTeknisRepo, mikrotikRepo, pelangganRepo, paketLayananRepo)
 	httpDelivery.NewDataTeknisHandler(api, dataTeknisUsecase, authMw)
@@ -197,45 +219,41 @@ func main() {
 	systemRepo := repository.NewSystemRepository(db)
 	systemUsecase := usecase.NewSystemUsecase(systemRepo)
 
-	// Billing Module
+	// Billing
 	invoiceRepo := repository.NewInvoiceRepository(db)
 	langgananRepo := repository.NewLanggananRepository(db)
 	billingUsecase := usecase.NewBillingUsecase(invoiceRepo, langgananRepo, pelangganRepo, paketLayananRepo, hargaLayananRepo, dataTeknisRepo, mikrotikRepo, diskonRepo, systemRepo, cfg)
 
-	// Initialize Scheduler Manager
+	// Scheduler
 	schedulerMgr := scheduler.NewSchedulerManager(db, systemUsecase, billingUsecase)
-
 	httpDelivery.NewBillingHandler(api, billingUsecase, authMw)
 	httpDelivery.NewSystemHandler(api, systemUsecase, schedulerMgr, authMw)
 
-	// Inventory Module
+	// Inventory
 	inventoryRepo := repository.NewInventoryRepository(db)
 	inventoryUsecase := usecase.NewInventoryUsecase(inventoryRepo, pelangganRepo, systemRepo)
 	httpDelivery.NewInventoryHandler(api, inventoryUsecase, authMw)
 
-	// Trouble Ticket Module
+	// Trouble Ticket
 	troubleTicketRepo := repository.NewTroubleTicketRepository(db)
 	troubleTicketUsecase := usecase.NewTroubleTicketUsecase(troubleTicketRepo, systemRepo, cfg)
 	httpDelivery.NewTroubleTicketHandler(api, troubleTicketUsecase, authMw)
 
-	// Dashboard Module
+	// Dashboard
 	dashboardRepo := repository.NewDashboardRepository(db)
 	dashboardUsecase := usecase.NewDashboardUsecase(dashboardRepo, cfg)
 	httpDelivery.NewDashboardHandler(api, dashboardUsecase, userUsecase, authMw)
 	httpDelivery.NewDashboardPelangganHandler(api, dashboardRepo, authMw)
 
-	// Notification Module
+	// Notifications
 	httpDelivery.NewNotificationHandler(api, authMw)
-
 
 	// 8. Start Cron Scheduler
 	schedulerMgr.Start(context.Background())
 
-	// 9. Start Server with Graceful Shutdown
+	// 9. Start Server
 	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8000"
-	}
+	if port == "" { port = "8000" }
 
 	srv := &http.Server{
 		Addr:    ":" + port,
@@ -250,14 +268,10 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	logger.Info("Shutting down server...")
-
-	// Stop cron scheduler
-	logger.Info("Stopping cron scheduler...")
 	schedulerMgr.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -266,6 +280,5 @@ func main() {
 		logger.Error("Server forced to shutdown: %v", err)
 		os.Exit(1)
 	}
-
 	logger.Info("Server exiting")
 }

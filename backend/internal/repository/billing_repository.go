@@ -20,15 +20,26 @@ func NewInvoiceRepository(db *gorm.DB) domain.InvoiceRepository {
 	return &invoiceRepository{db: db}
 }
 
-func (r *invoiceRepository) GetAll(ctx context.Context, limit, offset int) ([]domain.Invoice, int64, error) {
+func (r *invoiceRepository) GetAll(ctx context.Context, limit, offset int, search, status string) ([]domain.Invoice, int64, error) {
 	var invoices []domain.Invoice
 	var total int64
 
-	if err := r.db.WithContext(ctx).Model(&domain.Invoice{}).Count(&total).Error; err != nil {
+	query := r.db.WithContext(ctx).Model(&domain.Invoice{})
+
+	if status != "" {
+		query = query.Where("status_invoice = ?", status)
+	}
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Joins("Pelanggan").Where("pelanggan.nama LIKE ? OR invoices.invoice_number LIKE ?", searchTerm, searchTerm)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	err := r.db.WithContext(ctx).
+	err := query.
 		Preload("Pelanggan").
 		Limit(limit).
 		Offset(offset).
@@ -202,7 +213,7 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 	// Helper to build base query
 	buildBaseQuery := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Table("invoices").
-			Joins("LEFT JOIN pelanggans ON invoices.pelanggan_id = pelanggans.id").
+			Joins("LEFT JOIN pelanggan ON invoices.pelanggan_id = pelanggan.id").
 			Where("invoices.deleted_at IS NULL")
 
 		if params.StartDate != "" {
@@ -213,10 +224,10 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 			q = q.Where("invoices.tgl_invoice <= ?", params.EndDate+" 23:59:59")
 		}
 		if params.Alamat != "" {
-			q = q.Where("pelanggans.alamat = ?", params.Alamat)
+			q = q.Where("pelanggan.alamat = ?", params.Alamat)
 		}
 		if params.IDBrand != "" {
-			q = q.Where("pelanggans.id_brand = ?", params.IDBrand)
+			q = q.Where("pelanggan.id_brand = ?", params.IDBrand)
 		}
 		return q
 	}
@@ -233,11 +244,13 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 	type StatusResult struct {
 		Status      string
 		Count       int
+		Nominal     float64
+		Diskon      float64
 		TotalAmount float64
 	}
 	var statusResults []StatusResult
 	err := buildBaseQuery().
-		Select("status_invoice as status, COUNT(*) as count, SUM(total_harga) as total_amount").
+		Select("status_invoice as status, COUNT(*) as count, SUM(COALESCE(harga_sebelum_diskon, total_harga)) as nominal, SUM(COALESCE(diskon_amount, 0)) as diskon, SUM(total_harga) as total_amount").
 		Group("status_invoice").
 		Scan(&statusResults).Error
 	if err != nil {
@@ -245,30 +258,51 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 	}
 
 	for _, res := range statusResults {
-		stat := domain.BillStat{Count: res.Count, TotalAmount: res.TotalAmount}
-		report.BillingSummary.TotalTagihan.TotalAmount += res.TotalAmount
+		stat := domain.BillStat{
+			Count:   res.Count,
+			Nominal: res.Nominal,
+			Diskon:  res.Diskon,
+			Total:   res.TotalAmount,
+		}
+		report.BillingSummary.TotalTagihan.Count += res.Count
+		report.BillingSummary.TotalTagihan.Nominal += res.Nominal
+		report.BillingSummary.TotalTagihan.Diskon += res.Diskon
+		report.BillingSummary.TotalTagihan.Total += res.TotalAmount
+		
+		// Calculate taxes for this status
+		tax := domain.TaxStat{}
+		if res.TotalAmount > 0 {
+			tax.Ppn = math.Floor(res.TotalAmount - (res.TotalAmount / 1.11) + 0.5)
+			revenueExclPpn := res.TotalAmount - tax.Ppn
+			tax.Bhp = math.Floor(revenueExclPpn * 0.005 + 0.5)
+			tax.Uso = math.Floor(revenueExclPpn * 0.0125 + 0.5)
+			tax.TotalPajak = tax.Ppn + tax.Bhp + tax.Uso
+		}
+
 		switch res.Status {
 		case "Lunas":
 			report.BillingSummary.Lunas = stat
 			report.TotalPendapatan = res.TotalAmount
 			report.FinancialSummary.TotalPemasukan = res.TotalAmount
+			report.TaxSummary.Lunas = tax
 		case "Belum Dibayar":
 			report.BillingSummary.Pending = stat
+			report.TaxSummary.Pending = tax
 		case "Expired":
-			report.BillingSummary.Telat = stat
+			report.BillingSummary.Expired = stat
+			report.TaxSummary.Expired = tax
 		}
 	}
 	report.FinancialSummary.SaldoAkhir = report.FinancialSummary.TotalPemasukan
 
-	// 3. Tax Summary (Simplified: based on paid invoices)
-	paidRevenue := report.FinancialSummary.TotalPemasukan
-	if paidRevenue > 0 {
-		report.TaxSummary.Total.Ppn = math.Floor(paidRevenue - (paidRevenue / 1.11) + 0.5)
-		revenueExclPpn := paidRevenue - report.TaxSummary.Total.Ppn
-		report.TaxSummary.Total.Bhp = math.Floor(revenueExclPpn * 0.005 + 0.5)   // 0.5% BHP
-		report.TaxSummary.Total.Uso = math.Floor(revenueExclPpn * 0.0125 + 0.5)  // 1.25% USO
-		report.TaxSummary.Total.TotalPajak = report.TaxSummary.Total.Ppn + report.TaxSummary.Total.Bhp + report.TaxSummary.Total.Uso
-	}
+	// 3. Overall Tax Summary
+	// Total tax is the sum of taxes from all statuses (or just Lunas, depending on business rules)
+	// The user's output showed total was the sum of something.
+	// Let's make Total the sum of Lunas, Pending, and Expired tax for now to match the "TOTAL" line
+	report.TaxSummary.Total.Ppn = report.TaxSummary.Lunas.Ppn + report.TaxSummary.Pending.Ppn + report.TaxSummary.Expired.Ppn
+	report.TaxSummary.Total.Bhp = report.TaxSummary.Lunas.Bhp + report.TaxSummary.Pending.Bhp + report.TaxSummary.Expired.Bhp
+	report.TaxSummary.Total.Uso = report.TaxSummary.Lunas.Uso + report.TaxSummary.Pending.Uso + report.TaxSummary.Expired.Uso
+	report.TaxSummary.Total.TotalPajak = report.TaxSummary.Total.Ppn + report.TaxSummary.Total.Bhp + report.TaxSummary.Total.Uso
 
 	// 4. Payment Methods (Only for Lunas)
 	type MethodResult struct {
@@ -312,8 +346,8 @@ func (r *invoiceRepository) GetRevenueReportDetails(ctx context.Context, params 
 	var items []domain.InvoiceReportItem
 
 	query := r.db.WithContext(ctx).Table("invoices").
-		Select("invoices.id, invoices.invoice_number, pelanggans.nama as pelanggan_nama, pelanggans.alamat, invoices.total_harga, invoices.status_invoice, invoices.tgl_invoice, invoices.paid_at as tgl_lunas, invoices.metode_pembayaran as metode, invoices.brand").
-		Joins("LEFT JOIN pelanggans ON invoices.pelanggan_id = pelanggans.id").
+		Select("invoices.id, invoices.invoice_number, pelanggan.nama as pelanggan_nama, pelanggan.alamat, invoices.total_harga, invoices.status_invoice, invoices.tgl_invoice, invoices.paid_at as tgl_lunas, invoices.metode_pembayaran as metode, invoices.brand").
+		Joins("LEFT JOIN pelanggan ON invoices.pelanggan_id = pelanggan.id").
 		Where("invoices.deleted_at IS NULL")
 
 	if params.StartDate != "" {
@@ -323,10 +357,10 @@ func (r *invoiceRepository) GetRevenueReportDetails(ctx context.Context, params 
 		query = query.Where("invoices.tgl_invoice <= ?", params.EndDate+" 23:59:59")
 	}
 	if params.Alamat != "" {
-		query = query.Where("pelanggans.alamat = ?", params.Alamat)
+		query = query.Where("pelanggan.alamat = ?", params.Alamat)
 	}
 	if params.IDBrand != "" {
-		query = query.Where("pelanggans.id_brand = ?", params.IDBrand)
+		query = query.Where("pelanggan.id_brand = ?", params.IDBrand)
 	}
 
 	if params.Limit > 0 {
@@ -345,7 +379,7 @@ func (r *invoiceRepository) ExportPaymentLinksExcel(ctx context.Context, filters
 	query := r.db.WithContext(ctx).Preload("Pelanggan").Where("deleted_at IS NULL")
 
 	if s, ok := filters["search"]; ok && s != "" {
-		query = query.Joins("Pelanggan").Where("pelanggans.nama LIKE ? OR invoices.invoice_number LIKE ?", "%"+s+"%", "%"+s+"%")
+		query = query.Joins("Pelanggan").Where("pelanggan.nama LIKE ? OR invoices.invoice_number LIKE ?", "%"+s+"%", "%"+s+"%")
 	}
 	if s, ok := filters["status_invoice"]; ok && s != "" {
 		query = query.Where("status_invoice = ?", s)
@@ -405,30 +439,30 @@ func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, sea
 	var total int64
 
 	dbCount := r.db.WithContext(ctx).Model(&domain.Langganan{}).
-		Joins("JOIN pelanggans ON pelanggans.id = langganans.pelanggan_id AND pelanggans.deleted_at IS NULL").
-		Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggans.id")
+		Joins("JOIN pelanggan ON pelanggan.id = langganan.pelanggan_id AND pelanggan.deleted_at IS NULL").
+		Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id")
 
 	dbFind := r.db.WithContext(ctx).
 		Preload("Pelanggan").
 		Preload("PaketLayanan").
 		Preload("PaketLayanan.HargaLayanan").
-		Joins("JOIN pelanggans ON pelanggans.id = langganans.pelanggan_id AND pelanggans.deleted_at IS NULL").
-		Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggans.id")
+		Joins("JOIN pelanggan ON pelanggan.id = langganan.pelanggan_id AND pelanggan.deleted_at IS NULL").
+		Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id")
 
 	if forInvoiceSelection {
-		dbCount = dbCount.Where("langganans.status != ?", "Berhenti")
-		dbFind = dbFind.Where("langganans.status != ?", "Berhenti")
+		dbCount = dbCount.Where("langganan.status != ?", "Berhenti")
+		dbFind = dbFind.Where("langganan.status != ?", "Berhenti")
 	}
 
 	if status != "" {
-		dbCount = dbCount.Where("langganans.status = ?", status)
-		dbFind = dbFind.Where("langganans.status = ?", status)
+		dbCount = dbCount.Where("langganan.status = ?", status)
+		dbFind = dbFind.Where("langganan.status = ?", status)
 	}
 
 	if search != "" {
 		searchTerm := "%" + search + "%"
-		dbCount = dbCount.Where("pelanggans.nama LIKE ? OR data_teknis.id_pelanggan LIKE ? OR pelanggans.no_telp LIKE ? OR pelanggans.email LIKE ?", searchTerm, searchTerm, searchTerm, searchTerm)
-		dbFind = dbFind.Where("pelanggans.nama LIKE ? OR data_teknis.id_pelanggan LIKE ? OR pelanggans.no_telp LIKE ? OR pelanggans.email LIKE ?", searchTerm, searchTerm, searchTerm, searchTerm)
+		dbCount = dbCount.Where("pelanggan.nama LIKE ? OR data_teknis.id_pelanggan LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ?", searchTerm, searchTerm, searchTerm, searchTerm)
+		dbFind = dbFind.Where("pelanggan.nama LIKE ? OR data_teknis.id_pelanggan LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ?", searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 
 	if err := dbCount.Count(&total).Error; err != nil {
@@ -438,7 +472,7 @@ func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, sea
 	err := dbFind.
 		Limit(limit).
 		Offset(offset).
-		Order("langganans.id desc").
+		Order("langganan.id desc").
 		Find(&langganans).Error
 
 	return langganans, total, err
@@ -514,12 +548,12 @@ func (r *langgananRepository) GetNewUserLangganans(ctx context.Context) ([]domai
 		Preload("Pelanggan.HargaLayanan").
 		Preload("Pelanggan.DataTeknis").
 		Preload("PaketLayanan").
-		Joins("JOIN pelanggans ON pelanggans.id = langganans.pelanggan_id AND pelanggans.deleted_at IS NULL").
-		Joins("LEFT JOIN invoices ON invoices.pelanggan_id = pelanggans.id").
-		Where("langganans.status = ?", "Aktif").
+		Joins("JOIN pelanggan ON pelanggan.id = langganan.pelanggan_id AND pelanggan.deleted_at IS NULL").
+		Joins("LEFT JOIN invoices ON invoices.pelanggan_id = pelanggan.id").
+		Where("langganan.status = ?", "Aktif").
 		Where("invoices.id IS NULL").
-		Where("langganans.pelanggan_id NOT IN (?)", archivedSubquery).
-		Order("langganans.id desc").
+		Where("langganan.pelanggan_id NOT IN (?)", archivedSubquery).
+		Order("langganan.id desc").
 		Find(&langganans).Error
 
 	return langganans, err

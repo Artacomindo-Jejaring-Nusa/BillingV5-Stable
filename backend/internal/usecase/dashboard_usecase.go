@@ -28,7 +28,7 @@ func (u *dashboardUsecase) GetDashboardData(ctx context.Context, userPermissions
 		LokasiChart:              &domain.ChartData{Labels: []string{}, Data: []int{}},
 		PaketChart:               &domain.ChartData{Labels: []string{}, Data: []int{}},
 		GrowthChart:              &domain.ChartData{Labels: []string{}, Data: []int{}},
-		InvoiceSummaryChart:      &domain.InvoiceSummary{Labels: []string{}, Total: []int{}, Lunas: []int{}, Menunggu: []int{}, Kadaluarsa: []int{}},
+		InvoiceSummaryChart:      &domain.InvoiceSummary{Labels: []string{}, Total: []int{}, Lunas: []int{}, Menunggu: []int{}, Expired: []int{}},
 		StatusLanggananChart:     &domain.ChartData{Labels: []string{}, Data: []int{}},
 		PelangganPerAlamatChart:  &domain.ChartData{Labels: []string{}, Data: []int{}},
 		LoyalitasPembayaranChart: &domain.ChartData{Labels: []string{}, Data: []int{}},

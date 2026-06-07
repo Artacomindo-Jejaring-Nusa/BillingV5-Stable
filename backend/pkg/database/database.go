@@ -12,6 +12,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"gorm.io/gorm/schema"
 )
 
 var DB *gorm.DB
@@ -74,6 +75,9 @@ func InitDatabase(cfg *config.Config) (*gorm.DB, error) {
 
 	gormCfg := &gorm.Config{
 		Logger: logger.Default.LogMode(logMode),
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: true,
+		},
 	}
 
 	var db *gorm.DB

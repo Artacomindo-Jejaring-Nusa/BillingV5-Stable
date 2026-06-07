@@ -15,7 +15,7 @@ type Pelanggan struct {
 	NoKtp            string         `gorm:"type:varchar(191)" json:"no_ktp"`
 	Nama             string         `gorm:"type:varchar(191)" json:"nama"`
 	Alamat           string         `gorm:"type:varchar(191)" json:"alamat"`
-	AlamatCustom     *string        `gorm:"type:varchar(191)" json:"alamat_custom"`
+	AlamatCustom     *string        `gorm:"column:alamat_2;type:text" json:"alamat_custom"`
 	TglInstalasi     *time.Time     `gorm:"type:date" json:"tgl_instalasi"`
 	Blok             string         `gorm:"type:varchar(191)" json:"blok"`
 	Unit             string         `gorm:"type:varchar(191)" json:"unit"`
@@ -41,6 +41,11 @@ type Pelanggan struct {
 	HargaLayanan   *HargaLayanan   `gorm:"foreignKey:IDBrand;references:IDBrand;constraint:-" json:"harga_layanan"`
 	TroubleTickets []TroubleTicket `gorm:"foreignKey:PelangganID" json:"trouble_tickets"`
 	InventoryItems []InventoryItem `gorm:"foreignKey:PelangganID" json:"inventory_items"`
+}
+
+// TableName overrides the default table name for Pelanggan
+func (Pelanggan) TableName() string {
+	return "pelanggan"
 }
 
 // DataTeknis represents the technical connection data for a customer.
@@ -73,6 +78,12 @@ type DataTeknis struct {
 	Odp            *ODP            `gorm:"foreignKey:OdpID" json:"odp"`
 	TroubleTickets []TroubleTicket `gorm:"foreignKey:DataTeknisID" json:"trouble_tickets"`
 }
+
+// TableName overrides the default table name for DataTeknis
+func (DataTeknis) TableName() string {
+	return "data_teknis"
+}
+
 
 // UnmarshalJSON custom unmarshaler to support binding numbers that might be passed as strings.
 func (dt *DataTeknis) UnmarshalJSON(data []byte) error {

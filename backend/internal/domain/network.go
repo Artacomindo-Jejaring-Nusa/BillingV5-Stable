@@ -29,6 +29,11 @@ type MikrotikServer struct {
 	Olts              []OLT        `gorm:"foreignKey:MikrotikServerID" json:"olts"`
 }
 
+// TableName overrides the default table name for MikrotikServer
+func (MikrotikServer) TableName() string {
+	return "mikrotik_servers"
+}
+
 // UnmarshalJSON custom unmarshaler to support both host_ip and ip_address fields.
 func (m *MikrotikServer) UnmarshalJSON(data []byte) error {
 	type Alias MikrotikServer

@@ -23,21 +23,21 @@ func Seed(db *gorm.DB) error {
 			"Dashboard",
 			"Pelanggan",
 			"Langganan",
-			"Teknis",
-			"Paket",
+			"Data_Teknis",
+			"Brand_&_Paket",
 			"Invoices",
-			"Reports",
-			"Servers",
+			"Reports_Revenue",
+			"Mikrotik_Servers",
 			"Users",
 			"Roles",
 			"Permissions",
 			"SK",
-			"Simulasi",
+			"Simulasi_Harga",
 			"Inventory",
 			"Dashboard_Pelanggan",
 			"Activity_Log",
 			"OLT",
-			"ODP",
+			"ODP_Management",
 			"Trouble_Tickets",
 			"Diskon",
 			"AI_Analytics",
@@ -87,6 +87,10 @@ func Seed(db *gorm.DB) error {
 				permissions = append(permissions, action+"_"+feature)
 			}
 		}
+
+		// --- Special Management Actions ---
+		permissions = append(permissions, "manage_sk")
+		permissions = append(permissions, "manage_settings")
 
 		// 2. Insert Permissions into DB
 		var dbPermissions []domain.Permission

@@ -37,8 +37,8 @@ func (r *dashboardRepository) GetRevenueSummary(ctx context.Context) (*domain.Re
 
 	err := r.db.WithContext(ctx).Table("invoices").
 		Select("harga_layanan.brand, SUM(invoices.total_harga) as total_revenue").
-		Joins("LEFT JOIN pelanggans ON invoices.pelanggan_id = pelanggans.id").
-		Joins("LEFT JOIN harga_layanan ON pelanggans.id_brand = harga_layanan.id_brand").
+		Joins("LEFT JOIN pelanggan ON invoices.pelanggan_id = pelanggan.id").
+		Joins("LEFT JOIN harga_layanan ON pelanggan.id_brand = harga_layanan.id_brand").
 		Where("invoices.status_invoice = ?", "Lunas").
 		Where("harga_layanan.brand IS NOT NULL").
 		Where("invoices.paid_at >= ?", startOfMonth).
@@ -80,8 +80,8 @@ func (r *dashboardRepository) GetPelangganStatCards(ctx context.Context) ([]doma
 	var results []Result
 
 	err := r.db.WithContext(ctx).Table("harga_layanan").
-		Select("harga_layanan.brand, COUNT(pelanggans.id) as count").
-		Joins("LEFT JOIN pelanggans ON harga_layanan.id_brand = pelanggans.id_brand").
+		Select("harga_layanan.brand, COUNT(pelanggan.id) as count").
+		Joins("LEFT JOIN pelanggan ON harga_layanan.id_brand = pelanggan.id_brand").
 		Group("harga_layanan.brand").
 		Scan(&results).Error
 
@@ -115,7 +115,7 @@ func (r *dashboardRepository) GetPelangganStatCards(ctx context.Context) ([]doma
 
 func (r *dashboardRepository) GetLoyaltyChart(ctx context.Context) (*domain.ChartData, error) {
 	var totalActive int64
-	err := r.db.WithContext(ctx).Table("langganans").
+	err := r.db.WithContext(ctx).Table("langganan").
 		Where("status = ?", "Aktif").
 		Count(&totalActive).Error
 	if err != nil {
@@ -123,19 +123,19 @@ func (r *dashboardRepository) GetLoyaltyChart(ctx context.Context) (*domain.Char
 	}
 
 	var outstandingCount int64
-	err = r.db.WithContext(ctx).Table("langganans").
+	err = r.db.WithContext(ctx).Table("langganan").
 		Where("status = ?", "Aktif").
-		Where("pelanggan_id IN (SELECT DISTINCT pelanggan_id FROM invoices WHERE status_invoice IN (?, ?, ?))", "Belum Dibayar", "Kadaluarsa", "Expired").
+		Where("pelanggan_id IN (SELECT DISTINCT pelanggan_id FROM invoices WHERE status_invoice IN (?, ?, ?))", "Belum Dibayar", "Expired", "Expired").
 		Count(&outstandingCount).Error
 	if err != nil {
 		return nil, err
 	}
 
 	var everLateCount int64
-	err = r.db.WithContext(ctx).Table("langganans").
+	err = r.db.WithContext(ctx).Table("langganan").
 		Where("status = ?", "Aktif").
 		Where("pelanggan_id IN (SELECT DISTINCT pelanggan_id FROM invoices WHERE paid_at > tgl_jatuh_tempo)").
-		Where("pelanggan_id NOT IN (SELECT DISTINCT pelanggan_id FROM invoices WHERE status_invoice IN (?, ?, ?))", "Belum Dibayar", "Kadaluarsa", "Expired").
+		Where("pelanggan_id NOT IN (SELECT DISTINCT pelanggan_id FROM invoices WHERE status_invoice IN (?, ?, ?))", "Belum Dibayar", "Expired", "Expired").
 		Count(&everLateCount).Error
 	if err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func (r *dashboardRepository) GetLokasiChart(ctx context.Context) (*domain.Chart
 	}
 	var results []Result
 
-	err := r.db.WithContext(ctx).Table("pelanggans").
+	err := r.db.WithContext(ctx).Table("pelanggan").
 		Select("alamat, COUNT(id) as count").
 		Where("alamat IS NOT NULL AND alamat != ''").
 		Group("alamat").
@@ -196,9 +196,9 @@ func (r *dashboardRepository) GetPaketChart(ctx context.Context) (*domain.ChartD
 	var results []Result
 
 	err := r.db.WithContext(ctx).Table("paket_layanan").
-		Select("paket_layanan.kecepatan, COUNT(langganans.id) as count").
-		Joins("LEFT JOIN langganans ON paket_layanan.id = langganans.paket_layanan_id").
-		Where("langganans.status = ?", "Aktif").
+		Select("paket_layanan.kecepatan, COUNT(langganan.id) as count").
+		Joins("LEFT JOIN langganan ON paket_layanan.id = langganan.paket_layanan_id").
+		Where("langganan.status = ?", "Aktif").
 		Group("paket_layanan.kecepatan").
 		Order("paket_layanan.kecepatan").
 		Limit(10).
@@ -231,7 +231,7 @@ func (r *dashboardRepository) GetGrowthChart(ctx context.Context) (*domain.Chart
 	}
 	var results []Result
 
-	err := r.db.WithContext(ctx).Table("pelanggans").
+	err := r.db.WithContext(ctx).Table("pelanggan").
 		Select("YEAR(tgl_instalasi) as year, MONTH(tgl_instalasi) as month, COUNT(id) as jumlah").
 		Where("tgl_instalasi >= ?", twoYearsAgo).
 		Group("YEAR(tgl_instalasi), MONTH(tgl_instalasi)").
@@ -267,7 +267,7 @@ func (r *dashboardRepository) GetInvoiceSummaryChart(ctx context.Context) (*doma
 		Total      int
 		Lunas      int
 		Menunggu   int
-		Kadaluarsa int
+		Expired    int
 		Otomatis   int
 		Manual     int
 		Reinvoice  int
@@ -281,7 +281,7 @@ func (r *dashboardRepository) GetInvoiceSummaryChart(ctx context.Context) (*doma
 			COUNT(id) as total,
 			SUM(CASE WHEN status_invoice = 'Lunas' THEN 1 ELSE 0 END) as lunas,
 			SUM(CASE WHEN status_invoice = 'Belum Dibayar' THEN 1 ELSE 0 END) as menunggu,
-			SUM(CASE WHEN status_invoice IN ('Expired', 'Kadaluarsa') THEN 1 ELSE 0 END) as kadaluarsa,
+			SUM(CASE WHEN status_invoice IN ('Expired', 'Expired') THEN 1 ELSE 0 END) as expired,
 			SUM(CASE WHEN invoice_type = 'automatic' THEN 1 ELSE 0 END) as otomatis,
 			SUM(CASE WHEN invoice_type = 'manual' THEN 1 ELSE 0 END) as manual,
 			SUM(CASE WHEN is_reinvoice = 1 THEN 1 ELSE 0 END) as reinvoice
@@ -301,7 +301,7 @@ func (r *dashboardRepository) GetInvoiceSummaryChart(ctx context.Context) (*doma
 	var total []int
 	var lunas []int
 	var menunggu []int
-	var kadaluarsa []int
+	var expired []int
 	var otomatis []int
 	var manual []int
 	var reinvoice []int
@@ -314,7 +314,7 @@ func (r *dashboardRepository) GetInvoiceSummaryChart(ctx context.Context) (*doma
 			total = append(total, 0)
 			lunas = append(lunas, 0)
 			menunggu = append(menunggu, 0)
-			kadaluarsa = append(kadaluarsa, 0)
+			expired = append(expired, 0)
 			otomatis = append(otomatis, 0)
 			manual = append(manual, 0)
 			reinvoice = append(reinvoice, 0)
@@ -326,7 +326,7 @@ func (r *dashboardRepository) GetInvoiceSummaryChart(ctx context.Context) (*doma
 				total = append(total, row.Total)
 				lunas = append(lunas, row.Lunas)
 				menunggu = append(menunggu, row.Menunggu)
-				kadaluarsa = append(kadaluarsa, row.Kadaluarsa)
+				expired = append(expired, row.Expired)
 				otomatis = append(otomatis, row.Otomatis)
 				manual = append(manual, row.Manual)
 				reinvoice = append(reinvoice, row.Reinvoice)
@@ -339,7 +339,7 @@ func (r *dashboardRepository) GetInvoiceSummaryChart(ctx context.Context) (*doma
 		Total:      total,
 		Lunas:      lunas,
 		Menunggu:   menunggu,
-		Kadaluarsa: kadaluarsa,
+		Expired: expired,
 		Otomatis:   otomatis,
 		Manual:     manual,
 		Reinvoice:  reinvoice,
@@ -353,7 +353,7 @@ func (r *dashboardRepository) GetStatusLanggananChart(ctx context.Context) (*dom
 	}
 	var results []Result
 
-	err := r.db.WithContext(ctx).Table("langganans").
+	err := r.db.WithContext(ctx).Table("langganan").
 		Select("status, COUNT(id) as jumlah").
 		Group("status").
 		Order("status").
@@ -383,11 +383,11 @@ func (r *dashboardRepository) GetPelangganPerAlamatChart(ctx context.Context) (*
 	}
 	var results []Result
 
-	err := r.db.WithContext(ctx).Table("pelanggans").
-		Select("pelanggans.alamat, COUNT(pelanggans.id) as jumlah").
-		Joins("JOIN langganans ON pelanggans.id = langganans.pelanggan_id").
-		Where("langganans.status = ?", "Aktif").
-		Group("pelanggans.alamat").
+	err := r.db.WithContext(ctx).Table("pelanggan").
+		Select("pelanggan.alamat, COUNT(pelanggan.id) as jumlah").
+		Joins("JOIN langganan ON pelanggan.id = langganan.pelanggan_id").
+		Where("langganan.status = ?", "Aktif").
+		Group("pelanggan.alamat").
 		Order("jumlah DESC").
 		Limit(20).
 		Scan(&results).Error
@@ -421,21 +421,21 @@ func (r *dashboardRepository) GetLoyaltyUsersBySegment(ctx context.Context, segm
 	}
 	var rawData []QueryResult
 
-	err := r.db.WithContext(ctx).Table("pelanggans").
+	err := r.db.WithContext(ctx).Table("pelanggan").
 		Select(`
-			pelanggans.id,
-			pelanggans.nama,
-			pelanggans.alamat,
-			pelanggans.no_telp,
+			pelanggan.id,
+			pelanggan.nama,
+			pelanggan.alamat,
+			pelanggan.no_telp,
 			data_teknis.id_pelanggan,
-			SUM(CASE WHEN invoices.status_invoice IN ('Belum Dibayar', 'Kadaluarsa', 'Expired') THEN 1 ELSE 0 END) as outstanding_count,
+			SUM(CASE WHEN invoices.status_invoice IN ('Belum Dibayar', 'Expired', 'Expired') THEN 1 ELSE 0 END) as outstanding_count,
 			SUM(CASE WHEN invoices.paid_at > invoices.tgl_jatuh_tempo THEN 1 ELSE 0 END) as late_count
 		`).
-		Joins("JOIN langganans ON pelanggans.id = langganans.pelanggan_id").
-		Joins("LEFT JOIN invoices ON pelanggans.id = invoices.pelanggan_id").
-		Joins("LEFT JOIN data_teknis ON pelanggans.id = data_teknis.pelanggan_id").
-		Where("langganans.status = ?", "Aktif").
-		Group("pelanggans.id, pelanggans.nama, pelanggans.alamat, pelanggans.no_telp, data_teknis.id_pelanggan").
+		Joins("JOIN langganan ON pelanggan.id = langganan.pelanggan_id").
+		Joins("LEFT JOIN invoices ON pelanggan.id = invoices.pelanggan_id").
+		Joins("LEFT JOIN data_teknis ON pelanggan.id = data_teknis.pelanggan_id").
+		Where("langganan.status = ?", "Aktif").
+		Group("pelanggan.id, pelanggan.nama, pelanggan.alamat, pelanggan.no_telp, data_teknis.id_pelanggan").
 		Scan(&rawData).Error
 
 	if err != nil {
@@ -485,12 +485,12 @@ func (r *dashboardRepository) GetLoyaltyUsersBySegment(ctx context.Context, segm
 
 func (r *dashboardRepository) GetSidebarBadges(ctx context.Context) (*domain.SidebarBadgeResponse, error) {
 	var suspendedCount int64
-	if err := r.db.WithContext(ctx).Table("langganans").Where("status = ?", "Suspended").Count(&suspendedCount).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("langganan").Where("status = ?", "Suspended").Count(&suspendedCount).Error; err != nil {
 		return nil, err
 	}
 
 	var stoppedCount int64
-	if err := r.db.WithContext(ctx).Table("langganans").Where("status = ?", "Berhenti").Count(&stoppedCount).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("langganan").Where("status = ?", "Berhenti").Count(&stoppedCount).Error; err != nil {
 		return nil, err
 	}
 
@@ -535,11 +535,11 @@ func (r *dashboardRepository) GetPaketDetails(ctx context.Context) (map[string]d
 	var rawData []QueryResult
 
 	err := r.db.WithContext(ctx).Table("paket_layanan").
-		Select("paket_layanan.kecepatan, pelanggans.alamat, harga_layanan.brand, COUNT(pelanggans.id) as jumlah").
-		Joins("JOIN langganans ON paket_layanan.id = langganans.paket_layanan_id").
-		Joins("JOIN pelanggans ON langganans.pelanggan_id = pelanggans.id").
-		Joins("JOIN harga_layanan ON pelanggans.id_brand = harga_layanan.id_brand").
-		Group("paket_layanan.kecepatan, pelanggans.alamat, harga_layanan.brand").
+		Select("paket_layanan.kecepatan, pelanggan.alamat, harga_layanan.brand, COUNT(pelanggan.id) as jumlah").
+		Joins("JOIN langganan ON paket_layanan.id = langganan.paket_layanan_id").
+		Joins("JOIN pelanggan ON langganan.pelanggan_id = pelanggan.id").
+		Joins("JOIN harga_layanan ON pelanggan.id_brand = harga_layanan.id_brand").
+		Group("paket_layanan.kecepatan, pelanggan.alamat, harga_layanan.brand").
 		Order("paket_layanan.kecepatan ASC, jumlah DESC").
 		Scan(&rawData).Error
 
@@ -649,7 +649,7 @@ func (r *dashboardRepository) GetInvoiceGenerationMonitor(ctx context.Context, t
 	}
 
 	var totalShouldHave int64
-	err = r.db.WithContext(ctx).Table("langganans").
+	err = r.db.WithContext(ctx).Table("langganan").
 		Where("tgl_jatuh_tempo BETWEEN ? AND ? AND status = ?", startOfMonth, endOfMonth, "Aktif").
 		Count(&totalShouldHave).Error
 	if err != nil {
@@ -760,7 +760,7 @@ func (r *dashboardRepository) GetFutureInvoiceProjection(ctx context.Context, ta
 	}
 
 	var estimatedCustomers int64
-	err = r.db.WithContext(ctx).Table("langganans").
+	err = r.db.WithContext(ctx).Table("langganan").
 		Where("tgl_jatuh_tempo = ? AND status = ?", targetDateObj, "Aktif").
 		Count(&estimatedCustomers).Error
 	if err != nil {
@@ -768,7 +768,7 @@ func (r *dashboardRepository) GetFutureInvoiceProjection(ctx context.Context, ta
 	}
 
 	var totalActive int64
-	err = r.db.WithContext(ctx).Table("langganans").
+	err = r.db.WithContext(ctx).Table("langganan").
 		Where("status = ?", "Aktif").
 		Count(&totalActive).Error
 	if err != nil {
@@ -854,27 +854,27 @@ func (r *dashboardRepository) GetMainStats(ctx context.Context) (*domain.MainSta
 	}
 
 	var pelangganAktif int64
-	r.db.WithContext(ctx).Table("langganans").
+	r.db.WithContext(ctx).Table("langganan").
 		Where("status = ?", "Aktif").
 		Where("deleted_at IS NULL").
 		Count(&pelangganAktif)
 
 	var pelangganBaru int64
-	r.db.WithContext(ctx).Table("langganans").
+	r.db.WithContext(ctx).Table("langganan").
 		Where("status = ?", "Aktif").
 		Where("tgl_mulai_langganan >= ?", startOfMonth).
 		Where("deleted_at IS NULL").
 		Count(&pelangganBaru)
 
 	var pelangganBerhenti int64
-	r.db.WithContext(ctx).Table("langganans").
+	r.db.WithContext(ctx).Table("langganan").
 		Where("status = ?", "Berhenti").
 		Where("tgl_berhenti >= ?", startOfMonth).
 		Where("deleted_at IS NULL").
 		Count(&pelangganBerhenti)
 
 	var pelangganJakinet int64
-	r.db.WithContext(ctx).Table("langganans").
+	r.db.WithContext(ctx).Table("langganan").
 		Where("status = ?", "Aktif").
 		Where("id_brand = ?", 1).
 		Where("deleted_at IS NULL").
@@ -913,7 +913,7 @@ func (r *dashboardRepository) GetGrowthChartData(ctx context.Context, months int
 
 	var results []GrowthResult
 
-	r.db.WithContext(ctx).Table("langganans").
+	r.db.WithContext(ctx).Table("langganan").
 		Select("DATE(tgl_mulai_langganan) as date, COUNT(*) as count").
 		Where("status = ?", "Aktif").
 		Where("tgl_mulai_langganan >= ?", startDate).

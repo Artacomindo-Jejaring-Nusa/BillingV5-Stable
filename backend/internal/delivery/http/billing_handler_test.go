@@ -22,7 +22,7 @@ func (m *mockBillingUsecase) ExportLangganan(ctx context.Context, format string)
 	return []byte("csv data"), "text/csv", nil
 }
 
-func (m *mockBillingUsecase) FetchInvoices(ctx context.Context, page, pageSize int) ([]domain.Invoice, int64, error) {
+func (m *mockBillingUsecase) FetchInvoices(ctx context.Context, page, pageSize int, search, status string) ([]domain.Invoice, int64, error) {
 	return []domain.Invoice{}, 0, nil
 }
 

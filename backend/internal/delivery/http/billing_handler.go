@@ -80,8 +80,15 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 func (h *BillingHandler) FetchInvoices(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if limitVal, err := strconv.Atoi(limitStr); err == nil {
+			pageSize = limitVal
+		}
+	}
+	search := c.Query("search")
+	status := c.Query("status_invoice")
 
-	invoices, total, err := h.billingUsecase.FetchInvoices(c.Request.Context(), page, pageSize)
+	invoices, total, err := h.billingUsecase.FetchInvoices(c.Request.Context(), page, pageSize, search, status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

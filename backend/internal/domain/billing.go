@@ -36,6 +36,11 @@ type Langganan struct {
 	SertakanBulanDepan bool `gorm:"-" json:"sertakan_bulan_depan"`
 }
 
+// TableName overrides the default table name for Langganan
+func (Langganan) TableName() string {
+	return "langganan"
+}
+
 // UnmarshalJSON custom unmarshaler for Langganan to handle various date string formats.
 func (l *Langganan) UnmarshalJSON(data []byte) error {
 	type Alias Langganan
