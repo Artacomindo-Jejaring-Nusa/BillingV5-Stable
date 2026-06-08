@@ -45,3 +45,11 @@ backend/uploads/
 test.txt
 Fixing Vue Views Issues.md
 DataTerbaru2026.sql
+DataTerbaru2026_Cleaned.sql
+import-production-data.ps1
+
+# Coverage & Scans
+*.out
+coverage/
+frontend/coverage/
+.scannerwork/
