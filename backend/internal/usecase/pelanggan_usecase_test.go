@@ -16,7 +16,7 @@ func TestPelangganRetrieval(t *testing.T) {
 	u := NewPelangganUsecase(repo)
 
 	t.Run("FetchAll", func(t *testing.T) {
-		res, total, err := u.FetchAll(context.Background(), 1, 10, "")
+		res, total, err := u.FetchAll(context.Background(), 0, 10, "", "")
 		if err != nil { t.Fatalf("error: %v", err) }
 		if total != 1 { t.Errorf("expected 1, got %d", total) }
 		if len(res) != 1 { t.Errorf("expected 1, got %d", len(res)) }

@@ -116,19 +116,13 @@ func (h *PelangganHandler) GetUniqueLocations(c *gin.Context) {
 }
 
 func (h *PelangganHandler) FetchAll(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
-	// Map 'limit' query parameter to pageSize if present
-	if limitStr := c.Query("limit"); limitStr != "" {
-		if limitVal, err := strconv.Atoi(limitStr); err == nil && limitVal > 0 {
-			pageSize = limitVal
-		}
-	}
-
+	search := c.Query("search")
 	connectionStatus := c.Query("connection_status")
 
-	pelanggans, total, err := h.pelangganUsecase.FetchAll(c.Request.Context(), page, pageSize, connectionStatus)
+	pelanggans, total, err := h.pelangganUsecase.FetchAll(c.Request.Context(), skip, limit, search, connectionStatus)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

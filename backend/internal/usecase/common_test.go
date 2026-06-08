@@ -12,7 +12,7 @@ type mockPelangganRepo struct {
 	data map[uint64]*domain.Pelanggan
 }
 
-func (m *mockPelangganRepo) GetAll(ctx context.Context, limit, offset int, connectionStatus string) ([]domain.Pelanggan, int64, error) {
+func (m *mockPelangganRepo) GetAll(ctx context.Context, limit, offset int, search, connectionStatus string) ([]domain.Pelanggan, int64, error) {
 	var result []domain.Pelanggan
 	for _, p := range m.data {
 		result = append(result, *p)

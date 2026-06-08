@@ -125,7 +125,7 @@ func (r *dashboardRepository) GetLoyaltyChart(ctx context.Context) (*domain.Char
 	var outstandingCount int64
 	err = r.db.WithContext(ctx).Table("langganan").
 		Where("status = ?", "Aktif").
-		Where("pelanggan_id IN (SELECT DISTINCT pelanggan_id FROM invoices WHERE status_invoice IN (?, ?, ?))", "Belum Dibayar", "Expired", "Expired").
+		Where("pelanggan_id IN (SELECT DISTINCT pelanggan_id FROM invoices WHERE status_invoice IN (?, ?, ?))", "Belum Bayar", "Expired", "Expired").
 		Count(&outstandingCount).Error
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func (r *dashboardRepository) GetLoyaltyChart(ctx context.Context) (*domain.Char
 	err = r.db.WithContext(ctx).Table("langganan").
 		Where("status = ?", "Aktif").
 		Where("pelanggan_id IN (SELECT DISTINCT pelanggan_id FROM invoices WHERE paid_at > tgl_jatuh_tempo)").
-		Where("pelanggan_id NOT IN (SELECT DISTINCT pelanggan_id FROM invoices WHERE status_invoice IN (?, ?, ?))", "Belum Dibayar", "Expired", "Expired").
+		Where("pelanggan_id NOT IN (SELECT DISTINCT pelanggan_id FROM invoices WHERE status_invoice IN (?, ?, ?))", "Belum Bayar", "Expired", "Expired").
 		Count(&everLateCount).Error
 	if err != nil {
 		return nil, err
@@ -280,7 +280,7 @@ func (r *dashboardRepository) GetInvoiceSummaryChart(ctx context.Context) (*doma
 			MONTH(tgl_invoice) as month, 
 			COUNT(id) as total,
 			SUM(CASE WHEN status_invoice = 'Lunas' THEN 1 ELSE 0 END) as lunas,
-			SUM(CASE WHEN status_invoice = 'Belum Dibayar' THEN 1 ELSE 0 END) as menunggu,
+			SUM(CASE WHEN status_invoice = 'Belum Bayar' THEN 1 ELSE 0 END) as menunggu,
 			SUM(CASE WHEN status_invoice IN ('Expired', 'Expired') THEN 1 ELSE 0 END) as expired,
 			SUM(CASE WHEN invoice_type = 'automatic' THEN 1 ELSE 0 END) as otomatis,
 			SUM(CASE WHEN invoice_type = 'manual' THEN 1 ELSE 0 END) as manual,
@@ -428,7 +428,7 @@ func (r *dashboardRepository) GetLoyaltyUsersBySegment(ctx context.Context, segm
 			pelanggan.alamat,
 			pelanggan.no_telp,
 			data_teknis.id_pelanggan,
-			SUM(CASE WHEN invoices.status_invoice IN ('Belum Dibayar', 'Expired', 'Expired') THEN 1 ELSE 0 END) as outstanding_count,
+			SUM(CASE WHEN invoices.status_invoice IN ('Belum Bayar', 'Expired', 'Expired') THEN 1 ELSE 0 END) as outstanding_count,
 			SUM(CASE WHEN invoices.paid_at > invoices.tgl_jatuh_tempo THEN 1 ELSE 0 END) as late_count
 		`).
 		Joins("JOIN langganan ON pelanggan.id = langganan.pelanggan_id").
@@ -509,7 +509,7 @@ func (r *dashboardRepository) GetSidebarBadges(ctx context.Context) (*domain.Sid
 
 	var unpaidCount int64
 	err := r.db.WithContext(ctx).Table("invoices").
-		Where("status_invoice = ?", "Belum Dibayar").
+		Where("status_invoice = ?", "Belum Bayar").
 		Where("tgl_invoice >= ?", activeCutoff).
 		Count(&unpaidCount).Error
 	if err != nil {

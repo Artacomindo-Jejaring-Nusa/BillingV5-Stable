@@ -166,7 +166,7 @@ func (r *invoiceRepository) UpdateStatusForUnpaidInvoices(ctx context.Context, p
 	res := r.db.WithContext(ctx).Model(&domain.Invoice{}).
 		Where("pelanggan_id = ?", pelangganID).
 		Where("tgl_jatuh_tempo IN ?", []time.Time{targetDueDate, endOfPrevMonth}).
-		Where("status_invoice IN ?", []string{"Belum Dibayar", "Expired"}).
+		Where("status_invoice IN ?", []string{"Belum Bayar", "Expired"}).
 		Update("status_invoice", newStatus)
 	return res.RowsAffected, res.Error
 }
@@ -285,7 +285,7 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 			report.TotalPendapatan = res.TotalAmount
 			report.FinancialSummary.TotalPemasukan = res.TotalAmount
 			report.TaxSummary.Lunas = tax
-		case "Belum Dibayar":
+		case "Belum Bayar":
 			report.BillingSummary.Pending = stat
 			report.TaxSummary.Pending = tax
 		case "Expired":
@@ -529,7 +529,7 @@ func (r *langgananRepository) GetActiveOverdueForSuspend(ctx context.Context, ta
 		Joins("JOIN invoices ON invoices.pelanggan_id = langganan.pelanggan_id").
 		Where("langganan.status = ?", "Aktif").
 		Where("invoices.tgl_jatuh_tempo IN ?", []time.Time{targetDueDate, endOfPrevMonth}).
-		Where("invoices.status_invoice IN ?", []string{"Belum Dibayar", "Expired"}).
+		Where("invoices.status_invoice IN ?", []string{"Belum Bayar", "Expired"}).
 		Where("langganan.pelanggan_id NOT IN (?)", paidSubquery).
 		Group("langganan.id").
 		Find(&langganans).Error

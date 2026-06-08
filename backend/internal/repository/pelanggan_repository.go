@@ -19,7 +19,7 @@ func NewPelangganRepository(db *gorm.DB) domain.PelangganRepository {
 	return &pelangganRepository{db: db}
 }
 
-func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, connectionStatus string) ([]domain.Pelanggan, int64, error) {
+func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, search, connectionStatus string) ([]domain.Pelanggan, int64, error) {
 	var pelanggans []domain.Pelanggan
 	var total int64
 
@@ -29,6 +29,11 @@ func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, con
 		query = query.
 			Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id").
 			Where("data_teknis.id IS NULL")
+	}
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where("pelanggan.nama LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ?", searchTerm, searchTerm, searchTerm)
 	}
 
 	// Count total records

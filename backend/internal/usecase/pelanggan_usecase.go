@@ -26,11 +26,8 @@ func NewPelangganUsecase(p domain.PelangganRepository) domain.PelangganUsecase {
 	}
 }
 
-func (u *pelangganUsecase) FetchAll(ctx context.Context, page, pageSize int, connectionStatus string) ([]domain.Pelanggan, int64, error) {
-	if page <= 0 { page = 1 }
-	if pageSize <= 0 { pageSize = 10 }
-	offset := (page - 1) * pageSize
-	pelanggans, total, err := u.pelangganRepo.GetAll(ctx, pageSize, offset, connectionStatus)
+func (u *pelangganUsecase) FetchAll(ctx context.Context, skip, limit int, search, connectionStatus string) ([]domain.Pelanggan, int64, error) {
+	pelanggans, total, err := u.pelangganRepo.GetAll(ctx, limit, skip, search, connectionStatus)
 	if err == nil {
 		for i := range pelanggans {
 			pelanggans[i].NoKtp = utils.Decrypt(pelanggans[i].NoKtp)
@@ -38,6 +35,7 @@ func (u *pelangganUsecase) FetchAll(ctx context.Context, page, pageSize int, con
 	}
 	return pelanggans, total, err
 }
+
 
 func (u *pelangganUsecase) GetByID(ctx context.Context, id uint64) (*domain.Pelanggan, error) {
 	pelanggan, err := u.pelangganRepo.GetByID(ctx, id)
@@ -159,7 +157,7 @@ func (u *pelangganUsecase) ImportFromCSV(ctx context.Context, csvContent string)
 }
 
 func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, string, error) {
-	pelanggans, _, err := u.pelangganRepo.GetAll(ctx, 10000, 0, "")
+	pelanggans, _, err := u.pelangganRepo.GetAll(ctx, 10000, 0, "", "")
 	if err != nil { return nil, "", err }
 	
 	// Decrypt NIK for export

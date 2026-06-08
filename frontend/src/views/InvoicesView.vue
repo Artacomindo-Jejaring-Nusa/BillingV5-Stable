@@ -54,7 +54,7 @@
             </div>
             <div>
               <div class="text-subtitle-1 text-md-h6 font-weight-bold">{{ getPendingCount() }}</div>
-              <div class="text-caption text-medium-emphasis text-truncate">Belum Dibayar</div>
+              <div class="text-caption text-medium-emphasis text-truncate">Belum Bayar</div>
             </div>
           </div>
         </v-card>
@@ -955,7 +955,7 @@ const paymentMethod = ref('Cash');
 const selectedStatus = ref<string | null>(null);
 const startDate = ref<string | null>(null);
 const endDate = ref<string | null>(null);
-const statusOptions = ref(['Lunas', 'Belum Dibayar', 'Expired']);
+const statusOptions = ref(['Lunas', 'Belum Bayar', 'Expired']);
 const showPaidInvoices = ref(false);
 const selectedLimit = ref(10);
 const limitOptions = ref([
@@ -1100,7 +1100,7 @@ const getPaidCount = () => {
 const getPendingCount = () => {
   if (!invoices.value) return 0;
   // Hitung berdasarkan filteredInvoices untuk exclude expired
-  return filteredInvoices.value.filter(inv => inv.payment_link_status === 'Belum Dibayar').length;
+  return filteredInvoices.value.filter(inv => inv.payment_link_status === 'Belum Bayar').length;
 };
 const getOverdueCount = () => {
   if (!invoices.value) return 0;
@@ -1127,7 +1127,7 @@ function getStatusColor(status: string): string {
   switch (status) {
     case 'Lunas': return 'success';
     case 'Expired': return 'error';  // Status Expired menggunakan warna merah
-    case 'Belum Dibayar': return 'warning';
+    case 'Belum Bayar': return 'warning';
     default: return 'grey';
   }
 }
@@ -1157,7 +1157,7 @@ function getStatusIcon(status: string): string {
   switch (status) {
     case 'Lunas': return 'mdi-check-circle';
     case 'Expired': return 'mdi-alert-circle';
-    case 'Belum Dibayar': return 'mdi-clock-outline';
+    case 'Belum Bayar': return 'mdi-clock-outline';
     default: return 'mdi-help-circle';
   }
 }
@@ -1224,7 +1224,7 @@ async function fetchInvoices() {
     // filter hanya invoice yang belum dibayar
     if (!showPaidInvoices.value) {
       if (!selectedStatus.value) {  // Jika tidak ada filter status spesifik
-        params.append('status_invoice', 'Belum Dibayar');
+        params.append('status_invoice', 'Belum Bayar');
       }
     }
     
@@ -1629,7 +1629,7 @@ async function exportPaymentLinksExcel() {
     // Jika switch "Tampilkan Lunas & Expired" tidak aktif dan tidak ada filter status spesifik,
     // maka kita hanya ingin mengekspor invoice yang belum dibayar
     if (!showPaidInvoices.value && !selectedStatus.value) {
-      params.append('status_invoice', 'Belum Dibayar');
+      params.append('status_invoice', 'Belum Bayar');
     }
 
     // Gunakan apiClient untuk request dengan authorization
@@ -1665,12 +1665,12 @@ function canCreateReinvoice(item: Invoice): boolean {
 
   // Bisa direinvoice jika:
   // 1. Statusnya Expired atau Expired
-  // 2. Atau status Belum Dibayar dan sudah lewat jatuh tempo
+  // 2. Atau status Belum Bayar dan sudah lewat jatuh tempo
   // 3. Dan bukan reinvoice sebelumnya
   return (
     (item.status_invoice === 'Expired' ||
      item.status_invoice === 'Expired' ||
-    (item.status_invoice === 'Belum Dibayar' && today > dueDate)) &&
+    (item.status_invoice === 'Belum Bayar' && today > dueDate)) &&
     !item.is_reinvoice
   );
 }

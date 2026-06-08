@@ -78,17 +78,18 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 // Invoice Endpoints
 
 func (h *BillingHandler) FetchInvoices(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-	if limitStr := c.Query("limit"); limitStr != "" {
-		if limitVal, err := strconv.Atoi(limitStr); err == nil {
-			pageSize = limitVal
-		}
-	}
+	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	
 	search := c.Query("search")
 	status := c.Query("status_invoice")
 
-	invoices, total, err := h.billingUsecase.FetchInvoices(c.Request.Context(), page, pageSize, search, status)
+	// Calculate page for usecase (internal logic still uses page/pageSize)
+	// Or better: update usecase to use skip/limit too?
+	// For now, let's just map skip to page
+	page := (skip / limit) + 1
+
+	invoices, total, err := h.billingUsecase.FetchInvoices(c.Request.Context(), page, limit, search, status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -187,18 +188,16 @@ func (h *BillingHandler) GenerateManualInvoice(c *gin.Context) {
 // Langganan Endpoints
 
 func (h *BillingHandler) FetchLangganan(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
-	if limitStr := c.Query("limit"); limitStr != "" {
-		if limitVal, err := strconv.Atoi(limitStr); err == nil {
-			pageSize = limitVal
-		}
-	}
+	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	
 	search := c.Query("search")
 	status := c.Query("status")
 	forInvoiceSelection := c.Query("for_invoice_selection") == "true"
 
-	langganans, total, err := h.billingUsecase.FetchLangganan(c.Request.Context(), page, pageSize, search, status, forInvoiceSelection)
+	page := (skip / limit) + 1
+
+	langganans, total, err := h.billingUsecase.FetchLangganan(c.Request.Context(), page, limit, search, status, forInvoiceSelection)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

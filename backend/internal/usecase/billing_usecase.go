@@ -103,7 +103,7 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 	xID, _ := xResp["id"].(string)
 	invoice.PaymentLink = &shortURL
 	invoice.XenditID = &xID
-	invoice.StatusInvoice = "Belum Dibayar"
+	invoice.StatusInvoice = "Belum Bayar"
 	invoice.InvoiceType = "manual"
 	return u.invoiceRepo.Create(ctx, invoice)
 }
@@ -374,7 +374,7 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 					TotalHarga:    0, // Will be calculated in repository/usecase
 					TglInvoice:    today,
 					TglJatuhTempo: *l.TglJatuhTempo,
-					StatusInvoice: "Belum Dibayar",
+					StatusInvoice: "Belum Bayar",
 					InvoiceType:   "automatic",
 				}
 				
@@ -411,7 +411,7 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 
 	suspendedCount := 0
 	for _, inv := range invoices {
-		if inv.StatusInvoice == "Belum Dibayar" && inv.TglJatuhTempo.Before(today) {
+		if inv.StatusInvoice == "Belum Bayar" && inv.TglJatuhTempo.Before(today) {
 			// Find corresponding subscription
 			l, _ := u.langgananRepo.GetByID(ctx, inv.PelangganID)
 			if l != nil && l.Status == "Aktif" {
