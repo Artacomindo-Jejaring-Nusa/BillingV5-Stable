@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         SKIP_DATA_IMPORT = 'true'
+        PERSISTENT_ENV = "${HOME}/.billing-env/backend.env"
     }
 
     stages {
@@ -15,14 +16,23 @@ pipeline {
         stage('Environment Setup') {
             steps {
                 sh '''
-                    cp backend/.env.example backend/.env
+                    if [ -f "$PERSISTENT_ENV" ]; then
+                        cp "$PERSISTENT_ENV" backend/.env
+                        echo "Using existing .env from $PERSISTENT_ENV"
+                    else
+                        cp backend/.env.example backend/.env
 
-                    # Generate valid Fernet ENCRYPTION_KEY
-                    KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || \\
-                          dd if=/dev/urandom bs=1 count=32 2>/dev/null | base64 | tr '+/' '-_' | tr -d '=\\n')
-                    if [ -n "$KEY" ]; then
-                        sed -i "s|ENCRYPTION_KEY=\".*\"|ENCRYPTION_KEY=\"$KEY\"|" backend/.env
-                        echo "ENCRYPTION_KEY generated successfully"
+                        # Generate Fernet key once
+                        KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || \\
+                              dd if=/dev/urandom bs=1 count=32 2>/dev/null | base64 | tr '+/' '-_' | tr -d '=\\n')
+                        if [ -n "$KEY" ]; then
+                            sed -i "s|ENCRYPTION_KEY=\".*\"|ENCRYPTION_KEY=\"$KEY\"|" backend/.env
+                        fi
+
+                        # Save persistently
+                        mkdir -p "$(dirname "$PERSISTENT_ENV")"
+                        cp backend/.env "$PERSISTENT_ENV"
+                        echo "New .env created and saved to $PERSISTENT_ENV"
                     fi
                 '''
             }
@@ -31,7 +41,6 @@ pipeline {
         stage('Build & Deploy') {
             steps {
                 sh '''
-                    # Build images and start containers
                     docker compose up -d --build
                 '''
             }
