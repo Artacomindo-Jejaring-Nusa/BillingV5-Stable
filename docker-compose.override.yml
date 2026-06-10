@@ -18,8 +18,10 @@ services:
 
   nginx-proxy:
     depends_on:
-      - backend1
-      - frontend
+      backend1:
+        condition: service_started
+      frontend:
+        condition: service_started
 
   frontend:
     ports:
