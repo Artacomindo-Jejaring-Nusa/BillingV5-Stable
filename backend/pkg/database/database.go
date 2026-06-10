@@ -106,14 +106,15 @@ func InitDatabase(cfg *config.Config) (*gorm.DB, error) {
 			log.Printf("⚠️ Failed to parse DB_SLAVE_URL: %v. Proceeding without Read replica.", err)
 		} else {
 			log.Printf("🔄 Configuring DBResolver with Read Replica...")
-			err = db.Use(dbresolver.Register(dbresolver.Config{
-				Replicas: []gorm.Dialector{mysql.Open(slaveDSN)},
-				// Sources: []gorm.Dialector{mysql.Open(dsn)}, // Master is default source
-			}).SetMaxIdleConns(10).SetMaxOpenConns(20).SetConnMaxLifetime(time.Hour))
-			if err != nil {
-				return nil, fmt.Errorf("failed to setup dbresolver: %w", err)
-			}
+		err = db.Use(dbresolver.Register(dbresolver.Config{
+			Replicas: []gorm.Dialector{mysql.Open(slaveDSN)},
+			// Sources: []gorm.Dialector{mysql.Open(dsn)}, // Master is default source
+		}).SetMaxIdleConns(10).SetMaxOpenConns(20).SetConnMaxLifetime(time.Hour))
+		if err != nil {
+			log.Printf("⚠️ Failed to setup DBResolver: %v. Proceeding without Read Replica.", err)
+		} else {
 			log.Println("✅ DBResolver configured successfully for Read/Write splitting.")
+		}
 		}
 	}
 

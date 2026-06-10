@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Skip data import jika SKIP_DATA_IMPORT=true
+if [ "${SKIP_DATA_IMPORT}" = "true" ] || [ "${SKIP_DATA_IMPORT}" = "1" ]; then
+    echo "SKIP_DATA_IMPORT is set — skipping production data import."
+    exec mysqld "$@"
+fi
+
 # Run the original MySQL entrypoint
 /docker-entrypoint.sh mysqld "$@" &
 
