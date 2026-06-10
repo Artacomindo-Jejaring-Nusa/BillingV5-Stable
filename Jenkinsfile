@@ -29,6 +29,13 @@ pipeline {
                             sed -i "s|ENCRYPTION_KEY=\".*\"|ENCRYPTION_KEY=\"$KEY\"|" backend/.env
                         fi
 
+                        # Generate JWT SECRET_KEY once
+                        JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || \\
+                                     dd if=/dev/urandom bs=1 count=32 2>/dev/null | base64 | tr -d '=\\n')
+                        if [ -n "$JWT_SECRET" ]; then
+                            sed -i "s|SECRET_KEY=\".*\"|SECRET_KEY=\"$JWT_SECRET\"|" backend/.env
+                        fi
+
                         # Save persistently
                         mkdir -p "$(dirname "$PERSISTENT_ENV")"
                         cp backend/.env "$PERSISTENT_ENV"
