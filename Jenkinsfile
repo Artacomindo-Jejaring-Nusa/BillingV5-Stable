@@ -14,6 +14,12 @@ pipeline {
             }
         }
 
+        stage('Environment Setup') {
+            steps {
+                sh 'cp backend/.env.example backend/.env'
+            }
+        }
+
         stage('Build Backend') {
             steps {
                 dir('backend') {

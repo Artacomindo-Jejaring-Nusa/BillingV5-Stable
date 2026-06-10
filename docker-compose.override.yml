@@ -3,25 +3,10 @@ services:
     environment:
       SKIP_DATA_IMPORT: "true"
 
-  mysql-slave:
-    profiles:
-      - donotstart
-
-  backend2:
-    profiles:
-      - donotstart
-
   backend1:
     environment:
       ENVIRONMENT: testing
       DB_SLAVE_URL: ""
-
-  nginx-proxy:
-    depends_on:
-      backend1:
-        condition: service_started
-      frontend:
-        condition: service_started
 
   frontend:
     ports:
