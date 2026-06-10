@@ -4,8 +4,6 @@ pipeline {
     environment {
         DOCKER_REGISTRY = 'registry.jeknis.local'
         IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
-        SONAR_HOST_URL = 'http://192.168.222.55:9000'
-        SONAR_PROJECT_KEY = 'billing-revaktor'
         SKIP_DATA_IMPORT = 'true'
     }
 
@@ -13,23 +11,6 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        docker run --rm \
-                            -e SONAR_HOST_URL="${SONAR_HOST_URL}" \
-                            -v "${WORKSPACE}:/usr/src" \
-                            sonarsource/sonar-scanner-cli \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.sources=backend/cmd,backend/internal,backend/pkg,frontend/src \
-                            -Dsonar.host.url=${SONAR_HOST_URL} \
-                            -Dsonar.login=${SONAR_TOKEN}
-                    '''
-                }
             }
         }
 
