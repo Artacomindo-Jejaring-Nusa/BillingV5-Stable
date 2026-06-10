@@ -79,6 +79,14 @@ func NewSchedulerManager(db *gorm.DB, su domain.SystemUsecase, bu domain.Billing
 		Func:        bu.VerifyPayments,
 	}
 
+	mgr.jobs["archive_old_invoices"] = &JobConfig{
+		Key:         "archive_old_invoices",
+		Name:        "Arsip Invoice Lama (> 3 Bulan)",
+		Description: "Memindahkan invoice yang sudah lunas/expired lebih dari 3 bulan ke tabel arsip untuk menjaga performa database.",
+		DefaultCron: "0 2 * * *", // Runs daily at 02:00 AM
+		Func:        bu.ArchiveOldInvoices,
+	}
+
 	return mgr
 }
 

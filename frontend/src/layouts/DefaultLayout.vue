@@ -581,6 +581,25 @@
         </span>
       </div>
     </v-footer>
+
+    <!-- Snackbar untuk notifikasi WebSocket -->
+    <v-snackbar
+      v-model="wsSnackbar.show"
+      :color="wsSnackbar.color"
+      :timeout="6000"
+      location="top right"
+      class="enhanced-snackbar"
+    >
+      <div class="d-flex align-center">
+        <v-icon class="mr-2">
+          {{ wsSnackbar.icon }}
+        </v-icon>
+        <div>
+          <div class="font-weight-bold" style="font-size: 0.9rem">{{ wsSnackbar.title }}</div>
+          <div style="font-size: 0.8rem; opacity: 0.9">{{ wsSnackbar.text }}</div>
+        </div>
+      </div>
+    </v-snackbar>
   </v-app>
 </template>
 
@@ -606,6 +625,7 @@ const route = useRoute();
 const activeBottomNav = ref('dashboard');
 
 const notifications = ref<any[]>([]);
+const wsSnackbar = ref({ show: false, text: '', title: '', color: 'info', icon: 'mdi-bell-ring' });
 const suspendedCount = ref(0);
 const unpaidInvoiceCount = ref(0);
 const stoppedCount = ref(0);
@@ -1186,8 +1206,24 @@ function formatNotificationTime(dateString?: string): string {
   }
 }
 
-// Semua fungsi lainnya tetap sama seperti kode asli
-// (fetchSidebarBadges, connectWebSocket, disconnectWebSocket, dll.)
+function showWsNotification(data: any) {
+  const title = getNotificationTitle(data.type);
+  const message = getNotificationMessage(data);
+  const icon = getNotificationIcon(data.type);
+  const colors: Record<string, string> = {
+    'new_payment': 'success',
+    'new_customer_for_noc': 'info',
+    'new_customer': 'info',
+    'new_technical_data': 'primary'
+  };
+  wsSnackbar.value = {
+    show: true,
+    title,
+    text: message,
+    color: colors[data.type] || 'info',
+    icon: icon
+  };
+}
 
 async function fetchSidebarBadges() {
   try {
@@ -1208,10 +1244,41 @@ let notificationCleanupInterval: NodeJS.Timeout | null = null;
 let tokenCheckInterval: NodeJS.Timeout | null = null;
 let wsRetryCount = 0;
 const maxWsRetries = 3;
+let audioContext: AudioContext | null = null;
+let audioInitialized = false;
 
-function playSound(type: string) {
+// Initialize audio context on first user interaction
+function initializeAudio() {
+  if (audioInitialized) return;
+
   try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioContextClass) {
+      audioContext = new AudioContextClass();
+      audioInitialized = true;
+      console.log('[Audio] Audio context initialized');
+
+      // Request notification permission
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          console.log('[Audio] Notification permission:', permission);
+        });
+      }
+    }
+  } catch (error) {
+    console.error('[Audio] Failed to initialize audio context:', error);
+  }
+}
+
+function playSound(type: string, soundUrl?: string) {
+  try {
+    // Resume audio context if suspended (browser autoplay policy)
+    if (audioContext && audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+
     let audioFile = '';
+    // Always use local sound files from public folder for reliability
     switch (type) {
       case 'new_payment':
         audioFile = '/pembayaran.mp3';
@@ -1331,10 +1398,9 @@ function connectWebSocket() {
   if (hostname === 'billingftth.my.id') {
       wsUrl = `${protocol}//${hostname}/ws/notifications?token=${encodedToken}`;
   } else {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
-      const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss:' : 'ws:';
-      const wsHost = API_BASE_URL.replace(/^https?:\/\//, '');
-      wsUrl = `${wsProtocol}//${wsHost}/ws/notifications?token=${encodedToken}`;
+      // In Docker environment, connect to nginx proxy on port 8000
+      const currentHost = window.location.hostname;
+      wsUrl = `${protocol}//${currentHost}:8000/ws/notifications?token=${encodedToken}`;
   }
 
   socket = new WebSocket(wsUrl);
@@ -1481,7 +1547,9 @@ function connectWebSocket() {
           notifications.value = notifications.value.slice(0, 20);
         }
         
-        playSound(data.type);
+        playSound(data.type, data.sound);
+        
+        showWsNotification(data);
         
         if (typeof window !== 'undefined' && window.dispatchEvent) {
           window.dispatchEvent(new CustomEvent('new-notification', { detail: data }));
@@ -1710,7 +1778,9 @@ onMounted(async () => {
 
   updateActiveBottomNav(route.path);
 
+  // Initialize audio context on first user interaction (click)
   const enableAudioContext = () => {
+    initializeAudio();
     document.removeEventListener('click', enableAudioContext);
   };
   document.addEventListener('click', enableAudioContext);

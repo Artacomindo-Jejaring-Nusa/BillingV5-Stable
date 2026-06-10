@@ -80,10 +80,22 @@ func (h *Hub) Run() {
 }
 
 func (h *Hub) BroadcastNotification(notifType string, data map[string]interface{}) {
+	sound := ""
+	switch notifType {
+	case "new_payment":
+		sound = "/api/v1/notifications/sounds/pembayaran_selesai.mp3"
+	case "new_customer", "new_customer_for_noc":
+		sound = "/api/v1/notifications/sounds/new_pelanggan.mp3"
+	case "new_technical_data":
+		sound = "/api/v1/notifications/sounds/noc_finance.mp3"
+	}
+
 	payload := map[string]interface{}{
 		"type":      notifType,
 		"timestamp": time.Now().Format(time.RFC3339),
 		"data":      data,
+		"sound":     sound,
+		"_source":   instanceID,
 	}
 	bytes, err := json.Marshal(payload)
 	if err != nil {
@@ -91,6 +103,8 @@ func (h *Hub) BroadcastNotification(notifType string, data map[string]interface{
 		return
 	}
 	h.Broadcast <- bytes
+
+	PublishToRedis(payload)
 }
 
 func (c *Client) ReadPump() {

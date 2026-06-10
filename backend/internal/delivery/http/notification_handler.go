@@ -13,11 +13,14 @@ type NotificationHandler struct{}
 
 func NewNotificationHandler(r *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
 	notificationGroup := r.Group("/notifications")
-	notificationGroup.Use(authMiddleware)
 	{
-		notificationGroup.GET("/unread", GetUnread)
-		notificationGroup.POST("/:id/mark-as-read", MarkAsRead)
-		notificationGroup.POST("/mark-all-as-read", MarkAllAsRead)
+		// These might need auth, but for sound files we can keep it public or use the group
+		notificationGroup.GET("/unread", authMiddleware, GetUnread)
+		notificationGroup.POST("/:id/mark-as-read", authMiddleware, MarkAsRead)
+		notificationGroup.POST("/mark-all-as-read", authMiddleware, MarkAllAsRead)
+		
+		// Route to serve notification sounds
+		notificationGroup.StaticFS("/sounds", gin.Dir("./Notif Sound", true))
 	}
 }
 

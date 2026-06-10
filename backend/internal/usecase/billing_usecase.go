@@ -14,6 +14,9 @@ import (
 
 	"billing-backend/config"
 	"billing-backend/internal/domain"
+	"billing-backend/internal/websocket"
+	"billing-backend/pkg/database"
+	"billing-backend/pkg/logger"
 	"billing-backend/pkg/mikrotik"
 	"billing-backend/pkg/utils"
 
@@ -111,8 +114,25 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 func (u *billingUsecase) UpdateInvoiceStatus(ctx context.Context, id uint64, status string) error {
 	invoice, err := u.invoiceRepo.GetByID(ctx, id)
 	if err != nil { return err }
+	
+	oldStatus := invoice.StatusInvoice
 	invoice.StatusInvoice = status
-	return u.invoiceRepo.Update(ctx, invoice)
+	err = u.invoiceRepo.Update(ctx, invoice)
+	
+	if err == nil && status == "Lunas" && oldStatus != "Lunas" {
+		if websocket.GlobalHub != nil {
+			pName := invoice.PelangganNama
+			if pName == "" && invoice.Pelanggan != nil {
+				pName = invoice.Pelanggan.Nama
+			}
+			websocket.GlobalHub.BroadcastNotification("new_payment", map[string]interface{}{
+				"invoice_number": invoice.InvoiceNumber,
+				"pelanggan_nama": pName,
+				"amount":         invoice.TotalHarga,
+			})
+		}
+	}
+	return err
 }
 
 func (u *billingUsecase) GetInvoiceSummary(ctx context.Context) (*domain.InvoiceSummaryStats, error) {
@@ -699,6 +719,101 @@ func (u *billingUsecase) ExportPaymentLinksExcel(ctx context.Context, filters ma
 	return u.invoiceRepo.ExportPaymentLinksExcel(ctx, filters)
 }
 
+func (u *billingUsecase) ArchiveOldInvoices(ctx context.Context) error {
+	logger.Info("Starting auto-archiving of old invoices...")
+	
+	// Start transaction
+	db := database.GetDB()
+	if db == nil {
+		return fmt.Errorf("database connection not initialized")
+	}
+
+	tx := db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Find invoices older than 3 months with status Lunas or Expired
+	threeMonthsAgo := time.Now().AddDate(0, -3, 0)
+	var oldInvoices []domain.Invoice
+	
+	if err := tx.Where("tgl_invoice < ? AND status_invoice IN ?", threeMonthsAgo, []string{"Lunas", "Expired"}).Find(&oldInvoices).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to fetch old invoices: %w", err)
+	}
+
+	if len(oldInvoices) == 0 {
+		logger.Info("No invoices to archive at this time.")
+		return tx.Commit().Error
+	}
+
+	logger.Info(fmt.Sprintf("Found %d invoices to archive.", len(oldInvoices)))
+
+	// Map and insert into archive table
+	var archives []domain.InvoiceArchive
+	for _, inv := range oldInvoices {
+		archives = append(archives, domain.InvoiceArchive{
+			InvoiceNumber:    inv.InvoiceNumber,
+			PelangganID:      inv.PelangganID,
+			IDPelanggan:      inv.IDPelanggan,
+			Brand:            inv.Brand,
+			NoTelp:           inv.NoTelp,
+			Email:            inv.Email,
+			TotalHarga:       inv.TotalHarga,
+			TglInvoice:       inv.TglInvoice,
+			TglJatuhTempo:    inv.TglJatuhTempo,
+			StatusInvoice:    inv.StatusInvoice,
+			PaymentLink:      inv.PaymentLink,
+			MetodePembayaran: inv.MetodePembayaran,
+			ExpiryDate:       inv.ExpiryDate,
+			PaidAmount:       inv.PaidAmount,
+			PaidAt:           inv.PaidAt,
+			XenditID:         inv.XenditID,
+			XenditExternalID: inv.XenditExternalID,
+			IsProcessing:     inv.IsProcessing,
+			XenditRetryCount: inv.XenditRetryCount,
+			XenditLastRetry:  inv.XenditLastRetry,
+			XenditErrorMessage: inv.XenditErrorMessage,
+			XenditStatus:     inv.XenditStatus,
+			InvoiceType:      inv.InvoiceType,
+			IsReinvoice:      inv.IsReinvoice,
+			OriginalInvoiceID: inv.OriginalInvoiceID,
+			ReinvoiceReason:  inv.ReinvoiceReason,
+			CreatedAt:        inv.CreatedAt,
+			UpdatedAt:        inv.UpdatedAt,
+		})
+	}
+
+	if err := tx.Create(&archives).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to insert into archive table: %w", err)
+	}
+
+	// Soft delete from main table
+	var ids []uint64
+	for _, inv := range oldInvoices {
+		ids = append(ids, inv.ID)
+	}
+
+	if err := tx.Delete(&domain.Invoice{}, ids).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to soft delete archived invoices: %w", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("transaction commit failed: %w", err)
+	}
+
+	logger.Info(fmt.Sprintf("Successfully archived %d invoices.", len(archives)))
+	return nil
+}
+
+
 // --- Helpers ---
 
 func (u *billingUsecase) triggerMikrotikUpdate(ctx context.Context, name string, dt *domain.DataTeknis, status string) error {
@@ -764,6 +879,19 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 	inv.PaidAmount = &amt
 	inv.PaidAt = &paidAt
 	if err := u.invoiceRepo.Update(ctx, inv); err != nil { return err }
+
+	// Trigger WebSocket notification
+	if websocket.GlobalHub != nil {
+		pName := inv.PelangganNama
+		if pName == "" && inv.Pelanggan != nil {
+			pName = inv.Pelanggan.Nama
+		}
+		websocket.GlobalHub.BroadcastNotification("new_payment", map[string]interface{}{
+			"invoice_number": inv.InvoiceNumber,
+			"pelanggan_nama": pName,
+			"amount":         amt,
+		})
+	}
 
 	if inv.Pelanggan != nil && len(inv.Pelanggan.Langganan) > 0 {
 		l := &inv.Pelanggan.Langganan[0]

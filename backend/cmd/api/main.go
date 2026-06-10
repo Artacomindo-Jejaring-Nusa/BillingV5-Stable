@@ -138,6 +138,9 @@ func main() {
 	go wsHub.Run()
 	websocket.GlobalHub = wsHub
 
+	// Initialize Redis pub/sub for cross-instance WebSocket notifications
+	websocket.InitRedis()
+
 	router := gin.Default()
 
 	// 5. Setup Middleware (CORS)

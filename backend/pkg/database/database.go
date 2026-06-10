@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
+	"gorm.io/plugin/dbresolver"
 )
 
 var DB *gorm.DB
@@ -96,6 +97,24 @@ func InitDatabase(cfg *config.Config) (*gorm.DB, error) {
 
 	if lastErr != nil && db == nil {
 		return nil, fmt.Errorf("failed to connect to database after retries: %w", lastErr)
+	}
+
+	// Setup DBResolver for Master-Slave replication if DBSlaveURL is provided
+	if cfg.DBSlaveURL != "" {
+		slaveDSN, err := ParseDatabaseURL(cfg.DBSlaveURL)
+		if err != nil {
+			log.Printf("⚠️ Failed to parse DB_SLAVE_URL: %v. Proceeding without Read replica.", err)
+		} else {
+			log.Printf("🔄 Configuring DBResolver with Read Replica...")
+			err = db.Use(dbresolver.Register(dbresolver.Config{
+				Replicas: []gorm.Dialector{mysql.Open(slaveDSN)},
+				// Sources: []gorm.Dialector{mysql.Open(dsn)}, // Master is default source
+			}).SetMaxIdleConns(10).SetMaxOpenConns(20).SetConnMaxLifetime(time.Hour))
+			if err != nil {
+				return nil, fmt.Errorf("failed to setup dbresolver: %w", err)
+			}
+			log.Println("✅ DBResolver configured successfully for Read/Write splitting.")
+		}
 	}
 
 	sqlDB, err := db.DB()

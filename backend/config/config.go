@@ -13,6 +13,7 @@ import (
 type Config struct {
 	Environment                     string
 	DatabaseURL                     string
+	DBSlaveURL                      string
 	XenditCallbackTokenArtacomindo  string
 	XenditCallbackTokenJelantik     string
 	SecretKey                       string
@@ -54,6 +55,7 @@ func LoadConfig() *Config {
 	GlobalConfig = &Config{
 		Environment:                     getEnv("ENVIRONMENT", "development"),
 		DatabaseURL:                     getEnv("DATABASE_URL", ""),
+		DBSlaveURL:                      getEnv("DB_SLAVE_URL", ""),
 		XenditCallbackTokenArtacomindo:  getEnv("XENDIT_CALLBACK_TOKEN_ARTACOMINDO", "default_callback_token_artacom"),
 		XenditCallbackTokenJelantik:     getEnv("XENDIT_CALLBACK_TOKEN_JELANTIK", "default_callback_token_jelantik"),
 		SecretKey:                       getEnv("SECRET_KEY", "default_secret_key_change_in_production"),
@@ -177,3 +179,4 @@ func (c *Config) GetUserWidgets(userRole string) []string {
 	}
 	return result
 }
+
