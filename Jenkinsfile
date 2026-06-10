@@ -2,8 +2,6 @@ pipeline {
     agent { label 'billing-agent' }
 
     environment {
-        DOCKER_REGISTRY = 'registry.jeknis.local'
-        IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
         SKIP_DATA_IMPORT = 'true'
     }
 
@@ -16,36 +14,25 @@ pipeline {
 
         stage('Environment Setup') {
             steps {
-                sh 'cp backend/.env.example backend/.env'
+                sh '''
+                    cp backend/.env.example backend/.env
+
+                    # Generate valid Fernet ENCRYPTION_KEY
+                    KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || \\
+                          dd if=/dev/urandom bs=1 count=32 2>/dev/null | base64 | tr '+/' '-_' | tr -d '=\\n')
+                    if [ -n "$KEY" ]; then
+                        sed -i "s|ENCRYPTION_KEY=\".*\"|ENCRYPTION_KEY=\"$KEY\"|" backend/.env
+                        echo "ENCRYPTION_KEY generated successfully"
+                    fi
+                '''
             }
         }
 
-        stage('Build Backend') {
-            steps {
-                dir('backend') {
-                    sh 'docker build -t ${DOCKER_REGISTRY}/billing-backend:${IMAGE_TAG} .'
-                }
-            }
-        }
-
-        stage('Build Frontend') {
-            steps {
-                dir('frontend') {
-                    sh 'docker build --build-arg VITE_API_BASE_URL=/api/v1 -t ${DOCKER_REGISTRY}/billing-frontend:${IMAGE_TAG} .'
-                }
-            }
-        }
-
-        stage('Deploy to Testing') {
+        stage('Build & Deploy') {
             steps {
                 sh '''
-                    # Export env variables untuk compose
-                    export SKIP_DATA_IMPORT=true
-                    export IMAGE_TAG=${IMAGE_TAG}
-                    export DOCKER_REGISTRY=${DOCKER_REGISTRY}
-
-                    # Deploy with override for testing (skip data import)
-                    docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
+                    # Build images and start containers
+                    docker compose up -d --build
                 '''
             }
         }
@@ -53,13 +40,14 @@ pipeline {
 
     post {
         always {
-            sh 'docker system prune -f'
+            sh 'docker image prune -f'
         }
         success {
             echo 'CI/CD Pipeline berhasil!'
         }
         failure {
             echo 'CI/CD Pipeline gagal!'
+            sh 'docker compose logs --tail 20 mysql-master backend1 backend2'
         }
     }
 }
