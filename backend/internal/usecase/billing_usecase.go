@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -205,8 +206,23 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 		dueDate = &d
 	}
 
+	re := regexp.MustCompile(`[^a-zA-Z0-9]`)
+	namaSingkat := strings.ToUpper(re.ReplaceAllString(pelanggan.Nama, ""))
+	brandSingkat := strings.ToUpper(re.ReplaceAllString(brand.Brand, ""))
+	alamatSingkat := utils.GenerateAlamatSingkat(pelanggan.Alamat, pelanggan.Blok, pelanggan.Unit, 10)
+	bulanTahun := fmt.Sprintf("%s-%d", strings.ToUpper(dueDate.Month().String()), dueDate.Year())
+
+	idSuffix := "TMP"
+	if dt != nil && dt.IDPelanggan != "" {
+		if len(dt.IDPelanggan) >= 3 {
+			idSuffix = dt.IDPelanggan[len(dt.IDPelanggan)-3:]
+		} else {
+			idSuffix = dt.IDPelanggan
+		}
+	}
+
 	invoice := &domain.Invoice{
-		InvoiceNumber: fmt.Sprintf("INV/%s/%d", now.Format("200601"), langgananID),
+		InvoiceNumber: fmt.Sprintf("%s/ftth/%s/%s/%s/%s", brandSingkat, namaSingkat, bulanTahun, alamatSingkat, idSuffix),
 		PelangganID:  langganan.PelangganID,
 		TotalHarga:   totalHarga,
 		TglInvoice:   now,
