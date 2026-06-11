@@ -246,6 +246,9 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 	xResp, xErr := u.createXenditInvoice(ctx, invoice, pelanggan, nil, "Manual Invoice", pajak, noTelpXendit)
 	if xErr == nil {
 		shortURL, _ := xResp["short_url"].(string)
+		if shortURL == "" {
+			shortURL, _ = xResp["invoice_url"].(string)
+		}
 		xID, _ := xResp["id"].(string)
 		if shortURL != "" {
 			invoice.PaymentLink = &shortURL
@@ -253,6 +256,7 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 		if xID != "" {
 			invoice.XenditID = &xID
 		}
+		u.logSystem(ctx, "INFO", fmt.Sprintf("Xendit invoice created: %s", shortURL))
 	} else {
 		u.logSystem(ctx, "ERROR", fmt.Sprintf("Gagal create Xendit invoice: %v", xErr))
 	}
