@@ -3,11 +3,14 @@ package usecase
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -932,7 +935,95 @@ func (u *billingUsecase) executeRouterOS(ctx context.Context, serverID uint64, o
 }
 
 func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.Invoice, p *domain.Pelanggan, pkt *domain.PaketLayanan, desc string, tax float64, phone string) (map[string]interface{}, error) {
-	return map[string]interface{}{"short_url": "http://x.co/123", "id": "x_123", "external_id": inv.InvoiceNumber}, nil
+	xenditApiKey := u.cfg.XenditApiKeyJelantik
+	if p.HargaLayanan != nil && strings.ToUpper(p.HargaLayanan.XenditKeyName) == "JAKINET" {
+		xenditApiKey = u.cfg.XenditApiKeyJakinet
+	}
+
+	if xenditApiKey == "" {
+		return map[string]interface{}{}, errors.New("xendit API key not configured")
+	}
+
+	hargaDasar := inv.TotalHarga - tax
+	kecepatan := ""
+	if pkt != nil {
+		kecepatan = pkt.Kecepatan
+	}
+
+	itemName := "Biaya berlangganan internet"
+	if kecepatan != "" {
+		itemName = fmt.Sprintf("Biaya berlangganan internet up to %s Mbps", kecepatan)
+	}
+
+	payload := map[string]interface{}{
+		"external_id":      inv.InvoiceNumber,
+		"amount":           inv.TotalHarga,
+		"description":      desc,
+		"invoice_duration": 86400 * 10,
+		"customer": map[string]interface{}{
+			"given_names":    p.Nama,
+			"email":          p.Email,
+			"mobile_number":  phone,
+		},
+		"currency":                  "IDR",
+		"with_short_url":            true,
+		"should_send_email":         true,
+		"should_send_whatsapp":      true,
+		"notification_channels":     []string{"whatsapp", "email"},
+		"business_profile": map[string]interface{}{
+			"business_name":    "Artacomindo Jejaring Nusa",
+			"business_address": "Indonesia",
+			"business_contact": "+628986937819",
+			"business_industry": "Telecommunications",
+		},
+		"items": []map[string]interface{}{
+			{
+				"name":        itemName,
+				"price":       math.Round(hargaDasar),
+				"quantity":    1,
+				"description": desc,
+				"currency":    "IDR",
+				"type":        "PRODUCT",
+			},
+		},
+		"fees": []map[string]interface{}{
+			{"type": "Tax", "value": math.Round(tax)},
+		},
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", u.cfg.XenditApiUrl, bytes.NewReader(jsonPayload))
+	if err != nil {
+		return nil, err
+	}
+
+	auth := base64.StdEncoding.EncodeToString([]byte(xenditApiKey + ":"))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Basic "+auth)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode >= 400 {
+		errMsg, _ := json.Marshal(result)
+		return nil, fmt.Errorf("xendit API error (%d): %s", resp.StatusCode, string(errMsg))
+	}
+
+	return result, nil
 }
 
 func (u *billingUsecase) logSystem(ctx context.Context, level, message string) {
