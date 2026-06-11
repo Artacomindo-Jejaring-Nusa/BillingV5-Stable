@@ -253,6 +253,8 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 		if xID != "" {
 			invoice.XenditID = &xID
 		}
+	} else {
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("Gagal create Xendit invoice: %v", xErr))
 	}
 
 	if err := u.invoiceRepo.Create(ctx, invoice); err != nil {
