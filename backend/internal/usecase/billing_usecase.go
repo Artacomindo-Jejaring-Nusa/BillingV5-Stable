@@ -935,7 +935,7 @@ func (u *billingUsecase) ArchiveOldInvoices(ctx context.Context) error {
 		return tx.Commit().Error
 	}
 
-	logger.Info(fmt.Sprintf("Found %d invoices to archive.", len(oldInvoices)))
+	logger.Info("Found %d invoices to archive.", len(oldInvoices))
 
 	// Map and insert into archive table
 	var archives []domain.InvoiceArchive
@@ -992,7 +992,7 @@ func (u *billingUsecase) ArchiveOldInvoices(ctx context.Context) error {
 		return fmt.Errorf("transaction commit failed: %w", err)
 	}
 
-	logger.Info(fmt.Sprintf("Successfully archived %d invoices.", len(archives)))
+	logger.Info("Successfully archived %d invoices.", len(archives))
 	return nil
 }
 
