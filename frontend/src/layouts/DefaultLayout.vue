@@ -1395,7 +1395,7 @@ function connectWebSocket() {
   // Encode token untuk URL safety
   const encodedToken = encodeURIComponent(token);
 
-  if (hostname === 'billingftth.my.id' || hostname === 'dinar.jelantik.com') {
+  if (hostname === 'billingftth.my.id' || hostname === 'jpo.jelantik.com') {
       wsUrl = `${protocol}//${hostname}/ws/notifications?token=${encodedToken}`;
   } else {
       // In Docker environment, connect to nginx proxy on port 8000
