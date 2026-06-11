@@ -104,7 +104,7 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 	invoice.Email = pelanggan.Email
 	pajak := invoice.TotalHarga - math.Round(invoice.TotalHarga / (1.0 + (brand.Pajak / 100.0)))
 	noTelpXendit := utils.NormalizePhoneForXendit(pelanggan.NoTelp)
-	deskripsi := fmt.Sprintf("Tagihan Internet Artacomindo - %s", invoice.InvoiceNumber)
+	deskripsi := fmt.Sprintf("Biaya berlangganan internet jatuh tempo pembayaran tanggal %s", invoice.TglJatuhTempo.Format("02/01/2006"))
 	xResp, err := u.createXenditInvoice(ctx, invoice, pelanggan, nil, deskripsi, pajak, noTelpXendit)
 	if err != nil { return err }
 	shortURL, _ := xResp["short_url"].(string)
@@ -262,7 +262,67 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 
 	noTelpXendit := utils.NormalizePhoneForXendit(pelanggan.NoTelp)
 	pajak := totalHarga - math.Round(totalHarga/(1.0+(brand.Pajak/100.0)))
-	deskripsi := fmt.Sprintf("Tagihan Internet Artacomindo - %s", invoice.InvoiceNumber)
+	// Load Paket Layanan untuk Kecepatan
+	paket, _ := u.paketRepo.GetByID(ctx, langganan.PaketLayananID)
+	kecepatan := 0
+	if paket != nil {
+		kecepatan = paket.Kecepatan
+	}
+
+	var itemPrefix string
+	if kecepatan > 0 {
+		itemPrefix = fmt.Sprintf("Biaya berlangganan internet up to %d Mbps", kecepatan)
+	} else {
+		itemPrefix = "Biaya berlangganan internet"
+	}
+
+	var deskripsi string
+	if langganan.MetodePembayaran == "Prorate" {
+		periodeStart := now
+		periodeEnd := *dueDate
+		if dueDate.Day() == 1 {
+			periodeEnd = dueDate.AddDate(0, 0, -1)
+		}
+
+		getIndonesianMonth := func(m time.Month) string {
+			months := map[time.Month]string{
+				time.January:   "Januari",
+				time.February:  "Februari",
+				time.March:     "Maret",
+				time.April:     "April",
+				time.May:       "Mei",
+				time.June:      "Juni",
+				time.July:      "Juli",
+				time.August:    "Agustus",
+				time.September: "September",
+				time.October:   "Oktober",
+				time.November:  "November",
+				time.December:  "Desember",
+			}
+			return months[m]
+		}
+
+		var periodDesc string
+		if periodeStart.Month() == periodeEnd.Month() && periodeStart.Year() == periodeEnd.Year() {
+			periodDesc = fmt.Sprintf("Periode Tgl %d-%d %s %d", 
+				periodeStart.Day(), periodeEnd.Day(), 
+				getIndonesianMonth(periodeEnd.Month()), periodeEnd.Year())
+		} else if periodeStart.Year() == periodeEnd.Year() {
+			periodDesc = fmt.Sprintf("Periode Tgl %d %s - %d %s %d", 
+				periodeStart.Day(), getIndonesianMonth(periodeStart.Month()), 
+				periodeEnd.Day(), getIndonesianMonth(periodeEnd.Month()), periodeEnd.Year())
+		} else {
+			periodDesc = fmt.Sprintf("Periode Tgl %d %s %d - %d %s %d", 
+				periodeStart.Day(), getIndonesianMonth(periodeStart.Month()), periodeStart.Year(),
+				periodeEnd.Day(), getIndonesianMonth(periodeEnd.Month()), periodeEnd.Year())
+		}
+
+		deskripsi = fmt.Sprintf("%s, %s", itemPrefix, periodDesc)
+	} else {
+		deskripsi = fmt.Sprintf("%s jatuh tempo pembayaran tanggal %s", 
+			itemPrefix, dueDate.Format("02/01/2006"))
+	}
+
 	xResp, xErr := u.createXenditInvoice(ctx, invoice, pelanggan, nil, deskripsi, pajak, noTelpXendit)
 	if xErr == nil {
 		shortURL, _ := xResp["short_url"].(string)
@@ -975,15 +1035,10 @@ func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.In
 	}
 
 	hargaDasar := inv.TotalHarga - tax
-	itemName := "Biaya berlangganan internet"
-	if pkt != nil && pkt.Kecepatan > 0 {
-		itemName = fmt.Sprintf("Biaya berlangganan internet up to %d Mbps", pkt.Kecepatan)
-	}
-
 	payload := map[string]interface{}{
 		"external_id":      inv.InvoiceNumber,
 		"amount":           inv.TotalHarga,
-		"description":      desc,
+		"description":      fmt.Sprintf("Invoice #: %s", inv.InvoiceNumber),
 		"invoice_duration": 86400 * 10,
 		"customer": map[string]interface{}{
 			"given_names":    p.Nama,
@@ -1012,10 +1067,10 @@ func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.In
 		},
 		"items": []map[string]interface{}{
 			{
-				"name":        itemName,
+				"name":        desc,
 				"price":       math.Round(hargaDasar),
 				"quantity":    1,
-				"description": itemName,
+				"description": desc,
 				"currency":    "IDR",
 				"type":        "PRODUCT",
 			},
