@@ -225,8 +225,26 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 		}
 	}
 
+	invoiceNumber := fmt.Sprintf("%s/ftth/%s/%s/%s/%s", brandSingkat, namaSingkat, bulanTahun, alamatSingkat, idSuffix)
+	counter := 0
+	for {
+		existing, err := u.invoiceRepo.GetByInvoiceNumber(ctx, invoiceNumber)
+		if err != nil {
+			if err.Error() == "invoice not found" {
+				break
+			}
+			return nil, err
+		}
+		if existing != nil {
+			counter++
+			invoiceNumber = fmt.Sprintf("%s/ftth/%s/%s/%s/%s-%d", brandSingkat, namaSingkat, bulanTahun, alamatSingkat, idSuffix, counter)
+		} else {
+			break
+		}
+	}
+
 	invoice := &domain.Invoice{
-		InvoiceNumber: fmt.Sprintf("%s/ftth/%s/%s/%s/%s", brandSingkat, namaSingkat, bulanTahun, alamatSingkat, idSuffix),
+		InvoiceNumber: invoiceNumber,
 		PelangganID:  langganan.PelangganID,
 		TotalHarga:   totalHarga,
 		TglInvoice:   now,
