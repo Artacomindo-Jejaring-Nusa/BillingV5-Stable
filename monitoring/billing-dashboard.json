@@ -160,7 +160,7 @@
       "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 },
       "targets": [
         {
-          "expr": "count(container_last_seen{name=~\".+billing.+\"})",
+          "expr": "count(container_last_seen{name=~\"billing.+|mysql|redis|nginx\"})",
           "legendFormat": "Running"
         }
       ],
@@ -176,7 +176,7 @@
       "gridPos": { "h": 8, "w": 9, "x": 6, "y": 16 },
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total{name=~\".+billing.+|mysql|redis|nginx\"}[1m]) * 100",
+          "expr": "rate(container_cpu_usage_seconds_total{name=~\"billing.+|mysql|redis|nginx\"}[1m]) * 100",
           "legendFormat": "{{name}}"
         }
       ],
@@ -194,7 +194,7 @@
       "gridPos": { "h": 8, "w": 9, "x": 15, "y": 16 },
       "targets": [
         {
-          "expr": "container_memory_usage_bytes{name=~\".+billing.+|mysql|redis|nginx\"}",
+          "expr": "container_memory_usage_bytes{name=~\"billing.+|mysql|redis|nginx\"}",
           "legendFormat": "{{name}}"
         }
       ],
