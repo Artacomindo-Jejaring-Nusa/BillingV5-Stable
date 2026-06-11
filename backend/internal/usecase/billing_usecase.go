@@ -969,6 +969,15 @@ func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.In
 			"given_names":    p.Nama,
 			"email":          p.Email,
 			"mobile_number":  phone,
+			"addresses": []map[string]interface{}{
+				{
+					"country":     "ID",
+					"street_line1": p.Alamat,
+					"city":         "",
+					"province":     "",
+					"postal_code":  "",
+				},
+			},
 		},
 		"currency":                  "IDR",
 		"with_short_url":            true,
