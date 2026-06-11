@@ -167,15 +167,12 @@ services:
     restart: unless-stopped
 
   mysql-exporter:
-    image: prom/mysqld-exporter:latest
+    image: prom/mysqld-exporter:v0.14.0
     container_name: billing-mysql-exporter
     ports:
       - "9104:9104"
     environment:
       - DATA_SOURCE_NAME=root:root@(mysql-master:3306)/
-      - MYSQLD_EXPORTER_USER=root
-      - MYSQLD_EXPORTER_PASSWORD=root
-      - MYSQLD_EXPORTER_HOST=mysql-master
     networks:
       - billing_network
     restart: unless-stopped
