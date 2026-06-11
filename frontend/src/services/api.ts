@@ -165,13 +165,10 @@ apiClient.interceptors.response.use(
     }
 
     // Handle server unavailable (5xx errors)
-    if (error.response?.status >= 500) {
-      console.error('[Server Error] Server error:', error.response.status);
-
-      // Don't redirect for auth errors (let the auth interceptor handle it)
-      if (error.response.status === 401) {
-        return Promise.reject(error);
-      }
+    // Hanya redirect untuk 503 (Service Unavailable) dan 504 (Gateway Timeout)
+    // Error 500 (Internal Server Error) dibiarkan ditangani oleh komponen (try/catch)
+    if (error.response?.status === 503 || error.response?.status === 504) {
+      console.error('[Server Error] Server unavailable:', error.response.status);
 
       const errorId = errorStorage.storeError('server', error.response.status, originalRequest.url, originalRequest.method?.toUpperCase(), `Server error: ${error.response.status} ${error.response.statusText}`);
 

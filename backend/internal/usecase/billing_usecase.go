@@ -104,7 +104,8 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 	invoice.Email = pelanggan.Email
 	pajak := invoice.TotalHarga - math.Round(invoice.TotalHarga / (1.0 + (brand.Pajak / 100.0)))
 	noTelpXendit := utils.NormalizePhoneForXendit(pelanggan.NoTelp)
-	xResp, err := u.createXenditInvoice(ctx, invoice, pelanggan, nil, "Manual Invoice", pajak, noTelpXendit)
+	deskripsi := fmt.Sprintf("Tagihan Internet Artacomindo - %s", invoice.InvoiceNumber)
+	xResp, err := u.createXenditInvoice(ctx, invoice, pelanggan, nil, deskripsi, pajak, noTelpXendit)
 	if err != nil { return err }
 	shortURL, _ := xResp["short_url"].(string)
 	xID, _ := xResp["id"].(string)
@@ -243,7 +244,8 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 
 	noTelpXendit := utils.NormalizePhoneForXendit(pelanggan.NoTelp)
 	pajak := totalHarga - math.Round(totalHarga/(1.0+(brand.Pajak/100.0)))
-	xResp, xErr := u.createXenditInvoice(ctx, invoice, pelanggan, nil, "Manual Invoice", pajak, noTelpXendit)
+	deskripsi := fmt.Sprintf("Tagihan Internet Artacomindo - %s", invoice.InvoiceNumber)
+	xResp, xErr := u.createXenditInvoice(ctx, invoice, pelanggan, nil, deskripsi, pajak, noTelpXendit)
 	if xErr == nil {
 		shortURL, _ := xResp["short_url"].(string)
 		if shortURL == "" {
@@ -995,7 +997,7 @@ func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.In
 				"name":        itemName,
 				"price":       math.Round(hargaDasar),
 				"quantity":    1,
-				"description": desc,
+				"description": itemName,
 				"currency":    "IDR",
 				"type":        "PRODUCT",
 			},
