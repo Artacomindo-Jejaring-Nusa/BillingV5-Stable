@@ -262,6 +262,10 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 	return invoice, nil
 }
 
+func (u *billingUsecase) DeleteInvoice(ctx context.Context, id uint64) error {
+	return u.invoiceRepo.Delete(ctx, id)
+}
+
 func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langganan) error {
 	p, err := u.pelangganRepo.GetByID(ctx, l.PelangganID)
 	if err != nil || p == nil { return errors.New("pelanggan not found") }

@@ -39,6 +39,7 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 		invoiceGroup.POST("", handler.CreateInvoice)
 		invoiceGroup.POST("/generate", handler.GenerateManualInvoice)
 		invoiceGroup.PATCH("/:id/status", handler.UpdateInvoiceStatus)
+		invoiceGroup.DELETE("/:id", handler.DeleteInvoice)
 	}
 
 	langgananGroup := r.Group("/langganan")
@@ -183,6 +184,21 @@ func (h *BillingHandler) GenerateManualInvoice(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, invoice)
+}
+
+func (h *BillingHandler) DeleteInvoice(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	if err := h.billingUsecase.DeleteInvoice(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Invoice berhasil dihapus"})
 }
 
 // Langganan Endpoints

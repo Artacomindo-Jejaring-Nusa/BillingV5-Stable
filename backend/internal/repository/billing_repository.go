@@ -90,6 +90,10 @@ func (r *invoiceRepository) Update(ctx context.Context, invoice *domain.Invoice)
 	return r.db.WithContext(ctx).Omit("Pelanggan").Save(invoice).Error
 }
 
+func (r *invoiceRepository) Delete(ctx context.Context, id uint64) error {
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&domain.Invoice{}).Error
+}
+
 func (r *invoiceRepository) GetCallbackLog(ctx context.Context, xenditID, externalID, idempotencyKey string) (*domain.PaymentCallbackLog, error) {
 	var callbackLog domain.PaymentCallbackLog
 	query := r.db.WithContext(ctx)

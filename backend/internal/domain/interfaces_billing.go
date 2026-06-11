@@ -12,6 +12,7 @@ type InvoiceRepository interface {
 	GetByInvoiceNumber(ctx context.Context, invNumber string) (*Invoice, error)
 	Create(ctx context.Context, invoice *Invoice) error
 	Update(ctx context.Context, invoice *Invoice) error
+	Delete(ctx context.Context, id uint64) error
 	
 	// Payment Webhooks & Callbacks
 	GetCallbackLog(ctx context.Context, xenditID, externalID, idempotencyKey string) (*PaymentCallbackLog, error)
@@ -52,6 +53,7 @@ type BillingUsecase interface {
 	UpdateInvoiceStatus(ctx context.Context, id uint64, status string) error
 	GetInvoiceSummary(ctx context.Context) (*InvoiceSummaryStats, error)
 	GenerateManualInvoice(ctx context.Context, langgananID uint64) (*Invoice, error)
+	DeleteInvoice(ctx context.Context, id uint64) error
 	
 	// Xendit Webhook Callback
 	ProcessXenditCallback(ctx context.Context, xCallbackToken string, payload map[string]interface{}, idempotencyKey string) error
