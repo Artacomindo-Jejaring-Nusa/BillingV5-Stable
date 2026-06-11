@@ -24,25 +24,25 @@ func (r *invoiceRepository) GetAll(ctx context.Context, limit, offset int, searc
 	var invoices []domain.Invoice
 	var total int64
 
-	filter := r.db.WithContext(ctx).Model(&domain.Invoice{})
-
-	if status != "" {
-		filter = filter.Where("status_invoice = ?", status)
+	buildFilter := func(tx *gorm.DB) *gorm.DB {
+		if status != "" {
+			tx = tx.Where("status_invoice = ?", status)
+		}
+		if search != "" {
+			searchTerm := "%" + search + "%"
+			tx = tx.Where(
+				"invoice_number LIKE ? OR pelanggan_id IN (SELECT id FROM pelanggan WHERE nama LIKE ?)",
+				searchTerm, searchTerm,
+			)
+		}
+		return tx
 	}
 
-	if search != "" {
-		searchTerm := "%" + search + "%"
-		filter = filter.Where(
-			"invoice_number LIKE ? OR pelanggan_id IN (SELECT id FROM pelanggans WHERE nama LIKE ?)",
-			searchTerm, searchTerm,
-		)
-	}
-
-	if err := filter.Count(&total).Error; err != nil {
+	if err := buildFilter(r.db.WithContext(ctx).Model(&domain.Invoice{})).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	err := filter.
+	err := buildFilter(r.db.WithContext(ctx).Model(&domain.Invoice{})).
 		Preload("Pelanggan").
 		Limit(limit).
 		Offset(offset).
