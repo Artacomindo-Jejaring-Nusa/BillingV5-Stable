@@ -170,7 +170,7 @@ defineEmits(['update:modelValue']);
 const statusColor = computed(() => {
   switch (props.invoice?.status_invoice) {
     case 'Lunas': return 'success';
-    case 'Belum Dibayar': return 'warning';
+    case 'Belum Bayar': return 'warning';
     case 'Expired': return 'error';
     default: return 'grey';
   }

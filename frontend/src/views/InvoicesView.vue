@@ -1669,7 +1669,6 @@ function canCreateReinvoice(item: Invoice): boolean {
   // 3. Dan bukan reinvoice sebelumnya
   return (
     (item.status_invoice === 'Expired' ||
-     item.status_invoice === 'Expired' ||
     (item.status_invoice === 'Belum Bayar' && today > dueDate)) &&
     !item.is_reinvoice
   );

@@ -6,7 +6,7 @@ export interface Invoice {
   total_harga: number;
   tgl_invoice: string;
   tgl_jatuh_tempo: string;
-  status_invoice: 'Lunas' | 'Belum Dibayar' | 'Expired';
+  status_invoice: 'Lunas' | 'Belum Bayar' | 'Expired';
   payment_link?: string | null;
   paid_at?: string | null;
   email: string;

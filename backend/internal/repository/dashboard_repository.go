@@ -511,6 +511,7 @@ func (r *dashboardRepository) GetSidebarBadges(ctx context.Context) (*domain.Sid
 	err := r.db.WithContext(ctx).Table("invoices").
 		Where("status_invoice = ?", "Belum Bayar").
 		Where("tgl_invoice >= ?", activeCutoff).
+		Where("deleted_at IS NULL").
 		Count(&unpaidCount).Error
 	if err != nil {
 		return nil, err
