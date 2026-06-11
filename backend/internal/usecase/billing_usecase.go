@@ -945,14 +945,9 @@ func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.In
 	}
 
 	hargaDasar := inv.TotalHarga - tax
-	kecepatan := ""
-	if pkt != nil {
-		kecepatan = pkt.Kecepatan
-	}
-
 	itemName := "Biaya berlangganan internet"
-	if kecepatan != "" {
-		itemName = fmt.Sprintf("Biaya berlangganan internet up to %s Mbps", kecepatan)
+	if pkt != nil && pkt.Kecepatan > 0 {
+		itemName = fmt.Sprintf("Biaya berlangganan internet up to %d Mbps", pkt.Kecepatan)
 	}
 
 	payload := map[string]interface{}{
