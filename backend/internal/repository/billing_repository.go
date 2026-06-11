@@ -24,27 +24,36 @@ func (r *invoiceRepository) GetAll(ctx context.Context, limit, offset int, searc
 	var invoices []domain.Invoice
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&domain.Invoice{})
+	filter := r.db.WithContext(ctx).Model(&domain.Invoice{})
 
 	if status != "" {
-		query = query.Where("status_invoice = ?", status)
+		filter = filter.Where("status_invoice = ?", status)
 	}
 
 	if search != "" {
 		searchTerm := "%" + search + "%"
-		query = query.Joins("Pelanggan").Where("pelanggan.nama LIKE ? OR invoices.invoice_number LIKE ?", searchTerm, searchTerm)
+		filter = filter.Where(
+			"invoice_number LIKE ? OR pelanggan_id IN (SELECT id FROM pelanggans WHERE nama LIKE ?)",
+			searchTerm, searchTerm,
+		)
 	}
 
-	if err := query.Count(&total).Error; err != nil {
+	if err := filter.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	err := query.
+	err := filter.
 		Preload("Pelanggan").
 		Limit(limit).
 		Offset(offset).
 		Order("id desc").
 		Find(&invoices).Error
+
+	for i := range invoices {
+		if invoices[i].Pelanggan != nil {
+			invoices[i].PelangganNama = invoices[i].Pelanggan.Nama
+		}
+	}
 
 	return invoices, total, err
 }
