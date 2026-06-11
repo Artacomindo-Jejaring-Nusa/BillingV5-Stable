@@ -166,7 +166,81 @@ func (u *billingUsecase) GetDiscountedPrice(ctx context.Context, cluster string,
 }
 
 func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID uint64) (*domain.Invoice, error) {
-	return nil, nil
+	langganan, err := u.langgananRepo.GetByID(ctx, langgananID)
+	if err != nil || langganan == nil {
+		return nil, errors.New("langganan not found")
+	}
+
+	pelanggan, err := u.pelangganRepo.GetByID(ctx, langganan.PelangganID)
+	if err != nil || pelanggan == nil {
+		return nil, errors.New("pelanggan not found")
+	}
+
+	if pelanggan.IDBrand == nil || *pelanggan.IDBrand == "" {
+		return nil, errors.New("brand not found")
+	}
+
+	brand, err := u.brandRepo.GetByID(ctx, *pelanggan.IDBrand)
+	if err != nil || brand == nil {
+		return nil, errors.New("brand not found")
+	}
+
+	dt, _ := u.dataTeknisRepo.GetByPelangganID(ctx, pelanggan.ID)
+
+	now := time.Now()
+	harga := langganan.HargaAwal
+	if harga == nil {
+		paket, err := u.paketRepo.GetByID(ctx, langganan.PaketLayananID)
+		if err != nil || paket == nil {
+			return nil, errors.New("paket not found")
+		}
+		h := paket.Harga * (1.0 + (brand.Pajak / 100.0))
+		harga = &h
+	}
+
+	totalHarga := math.Round(*harga)
+	dueDate := langganan.TglJatuhTempo
+	if dueDate == nil {
+		d := now.AddDate(0, 1, 0)
+		dueDate = &d
+	}
+
+	invoice := &domain.Invoice{
+		InvoiceNumber: fmt.Sprintf("INV/%s/%d", now.Format("200601"), langgananID),
+		PelangganID:  langganan.PelangganID,
+		TotalHarga:   totalHarga,
+		TglInvoice:   now,
+		TglJatuhTempo: *dueDate,
+		StatusInvoice: "Belum Bayar",
+		InvoiceType:  "manual",
+		Brand:        brand.Brand,
+		NoTelp:       pelanggan.NoTelp,
+		Email:        pelanggan.Email,
+	}
+
+	if dt != nil {
+		invoice.IDPelanggan = dt.IDPelanggan
+	}
+
+	noTelpXendit := utils.NormalizePhoneForXendit(pelanggan.NoTelp)
+	pajak := totalHarga - math.Round(totalHarga/(1.0+(brand.Pajak/100.0)))
+	xResp, xErr := u.createXenditInvoice(ctx, invoice, pelanggan, nil, "Manual Invoice", pajak, noTelpXendit)
+	if xErr == nil {
+		shortURL, _ := xResp["short_url"].(string)
+		xID, _ := xResp["id"].(string)
+		if shortURL != "" {
+			invoice.PaymentLink = &shortURL
+		}
+		if xID != "" {
+			invoice.XenditID = &xID
+		}
+	}
+
+	if err := u.invoiceRepo.Create(ctx, invoice); err != nil {
+		return nil, err
+	}
+
+	return invoice, nil
 }
 
 func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langganan) error {
