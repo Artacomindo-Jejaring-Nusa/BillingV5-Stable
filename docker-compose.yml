@@ -172,7 +172,10 @@ services:
     ports:
       - "9104:9104"
     environment:
-      - DATA_SOURCE_NAME=root:root@tcp(mysql-master:3306)/billing_revaktor
+      - DATA_SOURCE_NAME=root:root@(mysql-master:3306)/
+      - MYSQLD_EXPORTER_USER=root
+      - MYSQLD_EXPORTER_PASSWORD=root
+      - MYSQLD_EXPORTER_HOST=mysql-master
     networks:
       - billing_network
     restart: unless-stopped
