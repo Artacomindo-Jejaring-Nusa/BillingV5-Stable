@@ -132,6 +132,51 @@ services:
     networks:
       - billing_network
 
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: billing-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+    networks:
+      - billing_network
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: billing-cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    networks:
+      - billing_network
+    restart: unless-stopped
+
+  mysql-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: billing-mysql-exporter
+    ports:
+      - "9104:9104"
+    environment:
+      - DATA_SOURCE_NAME=root:root@tcp(mysql-master:3306)/billing_revaktor
+    networks:
+      - billing_network
+    restart: unless-stopped
+
 networks:
   billing_network:
     driver: bridge
