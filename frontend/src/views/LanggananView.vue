@@ -2547,7 +2547,7 @@ watch(
         paket_layanan_id: paketId,
         metode_pembayaran: metode,
         pelanggan_id: pelangganId,
-        ...(metode !== 'Otomatis' && { tgl_mulai: tglMulai })
+        ...(tglMulai && { tgl_mulai: tglMulai })
       };
       
       const response = await apiClient.post(endpoint, payload);
