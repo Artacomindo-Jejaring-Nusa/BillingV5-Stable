@@ -30,6 +30,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
       MYSQL_DATABASE: billing_revaktor
+      SKIP_DATA_IMPORT: "true"
     ports:
       - "3307:3306"
     volumes:
