@@ -578,7 +578,7 @@ async function filterPaketForCustomer(pelangganId: number) {
   }
 }
 
-// --- Price Calculation Watcher ---
+let calcPriceRequestId = 0;
 watch(
   () => [
     editedItem.value.metode_pembayaran,
@@ -588,6 +588,7 @@ watch(
     isProratePlusFull.value
   ],
   async ([metode, paketId, pelangganId, tglMulai, proratePlus]) => {
+    const reqId = ++calcPriceRequestId;
     hargaProrate.value = 0;
     hargaNormal.value = 0;
 
@@ -620,6 +621,7 @@ watch(
       };
 
       const response = await apiClient.post(endpoint, payload);
+      if (reqId !== calcPriceRequestId) return;
 
       if (metode === 'Prorate' && proratePlus) {
         editedItem.value.harga_awal = response.data.harga_total_awal;
@@ -638,8 +640,10 @@ watch(
       }
 
     } catch (error: unknown) {
-      console.error(`Error memanggil API ${endpoint}:`, error);
-      editedItem.value.harga_awal = 0;
+      if (reqId === calcPriceRequestId) {
+        console.error(`Error memanggil API ${endpoint}:`, error);
+        editedItem.value.harga_awal = 0;
+      }
     }
   },
   { deep: true }

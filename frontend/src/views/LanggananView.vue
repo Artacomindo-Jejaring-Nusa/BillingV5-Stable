@@ -2425,7 +2425,9 @@ const dropdownPelangganSource = computed(() => {
   return newPelangganOnly;
 });
 
+let pelangganWatcherRequestId = 0;
 watch(() => editedItem.value.pelanggan_id, async (newPelangganId) => {
+  const reqId = ++pelangganWatcherRequestId;
   // Reset HANYA pilihan paket layanan
   editedItem.value.paket_layanan_id = undefined;
   isPaketLocked.value = false;
@@ -2439,11 +2441,22 @@ watch(() => editedItem.value.pelanggan_id, async (newPelangganId) => {
 
   // Check data teknis status untuk pelanggan yang dipilih
   await checkPelangganDataTeknis(newPelangganId);
+  if (reqId !== pelangganWatcherRequestId) return;
 
   try {
     // 1. Panggil API untuk mendapatkan detail lengkap pelanggan
     const response = await apiClient.get(`/pelanggan/${newPelangganId}`);
+    if (reqId !== pelangganWatcherRequestId) return;
     const pelangganDetail = response.data?.data ?? response.data;
+
+    // Auto-fill tgl_mulai_langganan dengan tgl_instalasi (atau hari ini jika kosong) jika dalam mode Tambah Baru
+    if (pelangganDetail && editedIndex.value === -1) {
+      if (pelangganDetail.tgl_instalasi) {
+        editedItem.value.tgl_mulai_langganan = formatDateForInput(pelangganDetail.tgl_instalasi);
+      } else {
+        editedItem.value.tgl_mulai_langganan = formatDateForInput(new Date().toISOString());
+      }
+    }
 
     if (!pelangganDetail || !pelangganDetail.id_brand || !pelangganDetail.layanan) {
       filteredPaketLayanan.value = [];
@@ -2506,6 +2519,7 @@ const handleNewNotification = async (event: Event) => {
 
 
 
+let calcPriceRequestId = 0;
 watch(
   () => [
     editedItem.value.metode_pembayaran, 
@@ -2515,6 +2529,7 @@ watch(
     isProratePlusFull.value // Pantau juga switch
   ],
   async ([metode, paketId, pelangganId, tglMulai, proratePlus]) => {
+    const reqId = ++calcPriceRequestId;
     
     // Reset rincian harga setiap kali ada perubahan
     hargaProrate.value = 0;
@@ -2551,6 +2566,7 @@ watch(
       };
       
       const response = await apiClient.post(endpoint, payload);
+      if (reqId !== calcPriceRequestId) return;
       
       // Tangani dua jenis response
       if (metode === 'Prorate' && proratePlus) {
@@ -2570,8 +2586,10 @@ watch(
       }
       
     } catch (error: unknown) {
-      console.error(`Error memanggil API ${endpoint}:`, error);
-      editedItem.value.harga_awal = 0;
+      if (reqId === calcPriceRequestId) {
+        console.error(`Error memanggil API ${endpoint}:`, error);
+        editedItem.value.harga_awal = 0;
+      }
     }
   },
   { deep: true }
