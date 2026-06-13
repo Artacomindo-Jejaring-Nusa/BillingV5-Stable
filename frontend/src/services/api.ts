@@ -11,8 +11,11 @@ const getBaseURL = (): string => {
 
   // Jika local development (Vite dev server)
   if (import.meta.env.DEV) {
-    return envUrl || 'http://localhost:8000/api/v1';
-    //return envUrl || 'http://127.0.0.1:8000/api/v1';
+    if (envUrl) return envUrl;
+    // Secara dinamis menggunakan hostname saat ini agar bisa diakses dari localhost, IP lokal network, maupun IP publik
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:8000/api/v1`;
   }
 
   // Jika production build (Docker / Web hosting)
