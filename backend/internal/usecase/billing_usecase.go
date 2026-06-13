@@ -204,7 +204,11 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 	}
 
 	totalHarga := math.Round(*harga)
-	dueDate := langganan.TglJatuhTempo
+	// Prioritaskan tgl_jatuh_tempo_pembayaran (Kotak 3) sebagai jatuh tempo pembayaran invoice
+	dueDate := langganan.TglJatuhTempoPembayaran
+	if dueDate == nil {
+		dueDate = langganan.TglJatuhTempo // Fallback ke perilaku lama
+	}
 	if dueDate == nil {
 		d := now.AddDate(0, 1, 0)
 		dueDate = &d
@@ -365,25 +369,48 @@ func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langgana
 	if l.TglMulaiLangganan != nil { startDate = *l.TglMulaiLangganan }
 	hargaAwal := paket.Harga * (1.0 + (brand.Pajak / 100.0))
 	var dueDate time.Time
+	var payDate time.Time
+	var tglMulai time.Time
+
 	if l.MetodePembayaran == "Prorate" {
+		tglMulai = startDate
 		dueDate = time.Date(startDate.Year(), startDate.Month()+1, 0, 0, 0, 0, 0, startDate.Location())
+		payDate = startDate
+		
 		lastDayNum := float64(dueDate.Day())
 		remDays := float64(dueDate.Day() - startDate.Day() + 1)
 		hargaAwal = (paket.Harga / lastDayNum * remDays) * (1.0 + (brand.Pajak / 100.0))
 		if l.SertakanBulanDepan {
+			dueDate = time.Date(startDate.Year(), startDate.Month()+2, 0, 0, 0, 0, 0, startDate.Location())
 			hargaNormal := paket.Harga * (1.0 + (brand.Pajak / 100.0))
 			today := time.Now()
-			d, _ := u.diskonRepo.GetActiveForCluster(ctx, p.Alamat, today)
-			if d != nil { hargaNormal -= math.Floor((hargaNormal * d.PersentaseDiskon / 100.0) + 0.5) }
+			if u.diskonRepo != nil {
+				d, _ := u.diskonRepo.GetActiveForCluster(ctx, p.Alamat, today)
+				if d != nil { hargaNormal -= math.Floor((hargaNormal * d.PersentaseDiskon / 100.0) + 0.5) }
+			}
 			hargaAwal += hargaNormal
 		}
 	} else {
-		nm := startDate.AddDate(0, 1, 0)
-		dueDate = time.Date(nm.Year(), nm.Month(), 1, 0, 0, 0, 0, startDate.Location())
+		// Otomatis
+		if startDate.Day() == 1 {
+			tglMulai = startDate
+		} else {
+			tglMulai = time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, startDate.Location())
+		}
+		dueDate = time.Date(tglMulai.Year(), tglMulai.Month()+1, 0, 0, 0, 0, 0, tglMulai.Location())
+		payDate = tglMulai
+		
+		if startDate.Day() != 1 {
+			tglMulai = startDate
+			dueDate = time.Date(startDate.Year(), startDate.Month()+1, 0, 0, 0, 0, 0, startDate.Location())
+			payDate = startDate
+		}
 	}
 	h := math.Round(hargaAwal)
 	l.HargaAwal = &h
+	l.TglMulaiLangganan = &tglMulai
 	l.TglJatuhTempo = &dueDate
+	l.TglJatuhTempoPembayaran = &payDate
 	if l.Status == "" { l.Status = "Aktif" }
 	return u.langgananRepo.Create(ctx, l)
 }
@@ -412,6 +439,8 @@ func (u *billingUsecase) UpdateLangganan(ctx context.Context, id uint64, l *doma
 		existing.Status = l.Status
 	}
 	if l.TglJatuhTempo != nil { existing.TglJatuhTempo = l.TglJatuhTempo }
+	if l.TglJatuhTempoPembayaran != nil { existing.TglJatuhTempoPembayaran = l.TglJatuhTempoPembayaran }
+	if l.TglMulaiLangganan != nil { existing.TglMulaiLangganan = l.TglMulaiLangganan }
 	if l.MetodePembayaran != "" { existing.MetodePembayaran = l.MetodePembayaran }
 	if l.HargaAwal != nil { existing.HargaAwal = l.HargaAwal }
 
@@ -438,19 +467,42 @@ func (u *billingUsecase) CalculatePrice(ctx context.Context, req *domain.Langgan
 	if req.TglMulai != nil { startDate = *req.TglMulai }
 	harga := pk.Harga * (1.0 + (br.Pajak / 100.0))
 	var jt time.Time
+	var jtp time.Time
+	var tml time.Time
+	
 	if req.MetodePembayaran == "Prorate" {
+		tml = startDate
 		jt = time.Date(startDate.Year(), startDate.Month()+1, 0, 0, 0, 0, 0, startDate.Location())
 		harga = (pk.Harga / float64(jt.Day()) * float64(jt.Day()-startDate.Day()+1)) * (1.0 + (br.Pajak / 100.0))
+		jtp = startDate
 	} else {
-		nm := startDate.AddDate(0, 1, 0)
-		jt = time.Date(nm.Year(), nm.Month(), 1, 0, 0, 0, 0, startDate.Location())
+		// Otomatis
+		if startDate.Day() == 1 {
+			tml = startDate
+		} else {
+			tml = time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, startDate.Location())
+		}
+		jt = time.Date(tml.Year(), tml.Month()+1, 0, 0, 0, 0, 0, tml.Location())
+		jtp = tml
+		
+		if startDate.Day() != 1 {
+			tml = startDate
+			jt = time.Date(startDate.Year(), startDate.Month()+1, 0, 0, 0, 0, 0, startDate.Location())
+			jtp = startDate
+		}
+
 		today := time.Now()
 		if u.diskonRepo != nil {
 			d, _ := u.diskonRepo.GetActiveForCluster(ctx, p.Alamat, today)
 			if d != nil { harga -= math.Floor((harga * d.PersentaseDiskon / 100.0) + 0.5) }
 		}
 	}
-	return &domain.LanggananCalculateResponse{HargaAwal: math.Round(harga), TglJatuhTempo: jt}, nil
+	return &domain.LanggananCalculateResponse{
+		HargaAwal:               math.Round(harga),
+		TglJatuhTempo:           jt,
+		TglJatuhTempoPembayaran: &jtp,
+		TglMulaiLangganan:       &tml,
+	}, nil
 }
 
 func (u *billingUsecase) CalculateProratePlusFull(ctx context.Context, req *domain.LanggananCalculateRequest) (*domain.LanggananCalculateProratePlusFullResponse, error) {
@@ -459,15 +511,29 @@ func (u *billingUsecase) CalculateProratePlusFull(ctx context.Context, req *doma
 	pk, _ := u.paketRepo.GetByID(ctx, req.PaketLayananID)
 	sd := time.Now()
 	if req.TglMulai != nil { sd = *req.TglMulai }
-	jt := time.Date(sd.Year(), sd.Month()+1, 0, 0, 0, 0, 0, sd.Location())
-	hp := (pk.Harga / float64(jt.Day()) * float64(jt.Day()-sd.Day()+1)) * (1.0 + (br.Pajak / 100.0))
+	
+	// End of next month
+	jt := time.Date(sd.Year(), sd.Month()+2, 0, 0, 0, 0, 0, sd.Location())
+	
+	// Prorate price based on current month remaining days
+	currentMonthEnd := time.Date(sd.Year(), sd.Month()+1, 0, 0, 0, 0, 0, sd.Location())
+	hp := (pk.Harga / float64(currentMonthEnd.Day()) * float64(currentMonthEnd.Day()-sd.Day()+1)) * (1.0 + (br.Pajak / 100.0))
 	hn := pk.Harga * (1.0 + (br.Pajak / 100.0))
 	today := time.Now()
 	if u.diskonRepo != nil {
 		d, _ := u.diskonRepo.GetActiveForCluster(ctx, p.Alamat, today)
 		if d != nil { hn -= math.Floor((hn * d.PersentaseDiskon / 100.0) + 0.5) }
 	}
-	return &domain.LanggananCalculateProratePlusFullResponse{HargaProrate: math.Round(hp), HargaNormal: math.Round(hn), HargaTotalAwal: math.Round(hp+hn), TglJatuhTempo: jt}, nil
+	jtp := sd
+	tml := sd
+	return &domain.LanggananCalculateProratePlusFullResponse{
+		HargaProrate:            math.Round(hp),
+		HargaNormal:             math.Round(hn),
+		HargaTotalAwal:          math.Round(hp + hn),
+		TglJatuhTempo:           jt,
+		TglJatuhTempoPembayaran: &jtp,
+		TglMulaiLangganan:       &tml,
+	}, nil
 }
 
 func (u *billingUsecase) CalculateProrate(ctx context.Context, req *domain.ProrateCalculationRequest) (*domain.ProrateCalculationResponse, error) {
@@ -570,13 +636,17 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 				time.Date(l.TglJatuhTempo.Year(), l.TglJatuhTempo.Month()+1, 0, 23, 59, 59, 0, l.TglJatuhTempo.Location()))
 			
 			if existing == nil {
+				dueDate := l.TglJatuhTempoPembayaran
+				if dueDate == nil {
+					dueDate = l.TglJatuhTempo
+				}
 				// Generate new invoice
 				inv := &domain.Invoice{
 					PelangganID:   l.PelangganID,
 					InvoiceNumber: fmt.Sprintf("INV/%s/%d", l.TglJatuhTempo.Format("200601"), l.ID),
 					TotalHarga:    0, // Will be calculated in repository/usecase
 					TglInvoice:    today,
-					TglJatuhTempo: *l.TglJatuhTempo,
+					TglJatuhTempo: *dueDate,
 					StatusInvoice: "Belum Bayar",
 					InvoiceType:   "automatic",
 				}
@@ -1170,6 +1240,15 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 			next := l.TglJatuhTempo.AddDate(0, 1, 0)
 			l.TglJatuhTempo = &next
 		}
+		if l.TglJatuhTempoPembayaran != nil {
+			nextPay := l.TglJatuhTempoPembayaran.AddDate(0, 1, 0)
+			l.TglJatuhTempoPembayaran = &nextPay
+		}
+		if l.TglMulaiLangganan != nil {
+			nextMulai := l.TglMulaiLangganan.AddDate(0, 1, 0)
+			l.TglMulaiLangganan = &nextMulai
+		}
+		_ = l.TglMulaiLangganan // avoid unused warning just in case
 		_ = u.langgananRepo.Update(ctx, l)
 		if inv.Pelanggan.DataTeknis != nil {
 			_ = u.triggerMikrotikUpdate(ctx, inv.Pelanggan.DataTeknis.IDPelanggan, inv.Pelanggan.DataTeknis, "Aktif")

@@ -1571,7 +1571,7 @@ async function savePelanggan() {
   saving.value = true;
   try {
     if (editedIndex.value > -1) {
-      await apiClient.patch(`/pelanggan/${editedItem.value.id}`, editedItem.value);
+      await apiClient.put(`/pelanggan/${editedItem.value.id}`, editedItem.value);
       showSnackbar('Data pelanggan berhasil diperbarui', 'success');
     } else {
       await apiClient.post('/pelanggan', editedItem.value);

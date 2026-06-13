@@ -11,7 +11,8 @@ const getBaseURL = (): string => {
 
   // Jika local development (Vite dev server)
   if (import.meta.env.DEV) {
-    return envUrl || 'http://127.0.0.1:8000/api/v1';
+    return envUrl || 'http://localhost:8000/api/v1';
+    //return envUrl || 'http://127.0.0.1:8000/api/v1';
   }
 
   // Jika production build (Docker / Web hosting)

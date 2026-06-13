@@ -14,8 +14,9 @@ type Langganan struct {
 	PelangganID        uint64     `gorm:"index;not null" json:"pelanggan_id"`
 	PaketLayananID     uint64     `gorm:"index;not null" json:"paket_layanan_id"`
 	Status             string     `gorm:"type:varchar(100);index;not null" json:"status"`
-	TglJatuhTempo      *time.Time `gorm:"type:date;index" json:"tgl_jatuh_tempo"`
-	TglInvoiceTerakhir *time.Time `gorm:"type:date;index" json:"tgl_invoice_terakhir"`
+	TglJatuhTempo              *time.Time `gorm:"type:date;index" json:"tgl_jatuh_tempo"`
+	TglJatuhTempoPembayaran    *time.Time `gorm:"type:date;index" json:"tgl_jatuh_tempo_pembayaran"`
+	TglInvoiceTerakhir         *time.Time `gorm:"type:date;index" json:"tgl_invoice_terakhir"`
 	TglMulaiLangganan  *time.Time `gorm:"type:date;index" json:"tgl_mulai_langganan"`
 	TglBerhenti        *time.Time `gorm:"type:date;index" json:"tgl_berhenti"`
 	MetodePembayaran   string     `gorm:"type:varchar(50);default:'Otomatis';index" json:"metode_pembayaran"`
@@ -45,13 +46,14 @@ func (Langganan) TableName() string {
 func (l *Langganan) UnmarshalJSON(data []byte) error {
 	type Alias Langganan
 	aux := &struct {
-		TglJatuhTempo      interface{} `json:"tgl_jatuh_tempo"`
-		TglInvoiceTerakhir interface{} `json:"tgl_invoice_terakhir"`
-		TglMulaiLangganan  interface{} `json:"tgl_mulai_langganan"`
-		TglBerhenti        interface{} `json:"tgl_berhenti"`
-		LastWhatsappSent   interface{} `json:"last_whatsapp_sent"`
-		TglMulai           interface{} `json:"tgl_mulai"`
-		SertakanBulanDepan bool        `json:"sertakan_bulan_depan"`
+		TglJatuhTempo           interface{} `json:"tgl_jatuh_tempo"`
+		TglJatuhTempoPembayaran interface{} `json:"tgl_jatuh_tempo_pembayaran"`
+		TglInvoiceTerakhir      interface{} `json:"tgl_invoice_terakhir"`
+		TglMulaiLangganan       interface{} `json:"tgl_mulai_langganan"`
+		TglBerhenti             interface{} `json:"tgl_berhenti"`
+		LastWhatsappSent        interface{} `json:"last_whatsapp_sent"`
+		TglMulai                interface{} `json:"tgl_mulai"`
+		SertakanBulanDepan      bool        `json:"sertakan_bulan_depan"`
 		*Alias
 	}{
 		Alias: (*Alias)(l),
@@ -94,6 +96,10 @@ func (l *Langganan) UnmarshalJSON(data []byte) error {
 	l.TglJatuhTempo, err = parseTime(aux.TglJatuhTempo)
 	if err != nil {
 		return fmt.Errorf("failed to parse tgl_jatuh_tempo: %w", err)
+	}
+	l.TglJatuhTempoPembayaran, err = parseTime(aux.TglJatuhTempoPembayaran)
+	if err != nil {
+		return fmt.Errorf("failed to parse tgl_jatuh_tempo_pembayaran: %w", err)
 	}
 	l.TglInvoiceTerakhir, err = parseTime(aux.TglInvoiceTerakhir)
 	if err != nil {
@@ -286,16 +292,20 @@ func (r *LanggananCalculateRequest) UnmarshalJSON(data []byte) error {
 
 // LanggananCalculateResponse represents the result of calculating a standard subscription price.
 type LanggananCalculateResponse struct {
-	HargaAwal     float64   `json:"harga_awal"`
-	TglJatuhTempo time.Time `json:"tgl_jatuh_tempo"`
+	HargaAwal               float64    `json:"harga_awal"`
+	TglJatuhTempo           time.Time  `json:"tgl_jatuh_tempo"`
+	TglJatuhTempoPembayaran *time.Time `json:"tgl_jatuh_tempo_pembayaran"`
+	TglMulaiLangganan       *time.Time `json:"tgl_mulai_langganan"`
 }
 
 // LanggananCalculateProratePlusFullResponse represents the result of calculating a combined prorate + full-month subscription price.
 type LanggananCalculateProratePlusFullResponse struct {
-	HargaProrate   float64   `json:"harga_prorate"`
-	HargaNormal    float64   `json:"harga_normal"`
-	HargaTotalAwal float64   `json:"harga_total_awal"`
-	TglJatuhTempo  time.Time `json:"tgl_jatuh_tempo"`
+	HargaProrate            float64    `json:"harga_prorate"`
+	HargaNormal             float64    `json:"harga_normal"`
+	HargaTotalAwal          float64    `json:"harga_total_awal"`
+	TglJatuhTempo           time.Time  `json:"tgl_jatuh_tempo"`
+	TglJatuhTempoPembayaran *time.Time `json:"tgl_jatuh_tempo_pembayaran"`
+	TglMulaiLangganan       *time.Time `json:"tgl_mulai_langganan"`
 }
 
 // ProrateCalculationRequest represents general calculator parameters.
@@ -415,10 +425,11 @@ type LanggananResponse struct {
 	Harga              float64                     `json:"harga"`
 	HargaFinal         float64                     `json:"harga_final"`
 	Status             string                      `json:"status"`
-	TglJatuhTempo      *time.Time                  `json:"tgl_jatuh_tempo"`
-	TglInvoiceTerakhir *time.Time                  `json:"tgl_invoice_terakhir"`
-	TglMulaiLangganan  *time.Time                  `json:"tgl_mulai_langganan"`
-	TglBerhenti        *time.Time                  `json:"tgl_berhenti"`
+	TglJatuhTempo              *time.Time                  `json:"tgl_jatuh_tempo"`
+	TglJatuhTempoPembayaran    *time.Time                  `json:"tgl_jatuh_tempo_pembayaran"`
+	TglInvoiceTerakhir         *time.Time                  `json:"tgl_invoice_terakhir"`
+	TglMulaiLangganan          *time.Time                  `json:"tgl_mulai_langganan"`
+	TglBerhenti                *time.Time                  `json:"tgl_berhenti"`
 	MetodePembayaran   string                      `json:"metode_pembayaran"`
 	HargaAwal          *float64                    `json:"harga_awal"`
 	AlasanBerhenti     *string                     `json:"alasan_berhenti"`

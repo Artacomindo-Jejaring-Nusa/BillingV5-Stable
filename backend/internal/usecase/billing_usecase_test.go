@@ -51,8 +51,8 @@ func TestCalculatePrice(t *testing.T) {
 			t.Errorf("expected HargaAwal to be 333000, got %f", res.HargaAwal)
 		}
 
-		// Next month 1st: 2026-07-01
-		expectedTempo := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+		// Next month 1st: 2026-07-01, but service period ends on the last day of the current month (2026-06-30)
+		expectedTempo := time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)
 		if !res.TglJatuhTempo.Equal(expectedTempo) {
 			t.Errorf("expected TglJatuhTempo to be %v, got %v", expectedTempo, res.TglJatuhTempo)
 		}

@@ -173,17 +173,6 @@
                       </v-select>
                     </v-col>
                     
-                    <v-col cols="12" md="6" v-if="editedItem.metode_pembayaran === 'Prorate'">
-                       <label class="text-caption font-weight-bold text-medium-emphasis mb-2 d-block">TANGGAL MULAI</label>
-                       <v-text-field
-                          v-model="editedItem.tgl_mulai_langganan"
-                          type="date"
-                          variant="outlined"
-                          color="primary"
-                          hide-details="auto"
-                       ></v-text-field>
-                    </v-col>
-                    
                     <v-col cols="12" v-if="editedItem.metode_pembayaran === 'Prorate'">
                       <v-checkbox
                         v-model="isProratePlusFull"
@@ -233,7 +222,19 @@
                     </v-col>
                     
                     <v-col cols="12" md="6">
-                      <label class="text-caption font-weight-bold text-medium-emphasis mb-2 d-block">JATUH TEMPO</label>
+                      <label class="text-caption font-weight-bold text-medium-emphasis mb-2 d-block">TANGGAL MULAI LANGGANAN</label>
+                      <v-text-field
+                        v-model="editedItem.tgl_mulai_langganan"
+                        type="date"
+                        variant="outlined"
+                        color="primary"
+                        :rules="[rules.required]"
+                        hide-details="auto"
+                      ></v-text-field>
+                    </v-col>
+                    
+                    <v-col cols="12" md="6">
+                      <label class="text-caption font-weight-bold text-medium-emphasis mb-2 d-block">TANGGAL BERAKHIR LANGGANAN (JATUH TEMPO)</label>
                       <v-text-field
                         v-model="editedItem.tgl_jatuh_tempo"
                         type="date"
@@ -241,6 +242,22 @@
                         color="primary"
                         :rules="[rules.required]"
                         hide-details="auto"
+                      ></v-text-field>
+                    </v-col>
+                    
+                    <v-col cols="12" md="6">
+                      <label class="text-caption font-weight-bold text-medium-emphasis mb-2 d-block">
+                        JATUH TEMPO PEMBAYARAN <span class="text-error">*</span>
+                      </label>
+                      <v-text-field
+                        v-model="editedItem.tgl_jatuh_tempo_pembayaran"
+                        type="date"
+                        variant="outlined"
+                        color="primary"
+                        :rules="[rules.required]"
+                        hide-details="auto"
+                        hint="Tanggal batas akhir pembayaran invoice"
+                        persistent-hint
                       ></v-text-field>
                     </v-col>
                     
@@ -372,6 +389,7 @@ interface Langganan {
   status: string;
   pelanggan: PelangganData;
   tgl_jatuh_tempo: string | null;
+  tgl_jatuh_tempo_pembayaran?: string | null;
   tgl_invoice_terakhir: string | null;
   metode_pembayaran: string;
   harga_awal: number | null;
@@ -470,7 +488,12 @@ async function fetchLanggananDetail() {
   try {
     const response = await apiClient.get(`/langganan/${langgananId}`);
     langgananData.value = response.data;
-    editedItem.value = { ...response.data };
+    editedItem.value = { 
+      ...response.data,
+      tgl_mulai_langganan: formatDateForInput(response.data.tgl_mulai_langganan),
+      tgl_jatuh_tempo: formatDateForInput(response.data.tgl_jatuh_tempo),
+      tgl_jatuh_tempo_pembayaran: formatDateForInput(response.data.tgl_jatuh_tempo_pembayaran)
+    };
 
     // Setelah data dimuat, filter paket layanan
     if (editedItem.value.pelanggan_id) {
@@ -606,7 +629,13 @@ watch(
         editedItem.value.harga_awal = response.data.harga_awal;
       }
 
-      editedItem.value.tgl_jatuh_tempo = response.data.tgl_jatuh_tempo;
+      editedItem.value.tgl_jatuh_tempo = formatDateForInput(response.data.tgl_jatuh_tempo);
+      if (response.data.tgl_jatuh_tempo_pembayaran) {
+        editedItem.value.tgl_jatuh_tempo_pembayaran = formatDateForInput(response.data.tgl_jatuh_tempo_pembayaran);
+      }
+      if (response.data.tgl_mulai_langganan) {
+        editedItem.value.tgl_mulai_langganan = formatDateForInput(response.data.tgl_mulai_langganan);
+      }
 
     } catch (error: unknown) {
       console.error(`Error memanggil API ${endpoint}:`, error);
@@ -626,7 +655,9 @@ async function saveLangganan() {
     paket_layanan_id: editedItem.value.paket_layanan_id,
     status: editedItem.value.status,
     metode_pembayaran: editedItem.value.metode_pembayaran,
+    tgl_mulai_langganan: editedItem.value.tgl_mulai_langganan,
     tgl_jatuh_tempo: editedItem.value.tgl_jatuh_tempo,
+    tgl_jatuh_tempo_pembayaran: editedItem.value.tgl_jatuh_tempo_pembayaran,
     harga_awal: editedItem.value.harga_awal,
     tgl_berhenti: editedItem.value.tgl_berhenti || null,
     alasan_berhenti: editedItem.value.alasan_berhenti || null,
@@ -647,6 +678,14 @@ async function saveLangganan() {
 }
 
 // --- Helper Functions ---
+function formatDateForInput(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  if (typeof dateStr === 'string') {
+    return dateStr.substring(0, 10);
+  }
+  return '';
+}
+
 function getPelangganName(pelangganId: number | undefined): string {
   // First try to get from editedItem.pelanggan (loaded subscription data)
   if (editedItem.value?.pelanggan?.nama) {

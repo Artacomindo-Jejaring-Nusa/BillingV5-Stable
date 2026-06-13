@@ -275,7 +275,7 @@ const {
 
 // USB Scanner state
 let scannerBuffer = '';
-let scannerTimeout: number | null = null;
+let scannerTimeout: any = null;
 let keyboardListener: ((event: KeyboardEvent) => void) | null = null;
 
 // Sync with v-model

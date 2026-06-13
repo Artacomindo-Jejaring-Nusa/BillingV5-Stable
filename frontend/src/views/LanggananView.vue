@@ -780,7 +780,7 @@
             </template>
             <v-list-item-title class="text-body-2">Jatuh Tempo</v-list-item-title>
             <template v-slot:append>
-              <span class="text-body-2">{{ formatDate(item.tgl_jatuh_tempo) }}</span>
+              <span class="text-body-2">{{ formatDate(item.tgl_jatuh_tempo_pembayaran || item.tgl_jatuh_tempo) }}</span>
             </template>
           </v-list-item>
         </v-list>
@@ -962,7 +962,7 @@
           </template>
 
           <template v-slot:item.tgl_jatuh_tempo="{ item }: { item: Langganan }">
-              {{ formatDate(item.tgl_jatuh_tempo) }}
+              {{ formatDate(item.tgl_jatuh_tempo_pembayaran || item.tgl_jatuh_tempo) }}
           </template>
 
           <template v-slot:item.whatsapp_status="{ item }: { item: Langganan }">
@@ -1254,22 +1254,7 @@
           <!-- Prorate Options -->
           <template v-if="editedItem.metode_pembayaran === 'Prorate'">
             <v-row class="mt-2">
-              <v-col cols="12" md="6">
-                <label class="field-label-v2">
-                  Tanggal Mulai Langganan
-                </label>
-                <v-text-field
-                  v-model="editedItem.tgl_mulai_langganan"
-                  type="date"
-                  variant="outlined"
-                  prepend-inner-icon="mdi-calendar-start"
-                  density="comfortable"
-                  hide-details="auto"
-                  class="field-v2"
-                ></v-text-field>
-              </v-col>
-              
-              <v-col cols="12" md="6" class="d-flex align-center">
+              <v-col cols="12" class="d-flex align-center">
                 <v-switch
                   v-model="isProratePlusFull"
                   color="primary"
@@ -1336,10 +1321,29 @@
                 class="field-v2"
               ></v-select>
             </v-col>
+          </v-row>
+
+          <v-row class="mt-2">
+            <v-col cols="12" md="6">
+              <label class="field-label-v2">
+                Tanggal Mulai Langganan
+                <span class="field-label-v2__req">*</span>
+              </label>
+              <v-text-field
+                v-model="editedItem.tgl_mulai_langganan"
+                type="date"
+                variant="outlined"
+                prepend-inner-icon="mdi-calendar-start"
+                :rules="[rules.required]"
+                density="comfortable"
+                hide-details="auto"
+                class="field-v2"
+              ></v-text-field>
+            </v-col>
             
             <v-col cols="12" md="6">
               <label class="field-label-v2">
-                Tanggal Jatuh Tempo
+                Tanggal Berakhir Langganan (Jatuh Tempo)
                 <span class="field-label-v2__req">*</span>
               </label>
               <v-text-field
@@ -1351,6 +1355,28 @@
                 density="comfortable"
                 hide-details="auto"
                 class="field-v2"
+              ></v-text-field>
+            </v-col>
+          </v-row>
+
+          <!-- Jatuh Tempo Pembayaran (Kotak 3) - Selalu Tampil -->
+          <v-row class="mt-2">
+            <v-col cols="12" md="6">
+              <label class="field-label-v2">
+                Tanggal Jatuh Tempo Pembayaran
+                <span class="field-label-v2__req">*</span>
+              </label>
+              <v-text-field
+                v-model="editedItem.tgl_jatuh_tempo_pembayaran"
+                type="date"
+                variant="outlined"
+                prepend-inner-icon="mdi-calendar-clock"
+                :rules="[rules.required]"
+                density="comfortable"
+                hide-details="auto"
+                class="field-v2"
+                hint="Tanggal batas akhir pembayaran invoice"
+                persistent-hint
               ></v-text-field>
             </v-col>
           </v-row>
@@ -1631,7 +1657,14 @@
                     <template v-slot:prepend>
                       <v-icon size="20" class="me-3 text-medium-emphasis">mdi-calendar-alert</v-icon>
                     </template>
-                    <v-list-item-title class="font-weight-bold">Jatuh Tempo</v-list-item-title>
+                    <v-list-item-title class="font-weight-bold">Jatuh Tempo Pembayaran</v-list-item-title>
+                    <v-list-item-subtitle>{{ formatDate(selectedPelanggan.tgl_jatuh_tempo_pembayaran || selectedPelanggan.tgl_jatuh_tempo) }}</v-list-item-subtitle>
+                  </v-list-item>
+                  <v-list-item>
+                    <template v-slot:prepend>
+                      <v-icon size="20" class="me-3 text-medium-emphasis">mdi-calendar-range</v-icon>
+                    </template>
+                    <v-list-item-title class="font-weight-bold">Akhir Periode</v-list-item-title>
                     <v-list-item-subtitle>{{ formatDate(selectedPelanggan.tgl_jatuh_tempo) }}</v-list-item-subtitle>
                   </v-list-item>
                   <v-list-item v-if="selectedPelanggan.status === 'Berhenti'">
@@ -1976,6 +2009,7 @@ interface Langganan {
   status: string;
   pelanggan: PelangganData;
   tgl_jatuh_tempo: string | null;
+  tgl_jatuh_tempo_pembayaran?: string | null;
   tgl_invoice_terakhir: string | null;
   metode_pembayaran: string;
   harga_awal: number | null;
@@ -2127,6 +2161,14 @@ function toISODateString(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
+function formatDateForInput(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  if (typeof dateStr === 'string') {
+    return dateStr.substring(0, 10);
+  }
+  return '';
+}
+
 function formatDateForDisplay(date: Date | null): string {
   if (!date) return '';
   return date.toLocaleDateString('id-ID', {
@@ -2170,6 +2212,7 @@ const defaultItem: Partial<Langganan> = {
   paket_layanan_id: undefined,
   status: 'Aktif',
   tgl_jatuh_tempo: null,
+  tgl_jatuh_tempo_pembayaran: null,
   tgl_invoice_terakhir: null,
   metode_pembayaran: 'Otomatis',
   harga_awal: 0,
@@ -2518,7 +2561,13 @@ watch(
         editedItem.value.harga_awal = response.data.harga_awal;
       }
       
-      editedItem.value.tgl_jatuh_tempo = response.data.tgl_jatuh_tempo;
+      editedItem.value.tgl_jatuh_tempo = formatDateForInput(response.data.tgl_jatuh_tempo);
+      if (response.data.tgl_jatuh_tempo_pembayaran) {
+        editedItem.value.tgl_jatuh_tempo_pembayaran = formatDateForInput(response.data.tgl_jatuh_tempo_pembayaran);
+      }
+      if (response.data.tgl_mulai_langganan) {
+        editedItem.value.tgl_mulai_langganan = formatDateForInput(response.data.tgl_mulai_langganan);
+      }
       
     } catch (error: unknown) {
       console.error(`Error memanggil API ${endpoint}:`, error);
@@ -2887,7 +2936,12 @@ async function fetchPaketLayananForSelect() {
 
 async function openDialog(item?: Langganan) {
   editedIndex.value = item ? langgananList.value.findIndex(l => l.id === item.id) : -1;
-  editedItem.value = item ? { ...item } : { ...defaultItem };
+  editedItem.value = item ? { 
+    ...item,
+    tgl_mulai_langganan: formatDateForInput(item.tgl_mulai_langganan),
+    tgl_jatuh_tempo: formatDateForInput(item.tgl_jatuh_tempo),
+    tgl_jatuh_tempo_pembayaran: formatDateForInput(item.tgl_jatuh_tempo_pembayaran)
+  } : { ...defaultItem };
 
   // Saat mode Tambah Baru, refresh cache agar dropdown pelanggan selalu akurat
   if (!item) {
@@ -2949,6 +3003,7 @@ async function saveLangganan() {
     status: editedItem.value.status,
     metode_pembayaran: editedItem.value.metode_pembayaran,
     tgl_mulai_langganan: editedItem.value.tgl_mulai_langganan,
+    tgl_jatuh_tempo_pembayaran: editedItem.value.tgl_jatuh_tempo_pembayaran,
 
     // Kirim status switch ke backend
     sertakan_bulan_depan: isProratePlusFull.value 
@@ -2962,7 +3017,9 @@ async function saveLangganan() {
         paket_layanan_id: editedItem.value.paket_layanan_id,
         status: editedItem.value.status,
         metode_pembayaran: editedItem.value.metode_pembayaran,
+        tgl_mulai_langganan: editedItem.value.tgl_mulai_langganan,
         tgl_jatuh_tempo: editedItem.value.tgl_jatuh_tempo,
+        tgl_jatuh_tempo_pembayaran: editedItem.value.tgl_jatuh_tempo_pembayaran,
         harga_awal: editedItem.value.harga_awal,
         alasan_berhenti: editedItem.value.alasan_berhenti || null,
         status_modem: editedItem.value.status_modem || null

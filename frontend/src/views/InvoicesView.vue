@@ -588,7 +588,7 @@
                 <template v-slot:prepend>
                   <v-icon :color="item.status_invoice === 'Expired' ? 'error' : 'warning'" class="me-4">mdi-calendar-alert</v-icon>
                 </template>
-                <v-list-item-title>Periode</v-list-item-title>
+                <v-list-item-title>Jatuh Tempo</v-list-item-title>
                 <template v-slot:append>
                   <div class="text-right">
                     <div>{{ formatDate(item.tgl_jatuh_tempo) }}</div>
@@ -751,29 +751,47 @@
           </v-autocomplete>
           <v-expand-transition>
             <div v-if="selectedLanggananDetails">
-              <v-row>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    :model-value="formatCurrency(selectedLanggananDetails.harga_awal || 0)"
-                    label="Harga Sesuai Langganan"
-                    variant="outlined"
-                    readonly
-                    prepend-inner-icon="mdi-cash"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    :model-value="formatDate(selectedLanggananDetails.tgl_jatuh_tempo)"
-                    label="Periode"
-                    variant="outlined"
-                    readonly
-                    prepend-inner-icon="mdi-calendar-end"
-                  ></v-text-field>
-                </v-col>
-              </v-row>
-              <p class="text-caption text-medium-emphasis mt-n2">
-                * Total tagihan akhir akan ditambahkan pajak sesuai brand.
-              </p>
+              <v-card variant="flat" class="rounded-xl mb-3 overflow-hidden invoice-detail-card">
+                <!-- Harga Banner -->
+                <div class="detail-price-banner">
+                  <div class="d-flex align-center">
+                    <v-avatar color="rgba(255,255,255,0.2)" size="48" class="me-4">
+                      <v-icon color="white" size="24">mdi-receipt-text-outline</v-icon>
+                    </v-avatar>
+                    <div>
+                      <div class="text-caption font-weight-medium" style="color: rgba(255,255,255,0.75); letter-spacing: 0.5px;">TOTAL TAGIHAN</div>
+                      <div class="text-h5 font-weight-bold text-white" style="letter-spacing: -0.5px;">{{ formatCurrency(selectedLanggananDetails.harga_awal || 0) }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Detail Periode & Jatuh Tempo -->
+                <div class="detail-info-grid">
+                  <div class="detail-info-item">
+                    <v-icon size="18" color="success" class="detail-info-icon">mdi-calendar-start</v-icon>
+                    <div class="detail-info-label">Mulai Periode</div>
+                    <div class="detail-info-value">{{ formatDate(selectedLanggananDetails.tgl_mulai_langganan) }}</div>
+                  </div>
+                  <div class="detail-info-divider"></div>
+                  <div class="detail-info-item">
+                    <v-icon size="18" color="warning" class="detail-info-icon">mdi-calendar-end</v-icon>
+                    <div class="detail-info-label">Akhir Periode</div>
+                    <div class="detail-info-value">{{ formatDate(selectedLanggananDetails.tgl_jatuh_tempo) }}</div>
+                  </div>
+                  <div class="detail-info-divider"></div>
+                  <div class="detail-info-item detail-info-highlight">
+                    <v-icon size="18" color="error" class="detail-info-icon">mdi-calendar-clock</v-icon>
+                    <div class="detail-info-label" style="color: rgb(var(--v-theme-error));">Jatuh Tempo Bayar</div>
+                    <div class="detail-info-value" style="color: rgb(var(--v-theme-error));">{{ formatDate(selectedLanggananDetails.tgl_jatuh_tempo_pembayaran || selectedLanggananDetails.tgl_jatuh_tempo) }}</div>
+                  </div>
+                </div>
+              </v-card>
+              <div class="d-flex align-center mt-1 mb-2">
+                <v-icon size="14" color="info" class="me-1">mdi-information-outline</v-icon>
+                <span class="text-caption text-medium-emphasis">
+                  Invoice akan menggunakan tanggal Jatuh Tempo Bayar di atas.
+                </span>
+              </div>
             </div>
             <div v-else-if="selectedLanggananId">
               <v-alert
@@ -994,7 +1012,7 @@ const headers = [
     width: '130px',
     value: (item: any) => item.payment_link_status || item.status_invoice
   },
-  { title: 'Periode', key: 'tgl_jatuh_tempo', align: 'start' as const, width: '150px' },
+  { title: 'Jatuh Tempo', key: 'tgl_jatuh_tempo', align: 'start' as const, width: '150px' },
   { title: 'Actions', key: 'actions', sortable: false, align: 'center' as const, width: '120px' },
 ];
 
@@ -2306,6 +2324,73 @@ async function fetchSpecificLangganan(id: number) {
 
 .theme--dark .dialog-header {
   background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+}
+
+/* Invoice Detail Card */
+.invoice-detail-card {
+  border: 1px solid rgba(var(--v-border-color), 0.12) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+.detail-price-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px 24px;
+}
+
+.detail-info-grid {
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+}
+
+.detail-info-item {
+  flex: 1;
+  padding: 16px 20px;
+  text-align: center;
+}
+
+.detail-info-divider {
+  width: 1px;
+  background: rgba(var(--v-border-color), 0.12);
+  align-self: stretch;
+}
+
+.detail-info-icon {
+  margin-bottom: 6px;
+}
+
+.detail-info-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  margin-bottom: 4px;
+}
+
+.detail-info-value {
+  font-size: 0.925rem;
+  font-weight: 700;
+  color: rgba(var(--v-theme-on-surface), 0.87);
+  line-height: 1.3;
+}
+
+.detail-info-highlight {
+  background: rgba(var(--v-theme-error), 0.04);
+}
+
+@media (max-width: 599px) {
+  .detail-info-grid {
+    flex-direction: column;
+  }
+  .detail-info-divider {
+    width: 100%;
+    height: 1px;
+  }
+  .detail-info-item {
+    text-align: left;
+    padding: 12px 20px;
+  }
 }
 
 .custom-snackbar {

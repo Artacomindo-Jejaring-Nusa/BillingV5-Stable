@@ -250,22 +250,23 @@ func (h *BillingHandler) GetNewUserLangganans(c *gin.Context) {
 
 func (h *BillingHandler) mapToLanggananResponse(ctx context.Context, lang domain.Langganan) domain.LanggananResponse {
 	resp := domain.LanggananResponse{
-		ID:                 lang.ID,
-		PelangganID:        lang.PelangganID,
-		PaketLayananID:     lang.PaketLayananID,
-		Status:             lang.Status,
-		TglJatuhTempo:      lang.TglJatuhTempo,
-		TglInvoiceTerakhir: lang.TglInvoiceTerakhir,
-		TglMulaiLangganan:  lang.TglMulaiLangganan,
-		TglBerhenti:        lang.TglBerhenti,
-		MetodePembayaran:   lang.MetodePembayaran,
-		HargaAwal:          lang.HargaAwal,
-		AlasanBerhenti:     lang.AlasanBerhenti,
-		StatusModem:        lang.StatusModem,
-		WhatsappStatus:     lang.WhatsappStatus,
-		LastWhatsappSent:   lang.LastWhatsappSent,
-		CreatedAt:          lang.CreatedAt,
-		UpdatedAt:          lang.UpdatedAt,
+		ID:                         lang.ID,
+		PelangganID:                lang.PelangganID,
+		PaketLayananID:             lang.PaketLayananID,
+		Status:                     lang.Status,
+		TglJatuhTempo:              lang.TglJatuhTempo,
+		TglJatuhTempoPembayaran:    lang.TglJatuhTempoPembayaran,
+		TglInvoiceTerakhir:         lang.TglInvoiceTerakhir,
+		TglMulaiLangganan:          lang.TglMulaiLangganan,
+		TglBerhenti:                lang.TglBerhenti,
+		MetodePembayaran:           lang.MetodePembayaran,
+		HargaAwal:                  lang.HargaAwal,
+		AlasanBerhenti:             lang.AlasanBerhenti,
+		StatusModem:                lang.StatusModem,
+		WhatsappStatus:             lang.WhatsappStatus,
+		LastWhatsappSent:           lang.LastWhatsappSent,
+		CreatedAt:                  lang.CreatedAt,
+		UpdatedAt:                  lang.UpdatedAt,
 	}
 
 	if lang.Pelanggan != nil {
@@ -318,7 +319,8 @@ func (h *BillingHandler) GetLangganan(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, langganan)
+	resp := h.mapToLanggananResponse(c.Request.Context(), *langganan)
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *BillingHandler) CreateLangganan(c *gin.Context) {
@@ -347,7 +349,8 @@ func (h *BillingHandler) CreateLangganan(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, created)
+	resp := h.mapToLanggananResponse(c.Request.Context(), *created)
+	c.JSON(http.StatusCreated, resp)
 }
 
 func (h *BillingHandler) UpdateLangganan(c *gin.Context) {
@@ -374,7 +377,8 @@ func (h *BillingHandler) UpdateLangganan(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, updated)
+	resp := h.mapToLanggananResponse(c.Request.Context(), *updated)
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *BillingHandler) DeleteLangganan(c *gin.Context) {
