@@ -67,6 +67,19 @@ func NewBillingUsecase(
 	}
 }
 
+func (u *billingUsecase) logActivity(ctx context.Context, action string, details string) {
+	if u.systemRepo == nil {
+		return
+	}
+	log := &domain.ActivityLog{
+		UserID:    utils.GetUserIDFromCtx(ctx),
+		Action:    action,
+		Details:   &details,
+		Timestamp: time.Now(),
+	}
+	_ = u.systemRepo.CreateActivityLog(ctx, log)
+}
+
 // --- Invoice Logic ---
 
 func (u *billingUsecase) FetchInvoices(ctx context.Context, page, pageSize int, search, status string) ([]domain.Invoice, int64, error) {
@@ -115,6 +128,7 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 	invoice.InvoiceType = "manual"
 	err = u.invoiceRepo.Create(ctx, invoice)
 	if err == nil {
+		u.logActivity(ctx, "Create Invoice", fmt.Sprintf("Created invoice: %s for Pelanggan ID %d", invoice.InvoiceNumber, invoice.PelangganID))
 		websocket.InvalidateDashboardCache(ctx)
 	}
 	return err
@@ -128,6 +142,7 @@ func (u *billingUsecase) UpdateInvoiceStatus(ctx context.Context, id uint64, sta
 	invoice.StatusInvoice = status
 	err = u.invoiceRepo.Update(ctx, invoice)
 	if err == nil {
+		u.logActivity(ctx, "Update Invoice Status", fmt.Sprintf("Updated invoice %s status from %s to %s", invoice.InvoiceNumber, oldStatus, status))
 		websocket.InvalidateDashboardCache(ctx)
 		if status == "Lunas" && oldStatus != "Lunas" {
 			if websocket.GlobalHub != nil {
@@ -352,15 +367,21 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 	}
 
 	if err := u.invoiceRepo.Create(ctx, invoice); err != nil {
-		return nil, err
-	}
-	websocket.InvalidateDashboardCache(ctx)
-	return invoice, nil
+			return nil, err
+		}
+		u.logActivity(ctx, "Generate Manual Invoice", fmt.Sprintf("Generated manual invoice %s for Langganan ID %d", invoice.InvoiceNumber, langgananID))
+		websocket.InvalidateDashboardCache(ctx)
+		return invoice, nil
 }
 
 func (u *billingUsecase) DeleteInvoice(ctx context.Context, id uint64) error {
-	err := u.invoiceRepo.Delete(ctx, id)
+	invoice, err := u.invoiceRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	err = u.invoiceRepo.Delete(ctx, id)
 	if err == nil {
+		u.logActivity(ctx, "Delete Invoice", fmt.Sprintf("Deleted invoice %s (ID: %d)", invoice.InvoiceNumber, id))
 		websocket.InvalidateDashboardCache(ctx)
 	}
 	return err
@@ -424,6 +445,7 @@ func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langgana
 	if l.Status == "" { l.Status = "Aktif" }
 	err = u.langgananRepo.Create(ctx, l)
 	if err == nil {
+		u.logActivity(ctx, "Create Langganan", fmt.Sprintf("Created subscription for Pelanggan ID %d (ID: %d)", l.PelangganID, l.ID))
 		websocket.InvalidateDashboardCache(ctx)
 	}
 	return err
@@ -460,6 +482,7 @@ func (u *billingUsecase) UpdateLangganan(ctx context.Context, id uint64, l *doma
 
 	err = u.langgananRepo.Update(ctx, existing)
 	if err == nil {
+		u.logActivity(ctx, "Update Langganan", fmt.Sprintf("Updated subscription ID: %d to status: %s", id, existing.Status))
 		websocket.InvalidateDashboardCache(ctx)
 		if statusChanged && existing.Pelanggan != nil && existing.Pelanggan.DataTeknis != nil {
 			u.triggerMikrotikUpdate(ctx, existing.Pelanggan.DataTeknis.IDPelanggan, existing.Pelanggan.DataTeknis, l.Status)
@@ -471,6 +494,7 @@ func (u *billingUsecase) UpdateLangganan(ctx context.Context, id uint64, l *doma
 func (u *billingUsecase) DeleteLangganan(ctx context.Context, id uint64) error {
 	err := u.langgananRepo.Delete(ctx, id)
 	if err == nil {
+		u.logActivity(ctx, "Delete Langganan", fmt.Sprintf("Deleted subscription ID: %d", id))
 		websocket.InvalidateDashboardCache(ctx)
 	}
 	return err
@@ -1275,6 +1299,7 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 			_ = u.triggerMikrotikUpdate(ctx, inv.Pelanggan.DataTeknis.IDPelanggan, inv.Pelanggan.DataTeknis, "Aktif")
 		}
 	}
+	u.logActivity(ctx, "Payment Confirmed", fmt.Sprintf("Invoice %s marked as paid (Lunas) for amount %.2f", inv.InvoiceNumber, amt))
 	websocket.InvalidateDashboardCache(ctx)
 	return nil
 }

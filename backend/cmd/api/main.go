@@ -143,6 +143,12 @@ func main() {
 
 	router := gin.Default()
 
+	// Set global DB in gin context
+	router.Use(func(c *gin.Context) {
+		c.Set("db", db)
+		c.Next()
+	})
+
 	// 5. Setup Middleware (CORS)
 	router.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool { return true },
@@ -171,10 +177,13 @@ func main() {
 	api := router.Group("/api/v1")
 	authMw := middleware.AuthMiddleware(cfg)
 
+	systemRepo := repository.NewSystemRepository(db)
+	systemUsecase := usecase.NewSystemUsecase(systemRepo)
+
 	// User & Auth
 	userRepo := repository.NewUserRepository(db)
 	tokenBlacklistRepo := repository.NewTokenBlacklistRepository(db)
-	userUsecase := usecase.NewUserUsecase(userRepo, tokenBlacklistRepo, cfg)
+	userUsecase := usecase.NewUserUsecase(userRepo, tokenBlacklistRepo, systemRepo, cfg)
 	httpDelivery.NewUserHandler(api, userUsecase, authMw)
 
 	// Role & Permission
@@ -196,7 +205,7 @@ func main() {
 
 	// Pelanggan
 	pelangganRepo := repository.NewPelangganRepository(db)
-	pelangganUsecase := usecase.NewPelangganUsecase(pelangganRepo)
+	pelangganUsecase := usecase.NewPelangganUsecase(pelangganRepo, systemRepo)
 	httpDelivery.NewPelangganHandler(api, pelangganUsecase, authMw)
 
 	// Mikrotik
@@ -218,9 +227,6 @@ func main() {
 	dataTeknisRepo := repository.NewDataTeknisRepository(db)
 	dataTeknisUsecase := usecase.NewDataTeknisUsecase(dataTeknisRepo, mikrotikRepo, pelangganRepo, paketLayananRepo)
 	httpDelivery.NewDataTeknisHandler(api, dataTeknisUsecase, authMw)
-
-	systemRepo := repository.NewSystemRepository(db)
-	systemUsecase := usecase.NewSystemUsecase(systemRepo)
 
 	// Billing
 	invoiceRepo := repository.NewInvoiceRepository(db)

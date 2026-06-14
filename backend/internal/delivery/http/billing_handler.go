@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"billing-backend/internal/domain"
+	"billing-backend/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,35 +31,35 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 	invoiceGroup := r.Group("/invoices")
 	invoiceGroup.Use(authMiddleware)
 	{
-		invoiceGroup.GET("", handler.FetchInvoices)
-		invoiceGroup.GET("/export", handler.ExportInvoices)
-		invoiceGroup.GET("/export-payment-links-excel", handler.ExportPaymentLinksExcel)
-		invoiceGroup.GET("/summary", handler.GetInvoiceSummary)
-		invoiceGroup.GET("/summary/", handler.GetInvoiceSummary)
-		invoiceGroup.GET("/:id", handler.GetInvoice)
-		invoiceGroup.POST("", handler.CreateInvoice)
-		invoiceGroup.POST("/generate", handler.GenerateManualInvoice)
-		invoiceGroup.PATCH("/:id/status", handler.UpdateInvoiceStatus)
-		invoiceGroup.DELETE("/:id", handler.DeleteInvoice)
+		invoiceGroup.GET("", middleware.PermissionMiddleware("view_invoices"), handler.FetchInvoices)
+		invoiceGroup.GET("/export", middleware.PermissionMiddleware("view_invoices"), handler.ExportInvoices)
+		invoiceGroup.GET("/export-payment-links-excel", middleware.PermissionMiddleware("view_invoices"), handler.ExportPaymentLinksExcel)
+		invoiceGroup.GET("/summary", middleware.PermissionMiddleware("view_invoices"), handler.GetInvoiceSummary)
+		invoiceGroup.GET("/summary/", middleware.PermissionMiddleware("view_invoices"), handler.GetInvoiceSummary)
+		invoiceGroup.GET("/:id", middleware.PermissionMiddleware("view_invoices"), handler.GetInvoice)
+		invoiceGroup.POST("", middleware.PermissionMiddleware("create_invoices"), handler.CreateInvoice)
+		invoiceGroup.POST("/generate", middleware.PermissionMiddleware("create_invoices"), handler.GenerateManualInvoice)
+		invoiceGroup.PATCH("/:id/status", middleware.PermissionMiddleware("edit_invoices"), handler.UpdateInvoiceStatus)
+		invoiceGroup.DELETE("/:id", middleware.PermissionMiddleware("delete_invoices"), handler.DeleteInvoice)
 	}
 
 	langgananGroup := r.Group("/langganan")
 	langgananGroup.Use(authMiddleware)
 	{
-		langgananGroup.GET("", handler.FetchLangganan)
-		langgananGroup.GET("/new-users", handler.GetNewUserLangganans)
-		langgananGroup.GET("/:id", handler.GetLangganan)
-		langgananGroup.POST("", handler.CreateLangganan)
-		langgananGroup.PUT("/:id", handler.UpdateLangganan)
-		langgananGroup.PATCH("/:id", handler.UpdateLangganan)
-		langgananGroup.DELETE("/:id", handler.DeleteLangganan)
-		langgananGroup.POST("/calculate-price", handler.CalculatePrice)
-		langgananGroup.POST("/calculate-prorate-plus-full", handler.CalculateProratePlusFull)
+		langgananGroup.GET("", middleware.PermissionMiddleware("view_langganan"), handler.FetchLangganan)
+		langgananGroup.GET("/new-users", middleware.PermissionMiddleware("view_langganan"), handler.GetNewUserLangganans)
+		langgananGroup.GET("/:id", middleware.PermissionMiddleware("view_langganan"), handler.GetLangganan)
+		langgananGroup.POST("", middleware.PermissionMiddleware("create_langganan"), handler.CreateLangganan)
+		langgananGroup.PUT("/:id", middleware.PermissionMiddleware("edit_langganan"), handler.UpdateLangganan)
+		langgananGroup.PATCH("/:id", middleware.PermissionMiddleware("edit_langganan"), handler.UpdateLangganan)
+		langgananGroup.DELETE("/:id", middleware.PermissionMiddleware("delete_langganan"), handler.DeleteLangganan)
+		langgananGroup.POST("/calculate-price", middleware.PermissionMiddleware("view_langganan"), handler.CalculatePrice)
+		langgananGroup.POST("/calculate-prorate-plus-full", middleware.PermissionMiddleware("view_langganan"), handler.CalculateProratePlusFull)
 		
-		langgananGroup.GET("/export", handler.ExportLangganan)
-		langgananGroup.GET("/export/excel/multi-sheet", handler.ExportLanggananMultiSheet)
-		langgananGroup.POST("/import/csv", handler.ImportLangganan)
-		langgananGroup.GET("/template/csv", handler.DownloadLanggananTemplate)
+		langgananGroup.GET("/export", middleware.PermissionMiddleware("view_langganan"), handler.ExportLangganan)
+		langgananGroup.GET("/export/excel/multi-sheet", middleware.PermissionMiddleware("view_langganan"), handler.ExportLanggananMultiSheet)
+		langgananGroup.POST("/import/csv", middleware.PermissionMiddleware("create_langganan"), handler.ImportLangganan)
+		langgananGroup.GET("/template/csv", middleware.PermissionMiddleware("create_langganan"), handler.DownloadLanggananTemplate)
 	}
 
 	reportsGroup := r.Group("/reports")

@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"billing-backend/internal/domain"
+	"billing-backend/internal/middleware"
 	"billing-backend/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -41,11 +42,11 @@ func NewUserHandler(r *gin.RouterGroup, uu domain.UserUsecase, authMiddleware gi
 	users.Use(authMiddleware)
 	{
 		users.GET("/me", handler.GetProfile)
-		users.GET("", handler.GetAll)
-		users.GET("/:id", handler.GetByID)
-		users.POST("", handler.CreateUser)
-		users.PATCH("/:id", handler.UpdateUser)
-		users.DELETE("/:id", handler.DeleteUser)
+		users.GET("", middleware.PermissionMiddleware("view_users"), handler.GetAll)
+		users.GET("/:id", middleware.PermissionMiddleware("view_users"), handler.GetByID)
+		users.POST("", middleware.PermissionMiddleware("create_users"), handler.CreateUser)
+		users.PATCH("/:id", middleware.PermissionMiddleware("edit_users"), handler.UpdateUser)
+		users.DELETE("/:id", middleware.PermissionMiddleware("delete_users"), handler.DeleteUser)
 	}
 
 	// Password management routes (public)

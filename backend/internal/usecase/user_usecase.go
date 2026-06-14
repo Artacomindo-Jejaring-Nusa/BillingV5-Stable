@@ -16,22 +16,38 @@ import (
 )
 
 type userUsecase struct {
-	userRepo      domain.UserRepository
+	userRepo       domain.UserRepository
 	tokenBlacklist domain.TokenBlacklistRepository
-	config        *config.Config
+	systemRepo     domain.SystemRepository
+	config         *config.Config
 }
 
 // NewUserUsecase creates a new user usecase
 func NewUserUsecase(
 	userRepo domain.UserRepository,
 	tokenBlacklist domain.TokenBlacklistRepository,
+	systemRepo domain.SystemRepository,
 	cfg *config.Config,
 ) domain.UserUsecase {
 	return &userUsecase{
-		userRepo:      userRepo,
+		userRepo:       userRepo,
 		tokenBlacklist: tokenBlacklist,
-		config:        cfg,
+		systemRepo:     systemRepo,
+		config:         cfg,
 	}
+}
+
+func (u *userUsecase) logActivity(ctx context.Context, userID uint64, action string, details string) {
+	if u.systemRepo == nil {
+		return
+	}
+	log := &domain.ActivityLog{
+		UserID:    userID,
+		Action:    action,
+		Details:   &details,
+		Timestamp: time.Now(),
+	}
+	_ = u.systemRepo.CreateActivityLog(ctx, log)
 }
 
 // Authenticate handles user login and returns access + refresh tokens.
@@ -78,6 +94,7 @@ func (u *userUsecase) Authenticate(ctx context.Context, email, password string) 
 	expiresIn := u.config.AccessTokenExpireMinutes * 60 // in seconds
 
 	log.Printf("User %s logged in successfully", user.Email)
+	u.logActivity(ctx, user.ID, "Login", fmt.Sprintf("User %s logged in successfully", user.Email))
 
 	return user, accessToken, refreshToken, expiresIn, nil
 }
@@ -153,7 +170,11 @@ func (u *userUsecase) Logout(ctx context.Context, refreshTokenStr string) error 
 		expTime = claims.ExpiresAt.Time
 	}
 
-	return u.tokenBlacklist.Blacklist(ctx, claims.ID, claims.UserID, "refresh", expTime, "User logout")
+	err = u.tokenBlacklist.Blacklist(ctx, claims.ID, claims.UserID, "refresh", expTime, "User logout")
+	if err == nil {
+		u.logActivity(ctx, claims.UserID, "Logout", fmt.Sprintf("User %s logged out successfully", claims.Email))
+	}
+	return err
 }
 
 // LogoutAll revokes all tokens for a user.
@@ -224,6 +245,8 @@ func (u *userUsecase) CreateUser(ctx context.Context, user *domain.User, passwor
 		return nil, err
 	}
 
+	u.logActivity(ctx, utils.GetUserIDFromCtx(ctx), "Create User", fmt.Sprintf("Created user: %s (ID: %d)", user.Email, user.ID))
+
 	// 6. Reload user with relations
 	return u.userRepo.GetByID(ctx, user.ID)
 }
@@ -288,6 +311,8 @@ func (u *userUsecase) UpdateUser(ctx context.Context, id uint64, updates map[str
 		return nil, err
 	}
 
+	u.logActivity(ctx, utils.GetUserIDFromCtx(ctx), "Update User", fmt.Sprintf("Updated user: %s (ID: %d)", user.Email, user.ID))
+
 	return u.userRepo.GetByID(ctx, user.ID)
 }
 
@@ -298,7 +323,11 @@ func (u *userUsecase) DeleteUser(ctx context.Context, id uint64) error {
 	if err != nil || user == nil {
 		return errors.New("pengguna tidak ditemukan")
 	}
-	return u.userRepo.Delete(ctx, id)
+	err = u.userRepo.Delete(ctx, id)
+	if err == nil {
+		u.logActivity(ctx, utils.GetUserIDFromCtx(ctx), "Delete User", fmt.Sprintf("Deleted user: %s (ID: %d)", user.Email, id))
+	}
+	return err
 }
 
 // ForgotPassword generates a reset token for password recovery.

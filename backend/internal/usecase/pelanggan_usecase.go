@@ -18,12 +18,31 @@ import (
 
 type pelangganUsecase struct {
 	pelangganRepo domain.PelangganRepository
+	systemRepo    domain.SystemRepository
 }
 
-func NewPelangganUsecase(p domain.PelangganRepository) domain.PelangganUsecase {
+func NewPelangganUsecase(p domain.PelangganRepository, sr ...domain.SystemRepository) domain.PelangganUsecase {
+	var systemRepo domain.SystemRepository
+	if len(sr) > 0 {
+		systemRepo = sr[0]
+	}
 	return &pelangganUsecase{
 		pelangganRepo: p,
+		systemRepo:    systemRepo,
 	}
+}
+
+func (u *pelangganUsecase) logActivity(ctx context.Context, action string, details string) {
+	if u.systemRepo == nil {
+		return
+	}
+	log := &domain.ActivityLog{
+		UserID:    utils.GetUserIDFromCtx(ctx),
+		Action:    action,
+		Details:   &details,
+		Timestamp: time.Now(),
+	}
+	_ = u.systemRepo.CreateActivityLog(ctx, log)
 }
 
 func (u *pelangganUsecase) FetchAll(ctx context.Context, skip, limit int, search, connectionStatus string) ([]domain.Pelanggan, int64, error) {
@@ -72,6 +91,7 @@ func (u *pelangganUsecase) Store(ctx context.Context, pelanggan *domain.Pelangga
 		// This is a bigger issue. For now, let's just proceed with Store.
 	}
 	if err := u.pelangganRepo.Create(ctx, pelanggan); err != nil { return err }
+	u.logActivity(ctx, "Create Pelanggan", fmt.Sprintf("Created pelanggan: %s (ID: %d)", pelanggan.Nama, pelanggan.ID))
 	if websocket.GlobalHub != nil {
 		websocket.GlobalHub.BroadcastNotification("new_customer", map[string]interface{}{"pelanggan_nama": pelanggan.Nama})
 	}
@@ -106,13 +126,22 @@ func (u *pelangganUsecase) Update(ctx context.Context, id uint64, req *domain.Pe
 	existing.Layanan = req.Layanan
 	existing.BrandDefault = req.BrandDefault
 	existing.MikrotikServerID = req.MikrotikServerID
-	return u.pelangganRepo.Update(ctx, existing)
+	err = u.pelangganRepo.Update(ctx, existing)
+	if err == nil {
+		u.logActivity(ctx, "Update Pelanggan", fmt.Sprintf("Updated pelanggan: %s (ID: %d)", existing.Nama, id))
+	}
+	return err
 }
 
 func (u *pelangganUsecase) Delete(ctx context.Context, id uint64) error {
-	_, err := u.pelangganRepo.GetByID(ctx, id)
+	pelanggan, err := u.pelangganRepo.GetByID(ctx, id)
 	if err != nil { return err }
-	return u.pelangganRepo.Delete(ctx, id)
+	if pelanggan == nil { return errors.New("pelanggan not found") }
+	err = u.pelangganRepo.Delete(ctx, id)
+	if err == nil {
+		u.logActivity(ctx, "Delete Pelanggan", fmt.Sprintf("Deleted pelanggan: %s (ID: %d)", pelanggan.Nama, id))
+	}
+	return err
 }
 
 func (u *pelangganUsecase) GetUniqueLocations(ctx context.Context) ([]string, error) {
@@ -152,6 +181,9 @@ func (u *pelangganUsecase) ImportFromCSV(ctx context.Context, csvContent string)
 			if t, err := time.Parse("2006-01-02", tglStr); err == nil { p.TglInstalasi = &t }
 		}
 		if err := u.pelangganRepo.Create(ctx, p); err == nil { successCount++ }
+	}
+	if successCount > 0 {
+		u.logActivity(ctx, "Import Pelanggan", fmt.Sprintf("Imported %d pelanggan from CSV", successCount))
 	}
 	return successCount, nil
 }
