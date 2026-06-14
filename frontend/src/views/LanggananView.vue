@@ -3607,10 +3607,10 @@ async function openPelangganView(item: Langganan) {
 
     for (const searchTerm of searchTerms) {
       try {
-        const response = await apiClient.get(`/invoices?search=${encodeURIComponent(searchTerm)}`);
-        if (response.data && Array.isArray(response.data)) {
+        const response = await apiClient.get(`/invoices?search=${encodeURIComponent(searchTerm)}&limit=100`);
+        if (response.data && response.data.data && Array.isArray(response.data.data)) {
           // Filter results to ensure they belong to this customer
-          const customerInvoices = response.data.filter((invoice: any) =>
+          const customerInvoices = response.data.data.filter((invoice: any) =>
             invoice.pelanggan_id === item.pelanggan_id ||
             invoice.no_telp === getPelangganPhone(item.pelanggan_id)
           );
