@@ -82,6 +82,32 @@ func listenRedisMessages() {
 	}
 }
 
+func GetRedisClient() *redis.Client {
+	return redisClient
+}
+
+func InvalidateDashboardCache(ctx context.Context) {
+	if redisClient == nil {
+		return
+	}
+	var cursor uint64
+	for {
+		keys, nextCursor, err := redisClient.Scan(ctx, cursor, "dashboard:cache:*", 100).Result()
+		if err != nil {
+			log.Printf("[Redis Cache] Error scanning keys for invalidation: %v", err)
+			break
+		}
+		if len(keys) > 0 {
+			redisClient.Del(ctx, keys...)
+		}
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+	log.Println("[Redis Cache] Invalidated dashboard cache keys successfully")
+}
+
 var instanceID string
 
 func init() {

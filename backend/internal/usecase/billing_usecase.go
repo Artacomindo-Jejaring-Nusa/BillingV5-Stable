@@ -113,7 +113,11 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 	invoice.XenditID = &xID
 	invoice.StatusInvoice = "Belum Bayar"
 	invoice.InvoiceType = "manual"
-	return u.invoiceRepo.Create(ctx, invoice)
+	err = u.invoiceRepo.Create(ctx, invoice)
+	if err == nil {
+		websocket.InvalidateDashboardCache(ctx)
+	}
+	return err
 }
 
 func (u *billingUsecase) UpdateInvoiceStatus(ctx context.Context, id uint64, status string) error {
@@ -123,18 +127,20 @@ func (u *billingUsecase) UpdateInvoiceStatus(ctx context.Context, id uint64, sta
 	oldStatus := invoice.StatusInvoice
 	invoice.StatusInvoice = status
 	err = u.invoiceRepo.Update(ctx, invoice)
-	
-	if err == nil && status == "Lunas" && oldStatus != "Lunas" {
-		if websocket.GlobalHub != nil {
-			pName := invoice.PelangganNama
-			if pName == "" && invoice.Pelanggan != nil {
-				pName = invoice.Pelanggan.Nama
+	if err == nil {
+		websocket.InvalidateDashboardCache(ctx)
+		if status == "Lunas" && oldStatus != "Lunas" {
+			if websocket.GlobalHub != nil {
+				pName := invoice.PelangganNama
+				if pName == "" && invoice.Pelanggan != nil {
+					pName = invoice.Pelanggan.Nama
+				}
+				websocket.GlobalHub.BroadcastNotification("new_payment", map[string]interface{}{
+					"invoice_number": invoice.InvoiceNumber,
+					"pelanggan_nama": pName,
+					"amount":         invoice.TotalHarga,
+				})
 			}
-			websocket.GlobalHub.BroadcastNotification("new_payment", map[string]interface{}{
-				"invoice_number": invoice.InvoiceNumber,
-				"pelanggan_nama": pName,
-				"amount":         invoice.TotalHarga,
-			})
 		}
 	}
 	return err
@@ -348,12 +354,16 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 	if err := u.invoiceRepo.Create(ctx, invoice); err != nil {
 		return nil, err
 	}
-
+	websocket.InvalidateDashboardCache(ctx)
 	return invoice, nil
 }
 
 func (u *billingUsecase) DeleteInvoice(ctx context.Context, id uint64) error {
-	return u.invoiceRepo.Delete(ctx, id)
+	err := u.invoiceRepo.Delete(ctx, id)
+	if err == nil {
+		websocket.InvalidateDashboardCache(ctx)
+	}
+	return err
 }
 
 func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langganan) error {
@@ -412,7 +422,11 @@ func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langgana
 	l.TglJatuhTempo = &dueDate
 	l.TglJatuhTempoPembayaran = &payDate
 	if l.Status == "" { l.Status = "Aktif" }
-	return u.langgananRepo.Create(ctx, l)
+	err = u.langgananRepo.Create(ctx, l)
+	if err == nil {
+		websocket.InvalidateDashboardCache(ctx)
+	}
+	return err
 }
 
 func (u *billingUsecase) UpdateLangganan(ctx context.Context, id uint64, l *domain.Langganan) error {
@@ -445,14 +459,21 @@ func (u *billingUsecase) UpdateLangganan(ctx context.Context, id uint64, l *doma
 	if l.HargaAwal != nil { existing.HargaAwal = l.HargaAwal }
 
 	err = u.langgananRepo.Update(ctx, existing)
-	if err == nil && statusChanged && existing.Pelanggan != nil && existing.Pelanggan.DataTeknis != nil {
-		u.triggerMikrotikUpdate(ctx, existing.Pelanggan.DataTeknis.IDPelanggan, existing.Pelanggan.DataTeknis, l.Status)
+	if err == nil {
+		websocket.InvalidateDashboardCache(ctx)
+		if statusChanged && existing.Pelanggan != nil && existing.Pelanggan.DataTeknis != nil {
+			u.triggerMikrotikUpdate(ctx, existing.Pelanggan.DataTeknis.IDPelanggan, existing.Pelanggan.DataTeknis, l.Status)
+		}
 	}
 	return err
 }
 
 func (u *billingUsecase) DeleteLangganan(ctx context.Context, id uint64) error {
-	return u.langgananRepo.Delete(ctx, id)
+	err := u.langgananRepo.Delete(ctx, id)
+	if err == nil {
+		websocket.InvalidateDashboardCache(ctx)
+	}
+	return err
 }
 
 // --- Calculations ---
@@ -1254,5 +1275,6 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 			_ = u.triggerMikrotikUpdate(ctx, inv.Pelanggan.DataTeknis.IDPelanggan, inv.Pelanggan.DataTeknis, "Aktif")
 		}
 	}
+	websocket.InvalidateDashboardCache(ctx)
 	return nil
 }
