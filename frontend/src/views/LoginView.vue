@@ -378,7 +378,7 @@ function backToLogin() {
         <div class="relative z-10 text-center text-white px-12">
           <h1 class="text-5xl font-bold mb-2 tracking-wide">WELCOME!</h1>
           <p class="text-base opacity-90 max-w-sm mx-auto leading-relaxed">
-            PORTAL FTTH & BILLING AJNUSA V3.5
+            PORTAL FTTH & BILLING AJNUSA V5.0
           </p>
         </div>
       </div>
