@@ -651,7 +651,7 @@ func (r *dashboardRepository) GetInvoiceGenerationMonitor(ctx context.Context, t
 
 	var totalShouldHave int64
 	err = r.db.WithContext(ctx).Table("langganan").
-		Where("tgl_jatuh_tempo BETWEEN ? AND ? AND status = ?", startOfMonth, endOfMonth, "Aktif").
+		Where("COALESCE(tgl_jatuh_tempo_pembayaran, tgl_jatuh_tempo) BETWEEN ? AND ? AND status = ?", startOfMonth, endOfMonth, "Aktif").
 		Count(&totalShouldHave).Error
 	if err != nil {
 		return nil, err
@@ -667,16 +667,33 @@ func (r *dashboardRepository) GetInvoiceGenerationMonitor(ctx context.Context, t
 		totalGenerated = 0
 	}
 
-	totalSkipped := totalShouldHave - totalGenerated
+	var totalSkipped int64
+	err = r.db.WithContext(ctx).Table("langganan").
+		Joins("LEFT JOIN invoices ON langganan.pelanggan_id = invoices.pelanggan_id AND invoices.deleted_at IS NULL AND invoices.tgl_jatuh_tempo BETWEEN ? AND ?", startOfMonth, endOfMonth).
+		Where("COALESCE(langganan.tgl_jatuh_tempo_pembayaran, langganan.tgl_jatuh_tempo) BETWEEN ? AND ?", startOfMonth, endOfMonth).
+		Where("langganan.status = ?", "Aktif").
+		Where("invoices.id IS NULL").
+		Count(&totalSkipped).Error
+	if err != nil {
+		totalSkipped = 0
+	}
+
+	today := time.Now()
+	generationDate := targetDateObj.AddDate(0, 0, -5)
+	generationHour := 13
+	isUpcoming := today.Before(generationDate) || (today.Equal(generationDate) && today.Hour() < generationHour)
+
+	if !isUpcoming {
+		totalShouldHave = totalGenerated + totalSkipped
+	}
+
 	successRate := 100.0
 	if totalShouldHave > 0 {
 		successRate = float64(totalGenerated) / float64(totalShouldHave) * 100.0
 	}
 
 	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	generationDate := targetDateObj.AddDate(0, 0, -5)
-	generationHour := 13
+	todayDateOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	status := "HEALTHY"
 	statusColor := "success"
@@ -686,7 +703,7 @@ func (r *dashboardRepository) GetInvoiceGenerationMonitor(ctx context.Context, t
 	if totalSkipped == 0 {
 		status, statusColor, statusIcon = "HEALTHY", "success", "✅"
 		message = "✅ Semua invoice berhasil di-generate"
-	} else if today.Before(generationDate) || (today.Equal(generationDate) && now.Hour() < generationHour) {
+	} else if todayDateOnly.Before(generationDate) || (todayDateOnly.Equal(generationDate) && now.Hour() < generationHour) {
 		status, statusColor, statusIcon = "UPCOMING", "info", "🕒"
 		totalGenerated = 0
 		totalSkipped = 0
@@ -696,7 +713,7 @@ func (r *dashboardRepository) GetInvoiceGenerationMonitor(ctx context.Context, t
 		genMonthName := monthsID[generationDate.Month()-1]
 		genDateStr := fmt.Sprintf("%d %s %d", generationDate.Day(), genMonthName, generationDate.Year())
 
-		if today.Equal(generationDate) {
+		if todayDateOnly.Equal(generationDate) {
 			message = fmt.Sprintf("🕒 Menunggu jadwal otomatis hari ini jam %d:00 WIB", generationHour)
 		} else {
 			message = fmt.Sprintf("🕒 Menunggu jadwal generate otomatis pada %s (H-5)", genDateStr)
@@ -762,7 +779,7 @@ func (r *dashboardRepository) GetFutureInvoiceProjection(ctx context.Context, ta
 
 	var estimatedCustomers int64
 	err = r.db.WithContext(ctx).Table("langganan").
-		Where("DATE(tgl_jatuh_tempo) = ? AND status = ?", targetDateObj.Format("2006-01-02"), "Aktif").
+		Where("DATE(COALESCE(tgl_jatuh_tempo_pembayaran, tgl_jatuh_tempo)) = ? AND status = ?", targetDateObj.Format("2006-01-02"), "Aktif").
 		Count(&estimatedCustomers).Error
 	if err != nil {
 		return nil, err
