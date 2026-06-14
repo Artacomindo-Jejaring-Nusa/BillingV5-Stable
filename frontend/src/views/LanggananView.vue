@@ -3601,25 +3601,29 @@ async function openPelangganView(item: Langganan) {
     const customerName = getPelangganName(item.pelanggan_id);
     const customerId = item.pelanggan_id.toString();
 
-    // Try both name and ID in search to maximize results
+    // Try both name and ID in search to maximize results concurrently
     const searchTerms = [customerName, customerId];
-    let allInvoices: any[] = [];
-
-    for (const searchTerm of searchTerms) {
+    
+    const searchPromises = searchTerms.map(async (searchTerm) => {
       try {
         const response = await apiClient.get(`/invoices?search=${encodeURIComponent(searchTerm)}&limit=100`);
         if (response.data && response.data.data && Array.isArray(response.data.data)) {
-          // Filter results to ensure they belong to this customer
-          const customerInvoices = response.data.data.filter((invoice: any) =>
+          return response.data.data.filter((invoice: any) =>
             invoice.pelanggan_id === item.pelanggan_id ||
             invoice.no_telp === getPelangganPhone(item.pelanggan_id)
           );
-          allInvoices.push(...customerInvoices);
         }
       } catch (searchError) {
         console.warn(`Search with term "${searchTerm}" failed:`, searchError);
       }
-    }
+      return [];
+    });
+
+    const results = await Promise.all(searchPromises);
+    let allInvoices: any[] = [];
+    results.forEach(invoices => {
+      allInvoices.push(...invoices);
+    });
 
     // Remove duplicates by ID
     const uniqueInvoices = allInvoices.filter((invoice, index, self) =>
