@@ -113,7 +113,13 @@ func (m *SchedulerManager) Start(ctx context.Context) {
 		return
 	}
 
-	m.cronInst = cron.New()
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		logger.Warn("SchedulerManager: Failed to load location Asia/Jakarta, falling back to UTC/Local: %v", err)
+		m.cronInst = cron.New()
+	} else {
+		m.cronInst = cron.New(cron.WithLocation(loc))
+	}
 
 	for key, config := range m.jobs {
 		scheduleKey := fmt.Sprintf("cron_%s_schedule", key)
