@@ -142,7 +142,7 @@ type Invoice struct {
 	Email              string         `gorm:"type:varchar(191)" json:"email"`
 	TotalHarga         float64        `gorm:"type:decimal(15,2);not null" json:"total_harga"`
 	TglInvoice         time.Time      `gorm:"type:date;not null" json:"tgl_invoice"`
-	TglJatuhTempo      time.Time      `gorm:"type:date;not null" json:"tgl_jatuh_tempo"`
+	TglJatuhTempo      time.Time      `gorm:"type:date;not null;index" json:"tgl_jatuh_tempo"`
 	StatusInvoice      string         `gorm:"type:varchar(50);not null" json:"status_invoice"`
 	DiskonID           *uint64        `gorm:"index" json:"diskon_id"`
 	DiskonPersen       *float64       `gorm:"type:decimal(5,2)" json:"diskon_persen"`
