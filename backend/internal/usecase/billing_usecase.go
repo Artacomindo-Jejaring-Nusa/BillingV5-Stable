@@ -339,9 +339,18 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 	var deskripsi string
 	if langganan.MetodePembayaran == "Prorate" {
 		periodeStart := now
-		periodeEnd := *dueDate
-		if dueDate.Day() == 1 {
-			periodeEnd = dueDate.AddDate(0, 0, -1)
+		if langganan.TglMulaiLangganan != nil {
+			periodeStart = *langganan.TglMulaiLangganan
+		}
+
+		targetEnd := *dueDate
+		if langganan.TglJatuhTempo != nil {
+			targetEnd = *langganan.TglJatuhTempo
+		}
+
+		periodeEnd := targetEnd
+		if targetEnd.Day() == 1 {
+			periodeEnd = targetEnd.AddDate(0, 0, -1)
 		}
 
 		getIndonesianMonth := func(m time.Month) string {
