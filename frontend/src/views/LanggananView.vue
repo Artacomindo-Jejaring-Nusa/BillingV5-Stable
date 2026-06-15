@@ -1343,7 +1343,7 @@
             
             <v-col cols="12" md="6">
               <label class="field-label-v2">
-                Tanggal Berakhir Langganan (Jatuh Tempo)
+                Tanggal Berakhir Langganan
                 <span class="field-label-v2__req">*</span>
               </label>
               <v-text-field
