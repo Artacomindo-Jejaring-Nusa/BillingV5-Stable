@@ -2759,14 +2759,12 @@ async function confirmBulkDelete() {
     );
     await Promise.all(deletePromises);
 
-    // Asumsi Anda punya fungsi showSnackbar
-    // showSnackbar(`${itemsToDelete.length} langganan berhasil dihapus.`, 'success');
-    
-    fetchLangganan();
+    await fetchLangganan();
     selectedLangganan.value = [];
+    showSnackbar(`${itemsToDelete.length} langganan berhasil dihapus.`, 'success');
   } catch (error) {
     console.error("Gagal melakukan hapus massal langganan:", error);
-    // showSnackbar('Terjadi kesalahan saat menghapus data.', 'error');
+    showSnackbar('Terjadi kesalahan saat menghapus data.', 'error');
   } finally {
     deleting.value = false;
     dialogBulkDelete.value = false;
@@ -3074,10 +3072,12 @@ async function confirmDelete() {
   deleting.value = true;
   try {
     await apiClient.delete(`/langganan/${itemToDelete.value.id}`);
-    fetchLangganan();
+    await fetchLangganan();
+    showSnackbar('Data langganan berhasil dihapus', 'success');
     closeDeleteDialog();
   } catch (error) {
     console.error("Gagal menghapus langganan:", error);
+    showSnackbar('Gagal menghapus data langganan', 'error');
   } finally {
     deleting.value = false;
   }

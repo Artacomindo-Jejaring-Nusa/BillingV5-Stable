@@ -175,6 +175,7 @@ func main() {
 
 	// 7. Setup Clean Architecture Layers
 	api := router.Group("/api/v1")
+	api.Use(middleware.NoCache())
 	authMw := middleware.AuthMiddleware(cfg)
 
 	systemRepo := repository.NewSystemRepository(db)
