@@ -234,7 +234,7 @@
                     </v-col>
                     
                     <v-col cols="12" md="6">
-                      <label class="text-caption font-weight-bold text-medium-emphasis mb-2 d-block">TANGGAL BERAKHIR LANGGANAN (JATUH TEMPO)</label>
+                      <label class="text-caption font-weight-bold text-medium-emphasis mb-2 d-block">TANGGAL BERAKHIR LANGGANAN</label>
                       <v-text-field
                         v-model="editedItem.tgl_jatuh_tempo"
                         type="date"
