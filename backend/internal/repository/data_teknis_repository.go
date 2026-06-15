@@ -181,3 +181,14 @@ func (r *dataTeknisRepository) GetOdpByCodes(ctx context.Context, codes []string
 	err := r.db.WithContext(ctx).Where("kode_odp IN ?", codes).Find(&list).Error
 	return list, err
 }
+
+func (r *dataTeknisRepository) GetPendingSync(ctx context.Context) ([]domain.DataTeknis, error) {
+	var list []domain.DataTeknis
+	err := r.db.WithContext(ctx).
+		Preload("Pelanggan").
+		Preload("Pelanggan.Langganan").
+		Preload("MikrotikServer").
+		Where("mikrotik_sync_pending = ?", true).
+		Find(&list).Error
+	return list, err
+}

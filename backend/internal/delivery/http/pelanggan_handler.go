@@ -32,7 +32,7 @@ func NewPelangganHandler(r *gin.RouterGroup, pu domain.PelangganUsecase, authMid
 		pelangganGroup.POST("/import", middleware.PermissionMiddleware("create_pelanggan"), handler.Import)
 		pelangganGroup.GET("/template/csv", middleware.PermissionMiddleware("create_pelanggan"), handler.DownloadCSVTemplate)
 		pelangganGroup.GET("/:id", middleware.PermissionMiddleware("view_pelanggan"), handler.GetByID)
-		pelangganGroup.POST("", middleware.PermissionMiddleware("create_pelanggan"), handler.Store)
+		pelangganGroup.POST("", middleware.PermissionMiddleware("create_pelanggan"), middleware.RateLimitMiddleware(30), handler.Store)
 		pelangganGroup.PUT("/:id", middleware.PermissionMiddleware("edit_pelanggan"), handler.Update)
 		pelangganGroup.DELETE("/:id", middleware.PermissionMiddleware("delete_pelanggan"), handler.Delete)
 	}

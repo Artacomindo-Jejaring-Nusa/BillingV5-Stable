@@ -38,6 +38,7 @@ type DataTeknisRepository interface {
 	CheckIPAddress(ctx context.Context, ip string, excludeID *uint64) (bool, error)
 	GetOdpByCode(ctx context.Context, code string) (*ODP, error)
 	GetOdpByCodes(ctx context.Context, codes []string) ([]ODP, error)
+	GetPendingSync(ctx context.Context) ([]DataTeknis, error)
 }
 
 // DataTeknisUsecase defines business logic for DataTeknis

@@ -26,7 +26,7 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 	}
 
 	// Public Xendit callback endpoint (not protected by authMiddleware)
-	r.POST("/invoices/xendit-callback", handler.ProcessXenditCallback)
+	r.POST("/invoices/xendit-callback", middleware.RateLimitMiddleware(60), handler.ProcessXenditCallback)
 
 	invoiceGroup := r.Group("/invoices")
 	invoiceGroup.Use(authMiddleware)

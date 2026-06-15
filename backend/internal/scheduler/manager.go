@@ -87,6 +87,14 @@ func NewSchedulerManager(db *gorm.DB, su domain.SystemUsecase, bu domain.Billing
 		Func:        bu.ArchiveOldInvoices,
 	}
 
+	mgr.jobs["retry_mikrotik_sync"] = &JobConfig{
+		Key:         "retry_mikrotik_sync",
+		Name:        "Retry Sinkronisasi Mikrotik",
+		Description: "Mengulangi sinkronisasi status modem ke Mikrotik yang tertunda karena kendala koneksi.",
+		DefaultCron: "*/5 * * * *",
+		Func:        bu.RetryFailedMikrotikSync,
+	}
+
 	return mgr
 }
 

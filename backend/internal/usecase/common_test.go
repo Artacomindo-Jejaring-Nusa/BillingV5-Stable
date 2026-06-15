@@ -106,6 +106,14 @@ func (m *mockInvoiceRepoCallback) Update(ctx context.Context, invoice *domain.In
 	return nil
 }
 
+func (m *mockInvoiceRepoCallback) GetCallbackLog(ctx context.Context, xenditID, externalID, idempotencyKey string) (*domain.PaymentCallbackLog, error) {
+	return nil, nil
+}
+
+func (m *mockInvoiceRepoCallback) CreateCallbackLog(ctx context.Context, log *domain.PaymentCallbackLog) error {
+	return nil
+}
+
 func (m *mockInvoiceRepoCallback) GetAll(ctx context.Context, limit, offset int, search, status string) ([]domain.Invoice, int64, error) {
 	var res []domain.Invoice
 	for _, inv := range m.invoices { res = append(res, *inv) }

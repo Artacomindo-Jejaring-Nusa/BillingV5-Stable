@@ -189,30 +189,58 @@ func (u *pelangganUsecase) ImportFromCSV(ctx context.Context, csvContent string)
 }
 
 func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, string, error) {
-	pelanggans, _, err := u.pelangganRepo.GetAll(ctx, 10000, 0, "", "")
-	if err != nil { return nil, "", err }
-	
-	// Decrypt NIK for export
-	for i := range pelanggans {
-		pelanggans[i].NoKtp = utils.Decrypt(pelanggans[i].NoKtp)
-	}
-
 	headers := []string{"ID", "No KTP", "Nama", "Alamat", "Alamat Tambahan", "Blok", "Unit", "No Telp", "Email", "Layanan", "ID Brand", "Tgl Instalasi"}
+	limit := 1000
+	offset := 0
+
 	if format == "excel" {
 		f := excelize.NewFile()
 		sheet := "Pelanggan"
 		f.SetSheetName("Sheet1", sheet)
-		for i, h := range headers { cell, _ := excelize.CoordinatesToCellName(i+1, 1); f.SetCellValue(sheet, cell, h) }
-		for r, p := range pelanggans {
-			row := r + 2
-			tgl, brand, lay, al2 := "", "", "", ""
-			if p.TglInstalasi != nil { tgl = p.TglInstalasi.Format("2006-01-02") }
-			if p.IDBrand != nil { brand = *p.IDBrand }
-			if p.Layanan != nil { lay = *p.Layanan }
-			if p.AlamatCustom != nil { al2 = *p.AlamatCustom }
-			vals := []interface{}{p.ID, p.NoKtp, p.Nama, p.Alamat, al2, p.Blok, p.Unit, p.NoTelp, p.Email, lay, brand, tgl}
-			for c, v := range vals { cell, _ := excelize.CoordinatesToCellName(c+1, row); f.SetCellValue(sheet, cell, v) }
+		for i, h := range headers {
+			cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+			f.SetCellValue(sheet, cell, h)
 		}
+
+		row := 2
+		for {
+			pelanggans, _, err := u.pelangganRepo.GetAll(ctx, limit, offset, "", "")
+			if err != nil {
+				return nil, "", err
+			}
+			if len(pelanggans) == 0 {
+				break
+			}
+
+			for _, p := range pelanggans {
+				noKtpDec := utils.Decrypt(p.NoKtp)
+				tgl, brand, lay, al2 := "", "", "", ""
+				if p.TglInstalasi != nil {
+					tgl = p.TglInstalasi.Format("2006-01-02")
+				}
+				if p.IDBrand != nil {
+					brand = *p.IDBrand
+				}
+				if p.Layanan != nil {
+					lay = *p.Layanan
+				}
+				if p.AlamatCustom != nil {
+					al2 = *p.AlamatCustom
+				}
+				vals := []interface{}{p.ID, noKtpDec, p.Nama, p.Alamat, al2, p.Blok, p.Unit, p.NoTelp, p.Email, lay, brand, tgl}
+				for c, v := range vals {
+					cell, _ := excelize.CoordinatesToCellName(c+1, row)
+					f.SetCellValue(sheet, cell, v)
+				}
+				row++
+			}
+
+			offset += limit
+			if len(pelanggans) < limit {
+				break
+			}
+		}
+
 		buf, _ := f.WriteToBuffer()
 		return buf.Bytes(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nil
 	} else {
@@ -220,14 +248,53 @@ func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, s
 		w := csv.NewWriter(buf)
 		w.Comma = ';'
 		w.Write(headers)
-		for _, p := range pelanggans {
-			tgl, brand, lay, al2 := "", "", "", ""
-			if p.TglInstalasi != nil { tgl = p.TglInstalasi.Format("2006-01-02") }
-			if p.IDBrand != nil { brand = *p.IDBrand }
-			if p.Layanan != nil { lay = *p.Layanan }
-			if p.AlamatCustom != nil { al2 = *p.AlamatCustom }
-			w.Write([]string{fmt.Sprintf("%d", p.ID), p.NoKtp, p.Nama, p.Alamat, al2, p.Blok, p.Unit, p.NoTelp, p.Email, lay, brand, tgl})
+
+		for {
+			pelanggans, _, err := u.pelangganRepo.GetAll(ctx, limit, offset, "", "")
+			if err != nil {
+				return nil, "", err
+			}
+			if len(pelanggans) == 0 {
+				break
+			}
+
+			for _, p := range pelanggans {
+				noKtpDec := utils.Decrypt(p.NoKtp)
+				tgl, brand, lay, al2 := "", "", "", ""
+				if p.TglInstalasi != nil {
+					tgl = p.TglInstalasi.Format("2006-01-02")
+				}
+				if p.IDBrand != nil {
+					brand = *p.IDBrand
+				}
+				if p.Layanan != nil {
+					lay = *p.Layanan
+				}
+				if p.AlamatCustom != nil {
+					al2 = *p.AlamatCustom
+				}
+				w.Write([]string{
+					fmt.Sprintf("%d", p.ID),
+					noKtpDec,
+					p.Nama,
+					p.Alamat,
+					al2,
+					p.Blok,
+					p.Unit,
+					p.NoTelp,
+					p.Email,
+					lay,
+					brand,
+					tgl,
+				})
+			}
+
+			offset += limit
+			if len(pelanggans) < limit {
+				break
+			}
 		}
+
 		w.Flush()
 		return buf.Bytes(), "text/csv", nil
 	}

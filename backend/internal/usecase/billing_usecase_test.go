@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -447,5 +448,137 @@ func TestAutoVerifyPayments(t *testing.T) {
 
 	err := u.VerifyPayments(context.Background())
 	if err != nil { t.Fatalf("unexpected error: %v", err) }
+}
+
+func TestRetryFailedMikrotikSync(t *testing.T) {
+	// 1. Test empty pending list
+	t.Run("empty pending list", func(t *testing.T) {
+		dtRepo := &mockDataTeknisRepoWithPending{}
+		sysRepo := &mockSystemRepo{}
+		u := NewBillingUsecase(nil, nil, nil, nil, nil, dtRepo, nil, nil, sysRepo, nil).(*billingUsecase)
+
+		err := u.RetryFailedMikrotikSync(context.Background())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(dtRepo.updatedList) != 0 {
+			t.Errorf("expected no updates, got %d", len(dtRepo.updatedList))
+		}
+	})
+
+	// 2. Test pending list with failed sync (due to router offline/error)
+	t.Run("failed sync updates pending state", func(t *testing.T) {
+		serverID := uint64(1)
+		dt := domain.DataTeknis{
+			ID:                  1,
+			IDPelanggan:         "john_pppoe",
+			PasswordPppoe:       "secret",
+			MikrotikServerID:    &serverID,
+			MikrotikSyncPending: true,
+			Pelanggan: &domain.Pelanggan{
+				ID:   10,
+				Nama: "John Doe",
+				Langganan: []domain.Langganan{
+					{
+						ID:     20,
+						Status: "Aktif",
+					},
+				},
+			},
+		}
+
+		dtRepo := &mockDataTeknisRepoWithPending{
+			pendingList: []domain.DataTeknis{dt},
+		}
+		mikRepo := &mockMikrotikRepo{
+			GetByIDFunc: func(ctx context.Context, id uint64) (*domain.MikrotikServer, error) {
+				return nil, errors.New("router offline")
+			},
+		}
+		sysRepo := &mockSystemRepo{}
+		u := NewBillingUsecase(nil, nil, nil, nil, nil, dtRepo, mikRepo, nil, sysRepo, nil).(*billingUsecase)
+
+		err := u.RetryFailedMikrotikSync(context.Background())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Since dt.MikrotikSyncPending was already true, and it failed again,
+		// it should remain true and not call Update again to set it to true.
+		if len(dtRepo.updatedList) != 0 {
+			t.Errorf("expected no database update since status is already pending, got %d", len(dtRepo.updatedList))
+		}
+	})
+
+	// 3. Test pending list with transition from pending=false to pending=true
+	t.Run("transition to pending true on failure", func(t *testing.T) {
+		serverID := uint64(1)
+		dt := domain.DataTeknis{
+			ID:                  1,
+			IDPelanggan:         "john_pppoe",
+			PasswordPppoe:       "secret",
+			MikrotikServerID:    &serverID,
+			MikrotikSyncPending: false, // Start as false
+		}
+
+		dtRepo := &mockDataTeknisRepoWithPending{}
+		mikRepo := &mockMikrotikRepo{
+			GetByIDFunc: func(ctx context.Context, id uint64) (*domain.MikrotikServer, error) {
+				return nil, errors.New("router offline")
+			},
+		}
+		sysRepo := &mockSystemRepo{}
+		u := NewBillingUsecase(nil, nil, nil, nil, nil, dtRepo, mikRepo, nil, sysRepo, nil).(*billingUsecase)
+
+		err := u.triggerMikrotikUpdate(context.Background(), "john_pppoe", &dt, "Aktif")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+
+		if !dt.MikrotikSyncPending {
+			t.Error("expected MikrotikSyncPending to be set to true")
+		}
+		if len(dtRepo.updatedList) != 1 {
+			t.Fatalf("expected 1 database update, got %d", len(dtRepo.updatedList))
+		}
+		if !dtRepo.updatedList[0].MikrotikSyncPending {
+			t.Error("expected updated DataTeknis to have MikrotikSyncPending = true")
+		}
+	})
+}
+
+type mockMikrotikRepo struct {
+	domain.MikrotikRepository
+	GetByIDFunc func(ctx context.Context, id uint64) (*domain.MikrotikServer, error)
+}
+
+func (m *mockMikrotikRepo) GetByID(ctx context.Context, id uint64) (*domain.MikrotikServer, error) {
+	if m.GetByIDFunc != nil {
+		return m.GetByIDFunc(ctx, id)
+	}
+	return nil, errors.New("not found")
+}
+
+type mockDataTeknisRepoWithPending struct {
+	domain.DataTeknisRepository
+	pendingList []domain.DataTeknis
+	updatedList []*domain.DataTeknis
+	GetPendingSyncFunc func(ctx context.Context) ([]domain.DataTeknis, error)
+	UpdateFunc func(ctx context.Context, data *domain.DataTeknis) error
+}
+
+func (m *mockDataTeknisRepoWithPending) GetPendingSync(ctx context.Context) ([]domain.DataTeknis, error) {
+	if m.GetPendingSyncFunc != nil {
+		return m.GetPendingSyncFunc(ctx)
+	}
+	return m.pendingList, nil
+}
+
+func (m *mockDataTeknisRepoWithPending) Update(ctx context.Context, data *domain.DataTeknis) error {
+	m.updatedList = append(m.updatedList, data)
+	if m.UpdateFunc != nil {
+		return m.UpdateFunc(ctx, data)
+	}
+	return nil
 }
 

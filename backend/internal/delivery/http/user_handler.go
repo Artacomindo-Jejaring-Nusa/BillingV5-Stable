@@ -24,7 +24,7 @@ func NewUserHandler(r *gin.RouterGroup, uu domain.UserUsecase, authMiddleware gi
 	// Auth routes (public)
 	auth := r.Group("/auth")
 	{
-		auth.POST("/token", handler.Login)
+		auth.POST("/token", middleware.RateLimitMiddleware(15), handler.Login)
 		auth.POST("/refresh", handler.RefreshToken)
 		auth.POST("/logout", handler.Logout)
 		auth.GET("/password-requirements", handler.GetPasswordRequirements)
