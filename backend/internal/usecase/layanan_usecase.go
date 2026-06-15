@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"billing-backend/internal/domain"
+	"billing-backend/internal/websocket"
 )
 
 // --- HargaLayananUsecase Implementation ---
@@ -28,6 +29,7 @@ func (u *hargaLayananUsecase) Create(ctx context.Context, brand *domain.HargaLay
 	if err := u.repo.Create(ctx, brand); err != nil {
 		return nil, err
 	}
+	websocket.InvalidateDashboardCache(ctx)
 	return u.repo.GetByID(ctx, brand.IDBrand)
 }
 
@@ -71,6 +73,7 @@ func (u *hargaLayananUsecase) Update(ctx context.Context, idBrand string, update
 	if err := u.repo.Update(ctx, brand); err != nil {
 		return nil, err
 	}
+	websocket.InvalidateDashboardCache(ctx)
 	return u.repo.GetByID(ctx, idBrand)
 }
 
@@ -79,7 +82,11 @@ func (u *hargaLayananUsecase) Delete(ctx context.Context, idBrand string) error 
 	if err != nil || brand == nil {
 		return errors.New("brand tidak ditemukan")
 	}
-	return u.repo.Delete(ctx, idBrand)
+	err = u.repo.Delete(ctx, idBrand)
+	if err == nil {
+		websocket.InvalidateDashboardCache(ctx)
+	}
+	return err
 }
 
 // --- PaketLayananUsecase Implementation ---
@@ -109,6 +116,7 @@ func (u *paketLayananUsecase) Create(ctx context.Context, paket *domain.PaketLay
 	if err := u.repo.Create(ctx, paket); err != nil {
 		return nil, err
 	}
+	websocket.InvalidateDashboardCache(ctx)
 	return u.repo.GetByID(ctx, paket.ID)
 }
 
@@ -164,6 +172,7 @@ func (u *paketLayananUsecase) Update(ctx context.Context, id uint64, updates map
 	if err := u.repo.Update(ctx, paket); err != nil {
 		return nil, err
 	}
+	websocket.InvalidateDashboardCache(ctx)
 	return u.repo.GetByID(ctx, id)
 }
 
@@ -172,7 +181,11 @@ func (u *paketLayananUsecase) Delete(ctx context.Context, id uint64) error {
 	if err != nil || paket == nil {
 		return errors.New("paket layanan tidak ditemukan")
 	}
-	return u.repo.Delete(ctx, id)
+	err = u.repo.Delete(ctx, id)
+	if err == nil {
+		websocket.InvalidateDashboardCache(ctx)
+	}
+	return err
 }
 
 // --- DiskonUsecase Implementation ---

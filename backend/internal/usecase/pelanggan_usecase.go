@@ -95,6 +95,7 @@ func (u *pelangganUsecase) Store(ctx context.Context, pelanggan *domain.Pelangga
 	if websocket.GlobalHub != nil {
 		websocket.GlobalHub.BroadcastNotification("new_customer", map[string]interface{}{"pelanggan_nama": pelanggan.Nama})
 	}
+	websocket.InvalidateDashboardCache(ctx)
 	return nil
 }
 
@@ -129,6 +130,7 @@ func (u *pelangganUsecase) Update(ctx context.Context, id uint64, req *domain.Pe
 	err = u.pelangganRepo.Update(ctx, existing)
 	if err == nil {
 		u.logActivity(ctx, "Update Pelanggan", fmt.Sprintf("Updated pelanggan: %s (ID: %d)", existing.Nama, id))
+		websocket.InvalidateDashboardCache(ctx)
 	}
 	return err
 }
@@ -140,6 +142,7 @@ func (u *pelangganUsecase) Delete(ctx context.Context, id uint64) error {
 	err = u.pelangganRepo.Delete(ctx, id)
 	if err == nil {
 		u.logActivity(ctx, "Delete Pelanggan", fmt.Sprintf("Deleted pelanggan: %s (ID: %d)", pelanggan.Nama, id))
+		websocket.InvalidateDashboardCache(ctx)
 	}
 	return err
 }
@@ -184,6 +187,7 @@ func (u *pelangganUsecase) ImportFromCSV(ctx context.Context, csvContent string)
 	}
 	if successCount > 0 {
 		u.logActivity(ctx, "Import Pelanggan", fmt.Sprintf("Imported %d pelanggan from CSV", successCount))
+		websocket.InvalidateDashboardCache(ctx)
 	}
 	return successCount, nil
 }

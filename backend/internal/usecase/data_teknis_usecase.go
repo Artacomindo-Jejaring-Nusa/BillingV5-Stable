@@ -181,6 +181,7 @@ func (u *dataTeknisUsecase) Store(ctx context.Context, data *domain.DataTeknis) 
 		}
 	}
 
+	websocket.InvalidateDashboardCache(ctx)
 	return nil
 }
 
@@ -249,6 +250,7 @@ func (u *dataTeknisUsecase) Update(ctx context.Context, id uint64, data *domain.
 		}
 	}
 
+	websocket.InvalidateDashboardCache(ctx)
 	return nil
 }
 
@@ -268,7 +270,11 @@ func (u *dataTeknisUsecase) Delete(ctx context.Context, id uint64) error {
 		})
 	}
 
-	return u.dataTeknisRepo.Delete(ctx, id)
+	err = u.dataTeknisRepo.Delete(ctx, id)
+	if err == nil {
+		websocket.InvalidateDashboardCache(ctx)
+	}
+	return err
 }
 
 func (u *dataTeknisUsecase) GetAvailableOLT(ctx context.Context) ([]string, error) {
