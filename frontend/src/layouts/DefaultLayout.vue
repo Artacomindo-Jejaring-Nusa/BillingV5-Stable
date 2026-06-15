@@ -1243,7 +1243,7 @@ let reconnectTimeout: NodeJS.Timeout | null = null;
 let notificationCleanupInterval: NodeJS.Timeout | null = null;
 let tokenCheckInterval: NodeJS.Timeout | null = null;
 let wsRetryCount = 0;
-const maxWsRetries = 3;
+const maxWsRetries = 100;
 let audioContext: AudioContext | null = null;
 let audioInitialized = false;
 
@@ -1573,7 +1573,7 @@ function connectWebSocket() {
     if (pingInterval) clearInterval(pingInterval);
     if (tokenCheckInterval) clearInterval(tokenCheckInterval);
 
-    const shouldNotReconnect = [1000, 1001, 1005, 1006, 1008].includes(event.code) ||
+    const shouldNotReconnect = [1000, 1008].includes(event.code) ||
                                event.reason === "Connection replaced" ||
                                event.reason === "Logout Pengguna" ||
                                event.reason?.includes("Invalid token") ||
@@ -1612,8 +1612,10 @@ function connectWebSocket() {
         // Token error - use refresh token approach
         reconnectTimeout = setTimeout(refreshTokenAndReconnect, 1000);
       } else {
-        // Other errors - standard reconnection
-        reconnectTimeout = setTimeout(connectWebSocket, 5000);
+        // Other errors - standard reconnection with exponential backoff (2s, 4s, 8s, 16s, up to max 30s)
+        const backoffDelay = Math.min(2000 * Math.pow(2, wsRetryCount - 1), 30000);
+        console.log(`[WebSocket] Menghubungkan kembali dalam ${backoffDelay / 1000} detik... (Percobaan ke-${wsRetryCount})`);
+        reconnectTimeout = setTimeout(connectWebSocket, backoffDelay);
       }
     }
   };
