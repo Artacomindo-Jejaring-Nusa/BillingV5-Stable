@@ -225,10 +225,10 @@ func (InvoiceArchive) TableName() string {
 type PaymentCallbackLog struct {
 	ID             uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	IdempotencyKey *string   `gorm:"type:varchar(255);index" json:"idempotency_key"`
-	XenditID       string    `gorm:"type:varchar(255);index;not null" json:"xendit_id"`
-	ExternalID     string    `gorm:"type:varchar(255);index;not null" json:"external_id"`
+	XenditID       string    `gorm:"type:varchar(255);index;index:idx_xendit_status;index:idx_external_xendit;not null" json:"xendit_id"`
+	ExternalID     string    `gorm:"type:varchar(255);index;index:idx_external_xendit;not null" json:"external_id"`
 	CallbackData   *string   `gorm:"type:varchar(1000)" json:"callback_data"`
-	Status         string    `gorm:"type:varchar(50);index;not null" json:"status"`
+	Status         string    `gorm:"type:varchar(50);index;index:idx_xendit_status;not null" json:"status"`
 	ProcessedAt    time.Time `gorm:"type:datetime;default:CURRENT_TIMESTAMP" json:"processed_at"`
 	CreatedAt      time.Time `gorm:"type:datetime;default:CURRENT_TIMESTAMP" json:"created_at"`
 }
