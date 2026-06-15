@@ -2072,9 +2072,8 @@ async function confirmBulkDelete() {
       apiClient.delete(`/data_teknis/${item.id}`)
     );
     await Promise.all(deletePromises);
+    await fetchDataTeknis();
     showSnackbar(`${itemsToDelete.length} data teknis berhasil dihapus.`, 'success');
-    fetchDataTeknis();
-    // Statistik akan dihitung ulang otomatis di dalam fetchDataTeknis()
     selectedDataTeknis.value = [];
   } catch (error) {
     console.error("Gagal melakukan hapus massal data teknis:", error);
@@ -2090,11 +2089,12 @@ async function confirmDelete() {
   deleting.value = true;
   try {
     await apiClient.delete(`/data_teknis/${itemToDeleteId.value}`);
-    fetchDataTeknis();
-    // Statistik akan dihitung ulang otomatis di dalam fetchDataTeknis()
+    await fetchDataTeknis();
+    showSnackbar('Data teknis berhasil dihapus', 'success');
     closeDeleteDialog();
   } catch (error) {
     console.error("Gagal menghapus data teknis:", error);
+    showSnackbar('Gagal menghapus data teknis', 'error');
   } finally {
     deleting.value = false;
   }
