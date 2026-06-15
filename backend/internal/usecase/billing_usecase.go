@@ -244,6 +244,7 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 	if err != nil || brand == nil {
 		return nil, errors.New("brand not found")
 	}
+	pelanggan.HargaLayanan = brand
 
 	dt, _ := u.dataTeknisRepo.GetByPelangganID(ctx, pelanggan.ID)
 
