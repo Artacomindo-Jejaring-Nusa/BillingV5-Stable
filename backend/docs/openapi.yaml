@@ -1,0 +1,2546 @@
+openapi: 3.0.3
+info:
+  title: Billing Revaktor API Documentation
+  description: Complete and comprehensive API reference for the Billing Revaktor backend system, powered by Go/Gin, GORM, and Scalar.
+  version: 5.0.12
+servers:
+  - url: /api/v1
+    description: Current Base URL relative path (works with any domain or Cloudflare subdomain)
+paths:
+  /auth/token:
+    post:
+      tags:
+        - Auth
+      summary: Login User / Get Access Token
+      description: Exchanges credentials for JWT access and refresh tokens.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: Bearer
+        '401':
+          description: Invalid credentials
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh Access Token
+      description: Generates a new access token using a valid refresh token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  example: refresh_token_string
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout User
+      description: Blacklists the provided refresh token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Logged out successfully
+
+  /auth/logout-all:
+    post:
+      tags:
+        - Auth
+      summary: Logout All Devices
+      description: Revokes and blacklists all active tokens and sessions for the current logged-in user.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logged out all sessions successfully
+
+  /auth/password-requirements:
+    get:
+      tags:
+        - Auth
+      summary: Get Password Requirements
+      description: Returns password policy rules (e.g., minimum length, uppercase, digits).
+      responses:
+        '200':
+          description: Success
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Get Logged In User Profile
+      description: Retrieves the current active user's details.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Get All Users
+      description: Lists users with pagination and search parameters.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Users
+      summary: Create New User
+      description: Registers a new user into the database.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+                - role_id
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                role_id:
+                  type: integer
+                is_active:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: Created
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get User By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags:
+        - Users
+      summary: Update User By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                role_id:
+                  type: integer
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Users
+      summary: Delete User By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /roles:
+    get:
+      tags:
+        - Roles & Permissions
+      summary: List All Roles
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Roles & Permissions
+      summary: Create New Role
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                permission_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '201':
+          description: Success
+
+  /roles/{id}:
+    get:
+      tags:
+        - Roles & Permissions
+      summary: Get Role By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags:
+        - Roles & Permissions
+      summary: Update Role By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                permission_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Roles & Permissions
+      summary: Delete Role
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /permissions:
+    get:
+      tags:
+        - Roles & Permissions
+      summary: Get All Permissions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /harga_layanan:
+    get:
+      tags:
+        - Layanan - Harga Layanan (Brands)
+      summary: Get All Brands
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Layanan - Harga Layanan (Brands)
+      summary: Create Brand
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id_brand
+                - brand
+                - pajak
+              properties:
+                id_brand:
+                  type: string
+                brand:
+                  type: string
+                pajak:
+                  type: number
+                xendit_key_name:
+                  type: string
+      responses:
+        '201':
+          description: Created
+
+  /harga_layanan/{id}:
+    get:
+      tags:
+        - Layanan - Harga Layanan (Brands)
+      summary: Get Brand By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags:
+        - Layanan - Harga Layanan (Brands)
+      summary: Update Brand By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                brand:
+                  type: string
+                pajak:
+                  type: number
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Layanan - Harga Layanan (Brands)
+      summary: Delete Brand
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+
+  /paket_layanan:
+    get:
+      tags:
+        - Layanan - Paket Layanan
+      summary: Get All Packages
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Layanan - Paket Layanan
+      summary: Create Package
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - paket
+                - harga
+                - kecepatan
+                - id_brand
+              properties:
+                paket:
+                  type: string
+                deskripsi:
+                  type: string
+                harga:
+                  type: number
+                kecepatan:
+                  type: integer
+                id_brand:
+                  type: string
+                share_bandwidth:
+                  type: integer
+                limit_at_rx:
+                  type: string
+                limit_at_tx:
+                  type: string
+                max_limit_rx:
+                  type: string
+                max_limit_tx:
+                  type: string
+      responses:
+        '201':
+          description: Created
+
+  /paket_layanan/{id}:
+    get:
+      tags:
+        - Layanan - Paket Layanan
+      summary: Get Package By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags:
+        - Layanan - Paket Layanan
+      summary: Update Package
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paket:
+                  type: string
+                deskripsi:
+                  type: string
+                harga:
+                  type: number
+                kecepatan:
+                  type: integer
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Layanan - Paket Layanan
+      summary: Delete Package
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /diskon:
+    get:
+      tags:
+        - Layanan - Diskon
+      summary: Get All Discounts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Layanan - Diskon
+      summary: Create Discount
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nama_diskon
+                - tipe_diskon
+                - nilai_diskon
+              properties:
+                nama_diskon:
+                  type: string
+                deskripsi:
+                  type: string
+                tipe_diskon:
+                  type: string
+                  enum: [Nominal, Persentase]
+                nilai_diskon:
+                  type: number
+                tanggal_mulai:
+                  type: string
+                  format: date
+                tanggal_selesai:
+                  type: string
+                  format: date
+                min_langganan:
+                  type: integer
+                is_aktif:
+                  type: boolean
+                cluster:
+                  type: string
+      responses:
+        '201':
+          description: Created
+
+  /diskon/{id}:
+    get:
+      tags:
+        - Layanan - Diskon
+      summary: Get Discount By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags:
+        - Layanan - Diskon
+      summary: Update Discount By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nama_diskon:
+                  type: string
+                deskripsi:
+                  type: string
+                tipe_diskon:
+                  type: string
+                nilai_diskon:
+                  type: number
+                tanggal_mulai:
+                  type: string
+                  format: date
+                tanggal_selesai:
+                  type: string
+                  format: date
+                min_langganan:
+                  type: integer
+                is_aktif:
+                  type: boolean
+                cluster:
+                  type: string
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Layanan - Diskon
+      summary: Delete Discount
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /diskon/{id}/activate:
+    patch:
+      tags:
+        - Layanan - Diskon
+      summary: Toggle Active State
+      description: Switches active status (true/false) for discount.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /diskon/by-cluster/{cluster}:
+    get:
+      tags:
+        - Layanan - Diskon
+      summary: Get Discounts By Cluster
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cluster
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+
+  /diskon/clusters/list:
+    get:
+      tags:
+        - Layanan - Diskon
+      summary: Get Unique Cluster List
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /pelanggan:
+    get:
+      tags:
+        - Pelanggan
+      summary: Get All Customers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Pelanggan
+      summary: Create Customer
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id_pelanggan
+                - nama
+                - no_telepon
+                - email
+              properties:
+                id_pelanggan:
+                  type: string
+                nama:
+                  type: string
+                no_telepon:
+                  type: string
+                email:
+                  type: string
+                no_ktp:
+                  type: string
+                alamat:
+                  type: string
+                cluster:
+                  type: string
+      responses:
+        '201':
+          description: Created
+
+  /pelanggan/{id}:
+    get:
+      tags:
+        - Pelanggan
+      summary: Get Customer By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags:
+        - Pelanggan
+      summary: Update Customer By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nama:
+                  type: string
+                no_telepon:
+                  type: string
+                email:
+                  type: string
+                no_ktp:
+                  type: string
+                alamat:
+                  type: string
+                cluster:
+                  type: string
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Pelanggan
+      summary: Delete Customer By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /mikrotik:
+    get:
+      tags:
+        - Mikrotik Servers
+      summary: Get All Mikrotik Servers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Mikrotik Servers
+      summary: Create Mikrotik Server
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - host_ip
+                - username
+                - password
+              properties:
+                name:
+                  type: string
+                host_ip:
+                  type: string
+                username:
+                  type: string
+                password:
+                  type: string
+                port:
+                  type: integer
+                  default: 8728
+                is_active:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: Created
+
+  /mikrotik/{id}:
+    get:
+      tags:
+        - Mikrotik Servers
+      summary: Get Mikrotik Server By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    put:
+      tags:
+        - Mikrotik Servers
+      summary: Update Mikrotik Server
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                host_ip:
+                  type: string
+                username:
+                  type: string
+                password:
+                  type: string
+                port:
+                  type: integer
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Mikrotik Servers
+      summary: Delete Mikrotik Server
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /mikrotik/{id}/test_connection:
+    post:
+      tags:
+        - Mikrotik Servers
+      summary: Test Connection to Mikrotik
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Connection successful or details
+
+  /olt:
+    get:
+      tags:
+        - OLT
+      summary: Get All OLTs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - OLT
+      summary: Create OLT
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - ip_address
+              properties:
+                name:
+                  type: string
+                ip_address:
+                  type: string
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '201':
+          description: Created
+
+  /olt/{id}:
+    get:
+      tags:
+        - OLT
+      summary: Get OLT By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    put:
+      tags:
+        - OLT
+      summary: Update OLT
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - OLT
+      summary: Delete OLT
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /olt/{id}/test-connection:
+    post:
+      tags:
+        - OLT
+      summary: Test Connection to OLT
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /odp:
+    get:
+      tags:
+        - ODP
+      summary: Get All ODPs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - ODP
+      summary: Create ODP
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - zone
+              properties:
+                name:
+                  type: string
+                zone:
+                  type: string
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+      responses:
+        '201':
+          description: Created
+
+  /odp/{id}:
+    get:
+      tags:
+        - ODP
+      summary: Get ODP By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    put:
+      tags:
+        - ODP
+      summary: Update ODP
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - ODP
+      summary: Delete ODP
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /data_teknis:
+    get:
+      tags:
+        - Data Teknis
+      summary: Get All Data Teknis
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: skip
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: olt
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: profile
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: vlan
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Data Teknis
+      summary: Create Technical Record (Data Teknis)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pelanggan_id
+                - mikrotik_server_id
+                - odp_id
+                - id_pelanggan
+              properties:
+                pelanggan_id:
+                  type: integer
+                mikrotik_server_id:
+                  type: integer
+                odp_id:
+                  type: integer
+                port_odp:
+                  type: string
+                id_vlan:
+                  type: string
+                id_pelanggan:
+                  type: string
+                password_pppoe:
+                  type: string
+                ip_pelanggan:
+                  type: string
+                profile_pppoe:
+                  type: string
+                olt:
+                  type: string
+                olt_custom:
+                  type: string
+                pon:
+                  type: string
+                otb:
+                  type: string
+                odc:
+                  type: string
+                onu_power:
+                  type: number
+                sn:
+                  type: string
+      responses:
+        '201':
+          description: Created
+
+  /data_teknis/{id}:
+    get:
+      tags:
+        - Data Teknis
+      summary: Get Data Teknis By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    put:
+      tags:
+        - Data Teknis
+      summary: Update Data Teknis
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Data Teknis
+      summary: Delete Data Teknis
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /data_teknis/by-pelanggan/{id}:
+    get:
+      tags:
+        - Data Teknis
+      summary: Get Data Teknis By Customer ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /data_teknis/check-ip:
+    post:
+      tags:
+        - Data Teknis
+      summary: Check IP Availability
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ip_address
+              properties:
+                ip_address:
+                  type: string
+                current_id:
+                  type: integer
+                  nullable: true
+      responses:
+        '200':
+          description: Returns boolean availability
+
+  /data_teknis/available-olt:
+    get:
+      tags:
+        - Data Teknis
+      summary: List Available OLTs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /data_teknis/available-profiles:
+    get:
+      tags:
+        - Data Teknis
+      summary: Get Available PPPoE Profiles
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /data_teknis/available-vlans:
+    get:
+      tags:
+        - Data Teknis
+      summary: Get Available VLANs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /data_teknis/onu-power-ranges:
+    get:
+      tags:
+        - Data Teknis
+      summary: Get ONU Power Warning Ranges
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /data_teknis/available-profiles/{id_brand}/{paket_layanan_id}:
+    get:
+      tags:
+        - Data Teknis
+      summary: Get Available Profiles for Brand & Package
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id_brand
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: paket_layanan_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: mikrotik_server_id
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /data_teknis/last-ip/{id_brand}:
+    get:
+      tags:
+        - Data Teknis
+      summary: Get Last Used IP Address for Brand
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id_brand
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+
+  /data_teknis/template/csv:
+    get:
+      tags:
+        - Data Teknis
+      summary: Download CSV Import Template
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success (CSV File)
+
+  /data_teknis/import/csv:
+    post:
+      tags:
+        - Data Teknis
+      summary: Import CSV file for technical records
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Success
+
+  /invoices:
+    get:
+      tags:
+        - Billing - Invoices
+      summary: List Invoices
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Billing - Invoices
+      summary: Create Invoice Manually
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pelanggan_id
+                - no_invoice
+                - total
+              properties:
+                pelanggan_id:
+                  type: integer
+                no_invoice:
+                  type: string
+                total:
+                  type: number
+                ppn:
+                  type: number
+                status:
+                  type: string
+      responses:
+        '201':
+          description: Created
+
+  /invoices/{id}:
+    get:
+      tags:
+        - Billing - Invoices
+      summary: Get Invoice Details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /invoices/{id}/status:
+    patch:
+      tags:
+        - Billing - Invoices
+      summary: Update Invoice Status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  example: PAID
+      responses:
+        '200':
+          description: Success
+
+  /langganan:
+    get:
+      tags:
+        - Billing - Langganan
+      summary: List Subscriptions (Langganan)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Billing - Langganan
+      summary: Create Subscription
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pelanggan_id
+                - paket_layanan_id
+                - status
+              properties:
+                pelanggan_id:
+                  type: integer
+                paket_layanan_id:
+                  type: integer
+                status:
+                  type: string
+                tgl_jatuh_tempo:
+                  type: string
+                  format: date
+                tgl_mulai_langganan:
+                  type: string
+                  format: date
+                metode_pembayaran:
+                  type: string
+                harga_awal:
+                  type: number
+      responses:
+        '201':
+          description: Created
+
+  /langganan/{id}:
+    get:
+      tags:
+        - Billing - Langganan
+      summary: Get Subscription By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    put:
+      tags:
+        - Billing - Langganan
+      summary: Update Subscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Billing - Langganan
+      summary: Delete Subscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /trouble-tickets:
+    get:
+      tags:
+        - Trouble Tickets
+      summary: List Trouble Tickets
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: priority
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Trouble Tickets
+      summary: Create Trouble Ticket
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pelanggan_id
+                - title
+                - category
+                - priority
+              properties:
+                pelanggan_id:
+                  type: integer
+                title:
+                  type: string
+                description:
+                  type: string
+                category:
+                  type: string
+                priority:
+                  type: string
+      responses:
+        '201':
+          description: Created
+
+  /trouble-tickets/statistics:
+    get:
+      tags:
+        - Trouble Tickets
+      summary: Get Ticket Dashboard Statistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /trouble-tickets/{id}:
+    get:
+      tags:
+        - Trouble Tickets
+      summary: Get Ticket By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    put:
+      tags:
+        - Trouble Tickets
+      summary: Update Ticket Details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Trouble Tickets
+      summary: Delete Ticket
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /trouble-tickets/{id}/status:
+    patch:
+      tags:
+        - Trouble Tickets
+      summary: Update Ticket Status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  example: In Progress
+      responses:
+        '200':
+          description: Success
+
+  /trouble-tickets/{id}/downtime:
+    patch:
+      tags:
+        - Trouble Tickets
+      summary: Update Ticket Downtime Logs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                downtime_start:
+                  type: string
+                  format: date-time
+                downtime_end:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Success
+
+  /trouble-tickets/{id}/assign:
+    patch:
+      tags:
+        - Trouble Tickets
+      summary: Assign Ticket to User
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assigned_to
+              properties:
+                assigned_to:
+                  type: integer
+      responses:
+        '200':
+          description: Success
+
+  /trouble-tickets/{id}/actions:
+    get:
+      tags:
+        - Trouble Tickets
+      summary: Get Actions Taken for Ticket
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Trouble Tickets
+      summary: Add Action Taken for Ticket
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - action_details
+              properties:
+                action_details:
+                  type: string
+      responses:
+        '201':
+          description: Success
+
+  /trouble-tickets/{id}/history:
+    get:
+      tags:
+        - Trouble Tickets
+      summary: Get Ticket Audit History
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /inventory/items:
+    get:
+      tags:
+        - Inventory
+      summary: List Inventory Items
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Inventory
+      summary: Create Inventory Item
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - serial_number
+                - item_type_id
+                - status_id
+              properties:
+                serial_number:
+                  type: string
+                mac_address:
+                  type: string
+                item_type_id:
+                  type: integer
+                status_id:
+                  type: integer
+                location:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Created
+
+  /inventory/items/{id}:
+    get:
+      tags:
+        - Inventory
+      summary: Get Inventory Item Details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    put:
+      tags:
+        - Inventory
+      summary: Update Inventory Item
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Inventory
+      summary: Delete Inventory Item
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /inventory/items/{id}/assign:
+    post:
+      tags:
+        - Inventory
+      summary: Assign Inventory Item to Customer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pelanggan_id
+              properties:
+                pelanggan_id:
+                  type: integer
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Success
+
+  /inventory/items/{id}/unassign:
+    post:
+      tags:
+        - Inventory
+      summary: Unassign Inventory Item from Customer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Success
+
+  /inventory/items/{id}/history:
+    get:
+      tags:
+        - Inventory
+      summary: Get Item Ownership History
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /inventory/types:
+    get:
+      tags:
+        - Inventory
+      summary: List Inventory Item Types
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /inventory/statuses:
+    get:
+      tags:
+        - Inventory
+      summary: List Inventory Item Statuses
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /system/activity-logs:
+    get:
+      tags:
+        - System
+      summary: Get Admin Activity Audit Logs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+
+  /system/settings:
+    post:
+      tags:
+        - System
+      summary: Set/Save App Setting Key-Value
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - key
+                - value
+              properties:
+                key:
+                  type: string
+                value:
+                  type: string
+      responses:
+        '200':
+          description: Success
+
+  /system/settings/{key}:
+    get:
+      tags:
+        - System
+      summary: Get App Setting Value By Key
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+
+  /system/sk:
+    get:
+      tags:
+        - System
+      summary: List Syarat & Ketentuan (SK) Versions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - System
+      summary: Create SK Version
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - versi
+                - konten
+              properties:
+                versi:
+                  type: string
+                konten:
+                  type: string
+                is_aktif:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: Created
+
+  /system/sk/{id}:
+    get:
+      tags:
+        - System
+      summary: Get SK Details By ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+    put:
+      tags:
+        - System
+      summary: Update SK Version
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - System
+      summary: Delete SK Version
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+
+  /dashboard:
+    get:
+      tags:
+        - Dashboard
+      summary: Get Admin Dashboard Metrics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /dashboard/loyalitas-users-by-segment:
+    get:
+      tags:
+        - Dashboard
+      summary: List Customers Segment Loyalty
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: segmen
+          in: query
+          required: true
+          schema:
+            type: string
+            example: JKN
+      responses:
+        '200':
+          description: Success
+
+  /dashboard/sidebar-badges:
+    get:
+      tags:
+        - Dashboard
+      summary: Get Notification Sidebar Badges Counter
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /dashboard/paket-details:
+    get:
+      tags:
+        - Dashboard
+      summary: Get Subscriptions Distribution By Packages
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /dashboard/invoice-generation-monitor:
+    get:
+      tags:
+        - Dashboard
+      summary: Monitor Monthly Invoice Generations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: target_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Success
+
+  /dashboard/future-invoice-projection:
+    get:
+      tags:
+        - Dashboard
+      summary: Project Future Billing Revenue
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: target_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Success
+
+  /dashboard-pelanggan:
+    get:
+      tags:
+        - Dashboard Pelanggan
+      summary: Get Customer Segment Analytics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: timespan
+          in: query
+          required: false
+          schema:
+            type: string
+            default: 6m
+      responses:
+        '200':
+          description: Success
+
+  /notifications/unread:
+    get:
+      tags:
+        - Notifications
+      summary: Fetch Unread Alerts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+  /notifications/{id}/mark-as-read:
+    post:
+      tags:
+        - Notifications
+      summary: Dismiss Single Alert
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+
+  /notifications/mark-all-as-read:
+    post:
+      tags:
+        - Notifications
+      summary: Dismiss All Alerts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

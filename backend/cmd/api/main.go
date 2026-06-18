@@ -160,6 +160,27 @@ func main() {
 	}))
 
 	router.Static("/static/uploads", "./uploads")
+	router.StaticFile("/docs/openapi.yaml", "./docs/openapi.yaml")
+	router.GET("/docs", func(c *gin.Context) {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, `<!doctype html>
+<html>
+  <head>
+    <title>Billing Revaktor API Reference</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script id="api-reference" data-url="/docs/openapi.yaml"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  </body>
+</html>`)
+	})
 	router.GET("/ws/notifications", httpDelivery.HandleWebSocket)
 
 	// 6. Setup Health Check
