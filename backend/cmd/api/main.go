@@ -161,6 +161,9 @@ func main() {
 
 	router.Static("/static/uploads", "./uploads")
 	router.StaticFile("/docs/openapi.yaml", "./docs/openapi.yaml")
+	router.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/docs")
+	})
 	router.GET("/docs", func(c *gin.Context) {
 		c.Header("Content-Type", "text/html; charset=utf-8")
 		c.String(http.StatusOK, `<!doctype html>
