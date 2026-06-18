@@ -76,6 +76,11 @@ func (u *pelangganUsecase) Store(ctx context.Context, pelanggan *domain.Pelangga
 	if pelanggan.Email == "" { return errors.New("email is required") }
 	existingEmail, err := u.pelangganRepo.GetByEmail(ctx, pelanggan.Email)
 	if err == nil && existingEmail != nil { return errors.New("Email sudah terdaftar") }
+
+	if pelanggan.NoTelp != "" {
+		existingPhone, err := u.pelangganRepo.GetByNoTelp(ctx, pelanggan.NoTelp)
+		if err == nil && existingPhone != nil { return errors.New("No. Telepon sudah terdaftar") }
+	}
 	
 	// Encrypt NIK if it's not already encrypted and not dummy
 	if pelanggan.NoKtp != "" && !utils.GlobalEncryptionService.IsEncrypted(pelanggan.NoKtp) {
@@ -107,6 +112,11 @@ func (u *pelangganUsecase) Update(ctx context.Context, id uint64, req *domain.Pe
 	if req.Email != "" {
 		dupEmail, err := u.pelangganRepo.GetByEmail(ctx, req.Email)
 		if err == nil && dupEmail != nil && dupEmail.ID != id { return errors.New("Email sudah terdaftar oleh pelanggan lain") }
+	}
+
+	if req.NoTelp != "" {
+		dupPhone, err := u.pelangganRepo.GetByNoTelp(ctx, req.NoTelp)
+		if err == nil && dupPhone != nil && dupPhone.ID != id { return errors.New("No. Telepon sudah terdaftar oleh pelanggan lain") }
 	}
 	
 	// Encrypt NIK if updated
@@ -170,6 +180,11 @@ func (u *pelangganUsecase) ImportFromCSV(ctx context.Context, csvContent string)
 		nama, email := getV("nama"), getV("email")
 		if nama == "" || email == "" { continue }
 		if ex, _ := u.pelangganRepo.GetByEmail(ctx, email); ex != nil { continue }
+
+		noTelp := getV("no telp")
+		if noTelp != "" {
+			if exPhone, _ := u.pelangganRepo.GetByNoTelp(ctx, noTelp); exPhone != nil { continue }
+		}
 		
 		nik := getV("no ktp")
 		if nik != "" && !utils.GlobalEncryptionService.IsEncrypted(nik) {

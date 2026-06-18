@@ -146,6 +146,18 @@ func (r *pelangganRepository) GetByNoKtp(ctx context.Context, noKtp string) (*do
 	return &pelanggan, nil
 }
 
+func (r *pelangganRepository) GetByNoTelp(ctx context.Context, noTelp string) (*domain.Pelanggan, error) {
+	var pelanggan domain.Pelanggan
+	err := r.db.WithContext(ctx).Preload("Langganan").Where("no_telp = ?", noTelp).First(&pelanggan).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &pelanggan, nil
+}
+
 func (r *pelangganRepository) GetUniqueLocations(ctx context.Context) ([]string, error) {
 	var locations []string
 	err := r.db.WithContext(ctx).Model(&domain.Pelanggan{}).

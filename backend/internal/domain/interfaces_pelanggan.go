@@ -12,6 +12,7 @@ type PelangganRepository interface {
 	GetByEmail(ctx context.Context, email string) (*Pelanggan, error)
 	GetByEmails(ctx context.Context, emails []string) ([]Pelanggan, error)
 	GetByNoKtp(ctx context.Context, noKtp string) (*Pelanggan, error)
+	GetByNoTelp(ctx context.Context, noTelp string) (*Pelanggan, error)
 	GetUniqueLocations(ctx context.Context) ([]string, error)
 }
 
