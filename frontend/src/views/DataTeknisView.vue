@@ -1019,7 +1019,6 @@
         </v-card-text>
       </v-card>
     </v-dialog>
-  </v-container>
 
     <!-- Import Dialog -->
     <v-dialog v-model="dialogImport" max-width="900px" :fullscreen="display.mobile.value" persistent class="import-dialog">
@@ -1190,6 +1189,7 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+  </v-container>
 </template>
 
 <script setup lang="ts">
