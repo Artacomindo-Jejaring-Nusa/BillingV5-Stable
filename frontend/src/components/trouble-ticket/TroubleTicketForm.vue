@@ -1,5 +1,16 @@
 <template>
   <v-dialog v-model="dialog" max-width="1000" persistent scrollable>
+    <!-- Loading Overlay -->
+    <v-dialog v-model="loading" persistent max-width="320">
+      <v-card class="py-4 rounded-xl text-center">
+        <v-card-text>
+          <v-progress-circular indeterminate color="primary" size="64" width="6" class="mb-4"></v-progress-circular>
+          <div class="text-h6 font-weight-bold mb-1">Sedang Memproses</div>
+          <div class="text-body-2 text-medium-emphasis">Mohon tunggu sebentar...</div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
     <v-card class="modern-form-card" elevation="0" rounded="xl">
       <!-- Modern Header with Gradient -->
       <div class="modern-header">

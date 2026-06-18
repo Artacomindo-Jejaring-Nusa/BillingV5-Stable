@@ -1008,6 +1008,17 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+    
+    <!-- Loading Overlay -->
+    <v-dialog v-model="saving" persistent max-width="320">
+      <v-card class="py-4 rounded-xl text-center">
+        <v-card-text>
+          <v-progress-circular indeterminate color="primary" size="64" width="6" class="mb-4"></v-progress-circular>
+          <div class="text-h6 font-weight-bold mb-1">Sedang Memproses</div>
+          <div class="text-body-2 text-medium-emphasis">Mohon tunggu sebentar...</div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </v-container>
 
     <!-- Import Dialog -->
