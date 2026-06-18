@@ -2499,7 +2499,7 @@ const handleNewNotification = async (event: Event) => {
     newPelangganIdMarker.value = newPelangganId;
     
     await fetchPelangganForSelect();
-    await fetchLangganan();
+    await fetchLangganan(false, desktopPage.value);
 
     // Cari objek pelanggan yang baru dari daftar yang sudah di-update
     const newPelanggan = pelangganSelectList.value.find(p => p.id === newPelangganId);
@@ -2759,7 +2759,7 @@ async function confirmBulkDelete() {
     );
     await Promise.all(deletePromises);
 
-    await fetchLangganan();
+    await fetchLangganan(false, desktopPage.value);
     selectedLangganan.value = [];
     showSnackbar(`${itemsToDelete.length} langganan berhasil dihapus.`, 'success');
   } catch (error) {
@@ -3042,12 +3042,13 @@ async function saveLangganan() {
       };
       await apiClient.patch(`/langganan/${editedItem.value.id}`, updatePayload);
       showSnackbar('Data langganan berhasil diperbarui', 'success');
+      await fetchLangganan(false, desktopPage.value);
     } else {
       // Saat membuat baru, kirim payload yang sudah kita siapkan
       await apiClient.post('/langganan', dataToSave);
       showSnackbar('Data langganan berhasil ditambahkan', 'success');
+      await fetchLangganan();
     }
-    fetchLangganan();
     closeDialog();
   } catch (error) {
     console.error("Gagal menyimpan data langganan:", error);
@@ -3072,7 +3073,7 @@ async function confirmDelete() {
   deleting.value = true;
   try {
     await apiClient.delete(`/langganan/${itemToDelete.value.id}`);
-    await fetchLangganan();
+    await fetchLangganan(false, desktopPage.value);
     showSnackbar('Data langganan berhasil dihapus', 'success');
     closeDeleteDialog();
   } catch (error) {

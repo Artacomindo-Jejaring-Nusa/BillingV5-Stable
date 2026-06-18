@@ -35,7 +35,7 @@ func NewDashboardHandler(r *gin.RouterGroup, du domain.DashboardUsecase, uu doma
 }
 
 func (h *DashboardHandler) GetDashboardData(c *gin.Context) {
-	c.Header("Cache-Control", "public, max-age=300")
+	c.Header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 
 	userIDStr, exists := c.Get("user_id")
 	if !exists {

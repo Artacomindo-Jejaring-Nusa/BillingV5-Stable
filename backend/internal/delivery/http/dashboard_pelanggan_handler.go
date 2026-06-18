@@ -28,7 +28,7 @@ func NewDashboardPelangganHandler(r *gin.RouterGroup, repo domain.DashboardRepos
 }
 
 func (h *DashboardPelangganHandler) GetDashboardPelangganData(c *gin.Context) {
-	c.Header("Cache-Control", "public, max-age=300")
+	c.Header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 
 	timespan := c.Query("timespan")
 	if timespan == "" {

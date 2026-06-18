@@ -1189,7 +1189,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useDisplay } from 'vuetify';
 import apiClient from '@/services/api';
 import type { Pelanggan as BasePelanggan } from '@/interfaces/pelanggan';
@@ -1358,7 +1358,20 @@ const paginatedPelanggan = computed(() => {
 onMounted(() => {
   fetchPelanggan();
   fetchHargaLayanan();
+  window.addEventListener('new-notification', handleNewNotification);
 });
+
+onUnmounted(() => {
+  window.removeEventListener('new-notification', handleNewNotification);
+});
+
+function handleNewNotification(event: Event) {
+  const customEvent = event as CustomEvent;
+  const notificationData = customEvent.detail;
+  if (notificationData.type === 'new_customer' || notificationData.type === 'new_customer_for_noc') {
+    fetchPelanggan(false, true);
+  }
+}
 
 // --- DELETE FUNCTIONS ---
 function deleteSelectedPelanggan() {
@@ -1380,7 +1393,7 @@ async function confirmBulkDelete() {
 
     await Promise.all(deletePromises);
     showSnackbar(`${itemsToDelete.length} pelanggan berhasil dihapus.`, 'success');
-    await fetchPelanggan();
+    await fetchPelanggan(false, true);
     selectedPelanggan.value = [];
 
   } catch (error) {
@@ -1573,11 +1586,12 @@ async function savePelanggan() {
     if (editedIndex.value > -1) {
       await apiClient.put(`/pelanggan/${editedItem.value.id}`, editedItem.value);
       showSnackbar('Data pelanggan berhasil diperbarui', 'success');
+      await fetchPelanggan(false, true);
     } else {
       await apiClient.post('/pelanggan', editedItem.value);
       showSnackbar('Data pelanggan berhasil ditambahkan', 'success');
+      await fetchPelanggan();
     }
-    await fetchPelanggan();
     closeDialog();
   } catch (error: any) {
     console.error("Gagal menyimpan data pelanggan:", error);
@@ -1603,7 +1617,7 @@ async function confirmDelete() {
   deleting.value = true;
   try {
     await apiClient.delete(`/pelanggan/${itemToDelete.value.id}`);
-    await fetchPelanggan();
+    await fetchPelanggan(false, true);
     showSnackbar('Data pelanggan berhasil dihapus', 'success');
     closeDeleteDialog();
   } catch (error) {
