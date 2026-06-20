@@ -162,7 +162,13 @@ func main() {
 	router.Static("/static/uploads", "./uploads")
 	router.StaticFile("/docs/openapi.yaml", "./docs/openapi.yaml")
 	router.GET("/", func(c *gin.Context) {
-		c.Redirect(http.StatusMovedPermanently, "/docs")
+		host := c.Request.Host
+		// Only redirect to /docs when accessed via the API docs subdomain
+		if host == "jpo-api-docs.jelantik.com" || host == "docs.jelantik.com" || host == "api-docs.jelantik.com" {
+			c.Redirect(http.StatusFound, "/docs")
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"service": "Billing Revaktor API", "version": "5.0.12", "docs": "/docs"})
 	})
 	router.GET("/docs", func(c *gin.Context) {
 		c.Header("Content-Type", "text/html; charset=utf-8")
