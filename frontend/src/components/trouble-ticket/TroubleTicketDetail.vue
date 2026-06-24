@@ -27,15 +27,6 @@
               <v-icon start size="small">{{ getStatusIcon(ticketData.status) }}</v-icon>
               {{ formatStatus(ticketData.status) }}
             </v-chip>
-            <v-chip
-              :color="getPriorityColor(ticketData.priority)"
-              variant="elevated"
-              size="default"
-              class="priority-chip"
-            >
-              <v-icon start size="small">{{ getPriorityIcon(ticketData.priority) }}</v-icon>
-              {{ formatPriority(ticketData.priority) }}
-            </v-chip>
           </div>
         </div>
       </v-card-title>

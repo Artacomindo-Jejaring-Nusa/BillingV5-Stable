@@ -208,7 +208,7 @@
           </div>
         </v-card>
 
-        <!-- Critical Tickets Card -->
+        <!-- Open Tickets Card -->
         <v-card class="metric-card critical-tickets-card" elevation="0">
           <div class="metric-gradient gradient-red"></div>
           <v-card-text class="metric-content">
@@ -216,8 +216,8 @@
               <v-icon size="32" color="white">mdi-alert-circle-outline</v-icon>
             </div>
             <div class="metric-info">
-              <div class="metric-value">{{ (statistics?.high_priority_tickets || 0) + (statistics?.critical_priority_tickets || 0) }}</div>
-              <div class="metric-label">High Priority Tickets</div>
+              <div class="metric-value">{{ statistics?.open_tickets || 0 }}</div>
+              <div class="metric-label">Open Tickets</div>
               <div class="metric-change warning">
                 <v-icon size="16">mdi-alert</v-icon>
                 <span>Needs attention</span>
@@ -226,7 +226,7 @@
           </v-card-text>
           <div class="metric-footer">
             <v-icon size="14" class="me-1">mdi-information-outline</v-icon>
-            <span>High & Critical priority</span>
+            <span>Tickets currently open</span>
           </div>
         </v-card>
       </div>
@@ -685,10 +685,10 @@
                 </v-col>
                 <v-col cols="12" md="3">
                   <v-select
-                    v-model="ticketPriorityFilter"
-                    :items="ticketPriorityOptions"
-                    label="Filter by Priority"
-                    prepend-inner-icon="mdi-flag"
+                    v-model="ticketCategoryFilter"
+                    :items="ticketCategoryOptions"
+                    label="Filter by Category"
+                    prepend-inner-icon="mdi-tag"
                     variant="outlined"
                     density="comfortable"
                     hide-details
@@ -783,30 +783,27 @@
                 <div class="problem-cell">
                   <div class="problem-title-text">{{ item.title }}</div>
                   <div class="problem-description-text">{{ item.description.substring(0, 100) }}{{ item.description.length > 100 ? '...' : '' }}</div>
-                  <v-chip size="x-small" variant="tonal" color="info" class="problem-category-chip">
-                    {{ formatCategory(item.category) }}
-                  </v-chip>
                 </div>
               </template>
 
-              <!-- Status & Priority -->
-              <template v-slot:item.status_priority="{ item }">
+              <!-- Status & Category -->
+              <template v-slot:item.status_category="{ item }">
                 <div class="status-priority-cell">
                   <v-chip
                     :color="getStatusColor(item.status)"
                     size="small"
                     variant="flat"
-                    class="status-chip"
+                    class="status-chip mb-1"
                   >
                     {{ formatStatus(item.status) }}
                   </v-chip>
                   <v-chip
-                    :color="getPriorityColor(item.priority)"
+                    color="info"
                     size="small"
                     variant="flat"
-                    class="priority-chip"
+                    class="priority-chip font-weight-bold"
                   >
-                    {{ formatPriority(item.priority) }}
+                    {{ formatCategory(item.category) }}
                   </v-chip>
                 </div>
               </template>
@@ -1094,7 +1091,7 @@ const ticketDetailsPerPage = ref(10)
 // Filter states
 const ticketSearch = ref('')
 const ticketStatusFilter = ref('')
-const ticketPriorityFilter = ref('')
+const ticketCategoryFilter = ref('')
 
 // Filter options
 const ticketStatusOptions = [
@@ -1107,11 +1104,17 @@ const ticketStatusOptions = [
   { title: 'Cancelled', value: 'cancelled' }
 ]
 
-const ticketPriorityOptions = [
-  { title: 'Low', value: 'low' },
-  { title: 'Medium', value: 'medium' },
-  { title: 'High', value: 'high' },
-  { title: 'Critical', value: 'critical' }
+const ticketCategoryOptions = [
+  { title: 'All Categories', value: '' },
+  { title: 'No Connection', value: 'no_connection' },
+  { title: 'Slow Connection', value: 'slow_connection' },
+  { title: 'Intermittent', value: 'intermittent' },
+  { title: 'Hardware Issue', value: 'hardware_issue' },
+  { title: 'Cable Issue', value: 'cable_issue' },
+  { title: 'ONU Issue', value: 'onu_issue' },
+  { title: 'OLT Issue', value: 'olt_issue' },
+  { title: 'Mikrotik Issue', value: 'mikrotik_issue' },
+  { title: 'Other', value: 'other' }
 ]
 
 const brandOptions = [
@@ -1133,9 +1136,9 @@ const filteredTicketDetails = computed(() => {
       ticket.description.toLowerCase().includes(ticketSearch.value.toLowerCase())
 
     const matchesStatus = !ticketStatusFilter.value || ticket.status === ticketStatusFilter.value
-    const matchesPriority = !ticketPriorityFilter.value || ticket.priority === ticketPriorityFilter.value
+    const matchesCategory = !ticketCategoryFilter.value || ticket.category === ticketCategoryFilter.value
 
-    return matchesSearch && matchesStatus && matchesPriority
+    return matchesSearch && matchesStatus && matchesCategory
   })
 })
 
@@ -1306,7 +1309,7 @@ const ticketDetailsHeaders = [
   { title: 'Customer Information', key: 'customer_info', sortable: false, width: '200px' },
   { title: 'Technical Details', key: 'technical_info', sortable: false, width: '150px' },
   { title: 'Problem', key: 'problem', sortable: false, width: '250px' },
-  { title: 'Status & Priority', key: 'status_priority', sortable: false, width: '140px' },
+  { title: 'Status & Category', key: 'status_category', sortable: false, width: '140px' },
   { title: 'Downtime', key: 'downtime', sortable: false, width: '100px' },
   { title: 'Assignment', key: 'assignment', sortable: false, width: '150px' }
 ]
@@ -1601,7 +1604,7 @@ const loadTicketDetails = async () => {
 const clearTicketFilters = () => {
   ticketSearch.value = ''
   ticketStatusFilter.value = ''
-  ticketPriorityFilter.value = ''
+  ticketCategoryFilter.value = ''
 }
 
 const formatStatus = (status: string) => {
@@ -1814,6 +1817,8 @@ const fetchTicketDetailsForExport = async () => {
               downtime_start: ticket.downtime_start,
               downtime_end: ticket.downtime_end,
               total_downtime_minutes: ticket.total_downtime_minutes,
+              total_pending_minutes: ticket.total_pending_minutes,
+              pending_start: ticket.pending_start,
               downtime_hours: ticket.total_downtime_minutes ? (ticket.total_downtime_minutes / 60).toFixed(2) : '0',
               assigned_to: ticket.assigned_user?.name || 'Unassigned',
               assigned_user_id: ticket.assigned_to || '',
@@ -1904,6 +1909,59 @@ const exportToJSON = async (data: any) => {
   const filename = `trouble-ticket-report${brandSuffix}-${timestamp}.json`
   downloadJSONFile(data, filename)
   showNotification('JSON report exported successfully!', 'success')
+}
+
+// Excel Helper Functions
+const formatReportDateTime = (dateStr: string | null | undefined) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return dateStr
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  const day = pad(date.getDate())
+  const month = pad(date.getMonth() + 1)
+  const year = date.getFullYear()
+  const hours = pad(date.getHours())
+  const minutes = pad(date.getMinutes())
+  const seconds = pad(date.getSeconds())
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`
+}
+
+const formatDetailedDuration = (ms: number) => {
+  if (isNaN(ms) || ms <= 0) return '0 jam, 0 menit, 0 detik'
+  const totalSeconds = Math.floor(ms / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return `${hours} jam, ${minutes} menit, ${seconds} detik`
+}
+
+const getDowntimeDuration = (t: any) => {
+  if (!t.downtime_start) {
+    const minutes = t.total_downtime_minutes || 0
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    return `${hours} jam, ${mins} menit, 0 detik`
+  }
+  const start = new Date(t.downtime_start)
+  const end = t.downtime_end ? new Date(t.downtime_end) : new Date()
+  let durationMs = end.getTime() - start.getTime()
+  let pendingMs = (t.total_pending_minutes || 0) * 60 * 1000
+  if (t.pending_start && !t.downtime_end) {
+    const pStart = new Date(t.pending_start)
+    pendingMs += new Date().getTime() - pStart.getTime()
+  }
+  let netMs = durationMs - pendingMs
+  if (netMs < 0) netMs = 0
+  return formatDetailedDuration(netMs)
+}
+
+const getPendingDuration = (t: any) => {
+  let pendingMs = (t.total_pending_minutes || 0) * 60 * 1000
+  if (t.pending_start && !t.downtime_end) {
+    const pStart = new Date(t.pending_start)
+    pendingMs += new Date().getTime() - pStart.getTime()
+  }
+  return formatDetailedDuration(pendingMs)
 }
 
 // Excel Helper Functions
@@ -2022,7 +2080,8 @@ const createExcelWorkbook = (data: any): ExcelSheet[] => {
       'Problem Description',
       'Category',
       'Status',
-      'Priority',
+      'Start Clock',
+      'Pending Clock',
       'Total Downtime',
       'Assigned To',
       'Total Actions'
@@ -2041,13 +2100,14 @@ const createExcelWorkbook = (data: any): ExcelSheet[] => {
         ticket.description || '',
         ticket.category || '',
         ticket.status || '',
-        ticket.priority || '',
-        ticket.downtime_hours || '0',
+        formatReportDateTime(ticket.downtime_start || ticket.created_at),
+        getPendingDuration(ticket),
+        getDowntimeDuration(ticket),
         ticket.assigned_to || '',
         (ticket.latest_actions ? ticket.latest_actions.length : 0).toString()
       ]
 
-      while (rowData.length < 14) {
+      while (rowData.length < 16) {
         rowData.push('')
       }
 
@@ -2272,13 +2332,12 @@ const createWorksheetXML = (sheet: ExcelSheet) => {
 
       if (isHeaderRow) {
         cellStyle = 'Header'
-      } else if (sheet.name === 'Ticket_Details') {
+      } else if (sheet.name === 'Ticket Details' || sheet.name === 'Ticket_Details') {
         if (colIndex === 0) cellStyle = 'TicketNumber'
-        else if (colIndex === 1) cellStyle = 'CustomerName'
+        else if (colIndex === 2) cellStyle = 'CustomerName'
         else if (colIndex === 9) cellStyle = 'Centered'
         else if (colIndex === 10) cellStyle = 'Centered'
-        else if (colIndex === 11) cellStyle = 'Number'
-        else if (colIndex === 13) cellStyle = 'Number'
+        else if (colIndex === 15) cellStyle = 'Centered'
         else cellStyle = 'DefaultCell'
       } else if (sheet.name === 'Problem_Details') {
         if (colIndex === 0) cellStyle = 'TicketNumber'
@@ -2433,10 +2492,10 @@ const generateCSVContent = (data: any): string => {
 
   if (data.ticket_details?.length > 0) {
     csvContent += `\nTROUBLE TICKET DETAILS\n`
-    csvContent += `Ticket Number,Customer Name,Customer Address,Phone,Email,Brand,ID Pelanggan,IP Pelanggan,ONU Power,Status,Priority,Category,Assigned To,Created,Resolved,Downtime Hours,Problem Description,Resolution Notes,Total Actions\n`
+    csvContent += `Ticket Number,Customer Name,Customer Address,Phone,Email,Brand,ID Pelanggan,IP Pelanggan,ONU Power,Status,Category,Start Clock,Pending Clock,Total Downtime,Assigned To,Problem Description,Resolution Notes,Total Actions\n`
 
     data.ticket_details.forEach((ticket: any) => {
-      csvContent += `"${ticket.ticket_number}","${ticket.customer_name}","${ticket.customer_address}","${ticket.customer_phone}","${ticket.customer_email}","${ticket.customer_brand}","${ticket.id_pelanggan}","${ticket.ip_pelanggan}","${ticket.onu_power}","${ticket.status}","${ticket.priority}","${ticket.category}","${ticket.assigned_to}","${formatDate(ticket.created_at)}","${formatDate(ticket.resolved_at)}","${ticket.downtime_hours}","${ticket.description.substring(0, 200).replace(/"/g, '""')}","${ticket.resolution_notes.replace(/"/g, '""')}","${ticket.latest_actions.length}"\n`
+      csvContent += `"${ticket.ticket_number}","${ticket.customer_name}","${ticket.customer_address}","${ticket.customer_phone}","${ticket.customer_email}","${ticket.customer_brand}","${ticket.id_pelanggan}","${ticket.ip_pelanggan}","${ticket.onu_power}","${ticket.status}","${ticket.category}","${formatReportDateTime(ticket.downtime_start || ticket.created_at)}","${getPendingDuration(ticket)}","${getDowntimeDuration(ticket)}","${ticket.assigned_to}","${ticket.description.substring(0, 200).replace(/"/g, '""')}","${ticket.resolution_notes.replace(/"/g, '""')}","${ticket.latest_actions.length}"\n`
     })
 
     csvContent += `\nTICKET ACTION DETAILS\n`
@@ -2496,8 +2555,8 @@ const generatePDFContent = (data: any): string => {
         .header { text-align: center; margin-bottom: 30px; }
         .section { margin-bottom: 25px; }
         .section h2 { color: #1976d2; border-bottom: 2px solid #1976d2; padding-bottom: 5px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 11px; }
+        th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
         th { background-color: #f5f5f5; font-weight: bold; }
         .summary-metric { display: inline-block; margin: 10px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
         .metric-value { font-size: 24px; font-weight: bold; color: #1976d2; }
@@ -2613,7 +2672,9 @@ const generatePDFContent = (data: any): string => {
               <th>Customer</th>
               <th>Problem</th>
               <th>Status</th>
-              <th>Downtime</th>
+              <th>Start Clock</th>
+              <th>Pending Clock</th>
+              <th>Total Downtime</th>
               <th>Assigned To</th>
             </tr>
           </thead>
@@ -2626,9 +2687,11 @@ const generatePDFContent = (data: any): string => {
           <td>${ticket.ticket_number}</td>
           <td>${ticket.customer_brand}</td>
           <td>${ticket.customer_name}</td>
-          <td>${ticket.description.substring(0, 100)}${ticket.description.length > 100 ? '...' : ''}</td>
+          <td><strong>${ticket.title || 'Lain-lain'}</strong>: ${ticket.description.substring(0, 80)}${ticket.description.length > 80 ? '...' : ''}</td>
           <td>${ticket.status}</td>
-          <td>${ticket.downtime_hours}h</td>
+          <td>${formatReportDateTime(ticket.downtime_start || ticket.created_at)}</td>
+          <td>${getPendingDuration(ticket)}</td>
+          <td>${getDowntimeDuration(ticket)}</td>
           <td>${ticket.assigned_to}</td>
         </tr>
       `

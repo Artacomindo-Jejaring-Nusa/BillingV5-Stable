@@ -10,20 +10,23 @@ import (
 
 	"billing-backend/config"
 	"billing-backend/internal/domain"
-	"billing-backend/pkg/utils"
 )
 
 type troubleTicketUsecase struct {
-	repo       domain.TroubleTicketRepository
-	systemRepo domain.SystemRepository
-	cfg        *config.Config
+	repo         domain.TroubleTicketRepository
+	systemRepo   domain.SystemRepository
+	userRepo     domain.UserRepository
+	notifUsecase domain.NotificationUsecase
+	cfg          *config.Config
 }
 
-func NewTroubleTicketUsecase(r domain.TroubleTicketRepository, sr domain.SystemRepository, cfg *config.Config) domain.TroubleTicketUsecase {
+func NewTroubleTicketUsecase(r domain.TroubleTicketRepository, sr domain.SystemRepository, ur domain.UserRepository, nu domain.NotificationUsecase, cfg *config.Config) domain.TroubleTicketUsecase {
 	return &troubleTicketUsecase{
-		repo:       r,
-		systemRepo: sr,
-		cfg:        cfg,
+		repo:         r,
+		systemRepo:   sr,
+		userRepo:     ur,
+		notifUsecase: nu,
+		cfg:          cfg,
 	}
 }
 
@@ -126,34 +129,176 @@ func (u *troubleTicketUsecase) Create(ctx context.Context, ticket *domain.Troubl
 }
 
 func (u *troubleTicketUsecase) sendTechnicianWA(ctx context.Context, technicianID uint64, ticket *domain.TroubleTicket) {
-	// Look up phone in background
+	// Send WA notification via outbox in background
 	go func() {
-		bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		key := fmt.Sprintf("TECHNICIAN_PHONE_ID_%d", technicianID)
-		setting, err := u.systemRepo.GetSettingByKey(bgCtx, key)
-		if err != nil || setting == nil || setting.SettingValue == nil || *setting.SettingValue == "" {
+		// Fetch the full ticket details with preloads to ensure Pelanggan and DataTeknis are populated
+		fullTicket, err := u.repo.GetByID(bgCtx, ticket.ID)
+		if err != nil {
+			log.Printf("WA Warning: Failed to fetch full ticket %d: %v\n", ticket.ID, err)
+			// fallback to the passed ticket pointer
+			fullTicket = ticket
+		}
+
+		// 1. Prioritas: cek phone_no dari User
+		phone := ""
+		user, err := u.userRepo.GetByID(bgCtx, technicianID)
+		if err == nil && user != nil && user.PhoneNo != nil && *user.PhoneNo != "" {
+			phone = *user.PhoneNo
+		}
+
+		// 2. Fallback: cek system_settings (backward-compatible)
+		if phone == "" {
+			key := fmt.Sprintf("TECHNICIAN_PHONE_ID_%d", technicianID)
+			setting, err := u.systemRepo.GetSettingByKey(bgCtx, key)
+			if err == nil && setting != nil && setting.SettingValue != nil && *setting.SettingValue != "" {
+				phone = *setting.SettingValue
+			}
+		}
+
+		if phone == "" {
 			log.Printf("WA Warning: Phone not found for technician %d\n", technicianID)
 			return
 		}
 
-		phone := *setting.SettingValue
+		// Construct detailed message
+		var customerName = "-"
+		var customerPhone = "-"
+		var customerAddress = "-"
+		if fullTicket.Pelanggan != nil {
+			customerName = fullTicket.Pelanggan.Nama
+			customerPhone = fullTicket.Pelanggan.NoTelp
+
+			// Build complete address: Alamat, Blok, Unit, AlamatCustom
+			var addrParts []string
+			if fullTicket.Pelanggan.Alamat != "" {
+				addrParts = append(addrParts, fullTicket.Pelanggan.Alamat)
+			}
+			if fullTicket.Pelanggan.Blok != "" {
+				addrParts = append(addrParts, "Blok " + fullTicket.Pelanggan.Blok)
+			}
+			if fullTicket.Pelanggan.Unit != "" {
+				addrParts = append(addrParts, "Unit " + fullTicket.Pelanggan.Unit)
+			}
+			if fullTicket.Pelanggan.AlamatCustom != nil && *fullTicket.Pelanggan.AlamatCustom != "" {
+				addrParts = append(addrParts, *fullTicket.Pelanggan.AlamatCustom)
+			}
+
+			if len(addrParts) > 0 {
+				customerAddress = strings.Join(addrParts, ", ")
+			}
+		}
+
+		var techDetails = ""
+		if fullTicket.DataTeknis != nil {
+			dt := fullTicket.DataTeknis
+			pppoeUsername := "-"
+			if dt.IDPelanggan != "" {
+				pppoeUsername = dt.IDPelanggan
+			}
+			pppoePassword := "-"
+			if dt.PasswordPppoe != "" {
+				pppoePassword = dt.PasswordPppoe
+			}
+			ipAddress := "-"
+			if dt.IPPelanggan != nil && *dt.IPPelanggan != "" {
+				ipAddress = *dt.IPPelanggan
+			}
+			sn := "-"
+			if dt.Sn != nil && *dt.Sn != "" {
+				sn = *dt.Sn
+			}
+			oltName := "-"
+			if dt.Olt != nil && *dt.Olt != "" {
+				oltName = *dt.Olt
+			} else if dt.OltCustom != nil && *dt.OltCustom != "" {
+				oltName = *dt.OltCustom
+			}
+			pon := "-"
+			if dt.Pon != nil {
+				pon = fmt.Sprintf("%d", *dt.Pon)
+			}
+			odpCode := "-"
+			if dt.Odp != nil && dt.Odp.KodeOdp != "" {
+				odpCode = dt.Odp.KodeOdp
+			} else if dt.OdpID != nil {
+				odpCode = fmt.Sprintf("ID: %d", *dt.OdpID)
+			}
+			portOdp := "-"
+			if dt.PortOdp != nil {
+				portOdp = fmt.Sprintf("%d", *dt.PortOdp)
+			}
+			onuPower := "-"
+			if dt.OnuPower != nil {
+				onuPower = fmt.Sprintf("%d dBm", *dt.OnuPower)
+			}
+
+			techDetails = fmt.Sprintf(
+				"*Data Teknis:*\n"+
+					"- PPPoE Username: `%s`\n"+
+					"- PPPoE Password: `%s`\n"+
+					"- IP Pelanggan: `%s`\n"+
+					"- Serial Number ONU: `%s`\n"+
+					"- OLT: `%s` (PON Port: `%s`)\n"+
+					"- ODP: `%s` (Port ODP: `%s`)\n"+
+					"- ONU Power: `%s`\n\n",
+				pppoeUsername, pppoePassword, ipAddress, sn, oltName, pon, odpCode, portOdp, onuPower,
+			)
+		}
+
 		waMsg := fmt.Sprintf(
 			"🔔 *TIKET GANGGUAN BARU*\n\n"+
 				"No Tiket: *%s*\n"+
 				"Judul: %s\n"+
-				"Pelanggan ID: %d\n\n"+
+				"Pelanggan ID: %d\n"+
+				"Nama Pelanggan: *%s*\n"+
+				"No. Telp Pelanggan: %s\n"+
+				"Alamat Pelanggan: %s\n\n"+
+				"%s"+
 				"*Deskripsi:*\n%s\n\n"+
 				"Segera cek dashboard untuk detailnya. Semangat!",
-			ticket.TicketNumber, ticket.Title, ticket.PelangganID, ticket.Description,
+			fullTicket.TicketNumber, fullTicket.Title, fullTicket.PelangganID, customerName,
+			customerPhone, customerAddress, techDetails, fullTicket.Description,
 		)
 
-		err = utils.SendWhatsAppMessage(u.cfg.WatzapApiKey, u.cfg.WatzapNumberKey, phone, waMsg)
+		// Kirim via outbox pattern (write-first, send-optimistic, retry on failure)
+		refType := "trouble_ticket"
+		err = u.notifUsecase.SendWhatsApp(bgCtx, phone, waMsg, refType, ticket.ID, nil)
 		if err != nil {
-			log.Printf("Failed to send WA to technician: %v\n", err)
+			log.Printf("Failed to enqueue WA for technician %d: %v\n", technicianID, err)
 		} else {
-			log.Printf("WA successfully sent to technician phone %s\n", phone)
+			log.Printf("WA enqueued for technician %d (phone: %s)\n", technicianID, phone)
+		}
+
+		// Cek jika alamat mengandung Parama atau Waringin untuk notifikasi Leader (Yohan)
+		addrLower := strings.ToLower(customerAddress)
+		if strings.Contains(addrLower, "parama") || strings.Contains(addrLower, "waringin") {
+			yohanUsers, _, err := u.userRepo.GetAll(bgCtx, 5, 0, "Yohan", nil)
+			if err == nil && len(yohanUsers) > 0 {
+				var yohanUser *domain.User
+				for _, usr := range yohanUsers {
+					if strings.Contains(strings.ToLower(usr.Name), "yohan") && usr.PhoneNo != nil && *usr.PhoneNo != "" {
+						yohanUser = &usr
+						break
+					}
+				}
+				if yohanUser != nil {
+					yohanPhone := *yohanUser.PhoneNo
+					yohanMsg := "🔔 *[NOTIFIKASI LEADER]*\n\n" + waMsg
+					err = u.notifUsecase.SendWhatsApp(bgCtx, yohanPhone, yohanMsg, refType, ticket.ID, nil)
+					if err != nil {
+						log.Printf("Failed to enqueue WA for leader Yohan: %v\n", err)
+					} else {
+						log.Printf("WA enqueued for leader Yohan (phone: %s)\n", yohanPhone)
+					}
+				} else {
+					log.Printf("WA Warning: User Yohan found but has no phone number\n")
+				}
+			} else {
+				log.Printf("WA Warning: User Yohan not found: %v\n", err)
+			}
 		}
 	}()
 }

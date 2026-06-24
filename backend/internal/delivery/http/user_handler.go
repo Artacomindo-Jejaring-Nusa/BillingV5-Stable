@@ -82,6 +82,7 @@ type CreateUserRequest struct {
 	Password string  `json:"password" binding:"required"`
 	RoleID   *uint64 `json:"role_id"`
 	IsActive *bool   `json:"is_active"`
+	PhoneNo  *string `json:"phone_no"`
 }
 
 type UpdateUserRequest struct {
@@ -90,6 +91,7 @@ type UpdateUserRequest struct {
 	Password *string `json:"password"`
 	RoleID   *uint64 `json:"role_id"`
 	IsActive *bool   `json:"is_active"`
+	PhoneNo  *string `json:"phone_no"`
 }
 
 // --- Auth Handlers ---
@@ -293,6 +295,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		Email:    req.Email,
 		IsActive: true,
 		RoleID:   req.RoleID,
+		PhoneNo:  req.PhoneNo,
 	}
 	if req.IsActive != nil {
 		user.IsActive = *req.IsActive
@@ -336,6 +339,9 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 	if req.IsActive != nil {
 		updates["is_active"] = *req.IsActive
+	}
+	if req.PhoneNo != nil {
+		updates["phone_no"] = *req.PhoneNo
 	}
 
 	updated, err := h.userUsecase.UpdateUser(c.Request.Context(), id, updates)

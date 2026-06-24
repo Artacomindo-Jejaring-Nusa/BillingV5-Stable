@@ -122,10 +122,10 @@
                 
                 <v-divider class="my-4"></v-divider>
                 
-                <!-- Status & Priority -->
+                <!-- Status -->
                 <v-list-item class="px-0">
                   <v-list-item-subtitle class="text-caption text-medium-emphasis mb-3 font-weight-bold">
-                    STATUS & PRIORITY
+                    STATUS
                   </v-list-item-subtitle>
                   <div class="d-flex flex-wrap gap-3">
                     <v-card 
@@ -140,21 +140,6 @@
                         <div>
                           <div class="text-caption text-medium-emphasis">Status</div>
                           <div class="text-body-2 font-weight-bold">{{ formatStatus(ticket.status) }}</div>
-                        </div>
-                      </div>
-                    </v-card>
-                    <v-card 
-                      :color="getPriorityColor(ticket.priority) + '-lighten-5'" 
-                      variant="flat" 
-                      class="flex-grow-1 pa-3 rounded-lg status-badge"
-                    >
-                      <div class="d-flex align-center">
-                        <v-avatar :color="getPriorityColor(ticket.priority)" size="32" class="me-2">
-                          <v-icon color="white" size="16">{{ getPriorityIcon(ticket.priority) }}</v-icon>
-                        </v-avatar>
-                        <div>
-                          <div class="text-caption text-medium-emphasis">Priority</div>
-                          <div class="text-body-2 font-weight-bold">{{ formatPriority(ticket.priority) }}</div>
                         </div>
                       </div>
                     </v-card>

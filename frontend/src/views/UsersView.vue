@@ -276,6 +276,19 @@
                 ></v-text-field>
               </v-col>
 
+              <v-col cols="12" md="6">
+                <v-text-field 
+                  v-model="editedItem.phone_no" 
+                  label="No. Telepon (WhatsApp)" 
+                  variant="outlined"
+                  prepend-inner-icon="mdi-whatsapp"
+                  placeholder="Contoh: 6281312345678"
+                  hint="Format: 62xxxx (tanpa + atau 0 di depan)"
+                  persistent-hint
+                  hide-details="auto"
+                ></v-text-field>
+              </v-col>
+
               <!-- Security Section -->
               <v-col cols="12" class="mt-4">
                 <div class="d-flex align-center mb-4">
@@ -476,12 +489,16 @@
             </v-avatar>
             <h2 class="text-h5 font-weight-bold">{{ selectedUser.name }}</h2>
             <p class="text-body-1 text-medium-emphasis">{{ selectedUser.email }}</p>
+            <v-chip v-if="selectedUser.phone_no" size="small" color="success" variant="tonal" class="mt-1">
+              <v-icon start size="14">mdi-whatsapp</v-icon>
+              {{ selectedUser.phone_no }}
+            </v-chip>
           </div>
 
           <v-divider class="mb-4"></v-divider>
 
           <v-row>
-            <v-col cols="6">
+            <v-col cols="6" sm="4">
               <v-card variant="outlined" class="pa-3">
                 <div class="text-center">
                   <v-icon size="24" color="primary" class="mb-2">mdi-identifier</v-icon>
@@ -490,7 +507,7 @@
                 </div>
               </v-card>
             </v-col>
-            <v-col cols="6">
+            <v-col cols="6" sm="4">
               <v-card variant="outlined" class="pa-3">
                 <div class="text-center">
                   <v-icon size="24" :color="getRoleById(selectedUser.role_id) ? 'success' : 'warning'" class="mb-2">
@@ -498,6 +515,15 @@
                   </v-icon>
                   <div class="text-body-2 text-medium-emphasis">Role</div>
                   <div class="text-h6 font-weight-bold">{{ getRoleById(selectedUser.role_id)?.name || 'No Role' }}</div>
+                </div>
+              </v-card>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-card variant="outlined" class="pa-3">
+                <div class="text-center">
+                  <v-icon size="24" :color="selectedUser.phone_no ? 'success' : 'grey'" class="mb-2">mdi-whatsapp</v-icon>
+                  <div class="text-body-2 text-medium-emphasis">WhatsApp</div>
+                  <div class="text-body-1 font-weight-bold">{{ selectedUser.phone_no || 'Belum diisi' }}</div>
                 </div>
               </v-card>
             </v-col>
@@ -557,13 +583,14 @@ const itemToDelete = ref<any>(null);
 const searchQuery = ref('');
 const filterRole = ref<string | null>(null);
 
-const defaultItem = { id: null, name: '', email: '', password: '', role_id: null };
+const defaultItem = { id: null, name: '', email: '', password: '', role_id: null, phone_no: '' };
 const editedItem = ref<{
   id: number | null;
   name: string;
   email: string;
   password: string;
   role_id: string | null;
+  phone_no: string;
 }>({ ...defaultItem });
 
 // --- Headers ---
@@ -759,7 +786,7 @@ function openDialog(item?: any) {
   if (item) {
     editedIndex.value = users.value.findIndex(u => u.id === item.id);
     const roleIdAsString = item.role_id ? item.role_id.toString() : null;
-    editedItem.value = { ...item, password: '', role_id: roleIdAsString };
+    editedItem.value = { ...item, password: '', role_id: roleIdAsString, phone_no: item.phone_no || '' };
   } else {
     editedIndex.value = -1;
     editedItem.value = { ...defaultItem };
@@ -810,12 +837,15 @@ async function saveUser() {
       await apiClient.patch(`/users/${payload.id}`, payload);
     } else {
       // Create new user
-      const createPayload = {
+      const createPayload: any = {
         name: payload.name,
         email: payload.email,
         password: payload.password,
         role_id: payload.role_id,
       };
+      if (payload.phone_no) {
+        createPayload.phone_no = payload.phone_no;
+      }
       await apiClient.post('/users', createPayload);
     }
     await fetchUsers();

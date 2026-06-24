@@ -14,7 +14,7 @@ type mockBillingUsecase struct {
 	domain.BillingUsecase
 }
 
-func (m *mockBillingUsecase) FetchLangganan(ctx context.Context, page, pageSize int, search, status string, forInvoiceSelection bool) ([]domain.Langganan, int64, error) {
+func (m *mockBillingUsecase) FetchLangganan(ctx context.Context, page, pageSize int, search, status string, forInvoiceSelection bool, sortBy, sortOrder string) ([]domain.Langganan, int64, error) {
 	return []domain.Langganan{}, 0, nil
 }
 

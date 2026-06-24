@@ -447,7 +447,7 @@ func NewLanggananRepository(db *gorm.DB) domain.LanggananRepository {
 	return &langgananRepository{db: db}
 }
 
-func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, search, status string, forInvoiceSelection bool) ([]domain.Langganan, int64, error) {
+func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, search, status string, forInvoiceSelection bool, sortBy, sortOrder string) ([]domain.Langganan, int64, error) {
 	var langganans []domain.Langganan
 	var total int64
 
@@ -482,10 +482,30 @@ func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, sea
 		return nil, 0, err
 	}
 
+	// Build ORDER BY clause from sort parameters with whitelist validation
+	orderClause := "langganan.id desc" // default
+	allowedSortColumns := map[string]string{
+		"pelanggan.nama":     "pelanggan.nama",
+		"status":             "langganan.status",
+		"harga_final":        "langganan.harga_awal",
+		"tgl_jatuh_tempo":    "langganan.tgl_jatuh_tempo",
+		"tgl_berhenti":       "langganan.tgl_berhenti",
+		"metode_pembayaran":  "langganan.metode_pembayaran",
+		"created_at":         "langganan.created_at",
+		"id":                 "langganan.id",
+	}
+	if col, ok := allowedSortColumns[sortBy]; ok {
+		direction := "asc"
+		if sortOrder == "desc" {
+			direction = "desc"
+		}
+		orderClause = col + " " + direction
+	}
+
 	err := dbFind.
 		Limit(limit).
 		Offset(offset).
-		Order("langganan.id desc").
+		Order(orderClause).
 		Find(&langganans).Error
 
 	return langganans, total, err

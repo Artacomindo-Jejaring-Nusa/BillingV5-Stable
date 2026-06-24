@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"billing-backend/internal/domain"
@@ -32,8 +33,26 @@ func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, sea
 	}
 
 	if search != "" {
-		searchTerm := "%" + search + "%"
-		query = query.Where("pelanggan.nama LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ?", searchTerm, searchTerm, searchTerm)
+		words := strings.Fields(search)
+		if len(words) == 1 {
+			searchTerm := "%" + search + "%"
+			query = query.Where(
+				"(pelanggan.nama LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ? OR pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ? OR pelanggan.blok LIKE ? OR pelanggan.unit LIKE ?)",
+				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,
+			)
+		} else {
+			for _, word := range words {
+				lowerWord := strings.ToLower(word)
+				if lowerWord == "blok" || lowerWord == "unit" || lowerWord == "no" || lowerWord == "nomor" || lowerWord == "rt" || lowerWord == "rw" {
+					continue
+				}
+				wordTerm := "%" + word + "%"
+				query = query.Where(
+					"(pelanggan.nama LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ? OR pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ? OR pelanggan.blok LIKE ? OR pelanggan.unit LIKE ?)",
+					wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm,
+				)
+			}
+		}
 	}
 
 	// Count total records

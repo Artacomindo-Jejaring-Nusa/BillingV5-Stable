@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 )
@@ -46,18 +47,26 @@ func SendWhatsAppMessage(apiKey, numberKey, toPhone, message string) error {
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("watzap api returned status code %d", resp.StatusCode)
+		return fmt.Errorf("watzap api returned status code %d (body: %s)", resp.StatusCode, string(bodyBytes))
 	}
 
 	var result WatzapResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return err
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return fmt.Errorf("failed to decode json response: %w (body: %s)", err, string(bodyBytes))
 	}
 
-	if result.Status != "success" {
-		return fmt.Errorf("watzap api error: %s", result.Message)
+	// Watzap API can return Status as "success" or "200", and Message as "The message is being delivered"
+	// We treat these as successful cases.
+	if result.Status == "success" || result.Status == "200" || result.Message == "The message is being delivered" || result.Message == "Message sent successfully." {
+		return nil
 	}
 
-	return nil
+	return fmt.Errorf("watzap api error: %s (status: %s, body: %s)", result.Message, result.Status, string(bodyBytes))
 }
+

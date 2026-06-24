@@ -45,7 +45,7 @@ type SchedulerManager struct {
 	runningJobs map[string]bool
 }
 
-func NewSchedulerManager(db *gorm.DB, su domain.SystemUsecase, bu domain.BillingUsecase) *SchedulerManager {
+func NewSchedulerManager(db *gorm.DB, su domain.SystemUsecase, bu domain.BillingUsecase, nu domain.NotificationUsecase) *SchedulerManager {
 	mgr := &SchedulerManager{
 		db:            db,
 		systemUsecase: su,
@@ -93,6 +93,14 @@ func NewSchedulerManager(db *gorm.DB, su domain.SystemUsecase, bu domain.Billing
 		Description: "Mengulangi sinkronisasi status modem ke Mikrotik yang tertunda karena kendala koneksi.",
 		DefaultCron: "*/5 * * * *",
 		Func:        bu.RetryFailedMikrotikSync,
+	}
+
+	mgr.jobs["retry_failed_whatsapp"] = &JobConfig{
+		Key:         "retry_failed_whatsapp",
+		Name:        "Retry Pengiriman WhatsApp Gagal",
+		Description: "Mengulangi pengiriman pesan WhatsApp yang gagal terkirim (maks 5x percobaan).",
+		DefaultCron: "*/5 * * * *",
+		Func:        nu.RetryFailedMessages,
 	}
 
 	return mgr
