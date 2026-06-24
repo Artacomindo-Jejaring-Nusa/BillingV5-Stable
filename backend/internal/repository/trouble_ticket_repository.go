@@ -69,6 +69,7 @@ func (r *troubleTicketRepository) GetByID(ctx context.Context, id uint64) (*doma
 	var ticket domain.TroubleTicket
 	err := r.db.WithContext(ctx).
 		Preload("Pelanggan.HargaLayanan").
+		Preload("DataTeknis.Odp").
 		Preload("DataTeknis").
 		Preload("AssignedUser").
 		First(&ticket, id).Error
@@ -82,6 +83,71 @@ func (r *troubleTicketRepository) GetByID(ctx context.Context, id uint64) (*doma
 }
 
 func (r *troubleTicketRepository) Create(ctx context.Context, ticket *domain.TroubleTicket) error {
+	// Auto assignment logic if not manually assigned
+	if ticket.AssignedTo == nil || *ticket.AssignedTo == 0 {
+		var pelanggan domain.Pelanggan
+		if err := r.db.WithContext(ctx).First(&pelanggan, ticket.PelangganID).Error; err == nil {
+			// Find role ID for 'teknisi' (case-insensitive)
+			var role domain.Role
+			if err := r.db.WithContext(ctx).Where("LOWER(name) = ?", "teknisi").First(&role).Error; err == nil {
+				// Find active technicians
+				var technicians []domain.User
+				if err := r.db.WithContext(ctx).Where("role_id = ? AND is_active = ?", role.ID, true).Find(&technicians).Error; err == nil && len(technicians) > 0 {
+					// Check address
+					address := strings.ToLower(pelanggan.Alamat)
+					if pelanggan.AlamatCustom != nil {
+						address += " " + strings.ToLower(*pelanggan.AlamatCustom)
+					}
+
+					if strings.Contains(address, "waringin") || strings.Contains(address, "parama") {
+						// Assign to Andri Yusuf
+						var andri *domain.User
+						for i := range technicians {
+							if strings.Contains(strings.ToLower(technicians[i].Name), "andri yusuf") {
+								andri = &technicians[i]
+								break
+							}
+						}
+						if andri != nil {
+							ticket.AssignedTo = &andri.ID
+						} else {
+							// fallback
+							ticket.AssignedTo = &technicians[0].ID
+						}
+					} else {
+						// Assign to Jakarta technicians (non-Andri Yusuf)
+						var jakartaTechs []domain.User
+						for i := range technicians {
+							if !strings.Contains(strings.ToLower(technicians[i].Name), "andri yusuf") {
+								jakartaTechs = append(jakartaTechs, technicians[i])
+							}
+						}
+
+						if len(jakartaTechs) > 0 {
+							// Find the technician with the least active tickets
+							var bestTechID uint64 = jakartaTechs[0].ID
+							minCount := int64(999999)
+							for _, tech := range jakartaTechs {
+								var count int64
+								r.db.WithContext(ctx).Model(&domain.TroubleTicket{}).
+									Where("assigned_to = ? AND status IN ?", tech.ID, []string{"open", "in_progress", "pending_customer", "pending_vendor"}).
+									Count(&count)
+								if count < minCount {
+									minCount = count
+									bestTechID = tech.ID
+								}
+							}
+							ticket.AssignedTo = &bestTechID
+						} else {
+							// fallback
+							ticket.AssignedTo = &technicians[0].ID
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return r.db.WithContext(ctx).Create(ticket).Error
 }
 

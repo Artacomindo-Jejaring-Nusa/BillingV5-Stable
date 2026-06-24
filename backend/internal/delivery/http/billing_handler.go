@@ -211,10 +211,12 @@ func (h *BillingHandler) FetchLangganan(c *gin.Context) {
 	search := c.Query("search")
 	status := c.Query("status")
 	forInvoiceSelection := c.Query("for_invoice_selection") == "true"
+	sortBy := c.Query("sort_by")
+	sortOrder := c.Query("sort_order")
 
 	page := (skip / limit) + 1
 
-	langganans, total, err := h.billingUsecase.FetchLangganan(c.Request.Context(), page, limit, search, status, forInvoiceSelection)
+	langganans, total, err := h.billingUsecase.FetchLangganan(c.Request.Context(), page, limit, search, status, forInvoiceSelection, sortBy, sortOrder)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

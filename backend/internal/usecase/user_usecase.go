@@ -306,6 +306,15 @@ func (u *userUsecase) UpdateUser(ctx context.Context, id uint64, updates map[str
 			user.IsActive = active
 		}
 	}
+	if phoneNo, ok := updates["phone_no"]; ok {
+		if p, isStr := phoneNo.(string); isStr {
+			if p == "" {
+				user.PhoneNo = nil
+			} else {
+				user.PhoneNo = &p
+			}
+		}
+	}
 
 	if err := u.userRepo.Update(ctx, user); err != nil {
 		return nil, err

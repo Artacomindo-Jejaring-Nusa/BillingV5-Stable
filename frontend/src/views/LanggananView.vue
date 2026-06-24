@@ -830,6 +830,7 @@
       <div class="table-responsive-wrapper d-none d-md-block">
         <v-data-table
           v-model="selectedLangganan"
+          v-model:sort-by="sortBy"
           :headers="headers"
           :items="langgananList"
           :loading="loading"
@@ -2077,6 +2078,7 @@ const formValid = ref(false);
 const snackbar = ref({ show: false, text: '', color: 'success' as 'success' | 'error' | 'warning' });
 
 const selectedLangganan = ref<Langganan[]>([]);
+const sortBy = ref<any[]>([]);
 const dialogBulkDelete = ref(false);
 
 // Pelanggan View Modal Data
@@ -2250,11 +2252,11 @@ const baseHeaders = [
   { title: 'Alamat', key: 'pelanggan.alamat', sortable: false, width: '10%' },
   { title: 'No. Telepon', key: 'pelanggan.no_telp', sortable: false, width: '9%' },
   { title: 'Brand', key: 'pelanggan.harga_layanan.brand', sortable: false, width: '8%' },
-  { title: 'Paket Layanan', key: 'paket_layanan_id', width: '11%' },
-  { title: 'Metode Bayar', key: 'metode_pembayaran', align: 'center', width: '9%' },
-  { title: 'Harga', key: 'harga_final', align: 'end', width: '7%' },
-  { title: 'Status', key: 'status', align: 'center', width: '8%' },
-  { title: 'Jatuh Tempo', key: 'tgl_jatuh_tempo', align: 'center', width: '8%' },
+  { title: 'Paket Layanan', key: 'paket_layanan_id', sortable: false, width: '11%' },
+  { title: 'Metode Bayar', key: 'metode_pembayaran', sortable: false, align: 'center', width: '9%' },
+  { title: 'Harga', key: 'harga_final', sortable: true, align: 'end', width: '7%' },
+  { title: 'Status', key: 'status', sortable: true, align: 'center', width: '8%' },
+  { title: 'Jatuh Tempo', key: 'tgl_jatuh_tempo', sortable: true, align: 'center', width: '8%' },
   { title: 'Actions', key: 'actions', sortable: false, align: 'center', width: '18%' },
 ];
 
@@ -2634,6 +2636,12 @@ async function fetchLangganan(isLoadMore = false, explicitPage: number | null = 
     if (selectedCreatedAtStart.value) params.append('created_at_start', toISODateString(selectedCreatedAtStart.value));
     if (selectedCreatedAtEnd.value) params.append('created_at_end', toISODateString(selectedCreatedAtEnd.value));
 
+    if (sortBy.value && sortBy.value.length > 0) {
+      const sort = sortBy.value[0];
+      params.append('sort_by', sort.key);
+      params.append('sort_order', sort.order);
+    }
+
     // --- LOGIKA KUNCI: Tambahkan paginasi ---
     // Determine page number based on the context
     let currentPage: number;
@@ -2747,7 +2755,7 @@ const applyFilters = debounce(() => {
 }, 500); // Tunda 500ms
 
 // Perhatikan perubahan pada filter dan panggil fungsi applyFilters
-watch([searchQuery, selectedAlamat, selectedBlok, selectedPaket, selectedStatus, selectedJatuhTempoStart, selectedJatuhTempoEnd, selectedCreatedAtStart, selectedCreatedAtEnd], () => {
+watch([searchQuery, selectedAlamat, selectedBlok, selectedPaket, selectedStatus, selectedJatuhTempoStart, selectedJatuhTempoEnd, selectedCreatedAtStart, selectedCreatedAtEnd, sortBy], () => {
   applyFilters();
 });
 
@@ -2879,6 +2887,7 @@ function resetFilters() {
   selectedJatuhTempoEnd.value = null;
   selectedCreatedAtStart.value = null;
   selectedCreatedAtEnd.value = null;
+  sortBy.value = [];
 }
 // ============================================
 

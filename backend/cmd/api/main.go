@@ -113,6 +113,7 @@ func main() {
 		&domain.TroubleTicket{},
 		&domain.TicketHistory{},
 		&domain.ActionTaken{},
+		&domain.WhatsAppOutbox{},
 	)
 	db.Exec("SET FOREIGN_KEY_CHECKS = 1;")
 	if err != nil {
@@ -264,8 +265,12 @@ func main() {
 	langgananRepo := repository.NewLanggananRepository(db)
 	billingUsecase := usecase.NewBillingUsecase(invoiceRepo, langgananRepo, pelangganRepo, paketLayananRepo, hargaLayananRepo, dataTeknisRepo, mikrotikRepo, diskonRepo, systemRepo, cfg)
 
+	// Notification (WhatsApp Outbox)
+	notifRepo := repository.NewNotificationRepository(db)
+	notifUsecase := usecase.NewNotificationUsecase(notifRepo, systemRepo, cfg)
+
 	// Scheduler
-	schedulerMgr := scheduler.NewSchedulerManager(db, systemUsecase, billingUsecase)
+	schedulerMgr := scheduler.NewSchedulerManager(db, systemUsecase, billingUsecase, notifUsecase)
 	httpDelivery.NewBillingHandler(api, billingUsecase, authMw)
 	httpDelivery.NewSystemHandler(api, systemUsecase, schedulerMgr, authMw)
 
@@ -276,7 +281,7 @@ func main() {
 
 	// Trouble Ticket
 	troubleTicketRepo := repository.NewTroubleTicketRepository(db)
-	troubleTicketUsecase := usecase.NewTroubleTicketUsecase(troubleTicketRepo, systemRepo, cfg)
+	troubleTicketUsecase := usecase.NewTroubleTicketUsecase(troubleTicketRepo, systemRepo, userRepo, notifUsecase, cfg)
 	httpDelivery.NewTroubleTicketHandler(api, troubleTicketUsecase, authMw)
 
 	// Dashboard

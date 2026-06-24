@@ -136,21 +136,16 @@
           <div class="form-section">
             <div class="section-header">
               <v-icon color="primary" size="20">mdi-text-box</v-icon>
-              <span class="section-title">Ticket Details</span>
+              <span class="section-title">Indikasi Awal</span>
             </div>
 
             <v-row>
               <v-col cols="12">
-                <v-text-field
+                <v-select
                   v-model="formData.title"
                   label="Title"
-                  :rules="[
-                    v => !!v || 'Title is required',
-                    v => (v && v.length >= 3) || 'Title must be at least 3 characters',
-                    v => (v && v.length <= 200) || 'Title must be less than 200 characters'
-                  ]"
-                  counter="200"
-                  placeholder="Brief description of the issue..."
+                  :items="titleOptions"
+                  :rules="[v => !!v || 'Title is required']"
                   variant="outlined"
                   density="comfortable"
                   rounded="lg"
@@ -159,7 +154,7 @@
                   <template v-slot:prepend-inner>
                     <v-icon color="primary" size="20">mdi-format-title</v-icon>
                   </template>
-                </v-text-field>
+                </v-select>
               </v-col>
 
               <v-col cols="12">
@@ -194,7 +189,7 @@
             </div>
 
             <v-row>
-              <v-col cols="12" sm="6" md="4">
+              <v-col cols="12" sm="6">
                 <v-select
                   v-model="formData.category"
                   label="Category"
@@ -213,50 +208,7 @@
                 </v-select>
               </v-col>
 
-              <v-col cols="12" sm="6" md="4">
-                <v-select
-                  v-model="formData.priority"
-                  label="Priority"
-                  :items="priorityOptions"
-                  item-title="title"
-                  item-value="value"
-                  :rules="[v => !!v || 'Priority is required']"
-                  variant="outlined"
-                  density="comfortable"
-                  rounded="lg"
-                  class="modern-input"
-                >
-                  <template v-slot:prepend-inner>
-                    <v-icon :color="getPriorityColor(formData.priority)" size="20">
-                      {{ getPriorityIcon(formData.priority) }}
-                    </v-icon>
-                  </template>
-                  
-                  <template v-slot:item="{ item, props }">
-                    <v-list-item
-                      v-bind="props"
-                      :title="item.title"
-                      rounded="lg"
-                      class="modern-list-item"
-                    >
-                      <template v-slot:prepend>
-                        <v-icon :color="getPriorityColor(item.value)" size="20">
-                          {{ getPriorityIcon(item.value) }}
-                        </v-icon>
-                      </template>
-                    </v-list-item>
-                  </template>
-
-                  <template v-slot:selection="{ item }">
-                    <v-chip :color="getPriorityColor(item.value)" size="small" variant="flat">
-                      <v-icon start size="16">{{ getPriorityIcon(item.value) }}</v-icon>
-                      {{ item.title }}
-                    </v-chip>
-                  </template>
-                </v-select>
-              </v-col>
-
-              <v-col cols="12" sm="12" md="4">
+              <v-col cols="12" sm="6">
                 <v-select
                   v-model="formData.assigned_to"
                   label="Assigned To (Teknisi Only)"
@@ -265,7 +217,7 @@
                   item-value="id"
                   :loading="loadingUsers"
                   clearable
-                  :hint="teknisiUsers.length > 0 ? `Select from ${teknisiUsers.length} available teknisi` : 'No teknisi users available'"
+                  :hint="'Kosongkan (Clear) untuk Auto-Assign berdasarkan lokasi pelanggan'"
                   persistent-hint
                   variant="outlined"
                   density="comfortable"
@@ -720,6 +672,14 @@ const uniqueTechnicalData = computed(() => {
   })
 
   return Array.from(uniqueMap.values())
+})
+
+const titleOptions = computed(() => {
+  const defaults = ['Lemot', 'LOS', 'Putus-Putus', 'Isolir', 'No Internet', 'Fisik/Perangkat', 'Lain-lain']
+  if (formData.title && !defaults.includes(formData.title)) {
+    return [...defaults, formData.title]
+  }
+  return defaults
 })
 
 // Filter users untuk only show Teknisi role

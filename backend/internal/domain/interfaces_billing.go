@@ -32,7 +32,7 @@ type InvoiceRepository interface {
 
 // LanggananRepository defines database operations for Langganan
 type LanggananRepository interface {
-	GetAll(ctx context.Context, limit, offset int, search, status string, forInvoiceSelection bool) ([]Langganan, int64, error)
+	GetAll(ctx context.Context, limit, offset int, search, status string, forInvoiceSelection bool, sortBy, sortOrder string) ([]Langganan, int64, error)
 	GetByID(ctx context.Context, id uint64) (*Langganan, error)
 	Create(ctx context.Context, langganan *Langganan) error
 	Update(ctx context.Context, langganan *Langganan) error
@@ -59,7 +59,7 @@ type BillingUsecase interface {
 	ProcessXenditCallback(ctx context.Context, xCallbackToken string, payload map[string]interface{}, idempotencyKey string) error
 
 	// Langganan
-	FetchLangganan(ctx context.Context, page, pageSize int, search, status string, forInvoiceSelection bool) ([]Langganan, int64, error)
+	FetchLangganan(ctx context.Context, page, pageSize int, search, status string, forInvoiceSelection bool, sortBy, sortOrder string) ([]Langganan, int64, error)
 	GetNewUserLangganans(ctx context.Context) ([]Langganan, error)
 	GetLangganan(ctx context.Context, id uint64) (*Langganan, error)
 	CreateLangganan(ctx context.Context, langganan *Langganan) error

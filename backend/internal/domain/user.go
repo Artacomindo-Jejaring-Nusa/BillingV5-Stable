@@ -11,6 +11,7 @@ type User struct {
 	ID                uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name              string         `gorm:"type:varchar(191)" json:"name"`
 	Email             string         `gorm:"type:varchar(191);uniqueIndex;not null" json:"email"`
+	PhoneNo           *string        `gorm:"type:varchar(20)" json:"phone_no"`
 	Password          string         `gorm:"type:varchar(191);not null" json:"-"`
 	RememberToken     *string        `gorm:"type:varchar(100)" json:"remember_token"`
 	EmailVerifiedAt   *time.Time     `gorm:"type:timestamp" json:"email_verified_at"`

@@ -64,12 +64,30 @@ func (m *mockPelangganRepo) GetByEmails(ctx context.Context, emails []string) ([
 	return res, nil
 }
 
+func (m *mockPelangganRepo) GetByNoKtp(ctx context.Context, noKtp string) (*domain.Pelanggan, error) {
+	for _, p := range m.data {
+		if p.NoKtp == noKtp {
+			return p, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *mockPelangganRepo) GetByNoTelp(ctx context.Context, noTelp string) (*domain.Pelanggan, error) {
+	for _, p := range m.data {
+		if p.NoTelp == noTelp {
+			return p, nil
+		}
+	}
+	return nil, nil
+}
+
 type mockLanggananRepo struct {
 	domain.LanggananRepository
 	data map[uint64]*domain.Langganan
 }
 
-func (m *mockLanggananRepo) GetAll(ctx context.Context, limit, offset int, search, status string, forInvoiceSelection bool) ([]domain.Langganan, int64, error) {
+func (m *mockLanggananRepo) GetAll(ctx context.Context, limit, offset int, search, status string, forInvoiceSelection bool, sortBy, sortOrder string) ([]domain.Langganan, int64, error) {
 	var res []domain.Langganan
 	for _, l := range m.data { res = append(res, *l) }
 	return res, int64(len(res)), nil

@@ -123,12 +123,12 @@
           <v-card-text class="stat-content">
             <div class="stat-info">
               <div class="stat-number-wrapper">
-                <div class="stat-number">{{ statistics?.high_priority_tickets || 0 }}</div>
-                <div class="stat-change negative">
-                  -3%
+                <div class="stat-number">{{ statistics?.resolved_tickets || 0 }}</div>
+                <div class="stat-change positive">
+                  Resolved
                 </div>
               </div>
-              <div class="stat-label">High Priority</div>
+              <div class="stat-label">Resolved Tickets</div>
             </div>
           </v-card-text>
         </v-card>
@@ -137,12 +137,12 @@
           <v-card-text class="stat-content">
             <div class="stat-info">
               <div class="stat-number-wrapper">
-                <div class="stat-number">{{ statistics?.critical_priority_tickets || 0 }}</div>
-                <div class="stat-change negative">
-                  -8%
+                <div class="stat-number">{{ statistics?.closed_tickets || 0 }}</div>
+                <div class="stat-change neutral">
+                  Closed
                 </div>
               </div>
-              <div class="stat-label">Critical</div>
+              <div class="stat-label">Closed Tickets</div>
             </div>
           </v-card-text>
         </v-card>
@@ -224,41 +224,7 @@
         </v-select>
       </div>
 
-      <!-- Priority Filter -->
-      <div class="filter-item">
-        <div class="filter-label">
-          <span>Priority</span>
-        </div>
-        <v-select
-          v-model="filters.priority"
-          :items="priorityOptions"
-          clearable
-          @update:modelValue="applyFilters"
-          hide-details
-          variant="outlined"
-          density="comfortable"
-          placeholder="Select priority"
-          class="filter-select-enhanced"
-        >
-          <template v-slot:item="{ props, item }">
-            <v-list-item v-bind="props" class="filter-list-item">
-              <template v-slot:prepend>
-                <v-icon :color="getPriorityColor(item.value)" size="20">
-                  {{ getPriorityIcon(item.value) }}
-                </v-icon>
-              </template>
-            </v-list-item>
-          </template>
-          <template v-slot:selection="{ item }">
-            <div class="d-flex align-center">
-              <v-icon :color="getPriorityColor(item.value)" size="18" class="me-2">
-                {{ getPriorityIcon(item.value) }}
-              </v-icon>
-              <span>{{ item.title }}</span>
-            </div>
-          </template>
-        </v-select>
-      </div>
+
 
       <!-- Category Filter -->
       <div class="filter-item">
@@ -562,17 +528,7 @@
           </v-chip>
         </template>
 
-        <!-- Priority -->
-        <template v-slot:item.priority="{ item }">
-          <v-chip
-            :color="getPriorityColor(item.priority)"
-            size="small"
-            variant="flat"
-            class="priority-chip font-weight-bold"
-          >
-            {{ formatPriority(item.priority) }}
-          </v-chip>
-        </template>
+
 
         <!-- Category -->
         <template v-slot:item.category="{ item }">
@@ -881,7 +837,6 @@ const ticketToDelete = ref<TroubleTicket | null>(null)
 const activeFilterCount = computed(() => {
   let count = 0
   if (filters.status) count++
-  if (filters.priority) count++
   if (filters.category) count++
   if (filters.brand) count++
   if (filters.search) count++
@@ -893,7 +848,6 @@ const activeFilterCount = computed(() => {
 // Filters
 const filters = reactive({
   status: '',
-  priority: '',
   category: '',
   brand: '',
   search: '',
@@ -907,12 +861,7 @@ const statusOptions = [
   { title: 'Closed', value: 'closed' },
 ]
 
-const priorityOptions = [
-  { title: 'Low', value: 'low' },
-  { title: 'Medium', value: 'medium' },
-  { title: 'High', value: 'high' },
-  { title: 'Critical', value: 'critical' }
-]
+
 
 const categoryOptions = [
   { title: 'No Connection', value: 'no_connection' },
@@ -938,7 +887,6 @@ const headers = [
   { title: 'Title', key: 'title', sortable: false },
   { title: 'Customer', key: 'pelanggan', sortable: false },
   { title: 'Status', key: 'status', sortable: false },
-  { title: 'Priority', key: 'priority', sortable: false },
   { title: 'Category', key: 'category', sortable: false },
   { title: 'Assigned To', key: 'assigned_user', sortable: false },
   { title: 'Downtime', key: 'downtime', sortable: false },
@@ -1025,7 +973,6 @@ const applyFilters = () => {
 
 const clearFilters = () => {
   filters.status = ''
-  filters.priority = ''
   filters.category = ''
   filters.brand = ''
   filters.search = ''
@@ -1130,33 +1077,9 @@ const getStatusIcon = (status: string) => {
   return icons[status] || 'mdi-help-circle'
 }
 
-const getPriorityColor = (priority: string) => {
-  const colors: Record<string, string> = {
-    low: 'success',
-    medium: 'warning',
-    high: 'error',
-    critical: 'red-darken-1'
-  }
-  return colors[priority] || 'grey'
-}
-
-const getPriorityIcon = (priority: string) => {
-  const icons: Record<string, string> = {
-    low: 'mdi-arrow-down',
-    medium: 'mdi-minus',
-    high: 'mdi-arrow-up',
-    critical: 'mdi-fire'
-  }
-  return icons[priority] || 'mdi-help-circle'
-}
-
 const formatStatus = (status: string) => {
   if (status === 'pending_customer' || status === 'pending_vendor') return 'Pending'
   return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-}
-
-const formatPriority = (priority: string) => {
-  return priority.charAt(0).toUpperCase() + priority.slice(1)
 }
 
 const formatCategory = (category: string) => {
