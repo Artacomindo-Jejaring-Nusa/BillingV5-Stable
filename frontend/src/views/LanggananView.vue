@@ -647,25 +647,27 @@
       
       <!-- Mobile Card View -->
       <div class="d-block d-md-none">
-  <div v-if="loading" class="px-4 py-4">
-    <SkeletonLoader type="list" :items="5" />
-  </div>
-  
-  <div v-else-if="langgananList.length === 0" class="pa-8 text-center">
-    <v-icon size="64" color="grey-lighten-1">mdi-wifi-off</v-icon>
-    <p class="mt-4 text-h6 text-medium-emphasis">Belum ada data langganan</p>
-    <v-btn 
-      color="primary" 
-      variant="elevated" 
-      @click="openDialog()" 
-      class="mt-6 text-none"
-      prepend-icon="mdi-plus-circle"
-    >
-      Tambah Langganan
-    </v-btn>
-  </div>
+        <div v-if="loading && langgananList.length === 0" class="px-4 py-4">
+          <SkeletonLoader type="list" :items="5" />
+        </div>
+        
+        <div v-else-if="!loading && langgananList.length === 0" class="pa-8 text-center">
+          <v-icon size="64" color="grey-lighten-1">mdi-wifi-off</v-icon>
+          <p class="mt-4 text-h6 text-medium-emphasis">Belum ada data langganan</p>
+          <v-btn 
+            color="primary" 
+            variant="elevated" 
+            @click="openDialog()" 
+            class="mt-6 text-none"
+            prepend-icon="mdi-plus-circle"
+          >
+            Tambah Langganan
+          </v-btn>
+        </div>
 
-  <div v-else class="pa-2">
+        <div v-else class="pa-2">
+          <!-- Subtle loading indicator on top of mobile list during filter/sort updates -->
+          <v-progress-linear v-if="loading" indeterminate color="primary" height="2" class="mb-3 rounded"></v-progress-linear>
     <v-card
       v-for="item in langgananList"
       :key="item.id"
@@ -843,7 +845,7 @@
           hide-default-footer
         >
 
-          <template v-slot:loading>
+          <template v-slot:loading v-if="langgananList.length === 0">
             <SkeletonLoader type="table" :rows="8" />
           </template>
 
@@ -2749,15 +2751,38 @@ async function goToNextPage() {
   }
 }
 
-// Fungsi yang di-debounce untuk menerapkan filter
+// Fungsi yang di-debounce untuk menerapkan filter pencarian text (500ms)
 const applyFilters = debounce(() => {
   fetchLangganan();
 }, 500); // Tunda 500ms
 
-// Perhatikan perubahan pada filter dan panggil fungsi applyFilters
-watch([searchQuery, selectedAlamat, selectedBlok, selectedPaket, selectedStatus, selectedJatuhTempoStart, selectedJatuhTempoEnd, selectedCreatedAtStart, selectedCreatedAtEnd, sortBy], () => {
+// Fungsi yang di-debounce sangat singkat untuk filter dropdown/sort (50ms - terasa instan)
+const applyFiltersInstant = debounce(() => {
+  fetchLangganan();
+}, 50);
+
+// Perhatikan perubahan pada filter text
+watch(searchQuery, () => {
   applyFilters();
 });
+
+// Perhatikan perubahan pada filter dropdown, tanggal, dan sort
+watch(
+  [
+    selectedAlamat,
+    selectedBlok,
+    selectedPaket,
+    selectedStatus,
+    selectedJatuhTempoStart,
+    selectedJatuhTempoEnd,
+    selectedCreatedAtStart,
+    selectedCreatedAtEnd,
+    sortBy
+  ],
+  () => {
+    applyFiltersInstant();
+  }
+);
 
 // Auto-reset blok filter ketika alamat berubah dan bukan Pulogebang
 watch(selectedAlamat, (newAlamat) => {
