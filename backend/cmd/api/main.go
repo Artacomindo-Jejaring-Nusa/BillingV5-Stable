@@ -33,6 +33,11 @@ func main() {
 	// 1. Load Configurations
 	cfg := config.LoadConfig()
 
+	// Set Gin mode dynamically based on ENVIRONMENT setting
+	if cfg.Environment == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
 	// 2. Initialize Fernet Encryption Service
 	err := utils.InitEncryptionService(cfg.EncryptionKey)
 	if err != nil {
