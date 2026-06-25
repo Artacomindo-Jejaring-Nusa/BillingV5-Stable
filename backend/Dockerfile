@@ -9,6 +9,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/api ./cmd/api/main.go
 
 FROM alpine:latest
+RUN apk add --no-cache tzdata
 WORKDIR /app
 COPY --from=builder /app/api /app/api
 COPY --from=builder /app/docs /app/docs
