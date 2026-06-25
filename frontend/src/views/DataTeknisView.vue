@@ -904,7 +904,7 @@
                       ></v-text-field>
                     </v-col>
                     <v-col cols="12">
-                      <v-file-input ref="fileInputComponent" label="Unggah Bukti Speedtest" variant="outlined" accept="image/*" clearable></v-file-input>
+                      <v-file-input ref="fileInputRef" v-model="speedtestFile" label="Unggah Bukti Speedtest" variant="outlined" accept="image/*" clearable></v-file-input>
                     </v-col>
                     <v-col cols="12">
                       <v-img v-if="imagePreviewUrl" :src="imagePreviewUrl" height="200" class="rounded-lg elevation-2" cover></v-img>
@@ -1307,6 +1307,7 @@ const authStore = useAuthStore();
 
 // Ref untuk komponen file input
 const fileInputRef = ref<any>(null);
+const speedtestFile = ref<any>(null);
 
 function triggerFileSelect() {
   fileInputRef.value?.click();
@@ -1359,8 +1360,9 @@ const availablePppoeProfiles = computed(() => {
 
 
 const imagePreviewUrl = computed(() => {
-  if (fileInputRef.value?.files && fileInputRef.value.files.length > 0) {
-    return URL.createObjectURL(fileInputRef.value.files[0]);
+  if (speedtestFile.value) {
+    const file = Array.isArray(speedtestFile.value) ? speedtestFile.value[0] : speedtestFile.value;
+    if (file) return URL.createObjectURL(file);
   }
   if (editedItem.value.speedtest_proof) {
     const baseUrl = apiClient.defaults.baseURL || ''; 
@@ -1792,6 +1794,7 @@ async function fetchPelanggan() {
 
 
 function openDialog(item?: DataTeknis) {
+  speedtestFile.value = null; // Clear selected file when opening dialog
   // Selalu fetch data terbaru untuk dropdown
   fetchPelanggan();
   fetchMikrotikServers();
@@ -1839,6 +1842,7 @@ function openDialog(item?: DataTeknis) {
 
 function closeDialog() {
   dialog.value = false;
+  speedtestFile.value = null; // Clear the selected file
   if (fileInputRef.value) {
     fileInputRef.value.reset();
   }
@@ -1956,8 +1960,7 @@ const checkIpAvailability = debounce(async (ip: string) => {
 async function saveDataTeknis() {
   saving.value = true;
   try {
-    const files = fileInputRef.value?.files;
-    const fileToUpload = files?.[0];
+    const fileToUpload = Array.isArray(speedtestFile.value) ? speedtestFile.value[0] : speedtestFile.value;
 
     if (fileToUpload) {
       const formData = new FormData();
