@@ -295,6 +295,7 @@ func main() {
 
 	// General Uploads
 	httpDelivery.NewUploadsHandler(api, authMw)
+	api.Static("/static/uploads", "./uploads")
 
 	// 8. Start Cron Scheduler
 	schedulerMgr.Start(context.Background())

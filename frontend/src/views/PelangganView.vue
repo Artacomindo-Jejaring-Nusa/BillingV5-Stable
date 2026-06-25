@@ -1308,7 +1308,8 @@ const alamatOptions = ref([
   'Rusun Albo',
   'Rusun Nagrak',
   'Waringin',
-  'Parama'
+  'Parama',
+  'Casanova'
 ]);
 
 const layananOptions = ref([

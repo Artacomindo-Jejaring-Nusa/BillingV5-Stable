@@ -1319,6 +1319,7 @@ const mikrotikVlanInfo = ref([
   { name: 'Nagrak', vlan: '105' },
   { name: 'Parama', vlan: '10' },
   { name: 'Waringin', vlan: '10' },
+  { name: 'Casanova', vlan: '10' },
   { name: 'Pinus', vlan: '101/100' },
   { name: 'Pulogebang', vlan: '103' },
   { name: 'Tipar Cakung', vlan: '102' }
