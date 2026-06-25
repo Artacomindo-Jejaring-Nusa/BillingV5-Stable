@@ -53,3 +53,7 @@ import-production-data.ps1
 coverage/
 frontend/coverage/
 .scannerwork/
+
+# Skills
+code-guide-billing.md
+.agents/rules

@@ -907,9 +907,113 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 	return nil
 }
 
+func (u *billingUsecase) getXenditInvoice(ctx context.Context, xenditID string, pelanggan *domain.Pelanggan) (map[string]interface{}, error) {
+	if u.cfg == nil {
+		return nil, errors.New("xendit config is nil (unit testing)")
+	}
+	xenditApiKey := u.cfg.XenditApiKeyJelantik
+	if pelanggan != nil && pelanggan.HargaLayanan != nil && strings.ToUpper(pelanggan.HargaLayanan.XenditKeyName) == "JAKINET" {
+		xenditApiKey = u.cfg.XenditApiKeyJakinet
+	}
+
+	if xenditApiKey == "" {
+		return nil, errors.New("xendit API key not configured")
+	}
+
+	url := u.cfg.XenditApiUrl + "/" + xenditID
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	auth := base64.StdEncoding.EncodeToString([]byte(xenditApiKey + ":"))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Basic "+auth)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("xendit API error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (u *billingUsecase) VerifyPayments(ctx context.Context) error {
 	u.logSystem(ctx, "INFO", "Scheduler 'job_verify_payments' started. Checking Xendit status...")
-	// In production, this would call Xendit API for all PENDING invoices
+
+	// 1. Fetch pending invoices (Belum Dibayar)
+	invoices, _, err := u.invoiceRepo.GetAll(ctx, 1000, 0, "", "Belum Dibayar")
+	if err != nil {
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("VerifyPayments failed to fetch pending invoices: %v", err))
+		return err
+	}
+
+	verifiedCount := 0
+	for _, inv := range invoices {
+		if inv.XenditID == nil || *inv.XenditID == "" {
+			continue
+		}
+
+		// Preload/get pelanggan full relation if not preloaded (GetAll preloads Pelanggan)
+		pelanggan := inv.Pelanggan
+		if pelanggan == nil && u.pelangganRepo != nil {
+			p, err := u.pelangganRepo.GetByID(ctx, inv.PelangganID)
+			if err == nil {
+				pelanggan = p
+			}
+		}
+
+		xResp, err := u.getXenditInvoice(ctx, *inv.XenditID, pelanggan)
+		if err != nil {
+			u.logSystem(ctx, "ERROR", fmt.Sprintf("VerifyPayments: Gagal fetch status Xendit untuk Invoice %s (Xendit ID: %s): %v", inv.InvoiceNumber, *inv.XenditID, err))
+			continue
+		}
+
+		status, _ := xResp["status"].(string)
+		if status == "PAID" || status == "SETTLED" {
+			paidAmount, _ := xResp["amount"].(float64)
+			if pAmt, ok := xResp["paid_amount"].(float64); ok && pAmt > 0 {
+				paidAmount = pAmt
+			}
+			
+			paidAtStr, _ := xResp["paid_at"].(string)
+			paidAt, _ := time.Parse(time.RFC3339, paidAtStr)
+			if paidAt.IsZero() {
+				paidAt = time.Now()
+			}
+
+			u.logSystem(ctx, "INFO", fmt.Sprintf("VerifyPayments: Invoice %s terdeteksi PAID di Xendit. Memproses pembayaran...", inv.InvoiceNumber))
+			
+			err = u.processSuccessfulPayment(ctx, &inv, paidAmount, paidAt)
+			if err != nil {
+				u.logSystem(ctx, "ERROR", fmt.Sprintf("VerifyPayments: Gagal memproses pembayaran untuk Invoice %s: %v", inv.InvoiceNumber, err))
+				continue
+			}
+			verifiedCount++
+		} else if status == "EXPIRED" {
+			u.logSystem(ctx, "INFO", fmt.Sprintf("VerifyPayments: Invoice %s terdeteksi EXPIRED di Xendit. Mengubah status lokal...", inv.InvoiceNumber))
+			inv.StatusInvoice = "Expired"
+			_ = u.invoiceRepo.Update(ctx, &inv)
+		}
+	}
+
+	u.logSystem(ctx, "INFO", fmt.Sprintf("Scheduler 'job_verify_payments' completed. Processed %d missed payments.", verifiedCount))
 	return nil
 }
 
