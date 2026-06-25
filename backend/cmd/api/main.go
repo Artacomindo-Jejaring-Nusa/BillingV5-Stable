@@ -24,6 +24,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"strings"
 )
 
 func main() {
@@ -33,10 +34,12 @@ func main() {
 	// 1. Load Configurations
 	cfg := config.LoadConfig()
 
-	// Set Gin mode dynamically based on ENVIRONMENT setting
-	if cfg.Environment == "production" {
+	// Set Gin mode dynamically based on ENVIRONMENT setting (case-insensitive)
+	envMode := strings.ToLower(strings.TrimSpace(cfg.Environment))
+	if envMode == "production" || envMode == "release" || envMode == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
+	log.Printf("[System] Starting server in Environment: '%s' (Gin Mode: %s)", cfg.Environment, gin.Mode())
 
 	// 2. Initialize Fernet Encryption Service
 	err := utils.InitEncryptionService(cfg.EncryptionKey)
