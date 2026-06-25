@@ -2,10 +2,14 @@ package http
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"billing-backend/internal/domain"
 
@@ -47,6 +51,7 @@ func NewDataTeknisHandler(r *gin.RouterGroup, du domain.DataTeknisUsecase, authM
 		g.GET("/export", handler.Export)
 		g.POST("/import/csv", handler.ImportFromCSV)
 		g.GET("/template/csv", handler.DownloadCSVTemplate)
+		g.POST("/upload-speedtest", handler.UploadSpeedtest)
 	}
 }
 
@@ -401,4 +406,47 @@ func (h *DataTeknisHandler) DownloadCSVTemplate(c *gin.Context) {
 	c.Header("Content-Disposition", "attachment; filename=template_import_teknis.csv")
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Data(http.StatusOK, "text/csv; charset=utf-8", buf.Bytes())
+}
+
+func (h *DataTeknisHandler) UploadSpeedtest(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
+		return
+	}
+
+	ext := filepath.Ext(file.Filename)
+	if ext == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File must have a valid extension"})
+		return
+	}
+
+	uniqueFilename := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
+	dir := "./uploads/speedtest"
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upload directory"})
+		return
+	}
+
+	filePath := filepath.Join(dir, uniqueFilename)
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file: " + err.Error()})
+		return
+	}
+
+	fileInfo, err := os.Stat(filePath)
+	var size int64
+	if err == nil {
+		size = fileInfo.Size()
+	}
+
+	contentType := file.Header.Get("Content-Type")
+	fileURL := fmt.Sprintf("/static/uploads/speedtest/%s", uniqueFilename)
+
+	c.JSON(http.StatusOK, gin.H{
+		"file_url":     fileURL,
+		"filename":     file.Filename,
+		"content_type": contentType,
+		"size":         size,
+	})
 }

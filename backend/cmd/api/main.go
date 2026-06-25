@@ -293,6 +293,9 @@ func main() {
 	// Notifications
 	httpDelivery.NewNotificationHandler(api, authMw)
 
+	// General Uploads
+	httpDelivery.NewUploadsHandler(api, authMw)
+
 	// 8. Start Cron Scheduler
 	schedulerMgr.Start(context.Background())
 
