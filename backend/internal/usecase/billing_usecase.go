@@ -474,20 +474,11 @@ func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langgana
 			hargaAwal += hargaNormal
 		}
 	} else {
-		// Otomatis
-		if startDate.Day() == 1 {
-			tglMulai = startDate
-		} else {
-			tglMulai = time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, startDate.Location())
-		}
-		dueDate = time.Date(tglMulai.Year(), tglMulai.Month()+1, 0, 0, 0, 0, 0, tglMulai.Location())
-		payDate = tglMulai
-
-		if startDate.Day() != 1 {
-			tglMulai = startDate
-			dueDate = time.Date(startDate.Year(), startDate.Month()+1, 0, 0, 0, 0, 0, startDate.Location())
-			payDate = startDate
-		}
+		// Otomatis — tanggal jatuh tempo selalu tanggal 1 bulan depan
+		// Sesuai logika legacy Python: (start_date + relativedelta(months=1)).replace(day=1)
+		tglMulai = startDate
+		dueDate = time.Date(startDate.Year(), startDate.Month()+1, 1, 0, 0, 0, 0, startDate.Location())
+		payDate = startDate
 	}
 	h := math.Round(hargaAwal)
 	l.HargaAwal = &h
@@ -597,20 +588,11 @@ func (u *billingUsecase) CalculatePrice(ctx context.Context, req *domain.Langgan
 		harga = (pk.Harga / float64(jt.Day()) * float64(jt.Day()-startDate.Day()+1)) * (1.0 + (br.Pajak / 100.0))
 		jtp = startDate
 	} else {
-		// Otomatis
-		if startDate.Day() == 1 {
-			tml = startDate
-		} else {
-			tml = time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, startDate.Location())
-		}
-		jt = time.Date(tml.Year(), tml.Month()+1, 0, 0, 0, 0, 0, tml.Location())
-		jtp = tml
-
-		if startDate.Day() != 1 {
-			tml = startDate
-			jt = time.Date(startDate.Year(), startDate.Month()+1, 0, 0, 0, 0, 0, startDate.Location())
-			jtp = startDate
-		}
+		// Otomatis — tanggal jatuh tempo selalu tanggal 1 bulan depan
+		// Sesuai logika legacy Python: (start_date + relativedelta(months=1)).replace(day=1)
+		tml = startDate
+		jt = time.Date(startDate.Year(), startDate.Month()+1, 1, 0, 0, 0, 0, startDate.Location())
+		jtp = startDate
 
 		today := time.Now()
 		if u.diskonRepo != nil {
