@@ -762,13 +762,17 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 		}
 
 		for _, l := range langganans {
-			if l.TglJatuhTempo == nil {
-				u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateInvoices: Langganan ID %d has nil TglJatuhTempo, skipping", l.ID))
+			targetDue := l.TglJatuhTempoPembayaran
+			if targetDue == nil {
+				targetDue = l.TglJatuhTempo
+			}
+			if targetDue == nil {
+				u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateInvoices: Langganan ID %d has nil due dates, skipping", l.ID))
 				continue
 			}
 
-			// Konversi TglJatuhTempo ke zona waktu Asia/Jakarta untuk pembandingan presisi
-			subDue := l.TglJatuhTempo.In(loc)
+			// Konversi ke zona waktu Asia/Jakarta untuk pembandingan presisi
+			subDue := targetDue.In(loc)
 			isBefore := subDue.Before(targetDate)
 			u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateInvoices: Checking Langganan ID %d (Pelanggan ID %d). subDue: %s, targetDate: %s, isBefore: %t", 
 				l.ID, l.PelangganID, subDue.Format("2006-01-02 15:04:05 Z0700"), targetDate.Format("2006-01-02 15:04:05 Z0700"), isBefore))
