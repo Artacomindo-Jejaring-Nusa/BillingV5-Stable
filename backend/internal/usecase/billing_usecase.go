@@ -756,26 +756,36 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 			u.logSystem(ctx, "ERROR", fmt.Sprintf("Failed to fetch active subscriptions: %v", err))
 			return err
 		}
+		u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateInvoices: Found %d active subscriptions in batch", len(langganans)))
 		if len(langganans) == 0 {
 			break
 		}
 
 		for _, l := range langganans {
 			if l.TglJatuhTempo == nil {
+				u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateInvoices: Langganan ID %d has nil TglJatuhTempo, skipping", l.ID))
 				continue
 			}
 
 			// Konversi TglJatuhTempo ke zona waktu Asia/Jakarta untuk pembandingan presisi
 			subDue := l.TglJatuhTempo.In(loc)
+			isBefore := subDue.Before(targetDate)
+			u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateInvoices: Checking Langganan ID %d (Pelanggan ID %d). subDue: %s, targetDate: %s, isBefore: %t", 
+				l.ID, l.PelangganID, subDue.Format("2006-01-02 15:04:05 Z0700"), targetDate.Format("2006-01-02 15:04:05 Z0700"), isBefore))
 
 			// Jika jatuh tempo berada pada atau sebelum targetDate (H-5)
-			if subDue.Before(targetDate) {
+			if isBefore {
 				// Check if invoice already exists for this cycle (same month/year as due date)
 				existing, err := u.invoiceRepo.GetInvoiceByPelangganAndDueDateRange(ctx, l.PelangganID,
 					time.Date(l.TglJatuhTempo.Year(), l.TglJatuhTempo.Month(), 1, 0, 0, 0, 0, l.TglJatuhTempo.Location()),
 					time.Date(l.TglJatuhTempo.Year(), l.TglJatuhTempo.Month()+1, 0, 23, 59, 59, 0, l.TglJatuhTempo.Location()))
 				if err != nil {
 					u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Gagal mengecek invoice existing untuk pelanggan %d: %v", l.PelangganID, err))
+					continue
+				}
+
+				if existing != nil {
+					u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateInvoices: Langganan ID %d skipped because invoice already exists: ID %d, Number %s", l.ID, existing.ID, existing.InvoiceNumber))
 					continue
 				}
 
