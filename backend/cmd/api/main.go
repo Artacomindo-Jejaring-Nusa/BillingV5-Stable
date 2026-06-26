@@ -306,7 +306,11 @@ func main() {
 	api.Static("/static/uploads", "./uploads")
 
 	// 8. Start Cron Scheduler
-	schedulerMgr.Start(context.Background())
+	if cfg.SchedulerEnabled {
+		schedulerMgr.Start(context.Background())
+	} else {
+		logger.Warn("SchedulerManager: Scheduler is disabled on this instance (SCHEDULER_ENABLED=false)")
+	}
 
 	// 9. Start Server
 	port := os.Getenv("PORT")

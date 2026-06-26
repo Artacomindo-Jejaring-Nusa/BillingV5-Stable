@@ -75,6 +75,7 @@ services:
       - DB_SLAVE_URL=mysql://${DB_USER:-root}:${DB_PASSWORD:-root}@mysql-slave:3306/billing_revaktor
       - REDIS_URL=redis://redis:6379
       - ENVIRONMENT=production
+      - SCHEDULER_ENABLED=true
     volumes:
       - ./backend/uploads:/app/uploads
       - ./Notif Sound:/app/Notif Sound
@@ -97,6 +98,7 @@ services:
       - DB_SLAVE_URL=mysql://${DB_USER:-root}:${DB_PASSWORD:-root}@mysql-slave:3306/billing_revaktor
       - REDIS_URL=redis://redis:6379
       - ENVIRONMENT=production
+      - SCHEDULER_ENABLED=false
     volumes:
       - ./backend/uploads:/app/uploads
       - ./Notif Sound:/app/Notif Sound
