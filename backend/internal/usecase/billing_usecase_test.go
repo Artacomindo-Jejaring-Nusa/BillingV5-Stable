@@ -638,8 +638,8 @@ func TestGenerateInvoices(t *testing.T) {
 	}
 
 	today := time.Now().In(loc)
-	dueDate := today.AddDate(0, 0, 5) // exactly 5 days from today
-	dueDatePembayaran := dueDate.AddDate(0, 0, 4)
+	dueDate := today.AddDate(0, 0, 35) // subscription period end (e.g. 35 days from today)
+	dueDatePembayaran := today.AddDate(0, 0, 5) // payment due date (exactly 5 days from today)
 
 	brandID := "ajn-01"
 	brand := &domain.HargaLayanan{
