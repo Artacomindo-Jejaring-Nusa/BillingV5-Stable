@@ -10,6 +10,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
+	"gorm.io/plugin/dbresolver"
 )
 
 type invoiceRepository struct {
@@ -187,6 +188,7 @@ func (r *invoiceRepository) UpdateStatusForUnpaidInvoices(ctx context.Context, p
 func (r *invoiceRepository) GetInvoiceByPelangganAndDueDateRange(ctx context.Context, pelangganID uint64, start, end time.Time) (*domain.Invoice, error) {
 	var inv domain.Invoice
 	err := r.db.WithContext(ctx).
+		Clauses(dbresolver.Write).
 		Where("pelanggan_id = ?", pelangganID).
 		Where("tgl_jatuh_tempo BETWEEN ? AND ?", start, end).
 		First(&inv).Error
@@ -463,8 +465,8 @@ func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, sea
 		Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id")
 
 	if forInvoiceSelection {
-		dbCount = dbCount.Where("langganan.status != ?", "Berhenti")
-		dbFind = dbFind.Where("langganan.status != ?", "Berhenti")
+		dbCount = dbCount.Clauses(dbresolver.Write).Where("langganan.status != ?", "Berhenti")
+		dbFind = dbFind.Clauses(dbresolver.Write).Where("langganan.status != ?", "Berhenti")
 	}
 
 	if status != "" {

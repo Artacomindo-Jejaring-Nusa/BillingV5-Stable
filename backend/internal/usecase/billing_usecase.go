@@ -738,11 +738,22 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 	limit := 500
 	offset := 0
 	successCount := 0
-	today := time.Now()
-	targetDate := today.AddDate(0, 0, 7)
+
+	// Gunakan zona waktu Asia/Jakarta agar perhitungan tanggal konsisten dengan legacy Python
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		loc = time.FixedZone("WIB", 7*3600)
+	}
+
+	today := time.Now().In(loc)
+	// H-5 sebelum tanggal jatuh tempo.
+	// Batasi targetDate pada pukul 23:59:59 pada 5 hari ke depan agar semua tagihan yang jatuh tempo
+	// pada hari tersebut (atau sebelumnya) masuk ke dalam filter.
+	targetDate := time.Date(today.Year(), today.Month(), today.Day(), 23, 59, 59, 0, loc).AddDate(0, 0, 5)
 
 	for {
-		langganans, _, err := u.langgananRepo.GetAll(ctx, limit, offset, "", "Aktif", false, "", "")
+		// Set parameter forInvoiceSelection menjadi true agar query selalu membaca dari Master Database (menghindari repl lag)
+		langganans, _, err := u.langgananRepo.GetAll(ctx, limit, offset, "", "Aktif", true, "", "")
 		if err != nil {
 			u.logSystem(ctx, "ERROR", fmt.Sprintf("Failed to fetch active subscriptions: %v", err))
 			return err
@@ -756,8 +767,11 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 				continue
 			}
 
-			// If due date is within target range
-			if l.TglJatuhTempo.Before(targetDate) {
+			// Konversi TglJatuhTempo ke zona waktu Asia/Jakarta untuk pembandingan presisi
+			subDue := l.TglJatuhTempo.In(loc)
+
+			// Jika jatuh tempo berada pada atau sebelum targetDate (H-5)
+			if subDue.Before(targetDate) {
 				// Check if invoice already exists for this cycle (same month/year as due date)
 				existing, _ := u.invoiceRepo.GetInvoiceByPelangganAndDueDateRange(ctx, l.PelangganID,
 					time.Date(l.TglJatuhTempo.Year(), l.TglJatuhTempo.Month(), 1, 0, 0, 0, 0, l.TglJatuhTempo.Location()),
