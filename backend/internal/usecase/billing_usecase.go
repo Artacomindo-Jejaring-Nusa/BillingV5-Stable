@@ -140,17 +140,27 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 	pajak := invoice.TotalHarga - math.Round(invoice.TotalHarga/(1.0+(brand.Pajak/100.0)))
 	noTelpXendit := utils.NormalizePhoneForXendit(pelanggan.NoTelp)
 	deskripsi := fmt.Sprintf("Biaya berlangganan internet jatuh tempo pembayaran tanggal %s", invoice.TglJatuhTempo.Format("02/01/2006"))
-	xResp, err := u.createXenditInvoice(ctx, invoice, pelanggan, nil, deskripsi, pajak, noTelpXendit)
-	if err != nil {
-		return err
-	}
-	shortURL, _ := xResp["short_url"].(string)
-	xID, _ := xResp["id"].(string)
-	invoice.PaymentLink = &shortURL
-	invoice.XenditID = &xID
 	invoice.StatusInvoice = "Belum Bayar"
 	invoice.InvoiceType = "manual"
-	err = u.invoiceRepo.Create(ctx, invoice)
+	if err := u.invoiceRepo.Create(ctx, invoice); err != nil {
+		return err
+	}
+
+	xResp, xErr := u.createXenditInvoice(ctx, invoice, pelanggan, nil, deskripsi, pajak, noTelpXendit)
+	if xErr == nil {
+		shortURL, _ := xResp["short_url"].(string)
+		xID, _ := xResp["id"].(string)
+		invoice.PaymentLink = &shortURL
+		invoice.XenditID = &xID
+		invoice.XenditStatus = "pending"
+	} else {
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("CreateInvoice: Gagal membuat Xendit invoice untuk pelanggan %d: %v", invoice.PelangganID, xErr))
+		errMsg := xErr.Error()
+		invoice.XenditStatus = "failed"
+		invoice.XenditErrorMessage = &errMsg
+	}
+
+	err = u.invoiceRepo.Update(ctx, invoice)
 	if err == nil {
 		u.logActivity(ctx, "Create Invoice", fmt.Sprintf("Created invoice: %s for Pelanggan ID %d", invoice.InvoiceNumber, invoice.PelangganID))
 		websocket.InvalidateDashboardCache(ctx)
@@ -392,6 +402,10 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 			itemPrefix, dueDate.Format("02/01/2006"))
 	}
 
+	if err := u.invoiceRepo.Create(ctx, invoice); err != nil {
+		return nil, err
+	}
+
 	xResp, xErr := u.createXenditInvoice(ctx, invoice, pelanggan, nil, deskripsi, pajak, noTelpXendit)
 	if xErr == nil {
 		shortURL, _ := xResp["short_url"].(string)
@@ -405,12 +419,16 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 		if xID != "" {
 			invoice.XenditID = &xID
 		}
+		invoice.XenditStatus = "pending"
 		u.logSystem(ctx, "INFO", fmt.Sprintf("Xendit invoice created: %s", shortURL))
 	} else {
-		u.logSystem(ctx, "ERROR", fmt.Sprintf("Gagal create Xendit invoice: %v", xErr))
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateManualInvoice: Gagal membuat Xendit invoice untuk pelanggan %d: %v", invoice.PelangganID, xErr))
+		errMsg := xErr.Error()
+		invoice.XenditStatus = "failed"
+		invoice.XenditErrorMessage = &errMsg
 	}
 
-	if err := u.invoiceRepo.Create(ctx, invoice); err != nil {
+	if err := u.invoiceRepo.Update(ctx, invoice); err != nil {
 		return nil, err
 	}
 	u.logActivity(ctx, "Generate Manual Invoice", fmt.Sprintf("Generated manual invoice %s for Langganan ID %d", invoice.InvoiceNumber, langgananID))
@@ -976,7 +994,13 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 							itemPrefix, dueDate.Format("02/01/2006"))
 					}
 
-					// Create Xendit invoice
+					// 1. Simpan invoice dasar ke database terlebih dahulu untuk mencegah race condition
+					if err := u.invoiceRepo.Create(ctx, inv); err != nil {
+						u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Gagal menyimpan invoice dasar %s ke DB: %v", inv.InvoiceNumber, err))
+						continue
+					}
+
+					// 2. Buat invoice Xendit setelah data tersimpan di DB
 					xResp, xErr := u.createXenditInvoice(ctx, inv, pelanggan, nil, xenditDesc, pajak, noTelpXendit)
 					if xErr == nil {
 						shortURL, _ := xResp["short_url"].(string)
@@ -990,6 +1014,7 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 						if xID != "" {
 							inv.XenditID = &xID
 						}
+						inv.XenditStatus = "pending"
 					} else {
 						u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Gagal membuat Xendit invoice untuk pelanggan %d: %v", l.PelangganID, xErr))
 						errMsg := xErr.Error()
@@ -997,8 +1022,9 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 						inv.XenditErrorMessage = &errMsg
 					}
 
-					if err := u.invoiceRepo.Create(ctx, inv); err != nil {
-						u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Gagal menyimpan invoice %s ke DB untuk pelanggan %d: %v", inv.InvoiceNumber, l.PelangganID, err))
+					// 3. Update data invoice dengan informasi Xendit
+					if err := u.invoiceRepo.Update(ctx, inv); err != nil {
+						u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Gagal mengupdate link Xendit untuk invoice %s di DB: %v", inv.InvoiceNumber, err))
 					} else {
 						successCount++
 						l.TglInvoiceTerakhir = &today
