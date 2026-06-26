@@ -601,6 +601,10 @@ func (m *mockInvoiceRepoForGenerate) Create(ctx context.Context, inv *domain.Inv
 	return nil
 }
 
+func (m *mockInvoiceRepoForGenerate) Update(ctx context.Context, inv *domain.Invoice) error {
+	return nil
+}
+
 type mockLanggananRepoForGenerate struct {
 	domain.LanggananRepository
 	data []domain.Langganan
