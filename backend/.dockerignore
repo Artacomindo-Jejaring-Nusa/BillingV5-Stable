@@ -1,0 +1,6 @@
+uploads
+.env
+main.exe
+tmp_build
+*.log
+coverage
