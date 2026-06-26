@@ -747,8 +747,6 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 
 	today := time.Now().In(loc)
 	// H-5 sebelum tanggal jatuh tempo.
-	// Batasi targetDate pada pukul 23:59:59 pada 5 hari ke depan agar semua tagihan yang jatuh tempo
-	// pada hari tersebut (atau sebelumnya) masuk ke dalam filter.
 	targetDate := time.Date(today.Year(), today.Month(), today.Day(), 23, 59, 59, 0, loc).AddDate(0, 0, 5)
 
 	for {
@@ -773,40 +771,230 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 			// Jika jatuh tempo berada pada atau sebelum targetDate (H-5)
 			if subDue.Before(targetDate) {
 				// Check if invoice already exists for this cycle (same month/year as due date)
-				existing, _ := u.invoiceRepo.GetInvoiceByPelangganAndDueDateRange(ctx, l.PelangganID,
+				existing, err := u.invoiceRepo.GetInvoiceByPelangganAndDueDateRange(ctx, l.PelangganID,
 					time.Date(l.TglJatuhTempo.Year(), l.TglJatuhTempo.Month(), 1, 0, 0, 0, 0, l.TglJatuhTempo.Location()),
 					time.Date(l.TglJatuhTempo.Year(), l.TglJatuhTempo.Month()+1, 0, 23, 59, 59, 0, l.TglJatuhTempo.Location()))
+				if err != nil {
+					u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Gagal mengecek invoice existing untuk pelanggan %d: %v", l.PelangganID, err))
+					continue
+				}
 
 				if existing == nil {
+					// Fetch full customer details to prevent missing values
+					pelanggan, err := u.pelangganRepo.GetByID(ctx, l.PelangganID)
+					if err != nil || pelanggan == nil {
+						u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Pelanggan tidak ditemukan untuk langganan ID %d: %v", l.ID, err))
+						continue
+					}
+
+					if pelanggan.IDBrand == nil || *pelanggan.IDBrand == "" {
+						u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: IDBrand tidak diset untuk pelanggan ID %d", pelanggan.ID))
+						continue
+					}
+
+					brand, err := u.brandRepo.GetByID(ctx, *pelanggan.IDBrand)
+					if err != nil || brand == nil {
+						u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Brand %s tidak ditemukan untuk pelanggan ID %d: %v", *pelanggan.IDBrand, pelanggan.ID, err))
+						continue
+					}
+					pelanggan.HargaLayanan = brand
+
+					dt, _ := u.dataTeknisRepo.GetByPelangganID(ctx, pelanggan.ID)
+
+					// Prioritaskan tgl_jatuh_tempo_pembayaran (Kotak 3) sebagai jatuh tempo pembayaran invoice
 					dueDate := l.TglJatuhTempoPembayaran
 					if dueDate == nil {
 						dueDate = l.TglJatuhTempo
 					}
-					// Generate new invoice
+
+					// Generate proper Indonesian invoice number format
+					re := regexp.MustCompile(`[^a-zA-Z0-9]`)
+					namaSingkat := strings.ToUpper(re.ReplaceAllString(pelanggan.Nama, ""))
+					brandSingkat := strings.ToUpper(re.ReplaceAllString(brand.Brand, ""))
+					alamatSingkat := utils.GenerateAlamatSingkat(pelanggan.Alamat, pelanggan.Blok, pelanggan.Unit, 10)
+
+					namingDate := l.TglJatuhTempo
+					if l.MetodePembayaran == "Prorate" && namingDate.Day() == 1 {
+						d := namingDate.AddDate(0, 0, -1)
+						namingDate = &d
+					}
+					bulanTahun := fmt.Sprintf("%s-%d", strings.ToUpper(namingDate.Month().String()), namingDate.Year())
+
+					idSuffix := "TMP"
+					if dt != nil && dt.IDPelanggan != "" {
+						if len(dt.IDPelanggan) >= 3 {
+							idSuffix = dt.IDPelanggan[len(dt.IDPelanggan)-3:]
+						} else {
+							idSuffix = dt.IDPelanggan
+						}
+					}
+
+					invoiceNumber := fmt.Sprintf("%s/ftth/%s/%s/%s/%s", brandSingkat, namaSingkat, bulanTahun, alamatSingkat, idSuffix)
+					
+					// Avoid duplicates
+					counter := 0
+					for {
+						existingInv, err := u.invoiceRepo.GetByInvoiceNumber(ctx, invoiceNumber)
+						if err != nil {
+							if err.Error() == "invoice not found" {
+								break
+							}
+							u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Gagal mengecek nomor invoice duplicate %s: %v", invoiceNumber, err))
+							break
+						}
+						if existingInv != nil {
+							counter++
+							invoiceNumber = fmt.Sprintf("%s/ftth/%s/%s/%s/%s-%d", brandSingkat, namaSingkat, bulanTahun, alamatSingkat, idSuffix, counter)
+						} else {
+							break
+						}
+					}
+
 					inv := &domain.Invoice{
+						InvoiceNumber: invoiceNumber,
 						PelangganID:   l.PelangganID,
-						InvoiceNumber: fmt.Sprintf("INV/%s/%d", l.TglJatuhTempo.Format("200601"), l.ID),
-						TotalHarga:    0, // Will be calculated in repository/usecase
+						TotalHarga:    0,
 						TglInvoice:    today,
 						TglJatuhTempo: *dueDate,
 						StatusInvoice: "Belum Bayar",
 						InvoiceType:   "automatic",
+						Brand:         brand.Brand,
+						NoTelp:        pelanggan.NoTelp,
+						Email:         pelanggan.Email,
+					}
+					if dt != nil {
+						inv.IDPelanggan = dt.IDPelanggan
 					}
 
 					// Calculate price with tax and discount
+					var originalPrice float64
 					if l.HargaAwal != nil {
-						inv.TotalHarga = *l.HargaAwal
-						// Apply cluster discount
-						if l.Pelanggan != nil {
-							inv.TotalHarga = u.GetDiscountedPrice(ctx, l.Pelanggan.Alamat, inv.TotalHarga)
+						originalPrice = *l.HargaAwal
+					} else {
+						paket, err := u.paketRepo.GetByID(ctx, l.PaketLayananID)
+						if err == nil && paket != nil {
+							originalPrice = paket.Harga * (1.0 + (brand.Pajak / 100.0))
 						}
 					}
 
-					if err := u.invoiceRepo.Create(ctx, inv); err == nil {
+					inv.TotalHarga = originalPrice
+					if l.MetodePembayaran == "Prorate" {
+						// Prorate users do not get discounts (legacy logic)
+					} else {
+						discountedPrice := u.GetDiscountedPrice(ctx, pelanggan.Alamat, originalPrice)
+						if discountedPrice < originalPrice {
+							inv.TotalHarga = discountedPrice
+							activeDiscount, _ := u.diskonRepo.GetActiveForCluster(ctx, strings.TrimSpace(pelanggan.Alamat), today)
+							if activeDiscount != nil {
+								inv.DiskonID = &activeDiscount.ID
+								pVal := activeDiscount.PersentaseDiskon
+								inv.DiskonPersen = &pVal
+								dAmount := math.Floor((originalPrice * pVal / 100.0) + 0.5)
+								inv.DiskonAmount = &dAmount
+								inv.HargaSebelumDiskon = &originalPrice
+							}
+						}
+					}
+					inv.TotalHarga = math.Round(inv.TotalHarga)
+
+					// Calculate tax and format description for Xendit
+					noTelpXendit := utils.NormalizePhoneForXendit(pelanggan.NoTelp)
+					pajak := inv.TotalHarga - math.Round(inv.TotalHarga/(1.0+(brand.Pajak/100.0)))
+					
+					var itemPrefix string
+					paket, _ := u.paketRepo.GetByID(ctx, l.PaketLayananID)
+					if paket != nil && paket.Kecepatan > 0 {
+						itemPrefix = fmt.Sprintf("Biaya berlangganan internet up to %d Mbps", paket.Kecepatan)
+					} else {
+						itemPrefix = "Biaya berlangganan internet"
+					}
+
+					var xenditDesc string
+					if l.MetodePembayaran == "Prorate" {
+						periodeStart := today
+						if l.TglMulaiLangganan != nil {
+							periodeStart = *l.TglMulaiLangganan
+						}
+						targetEnd := *dueDate
+						if l.TglJatuhTempo != nil {
+							targetEnd = *l.TglJatuhTempo
+						}
+						periodeEnd := targetEnd
+						if targetEnd.Day() == 1 {
+							periodeEnd = targetEnd.AddDate(0, 0, -1)
+						}
+
+						getIndonesianMonth := func(m time.Month) string {
+							months := map[time.Month]string{
+								time.January:   "Januari",
+								time.February:  "Februari",
+								time.March:     "Maret",
+								time.April:     "April",
+								time.May:       "Mei",
+								time.June:      "Juni",
+								time.July:      "Juli",
+								time.August:    "Agustus",
+								time.September: "September",
+								time.October:   "Oktober",
+								time.November:  "November",
+								time.December:  "Desember",
+							}
+							return months[m]
+						}
+
+						var periodDesc string
+						if periodeStart.Month() == periodeEnd.Month() && periodeStart.Year() == periodeEnd.Year() {
+							periodDesc = fmt.Sprintf("Periode Tgl %d-%d %s %d",
+								periodeStart.Day(), periodeEnd.Day(),
+								getIndonesianMonth(periodeEnd.Month()), periodeEnd.Year())
+						} else if periodeStart.Year() == periodeEnd.Year() {
+							periodDesc = fmt.Sprintf("Periode Tgl %d %s - %d %s %d",
+								periodeStart.Day(), getIndonesianMonth(periodeStart.Month()),
+								periodeEnd.Day(), getIndonesianMonth(periodeEnd.Month()), periodeEnd.Year())
+						} else {
+							periodDesc = fmt.Sprintf("Periode Tgl %d %s %d - %d %s %d",
+								periodeStart.Day(), getIndonesianMonth(periodeStart.Month()), periodeStart.Year(),
+								periodeEnd.Day(), getIndonesianMonth(periodeEnd.Month()), periodeEnd.Year())
+						}
+						xenditDesc = fmt.Sprintf("%s, %s", itemPrefix, periodDesc)
+					} else {
+						xenditDesc = fmt.Sprintf("%s jatuh tempo pembayaran tanggal %s",
+							itemPrefix, dueDate.Format("02/01/2006"))
+					}
+
+					// Create Xendit invoice
+					xResp, xErr := u.createXenditInvoice(ctx, inv, pelanggan, nil, xenditDesc, pajak, noTelpXendit)
+					if xErr == nil {
+						shortURL, _ := xResp["short_url"].(string)
+						if shortURL == "" {
+							shortURL, _ = xResp["invoice_url"].(string)
+						}
+						xID, _ := xResp["id"].(string)
+						if shortURL != "" {
+							inv.PaymentLink = &shortURL
+						}
+						if xID != "" {
+							inv.XenditID = &xID
+						}
+					} else {
+						u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Gagal membuat Xendit invoice untuk pelanggan %d: %v", l.PelangganID, xErr))
+						errMsg := xErr.Error()
+						inv.XenditStatus = "failed"
+						inv.XenditErrorMessage = &errMsg
+					}
+
+					if err := u.invoiceRepo.Create(ctx, inv); err != nil {
+						u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Gagal menyimpan invoice %s ke DB untuk pelanggan %d: %v", inv.InvoiceNumber, l.PelangganID, err))
+					} else {
 						successCount++
-						// Update last invoice date on subscription
 						l.TglInvoiceTerakhir = &today
 						_ = u.langgananRepo.Update(ctx, &l)
+
+						if inv.PaymentLink != nil {
+							u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateInvoices: Invoice %s dibuat sukses untuk pelanggan %s dengan payment link: %s", inv.InvoiceNumber, pelanggan.Nama, *inv.PaymentLink))
+						} else {
+							u.logSystem(ctx, "WARN", fmt.Sprintf("GenerateInvoices: Invoice %s disimpan sebagai draft failed (tanpa link) untuk pelanggan %s", inv.InvoiceNumber, pelanggan.Nama))
+						}
 					}
 				}
 			}

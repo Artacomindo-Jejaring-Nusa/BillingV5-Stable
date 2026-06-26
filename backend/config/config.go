@@ -31,6 +31,7 @@ type Config struct {
 	DashboardWidgets                []string
 	SystemFeatures                  []string
 	DashboardWidgetPermissions      map[string][]string
+	SchedulerEnabled                bool
 }
 
 var GlobalConfig *Config
@@ -69,6 +70,7 @@ func LoadConfig() *Config {
 		WatzapApiKey:                    getEnv("WATZAP_API_KEY", ""),
 		WatzapNumberKey:                 getEnv("WATZAP_NUMBER_KEY", ""),
 		WatzapAccessToken:               getEnv("WATZAP_ACCESS_TOKEN", ""),
+		SchedulerEnabled:                getEnv("SCHEDULER_ENABLED", "true") == "true",
 		
 		Menus: []string{
 			"Dashboard", "Pelanggan", "Langganan", "Teknis", "Paket", "Invoices", "Reports",

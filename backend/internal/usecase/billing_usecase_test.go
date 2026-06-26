@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -580,5 +581,153 @@ func (m *mockDataTeknisRepoWithPending) Update(ctx context.Context, data *domain
 		return m.UpdateFunc(ctx, data)
 	}
 	return nil
+}
+
+type mockInvoiceRepoForGenerate struct {
+	domain.InvoiceRepository
+	created []*domain.Invoice
+}
+
+func (m *mockInvoiceRepoForGenerate) GetInvoiceByPelangganAndDueDateRange(ctx context.Context, pelangganID uint64, start, end time.Time) (*domain.Invoice, error) {
+	return nil, nil
+}
+
+func (m *mockInvoiceRepoForGenerate) GetByInvoiceNumber(ctx context.Context, num string) (*domain.Invoice, error) {
+	return nil, errors.New("invoice not found")
+}
+
+func (m *mockInvoiceRepoForGenerate) Create(ctx context.Context, inv *domain.Invoice) error {
+	m.created = append(m.created, inv)
+	return nil
+}
+
+type mockLanggananRepoForGenerate struct {
+	domain.LanggananRepository
+	data []domain.Langganan
+}
+
+func (m *mockLanggananRepoForGenerate) GetAll(ctx context.Context, limit, offset int, search, status string, forInvoiceSelection bool, sortBy, sortOrder string) ([]domain.Langganan, int64, error) {
+	return m.data, int64(len(m.data)), nil
+}
+
+func (m *mockLanggananRepoForGenerate) Update(ctx context.Context, l *domain.Langganan) error {
+	return nil
+}
+
+type mockDataTeknisRepoForGenerate struct {
+	domain.DataTeknisRepository
+	data *domain.DataTeknis
+}
+
+func (m *mockDataTeknisRepoForGenerate) GetByPelangganID(ctx context.Context, pelangganID uint64) (*domain.DataTeknis, error) {
+	return m.data, nil
+}
+
+type mockDiskonRepoForGenerate struct {
+	domain.DiskonRepository
+}
+
+func (m *mockDiskonRepoForGenerate) GetActiveForCluster(ctx context.Context, cluster string, t time.Time) (*domain.Diskon, error) {
+	return nil, nil
+}
+
+func TestGenerateInvoices(t *testing.T) {
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		loc = time.FixedZone("WIB", 7*3600)
+	}
+
+	today := time.Now().In(loc)
+	dueDate := today.AddDate(0, 0, 5) // exactly 5 days from today
+	dueDatePembayaran := dueDate.AddDate(0, 0, 4)
+
+	brandID := "ajn-01"
+	brand := &domain.HargaLayanan{
+		IDBrand: brandID,
+		Brand:   "Jakinet",
+		Pajak:   11.0,
+	}
+
+	paket := &domain.PaketLayanan{
+		ID:        1,
+		NamaPaket: "10Mbps",
+		Harga:     300000.0,
+		Kecepatan: 10,
+	}
+
+	pelanggan := &domain.Pelanggan{
+		ID:      1,
+		Nama:    "Ahmad Rizki",
+		IDBrand: &brandID,
+		Alamat:  "Jl. Kebon Jeruk",
+		NoTelp:  "081234567890",
+		Email:   "ahmad@gmail.com",
+	}
+
+	langganan := domain.Langganan{
+		ID:                        1,
+		PelangganID:               1,
+		PaketLayananID:            1,
+		Status:                    "Aktif",
+		TglJatuhTempo:             &dueDate,
+		TglJatuhTempoPembayaran:   &dueDatePembayaran,
+		HargaAwal:                 &paket.Harga,
+		MetodePembayaran:          "Otomatis",
+	}
+
+	langRepo := &mockLanggananRepoForGenerate{data: []domain.Langganan{langganan}}
+	invRepo := &mockInvoiceRepoForGenerate{}
+	pelRepo := &mockPelangganRepo{data: map[uint64]*domain.Pelanggan{1: pelanggan}}
+	bRepo := &mockBrandRepo{data: map[string]*domain.HargaLayanan{brandID: brand}}
+	dtRepo := &mockDataTeknisRepoForGenerate{data: &domain.DataTeknis{ID: 1, IDPelanggan: "JKT-001"}}
+	pkRepo := &mockPaketRepo{data: map[uint64]*domain.PaketLayanan{1: paket}}
+	diskRepo := &mockDiskonRepoForGenerate{}
+	sysRepo := &mockSystemRepo{}
+
+	cfg := &config.Config{
+		XenditApiUrl: "https://api.xendit.co/v2/invoices",
+	}
+
+	u := NewBillingUsecase(invRepo, langRepo, pelRepo, pkRepo, bRepo, dtRepo, nil, diskRepo, sysRepo, cfg).(*billingUsecase)
+
+	err = u.GenerateInvoices(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify that exactly 1 invoice was created
+	if len(invRepo.created) != 1 {
+		t.Fatalf("expected 1 invoice to be created, got %d", len(invRepo.created))
+	}
+
+	inv := invRepo.created[0]
+	if inv.PelangganID != 1 {
+		t.Errorf("expected PelangganID 1, got %d", inv.PelangganID)
+	}
+
+	expectedNumberPrefix := "JAKINET/ftth/AHMADRIZKI/"
+	if !strings.HasPrefix(inv.InvoiceNumber, expectedNumberPrefix) {
+		t.Errorf("expected invoice number to start with %q, got %q", expectedNumberPrefix, inv.InvoiceNumber)
+	}
+
+	if inv.Brand != "Jakinet" {
+		t.Errorf("expected Brand 'Jakinet', got %q", inv.Brand)
+	}
+
+	if inv.IDPelanggan != "JKT-001" {
+		t.Errorf("expected IDPelanggan 'JKT-001', got %q", inv.IDPelanggan)
+	}
+
+	if inv.TotalHarga != 300000.0 {
+		t.Errorf("expected TotalHarga 300000.0, got %f", inv.TotalHarga)
+	}
+
+	if inv.StatusInvoice != "Belum Bayar" {
+		t.Errorf("expected StatusInvoice 'Belum Bayar', got %q", inv.StatusInvoice)
+	}
+
+	if inv.InvoiceType != "automatic" {
+		t.Errorf("expected InvoiceType 'automatic', got %q", inv.InvoiceType)
+	}
 }
 
