@@ -279,7 +279,7 @@ func TestProcessXenditCallback(t *testing.T) {
 	invoice := &domain.Invoice{
 		ID:            1,
 		InvoiceNumber: "JELANTIK/INV/001",
-		StatusInvoice: "Belum Dibayar",
+		StatusInvoice: "Belum Bayar",
 		TotalHarga:    300000.0,
 		Pelanggan: &domain.Pelanggan{
 			ID:   1,
@@ -426,22 +426,47 @@ func (m *mockInvoiceRepoCallback) ExportPaymentLinksExcel(ctx context.Context, f
 func TestAutoSuspend(t *testing.T) {
 	invRepo := &mockInvoiceRepoCallback{
 		invoices: map[string]*domain.Invoice{
-			"INV001": {ID: 1, StatusInvoice: "Belum Dibayar", TglJatuhTempo: time.Now().AddDate(0, 0, -1)},
+			"INV001": {
+				ID:            1,
+				PelangganID:   1,
+				StatusInvoice: "Belum Bayar",
+				TglJatuhTempo: time.Now().AddDate(0, 0, -1),
+			},
 		},
 	}
-	langRepo := &mockLanggananRepo{data: make(map[uint64]*domain.Langganan)}
+	langRepo := &mockLanggananRepo{
+		data: map[uint64]*domain.Langganan{
+			1: {
+				ID:          1,
+				PelangganID: 1,
+				Status:      "Aktif",
+			},
+		},
+	}
 	sysRepo := &mockSystemRepo{}
 	u := NewBillingUsecase(invRepo, langRepo, nil, nil, nil, nil, nil, nil, sysRepo, nil).(*billingUsecase)
 
 	err := u.AutoSuspend(context.Background())
-	if err != nil { t.Fatalf("unexpected error: %v", err) }
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify that the invoice status was updated to Expired
+	if invRepo.invoices["INV001"].StatusInvoice != "Expired" {
+		t.Errorf("expected invoice status to be Expired, got %q", invRepo.invoices["INV001"].StatusInvoice)
+	}
+
+	// Verify that the langganan status was updated to Suspended
+	if langRepo.data[1].Status != "Suspended" {
+		t.Errorf("expected langganan status to be Suspended, got %q", langRepo.data[1].Status)
+	}
 }
 
 func TestAutoVerifyPayments(t *testing.T) {
 	xenID := "xen_123"
 	invRepo := &mockInvoiceRepoCallback{
 		invoices: map[string]*domain.Invoice{
-			"INV001": {ID: 1, StatusInvoice: "Belum Dibayar", XenditID: &xenID},
+			"INV001": {ID: 1, StatusInvoice: "Belum Bayar", XenditID: &xenID},
 		},
 	}
 	sysRepo := &mockSystemRepo{}

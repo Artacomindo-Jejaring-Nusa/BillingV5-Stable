@@ -121,6 +121,13 @@ func (m *mockInvoiceRepoCallback) GetInvoiceWithRelations(ctx context.Context, e
 
 func (m *mockInvoiceRepoCallback) Update(ctx context.Context, invoice *domain.Invoice) error {
 	m.updatedInvoices = append(m.updatedInvoices, invoice)
+	if m.invoices != nil {
+		for k, v := range m.invoices {
+			if v.ID == invoice.ID || (v.InvoiceNumber != "" && v.InvoiceNumber == invoice.InvoiceNumber) {
+				m.invoices[k] = invoice
+			}
+		}
+	}
 	return nil
 }
 
@@ -134,7 +141,11 @@ func (m *mockInvoiceRepoCallback) CreateCallbackLog(ctx context.Context, log *do
 
 func (m *mockInvoiceRepoCallback) GetAll(ctx context.Context, limit, offset int, search, status string) ([]domain.Invoice, int64, error) {
 	var res []domain.Invoice
-	for _, inv := range m.invoices { res = append(res, *inv) }
+	for _, inv := range m.invoices {
+		if status == "" || inv.StatusInvoice == status {
+			res = append(res, *inv)
+		}
+	}
 	return res, int64(len(res)), nil
 }
 
