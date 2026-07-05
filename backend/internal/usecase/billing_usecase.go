@@ -1095,6 +1095,11 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 					if inv.Pelanggan.DataTeknis != nil {
 						_ = u.triggerMikrotikUpdate(ctx, inv.Pelanggan.DataTeknis.IDPelanggan, inv.Pelanggan.DataTeknis, "Suspended")
 					}
+					// Update invoice status to Expired
+					inv.StatusInvoice = "Expired"
+					if err := u.invoiceRepo.Update(ctx, &inv); err != nil {
+						u.logSystem(ctx, "ERROR", fmt.Sprintf("AutoSuspend: Gagal update invoice status ke Expired untuk %s: %v", inv.InvoiceNumber, err))
+					}
 				}
 			}
 
@@ -1121,6 +1126,9 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 						if l.Pelanggan != nil && l.Pelanggan.DataTeknis != nil {
 							_ = u.triggerMikrotikUpdate(ctx, l.Pelanggan.DataTeknis.IDPelanggan, l.Pelanggan.DataTeknis, "Suspended")
 						}
+						// Update invoice status to Expired
+						inv.StatusInvoice = "Expired"
+						_ = u.invoiceRepo.Update(ctx, &inv)
 					}
 				}
 			}
@@ -1181,12 +1189,23 @@ func (u *billingUsecase) getXenditInvoice(ctx context.Context, xenditID string, 
 func (u *billingUsecase) VerifyPayments(ctx context.Context) error {
 	u.logSystem(ctx, "INFO", "Scheduler 'job_verify_payments' started. Checking Xendit status...")
 
-	// 1. Fetch pending invoices (Belum Dibayar)
-	invoices, _, err := u.invoiceRepo.GetAll(ctx, 1000, 0, "", "Belum Dibayar")
-	if err != nil {
-		u.logSystem(ctx, "ERROR", fmt.Sprintf("VerifyPayments failed to fetch pending invoices: %v", err))
-		return err
+	// 1. Fetch pending invoices (Belum Bayar)
+	invoices1, _, err1 := u.invoiceRepo.GetAll(ctx, 1000, 0, "", "Belum Bayar")
+	if err1 != nil {
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("VerifyPayments failed to fetch pending invoices: %v", err1))
+		return err1
 	}
+
+	// 2. Fetch expired invoices (Expired)
+	invoices2, _, err2 := u.invoiceRepo.GetAll(ctx, 1000, 0, "", "Expired")
+	if err2 != nil {
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("VerifyPayments failed to fetch expired invoices: %v", err2))
+		return err2
+	}
+
+	var invoices []domain.Invoice
+	invoices = append(invoices, invoices1...)
+	invoices = append(invoices, invoices2...)
 
 	verifiedCount := 0
 	for _, inv := range invoices {
@@ -1230,7 +1249,7 @@ func (u *billingUsecase) VerifyPayments(ctx context.Context) error {
 				continue
 			}
 			verifiedCount++
-		} else if status == "EXPIRED" {
+		} else if status == "EXPIRED" && inv.StatusInvoice != "Expired" {
 			u.logSystem(ctx, "INFO", fmt.Sprintf("VerifyPayments: Invoice %s terdeteksi EXPIRED di Xendit. Mengubah status lokal...", inv.InvoiceNumber))
 			inv.StatusInvoice = "Expired"
 			_ = u.invoiceRepo.Update(ctx, &inv)
