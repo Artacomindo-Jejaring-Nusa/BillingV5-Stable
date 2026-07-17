@@ -169,11 +169,13 @@ echo ""
 
 # === Step 8: Start backend (auto-migrate akan berjalan) ===
 log_info "=== STEP 7: Start backend services ==="
-docker start "$BACKEND1_CONTAINER" "$BACKEND2_CONTAINER"
+log_info "Memulai $BACKEND1_CONTAINER terlebih dahulu untuk menjalankan migrasi..."
+docker start "$BACKEND1_CONTAINER"
+log_info "Menunggu backend-1 menyelesaikan auto-migrate (45 detik)..."
+sleep 45
+log_info "Memulai $BACKEND2_CONTAINER..."
+docker start "$BACKEND2_CONTAINER"
 log_ok "Backend services started."
-
-log_info "Menunggu backend selesai auto-migrate (15 detik)..."
-sleep 15
 
 # Cek apakah backend masih running
 if docker ps --format '{{.Names}}' | grep -q "$BACKEND1_CONTAINER"; then
