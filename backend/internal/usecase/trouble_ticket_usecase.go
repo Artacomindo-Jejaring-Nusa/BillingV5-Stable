@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"billing-backend/config"
@@ -18,6 +19,7 @@ type troubleTicketUsecase struct {
 	userRepo     domain.UserRepository
 	notifUsecase domain.NotificationUsecase
 	cfg          *config.Config
+	mu           sync.Mutex
 }
 
 func NewTroubleTicketUsecase(r domain.TroubleTicketRepository, sr domain.SystemRepository, ur domain.UserRepository, nu domain.NotificationUsecase, cfg *config.Config) domain.TroubleTicketUsecase {
@@ -76,19 +78,42 @@ func (u *troubleTicketUsecase) GetByID(ctx context.Context, id uint64) (*domain.
 }
 
 func (u *troubleTicketUsecase) Create(ctx context.Context, ticket *domain.TroubleTicket, userID uint64) error {
-	ticketNo, err := u.generateTicketNumber(ctx)
-	if err != nil {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	var ticketNo string
+	var err error
+
+	// Retry up to 5 times if duplicate key error for ticket_number occurs
+	for i := 0; i < 5; i++ {
+		ticketNo, err = u.generateTicketNumber(ctx)
+		if err != nil {
+			return err
+		}
+		ticket.TicketNumber = ticketNo
+		ticket.Status = domain.TicketStatusOpen
+		ticket.CreatedAt = time.Now()
+		ticket.UpdatedAt = time.Now()
+		
+		now := time.Now()
+		ticket.DowntimeStart = &now
+
+		err = u.repo.Create(ctx, ticket)
+		if err == nil {
+			break
+		}
+
+		errStr := err.Error()
+		if strings.Contains(errStr, "1062") || strings.Contains(strings.ToLower(errStr), "duplicate") {
+			// Sleep briefly to let concurrent transaction commit and generate a fresh ticket number
+			time.Sleep(50 * time.Millisecond)
+			continue
+		}
+
 		return err
 	}
-	ticket.TicketNumber = ticketNo
-	ticket.Status = domain.TicketStatusOpen
-	ticket.CreatedAt = time.Now()
-	ticket.UpdatedAt = time.Now()
-	
-	now := time.Now()
-	ticket.DowntimeStart = &now
 
-	if err := u.repo.Create(ctx, ticket); err != nil {
+	if err != nil {
 		return err
 	}
 

@@ -93,7 +93,7 @@ func main() {
 	// 4. Auto Migrate schemas
 	// We disable foreign key checks during migration to avoid issues with legacy type mismatches
 	db.Exec("SET FOREIGN_KEY_CHECKS = 0;")
-	err = db.AutoMigrate(
+	modelsToMigrate := []interface{}{
 		&domain.Role{},
 		&domain.User{},
 		&domain.HargaLayanan{},
@@ -122,10 +122,17 @@ func main() {
 		&domain.TicketHistory{},
 		&domain.ActionTaken{},
 		&domain.WhatsAppOutbox{},
-	)
+	}
+	var migrationErrors []error
+	for _, model := range modelsToMigrate {
+		if err := db.AutoMigrate(model); err != nil {
+			logger.Warn("AutoMigration warning for model %T: %v", model, err)
+			migrationErrors = append(migrationErrors, err)
+		}
+	}
 	db.Exec("SET FOREIGN_KEY_CHECKS = 1;")
-	if err != nil {
-		logger.Warn("AutoMigration warning: %v", err)
+	if len(migrationErrors) > 0 {
+		logger.Warn("Database AutoMigration completed with %d warning(s)", len(migrationErrors))
 	} else {
 		logger.Info("Database AutoMigration completed successfully")
 	}

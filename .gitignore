@@ -46,7 +46,11 @@ test.txt
 Fixing Vue Views Issues.md
 DataTerbaru2026.sql
 DataTerbaru2026_Cleaned.sql
+DataTerbaru-Juli2026.sql
+DataTerbaru-Juli2026_Cleaned.sql
+DataTerbaru*.sql
 import-production-data.ps1
+backups/
 
 # Coverage & Scans
 *.out
