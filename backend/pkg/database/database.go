@@ -82,7 +82,6 @@ func InitDatabase(cfg *config.Config) (*gorm.DB, error) {
 	}
 
 	var db *gorm.DB
-	var lastErr error
 
 	// Retry mechanism for database connection
 	for i := 0; i < 5; i++ {
@@ -90,13 +89,12 @@ func InitDatabase(cfg *config.Config) (*gorm.DB, error) {
 		if err == nil {
 			break
 		}
-		lastErr = err
 		log.Printf("⚠️ Failed to connect to database (attempt %d/5): %v. Retrying in 2s...", i+1, err)
 		time.Sleep(2 * time.Second)
 	}
 
-	if lastErr != nil && db == nil {
-		return nil, fmt.Errorf("failed to connect to database after retries: %w", lastErr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database after retries: %w", err)
 	}
 
 	// Setup DBResolver for Master-Slave replication if DBSlaveURL is provided

@@ -136,6 +136,7 @@ type Invoice struct {
 	ID                 uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
 	InvoiceNumber      string         `gorm:"type:varchar(191);uniqueIndex;not null" json:"invoice_number"`
 	PelangganID        uint64         `gorm:"index;not null" json:"pelanggan_id"`
+	LanggananID        *uint64        `gorm:"index" json:"langganan_id"`
 	IDPelanggan        string         `gorm:"type:varchar(255)" json:"id_pelanggan"` // Historical string ID
 	Brand              string         `gorm:"type:varchar(191)" json:"brand"`
 	NoTelp             string         `gorm:"type:varchar(191)" json:"no_telp"`
@@ -170,6 +171,7 @@ type Invoice struct {
 
 	// Relationships
 	Pelanggan *Pelanggan `gorm:"foreignKey:PelangganID" json:"-"`
+	Langganan *Langganan `gorm:"foreignKey:LanggananID" json:"-"`
 
 	// Helper JSON-only fields (not persisted)
 	PelangganNama string `gorm:"-" json:"pelanggan_nama"`
@@ -185,6 +187,7 @@ type InvoiceArchive struct {
 	ID                 uint64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	InvoiceNumber      string     `gorm:"type:varchar(191);uniqueIndex;not null" json:"invoice_number"`
 	PelangganID        uint64     `gorm:"index;not null" json:"pelanggan_id"`
+	LanggananID        *uint64    `gorm:"index" json:"langganan_id"`
 	IDPelanggan        string     `gorm:"type:varchar(255)" json:"id_pelanggan"`
 	Brand              string     `gorm:"type:varchar(191)" json:"brand"`
 	NoTelp             string     `gorm:"type:varchar(191)" json:"no_telp"`
