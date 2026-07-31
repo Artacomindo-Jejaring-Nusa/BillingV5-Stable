@@ -172,6 +172,31 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 	return err
 }
 
+func getIndonesianMonthName(m time.Month) string {
+	months := map[time.Month]string{
+		time.January:   "Januari",
+		time.February:  "Februari",
+		time.March:     "Maret",
+		time.April:     "April",
+		time.May:       "Mei",
+		time.June:      "Juni",
+		time.July:      "Juli",
+		time.August:    "Agustus",
+		time.September: "September",
+		time.October:   "Oktober",
+		time.November:  "November",
+		time.December:  "Desember",
+	}
+	if name, ok := months[m]; ok {
+		return name
+	}
+	return m.String()
+}
+
+func formatIndonesianDate(t time.Time) string {
+	return fmt.Sprintf("%02d %s %d", t.Day(), getIndonesianMonthName(t.Month()), t.Year())
+}
+
 func (u *billingUsecase) sendQontakInvoiceBroadcast(ctx context.Context, pelanggan *domain.Pelanggan, invoice *domain.Invoice, paymentLink string) {
 	if u.cfg == nil || pelanggan == nil || invoice == nil || paymentLink == "" {
 		return
@@ -198,9 +223,11 @@ func (u *billingUsecase) sendQontakInvoiceBroadcast(ctx context.Context, pelangg
 	if alamat == "" {
 		alamat = "-"
 	}
-	periode := invoice.TglInvoice.Format("January 2006")
+	
+	// Use invoice due date to represent the billing month & year in Indonesian
+	periode := fmt.Sprintf("%s %d", getIndonesianMonthName(invoice.TglJatuhTempo.Month()), invoice.TglJatuhTempo.Year())
 	totalAmount := fmt.Sprintf("Rp %.0f", invoice.TotalHarga)
-	dueDate := invoice.TglJatuhTempo.Format("02 January 2006")
+	dueDate := formatIndonesianDate(invoice.TglJatuhTempo)
 
 	payload := utils.DirectBroadcastPayload{
 		ToName:               pelanggan.Nama,
