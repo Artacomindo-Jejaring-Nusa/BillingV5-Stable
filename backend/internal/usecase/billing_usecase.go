@@ -484,6 +484,10 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 		}
 		invoice.XenditStatus = "pending"
 		u.logSystem(ctx, "INFO", fmt.Sprintf("Xendit invoice created: %s", shortURL))
+
+		if shortURL != "" {
+			go u.sendQontakInvoiceBroadcast(context.Background(), pelanggan, invoice, shortURL)
+		}
 	} else {
 		u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateManualInvoice: Gagal membuat Xendit invoice untuk pelanggan %d: %v", invoice.PelangganID, xErr))
 		errMsg := xErr.Error()
