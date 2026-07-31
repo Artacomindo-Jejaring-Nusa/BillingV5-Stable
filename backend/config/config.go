@@ -27,6 +27,13 @@ type Config struct {
 	WatzapApiKey                    string
 	WatzapNumberKey                 string
 	WatzapAccessToken               string
+	QontakClientID                  string
+	QontakClientSecret              string
+	QontakIntegrationIDJakinet      string
+	QontakIntegrationIDJelantik     string
+	QontakTemplateIDInvoice         string
+	QontakTemplateIDInvoiceJakinet  string
+	QontakTemplateIDInvoiceJelantik string
 	Menus                           []string
 	DashboardWidgets                []string
 	SystemFeatures                  []string
@@ -70,6 +77,13 @@ func LoadConfig() *Config {
 		WatzapApiKey:                    getEnv("WATZAP_API_KEY", ""),
 		WatzapNumberKey:                 getEnv("WATZAP_NUMBER_KEY", ""),
 		WatzapAccessToken:               getEnv("WATZAP_ACCESS_TOKEN", ""),
+		QontakClientID:                  getEnv("QONTAK_CLIENT_ID", ""),
+		QontakClientSecret:              getEnv("QONTAK_CLIENT_SECRET", ""),
+		QontakIntegrationIDJakinet:     getEnv("QONTAK_INTEGRATION_ID_JAKINET", ""),
+		QontakIntegrationIDJelantik:    getEnv("QONTAK_INTEGRATION_ID_JELANTIK", ""),
+		QontakTemplateIDInvoice:         getEnv("QONTAK_TEMPLATE_ID_INVOICE", ""),
+		QontakTemplateIDInvoiceJakinet:  getEnv("QONTAK_TEMPLATE_ID_INVOICE_JAKINET", ""),
+		QontakTemplateIDInvoiceJelantik: getEnv("QONTAK_TEMPLATE_ID_INVOICE_JELANTIK", ""),
 		SchedulerEnabled:                getEnv("SCHEDULER_ENABLED", "true") == "true",
 		
 		Menus: []string{
@@ -147,6 +161,29 @@ func (c *Config) XENDIT_CALLBACK_TOKENS() map[string]string {
 		"ARTACOMINDO": c.XenditCallbackTokenArtacomindo,
 		"JELANTIK":    c.XenditCallbackTokenJelantik,
 	}
+}
+
+func (c *Config) GetQontakIntegrationID(brandOrKey string) string {
+	brand := strings.ToUpper(strings.TrimSpace(brandOrKey))
+	if strings.Contains(brand, "JAKINET") {
+		return c.QontakIntegrationIDJakinet
+	}
+	// Brand JELANTIK and JELANTIK NAGRAK both map to Jelantik Integration ID
+	return c.QontakIntegrationIDJelantik
+}
+
+func (c *Config) GetQontakTemplateID(brandOrKey string) string {
+	brand := strings.ToUpper(strings.TrimSpace(brandOrKey))
+	if strings.Contains(brand, "JAKINET") {
+		if c.QontakTemplateIDInvoiceJakinet != "" {
+			return c.QontakTemplateIDInvoiceJakinet
+		}
+	} else {
+		if c.QontakTemplateIDInvoiceJelantik != "" {
+			return c.QontakTemplateIDInvoiceJelantik
+		}
+	}
+	return c.QontakTemplateIDInvoice
 }
 
 func (c *Config) CanAccessWidget(widgetName string, userRole string) bool {

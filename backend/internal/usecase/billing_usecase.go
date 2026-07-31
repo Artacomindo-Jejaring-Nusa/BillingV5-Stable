@@ -153,6 +153,10 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 		invoice.PaymentLink = &shortURL
 		invoice.XenditID = &xID
 		invoice.XenditStatus = "pending"
+
+		if shortURL != "" {
+			go u.sendQontakInvoiceBroadcast(context.Background(), pelanggan, invoice, shortURL)
+		}
 	} else {
 		u.logSystem(ctx, "ERROR", fmt.Sprintf("CreateInvoice: Gagal membuat Xendit invoice untuk pelanggan %d: %v", invoice.PelangganID, xErr))
 		errMsg := xErr.Error()
@@ -166,6 +170,64 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 		websocket.InvalidateDashboardCache(ctx)
 	}
 	return err
+}
+
+func (u *billingUsecase) sendQontakInvoiceBroadcast(ctx context.Context, pelanggan *domain.Pelanggan, invoice *domain.Invoice, paymentLink string) {
+	if u.cfg == nil || pelanggan == nil || invoice == nil || paymentLink == "" {
+		return
+	}
+
+	brandName := "JELANTIK"
+	if pelanggan.HargaLayanan != nil && strings.Contains(strings.ToUpper(pelanggan.HargaLayanan.XenditKeyName), "JAKINET") {
+		brandName = "JAKINET"
+	} else if strings.Contains(strings.ToUpper(invoice.Brand), "JAKINET") {
+		brandName = "JAKINET"
+	}
+
+	integrationID := u.cfg.GetQontakIntegrationID(brandName)
+	templateID := u.cfg.GetQontakTemplateID(brandName)
+
+	if u.cfg.QontakClientID == "" || u.cfg.QontakClientSecret == "" || integrationID == "" || templateID == "" {
+		logger.Warn("Mekari Qontak credentials/template not configured, skipping WA broadcast for invoice %s", invoice.InvoiceNumber)
+		return
+	}
+
+	client := utils.NewMekariQontakClient(u.cfg.QontakClientID, u.cfg.QontakClientSecret, integrationID)
+
+	alamat := pelanggan.Alamat
+	if alamat == "" {
+		alamat = "-"
+	}
+	periode := invoice.TglInvoice.Format("January 2006")
+	totalAmount := fmt.Sprintf("Rp %.0f", invoice.TotalHarga)
+	dueDate := invoice.TglJatuhTempo.Format("02 January 2006")
+
+	payload := utils.DirectBroadcastPayload{
+		ToName:               pelanggan.Nama,
+		ToNumber:             pelanggan.NoTelp,
+		MessageTemplateID:    templateID,
+		ChannelIntegrationID: integrationID,
+		Language:             utils.QontakLanguage{Code: "id"},
+		Parameters: utils.QontakParameters{
+			Body: []utils.QontakParamBody{
+				{Key: "1", Value: "nama", ValueText: pelanggan.Nama},
+				{Key: "2", Value: "alamat", ValueText: alamat},
+				{Key: "3", Value: "periode", ValueText: periode},
+				{Key: "4", Value: "jumlah_tagihan", ValueText: totalAmount},
+				{Key: "5", Value: "jatuh_tempo", ValueText: dueDate},
+				{Key: "6", Value: "link_pembayaran", ValueText: paymentLink},
+			},
+		},
+	}
+
+	resp, err := client.SendDirectBroadcast(payload)
+	if err != nil {
+		logger.Error("Mekari Qontak WA broadcast failed for invoice %s: %v", invoice.InvoiceNumber, err)
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("Qontak WA broadcast failed for invoice %s: %v", invoice.InvoiceNumber, err))
+		return
+	}
+
+	logger.Info("Mekari Qontak WA broadcast successfully sent for invoice %s (Status: %s)", invoice.InvoiceNumber, resp.Status)
 }
 
 func (u *billingUsecase) UpdateInvoiceStatus(ctx context.Context, id uint64, status string) error {
