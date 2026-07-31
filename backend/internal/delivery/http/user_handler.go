@@ -10,7 +10,6 @@ import (
 	"billing-backend/pkg/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 )
 
 type UserHandler struct {
@@ -102,19 +101,10 @@ func (h *UserHandler) Login(c *gin.Context) {
 	contentType := c.GetHeader("Content-Type")
 	log.Printf("[Login] Content-Type: %s", contentType)
 
-	// Handle both JSON and form-urlencoded data
-	if contentType == "application/x-www-form-urlencoded" {
-		if err := c.ShouldBindWith(&req, binding.Form); err != nil {
-			log.Printf("[Login Error] Form binding failed: %v", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-	} else {
-		if err := c.ShouldBindJSON(&req); err != nil {
-			log.Printf("[Login Error] JSON binding failed: %v", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+	if err := c.ShouldBind(&req); err != nil {
+		log.Printf("[Login Error] Binding failed: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
 	log.Printf("[Login Request] Email: '%s', Username: '%s'", req.Email, req.Username)
