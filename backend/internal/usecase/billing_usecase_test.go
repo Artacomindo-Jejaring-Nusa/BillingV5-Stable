@@ -53,8 +53,8 @@ func TestCalculatePrice(t *testing.T) {
 			t.Errorf("expected HargaAwal to be 333000, got %f", res.HargaAwal)
 		}
 
-		// Tanggal 1 bulan depan sesuai logika legacy Python
-		expectedTempo := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+		// Tanggal terakhir bulan berjalan sesuai aturan Finance (30 Juni)
+		expectedTempo := time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)
 		if !res.TglJatuhTempo.Equal(expectedTempo) {
 			t.Errorf("expected TglJatuhTempo to be %v, got %v", expectedTempo, res.TglJatuhTempo)
 		}
