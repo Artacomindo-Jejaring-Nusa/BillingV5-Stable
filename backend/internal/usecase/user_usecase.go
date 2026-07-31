@@ -192,11 +192,14 @@ func (u *userUsecase) LogoutAll(ctx context.Context, userID uint64) error {
 
 // GetProfile returns the user profile by ID
 func (u *userUsecase) GetProfile(ctx context.Context, id uint64) (*domain.User, error) {
+	log.Printf("[GetProfile Debug] Fetching profile for User ID: %d", id)
 	user, err := u.userRepo.GetByID(ctx, id)
 	if err != nil {
+		log.Printf("[GetProfile Debug] GetByID error for ID %d: %v", id, err)
 		return nil, err
 	}
 	if user == nil {
+		log.Printf("[GetProfile Debug] User not found for ID %d", id)
 		return nil, errors.New("pengguna tidak ditemukan")
 	}
 	return user, nil
