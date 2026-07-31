@@ -132,17 +132,17 @@ func Seed(db *gorm.DB) error {
 			}
 		}
 
-		// 4. Create Super Admin User
+		// 4. Create or Update Super Admin User
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		now := time.Now()
+
 		var superadminUser domain.User
 		err = tx.Where("email = ?", "admin@example.com").First(&superadminUser).Error
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
-				hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-				if err != nil {
-					return err
-				}
-
-				now := time.Now()
 				superadminUser = domain.User{
 					Name:              "Super Admin",
 					Email:             "admin@example.com",
@@ -160,7 +160,16 @@ func Seed(db *gorm.DB) error {
 			} else {
 				return err
 			}
+		} else {
+			// Ensure password is updated to 'password'
+			tx.Model(&superadminUser).Updates(map[string]interface{}{
+				"password":  string(hashedPassword),
+				"is_active": true,
+				"role_id":   superadminRole.ID,
+			})
+			log.Println("✅ Super Admin password reset to 'password'!")
 		}
+
 		// 5. Seed Inventory Statuses
 		statuses := []string{"available", "assigned", "broken", "maintenance"}
 		for _, sName := range statuses {
@@ -192,6 +201,62 @@ func Seed(db *gorm.DB) error {
 				} else {
 					return err
 				}
+			}
+		}
+
+		// 7. Seed Dummy Brands (HargaLayanan)
+		brands := []domain.HargaLayanan{
+			{IDBrand: "JAKINET", Brand: "JAKINET", Pajak: 11.0, XenditKeyName: "JAKINET"},
+			{IDBrand: "JELANTIK", Brand: "JELANTIK", Pajak: 11.0, XenditKeyName: "JELANTIK"},
+		}
+		for _, b := range brands {
+			var existing domain.HargaLayanan
+			if err := tx.Where("id_brand = ?", b.IDBrand).First(&existing).Error; err != nil {
+				if err == gorm.ErrRecordNotFound {
+					tx.Create(&b)
+				}
+			}
+		}
+
+		// 8. Seed Dummy Paket Layanan
+		pakets := []domain.PaketLayanan{
+			{IDBrand: "JAKINET", NamaPaket: "Jakinet Lite 10Mbps", Kecepatan: 10, Harga: 150000},
+			{IDBrand: "JAKINET", NamaPaket: "Jakinet Pro 20Mbps", Kecepatan: 20, Harga: 250000},
+			{IDBrand: "JELANTIK", NamaPaket: "Jelantik Express 15Mbps", Kecepatan: 15, Harga: 180000},
+			{IDBrand: "JELANTIK", NamaPaket: "Jelantik Ultima 30Mbps", Kecepatan: 30, Harga: 300000},
+		}
+		for _, pk := range pakets {
+			var existing domain.PaketLayanan
+			if err := tx.Where("id_brand = ? AND nama_paket = ?", pk.IDBrand, pk.NamaPaket).First(&existing).Error; err != nil {
+				if err == gorm.ErrRecordNotFound {
+					tx.Create(&pk)
+				}
+			}
+		}
+
+		// 9. Seed Dummy Pelanggan & DataTeknis
+		var countPelanggan int64
+		tx.Model(&domain.Pelanggan{}).Count(&countPelanggan)
+		if countPelanggan == 0 {
+			brandJakinet := "JAKINET"
+			dummyPelanggan := domain.Pelanggan{
+				NoKtp:        "3171010101010001",
+				Nama:         "Budi Santoso (Dummy)",
+				Alamat:       "Jl. Mawar No. 12, Jakarta",
+				Blok:         "A",
+				Unit:         "01",
+				NoTelp:       "628986937819",
+				Email:        "budi.dummy@example.com",
+				IDBrand:      &brandJakinet,
+				TglInstalasi: &now,
+			}
+			if err := tx.Create(&dummyPelanggan).Error; err == nil {
+				dataTeknis := domain.DataTeknis{
+					PelangganID:   dummyPelanggan.ID,
+					IDPelanggan:   "budi_jakinet",
+					PasswordPppoe: "123456",
+				}
+				tx.Create(&dataTeknis)
 			}
 		}
 
