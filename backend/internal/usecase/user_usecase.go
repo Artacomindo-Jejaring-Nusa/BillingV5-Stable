@@ -53,23 +53,30 @@ func (u *userUsecase) logActivity(ctx context.Context, userID uint64, action str
 // Authenticate handles user login and returns access + refresh tokens.
 // Mirrors Python routers/auth.py login_for_access_token
 func (u *userUsecase) Authenticate(ctx context.Context, email, password string) (*domain.User, string, string, int, error) {
+	log.Printf("[Auth Debug] Attempting login for email: '%s', password len: %d", email, len(password))
 	// 1. Get user by email
 	user, err := u.userRepo.GetByEmail(ctx, email)
 	if err != nil {
+		log.Printf("[Auth Debug] GetByEmail DB error for '%s': %v", email, err)
 		return nil, "", "", 0, errors.New("email atau password salah")
 	}
 	if user == nil {
+		log.Printf("[Auth Debug] User not found for email: '%s'", email)
 		return nil, "", "", 0, errors.New("email atau password salah")
 	}
 
+	log.Printf("[Auth Debug] Found user ID: %d, Email: '%s', IsActive: %v, Password Hash Len: %d", user.ID, user.Email, user.IsActive, len(user.Password))
+
 	// 2. Check if user is active
 	if !user.IsActive {
+		log.Printf("[Auth Debug] User %s is not active", email)
 		return nil, "", "", 0, errors.New("akun pengguna dinonaktifkan")
 	}
 
 	// 3. Compare password using bcrypt
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
+		log.Printf("[Auth Debug] bcrypt.CompareHashAndPassword failed for %s. Error: %v", email, err)
 		return nil, "", "", 0, errors.New("email atau password salah")
 	}
 
