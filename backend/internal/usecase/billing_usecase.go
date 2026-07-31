@@ -555,10 +555,9 @@ func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langgana
 			hargaAwal += hargaNormal
 		}
 	} else {
-		// Otomatis — tanggal jatuh tempo selalu tanggal 1 bulan depan
-		// Sesuai logika legacy Python: (start_date + relativedelta(months=1)).replace(day=1)
+		// Otomatis — Tanggal berakhir langganan adalah hari terakhir bulan berjalan (misal 31/08/2026 atau 30)
 		tglMulai = startDate
-		dueDate = time.Date(startDate.Year(), startDate.Month()+1, 1, 0, 0, 0, 0, startDate.Location())
+		dueDate = time.Date(startDate.Year(), startDate.Month()+1, 0, 0, 0, 0, 0, startDate.Location())
 		payDate = startDate
 	}
 	h := math.Round(hargaAwal)
@@ -669,10 +668,9 @@ func (u *billingUsecase) CalculatePrice(ctx context.Context, req *domain.Langgan
 		harga = (pk.Harga / float64(jt.Day()) * float64(jt.Day()-startDate.Day()+1)) * (1.0 + (br.Pajak / 100.0))
 		jtp = startDate
 	} else {
-		// Otomatis — tanggal jatuh tempo selalu tanggal 1 bulan depan
-		// Sesuai logika legacy Python: (start_date + relativedelta(months=1)).replace(day=1)
+		// Otomatis — Tanggal berakhir langganan adalah hari terakhir bulan berjalan (misal 31/08/2026 atau 30)
 		tml = startDate
-		jt = time.Date(startDate.Year(), startDate.Month()+1, 1, 0, 0, 0, 0, startDate.Location())
+		jt = time.Date(startDate.Year(), startDate.Month()+1, 0, 0, 0, 0, 0, startDate.Location())
 		jtp = startDate
 
 		today := time.Now()
