@@ -41,6 +41,7 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 		invoiceGroup.POST("/generate", middleware.PermissionMiddleware("create_invoices"), handler.GenerateManualInvoice)
 		invoiceGroup.PATCH("/:id/status", middleware.PermissionMiddleware("edit_invoices"), handler.UpdateInvoiceStatus)
 		invoiceGroup.DELETE("/:id", middleware.PermissionMiddleware("delete_invoices"), handler.DeleteInvoice)
+		invoiceGroup.POST("/:id/resend-wa", middleware.PermissionMiddleware("edit_invoices"), handler.ResendWA)
 	}
 
 	langgananGroup := r.Group("/langganan")
@@ -625,4 +626,20 @@ func (h *BillingHandler) ExportPaymentLinksExcel(c *gin.Context) {
 
 	c.Header("Content-Disposition", "attachment; filename=payment-links.xlsx")
 	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data)
+}
+
+func (h *BillingHandler) ResendWA(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID tidak valid"})
+		return
+	}
+
+	err = h.billingUsecase.ResendWhatsAppNotification(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Notifikasi WhatsApp berhasil dikirim ulang"})
 }

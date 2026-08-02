@@ -1331,17 +1331,16 @@ async function fetchAllInvoicesForExistingUserCheck() {
   }
 }
 
-function sendWhatsAppReminder(invoice: Invoice) {
-  let phone = invoice.no_telp || '';
-  if (phone.startsWith('0')) {
-    phone = '62' + phone.substring(1);
+async function sendWhatsAppReminder(invoice: Invoice) {
+  try {
+    showSnackbar('Sedang mengirim notifikasi WhatsApp...', 'info');
+    const response = await apiClient.post(`/invoices/${invoice.id}/resend-wa`);
+    showSnackbar(response.data?.message || 'Notifikasi WhatsApp berhasil dikirim ulang!', 'success');
+  } catch (error: any) {
+    console.error('Error resending WhatsApp:', error);
+    const errMsg = error.response?.data?.error || 'Gagal mengirim ulang notifikasi WhatsApp.';
+    showSnackbar(errMsg, 'error');
   }
-  phone = phone.replace(/[^0-9]/g, '');
-  const paymentLink = invoice.payment_link;
-  const templateText = `Link Pembayaran Internet dengan Link berikut: ${paymentLink}`;
-  const encodedText = encodeURIComponent(templateText);
-  const whatsappUrl = `https://wa.me/${phone}?text=${encodedText}`;
-  window.open(whatsappUrl, '_blank');
 }
 
 const applyFilters = debounce(() => {

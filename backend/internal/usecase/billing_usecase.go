@@ -543,6 +543,36 @@ func (u *billingUsecase) DeleteInvoice(ctx context.Context, id uint64) error {
 	return err
 }
 
+func (u *billingUsecase) ResendWhatsAppNotification(ctx context.Context, id uint64) error {
+	invoice, err := u.invoiceRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if invoice == nil {
+		return errors.New("invoice tidak ditemukan")
+	}
+
+	pelanggan, err := u.pelangganRepo.GetByID(ctx, invoice.PelangganID)
+	if err != nil {
+		return err
+	}
+	if pelanggan == nil {
+		return errors.New("pelanggan tidak ditemukan")
+	}
+
+	if invoice.PaymentLink == nil || *invoice.PaymentLink == "" {
+		return errors.New("invoice ini tidak memiliki link pembayaran")
+	}
+
+	// Trigger broadcast
+	go u.sendQontakInvoiceBroadcast(context.Background(), pelanggan, invoice, *invoice.PaymentLink)
+
+	// Log activity
+	u.logActivity(ctx, "Resend WhatsApp Notification", fmt.Sprintf("Resent WhatsApp invoice broadcast for %s to %s", invoice.InvoiceNumber, pelanggan.Nama))
+
+	return nil
+}
+
 func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langganan) error {
 	p, err := u.pelangganRepo.GetByID(ctx, l.PelangganID)
 	if err != nil || p == nil {
