@@ -2002,7 +2002,14 @@ func (u *billingUsecase) triggerMikrotikUpdate(ctx context.Context, name string,
 		if dt.IPPelanggan != nil {
 			ip = *dt.IPPelanggan
 		}
-		return mikrotik.UpdatePPPoESecret(c, name, dt.IDPelanggan, dt.PasswordPppoe, profile, ip, disabled)
+		err := mikrotik.UpdatePPPoESecret(c, name, dt.IDPelanggan, dt.PasswordPppoe, profile, ip, disabled)
+		if err != nil {
+			return err
+		}
+		if status == "Suspended" || status == "Berhenti" {
+			_ = mikrotik.RemoveActiveConnection(c, dt.IDPelanggan)
+		}
+		return nil
 	})
 
 	if err != nil {
