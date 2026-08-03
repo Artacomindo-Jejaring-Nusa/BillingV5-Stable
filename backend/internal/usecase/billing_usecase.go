@@ -1171,10 +1171,8 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 							u.logSystem(ctx, "WARN", fmt.Sprintf("GenerateInvoices: Invoice %s disimpan sebagai draft failed (tanpa link) untuk pelanggan %s", inv.InvoiceNumber, pelanggan.Nama))
 						}
 					}
-
 					// Tambahkan jeda 200ms untuk membatasi rate limit Xendit (max 5 request per detik)
 					time.Sleep(200 * time.Millisecond)
-				}
 				}
 			}
 		}
