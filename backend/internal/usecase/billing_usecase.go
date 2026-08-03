@@ -1171,6 +1171,10 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 							u.logSystem(ctx, "WARN", fmt.Sprintf("GenerateInvoices: Invoice %s disimpan sebagai draft failed (tanpa link) untuk pelanggan %s", inv.InvoiceNumber, pelanggan.Nama))
 						}
 					}
+
+					// Tambahkan jeda 200ms untuk membatasi rate limit Xendit (max 5 request per detik)
+					time.Sleep(200 * time.Millisecond)
+				}
 				}
 			}
 		}
@@ -2101,34 +2105,64 @@ func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.In
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", u.cfg.XenditApiUrl, bytes.NewReader(jsonPayload))
-	if err != nil {
-		return nil, err
-	}
-
 	auth := base64.StdEncoding.EncodeToString([]byte(xenditApiKey + ":"))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Basic "+auth)
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
+	maxAttempts := 3
 	var result map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, err
+	var lastErr error
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		// New request reader is required for each attempt because body is read and closed by Do
+		req, err := http.NewRequestWithContext(ctx, "POST", u.cfg.XenditApiUrl, bytes.NewReader(jsonPayload))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Basic "+auth)
+
+		client := &http.Client{Timeout: 30 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			// Network timeout or temporary failure - retry with simple backoff
+			if attempt < maxAttempts {
+				u.logSystem(ctx, "WARN", fmt.Sprintf("createXenditInvoice: Gagal menghubungi Xendit (koneksi/timeout) untuk %s: %v. Mencoba kembali (%d/%d)...", inv.InvoiceNumber, err, attempt, maxAttempts))
+				time.Sleep(time.Duration(attempt) * 2 * time.Second)
+				continue
+			}
+			break
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		// Handle HTTP 429 Too Many Requests (Rate Limit)
+		if resp.StatusCode == http.StatusTooManyRequests {
+			resetHeader := resp.Header.Get("Rate-Limit-Reset")
+			sleepDuration := 2 * time.Second // Fallback jika header tidak ada
+			if seconds, err := strconv.Atoi(resetHeader); err == nil && seconds > 0 {
+				sleepDuration = time.Duration(seconds) * time.Second
+			}
+			u.logSystem(ctx, "WARN", fmt.Sprintf("createXenditInvoice: Terkena Rate Limit Xendit (429) untuk %s. Menunggu %v sebelum mencoba kembali (%d/%d)...", inv.InvoiceNumber, sleepDuration, attempt, maxAttempts))
+			time.Sleep(sleepDuration)
+			continue
+		}
+
+		// Handle other HTTP errors
+		if resp.StatusCode >= 400 {
+			var errResult map[string]interface{}
+			_ = json.Unmarshal(body, &errResult)
+			errMsg, _ := json.Marshal(errResult)
+			return nil, fmt.Errorf("xendit API error (%d): %s", resp.StatusCode, string(errMsg))
+		}
+
+		if err := json.Unmarshal(body, &result); err != nil {
+			return nil, err
+		}
+
+		return result, nil
 	}
 
-	if resp.StatusCode >= 400 {
-		errMsg, _ := json.Marshal(result)
-		return nil, fmt.Errorf("xendit API error (%d): %s", resp.StatusCode, string(errMsg))
-	}
-
-	return result, nil
+	return nil, fmt.Errorf("gagal membuat invoice Xendit setelah %d percobaan: %v", maxAttempts, lastErr)
 }
 
 func (u *billingUsecase) logSystem(ctx context.Context, level, message string) {
