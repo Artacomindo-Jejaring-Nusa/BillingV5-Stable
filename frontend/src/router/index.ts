@@ -140,6 +140,12 @@ const router = createRouter({
           meta: { requiresAuth: true, layout: 'default' } // Pastikan hanya user terotentikasi yang bisa akses
         },
         {
+          path: '/management/api-keys',
+          name: 'ApiKeysManagement',
+          component: () => import('@/views/Management/ApiKeys.vue'),
+          meta: { requiresAuth: true, layout: 'default' }
+        },
+        {
           path: '/inventory',
           name: 'inventory',
           component: () => import('../views/InventoryView.vue'),

@@ -46,6 +46,8 @@ func NewUserHandler(r *gin.RouterGroup, uu domain.UserUsecase, authMiddleware gi
 		users.POST("", middleware.PermissionMiddleware("create_users"), handler.CreateUser)
 		users.PATCH("/:id", middleware.PermissionMiddleware("edit_users"), handler.UpdateUser)
 		users.DELETE("/:id", middleware.PermissionMiddleware("delete_users"), handler.DeleteUser)
+		users.POST("/fcm-token", handler.SaveFcmToken)
+		users.DELETE("/fcm-token/:token", handler.DeleteFcmToken)
 	}
 
 	// Password management routes (public)
@@ -395,4 +397,50 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password berhasil diatur ulang. Silakan login dengan password baru."})
+}
+
+// POST /users/fcm-token
+func (h *UserHandler) SaveFcmToken(c *gin.Context) {
+	var req domain.SaveFcmTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get logged in user ID
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, err := strconv.ParseUint(userIDStr.(string), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	err = h.userUsecase.SaveFcmToken(c.Request.Context(), userID, req.Token, req.DeviceType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "FCM Token saved successfully"})
+}
+
+// DELETE /users/fcm-token/:token
+func (h *UserHandler) DeleteFcmToken(c *gin.Context) {
+	token := c.Param("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Token is required"})
+		return
+	}
+
+	err := h.userUsecase.DeleteFcmToken(c.Request.Context(), token)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "FCM Token deleted successfully"})
 }

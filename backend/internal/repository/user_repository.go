@@ -100,3 +100,31 @@ func (r *userRepository) GetByResetToken(ctx context.Context, email, token strin
 	}
 	return &user, nil
 }
+
+func (r *userRepository) SaveFcmToken(ctx context.Context, userID uint64, token string, deviceType string) error {
+	var fcmToken domain.UserFcmToken
+	err := r.db.WithContext(ctx).Where("token = ?", token).First(&fcmToken).Error
+	if err == nil {
+		fcmToken.UserID = userID
+		if deviceType != "" {
+			fcmToken.DeviceType = deviceType
+		}
+		return r.db.WithContext(ctx).Save(&fcmToken).Error
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		fcmToken = domain.UserFcmToken{
+			UserID:     userID,
+			Token:      token,
+			DeviceType: deviceType,
+		}
+		if fcmToken.DeviceType == "" {
+			fcmToken.DeviceType = "web"
+		}
+		return r.db.WithContext(ctx).Create(&fcmToken).Error
+	}
+	return err
+}
+
+func (r *userRepository) DeleteFcmToken(ctx context.Context, token string) error {
+	return r.db.WithContext(ctx).Where("token = ?", token).Delete(&domain.UserFcmToken{}).Error
+}

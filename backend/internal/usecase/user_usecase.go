@@ -398,3 +398,17 @@ func (u *userUsecase) ResetPassword(ctx context.Context, email, newPassword, tok
 
 	return u.userRepo.Update(ctx, user)
 }
+
+func (u *userUsecase) SaveFcmToken(ctx context.Context, userID uint64, token string, deviceType string) error {
+	if token == "" {
+		return errors.New("token cannot be empty")
+	}
+	return u.userRepo.SaveFcmToken(ctx, userID, token, deviceType)
+}
+
+func (u *userUsecase) DeleteFcmToken(ctx context.Context, token string) error {
+	if token == "" {
+		return errors.New("token cannot be empty")
+	}
+	return u.userRepo.DeleteFcmToken(ctx, token)
+}

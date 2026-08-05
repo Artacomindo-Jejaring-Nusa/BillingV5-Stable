@@ -122,6 +122,8 @@ func main() {
 		&domain.TicketHistory{},
 		&domain.ActionTaken{},
 		&domain.WhatsAppOutbox{},
+		&domain.APIKey{},
+		&domain.UserFcmToken{},
 	}
 	var migrationErrors []error
 	for _, model := range modelsToMigrate {
@@ -169,7 +171,7 @@ func main() {
 	router.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool { return true },
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-API-Key"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
@@ -240,6 +242,11 @@ func main() {
 	permissionUsecase := usecase.NewPermissionUsecase(permissionRepo)
 	httpDelivery.NewRoleHandler(api, roleUsecase, authMw)
 	httpDelivery.NewPermissionHandler(api, permissionUsecase, authMw)
+
+	// API Keys Services
+	apiKeyRepo := repository.NewAPIKeyRepository(db)
+	apiKeyUsecase := usecase.NewAPIKeyUsecase(apiKeyRepo, roleRepo, systemRepo)
+	httpDelivery.NewAPIKeyHandler(api, apiKeyUsecase, authMw)
 
 	// Layanan
 	hargaLayananRepo := repository.NewHargaLayananRepository(db)

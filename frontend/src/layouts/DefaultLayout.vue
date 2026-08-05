@@ -1079,6 +1079,14 @@ const menuGroups = ref([
             to: '/management/settings', 
             permission: 'manage_settings',
             description: 'Konfigurasi sistem'
+          },
+          { 
+            title: 'API Keys', 
+            icon: 'mdi-key-chain', 
+            value: 'api-keys', 
+            to: '/management/api-keys', 
+            permission: 'manage_settings',
+            description: 'Integrasi API luar'
           }
         ]
       },

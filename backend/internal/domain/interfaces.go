@@ -14,6 +14,8 @@ type UserRepository interface {
 	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id uint64) error
 	GetByResetToken(ctx context.Context, email, token string) (*User, error)
+	SaveFcmToken(ctx context.Context, userID uint64, token string, deviceType string) error
+	DeleteFcmToken(ctx context.Context, token string) error
 }
 
 // UserUsecase defines the business logic operations for User entity
@@ -35,6 +37,10 @@ type UserUsecase interface {
 	// Password Management
 	ForgotPassword(ctx context.Context, email string) (string, error)
 	ResetPassword(ctx context.Context, email, newPassword, token string) error
+
+	// FCM Token Management
+	SaveFcmToken(ctx context.Context, userID uint64, token string, deviceType string) error
+	DeleteFcmToken(ctx context.Context, token string) error
 }
 
 // TokenBlacklistRepository defines database operations for token blacklisting
