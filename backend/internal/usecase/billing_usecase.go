@@ -2116,6 +2116,7 @@ func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.In
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Basic "+auth)
+		req.Header.Set("Idempotency-key", fmt.Sprintf("create_invoice_%s", inv.InvoiceNumber))
 
 		client := &http.Client{Timeout: 30 * time.Second}
 		resp, err := client.Do(req)
