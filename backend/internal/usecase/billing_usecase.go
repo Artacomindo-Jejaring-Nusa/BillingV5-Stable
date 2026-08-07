@@ -2313,7 +2313,20 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 		}
 		_ = u.langgananRepo.Update(ctx, l)
 		if inv.Pelanggan.DataTeknis != nil {
-			_ = u.triggerMikrotikUpdate(ctx, inv.Pelanggan.DataTeknis.IDPelanggan, inv.Pelanggan.DataTeknis, "Aktif")
+			// Jalankan pembaruan Mikrotik secara asinkron di goroutine agar tidak memblokir HTTP response
+			go func(invoiceNo string, dt domain.DataTeknis, status string) {
+				// Gunakan context baru yang tidak terikat dengan lifetime HTTP request
+				bgCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				defer cancel()
+
+				u.logSystem(bgCtx, "INFO", fmt.Sprintf("Asynchronous Mikrotik activation started for user: %s (Invoice: %s)", dt.IDPelanggan, invoiceNo))
+				err := u.triggerMikrotikUpdate(bgCtx, dt.IDPelanggan, &dt, status)
+				if err != nil {
+					u.logSystem(bgCtx, "ERROR", fmt.Sprintf("Asynchronous Mikrotik activation failed for user %s: %v. Marked for cron retry.", dt.IDPelanggan, err))
+				} else {
+					u.logSystem(bgCtx, "INFO", fmt.Sprintf("Asynchronous Mikrotik activation succeeded for user %s", dt.IDPelanggan))
+				}
+			}(inv.InvoiceNumber, *inv.Pelanggan.DataTeknis, "Aktif")
 		}
 	}
 	u.logActivity(ctx, "Payment Confirmed", fmt.Sprintf("Invoice %s marked as paid (Lunas) for amount %.2f", inv.InvoiceNumber, amt))
