@@ -2243,6 +2243,17 @@ func (u *billingUsecase) ProcessXenditCallback(ctx context.Context, xCallbackTok
 		return nil
 	}
 
+	// Tangani status EXPIRED dari Xendit secara eksplisit
+	if status == "EXPIRED" {
+		invoice.StatusInvoice = "Expired"
+		if err := u.invoiceRepo.Update(ctx, invoice); err != nil {
+			saveLog("FAILED_UPDATING_EXPIRED_STATUS")
+			return err
+		}
+		saveLog("SUCCESS_EXPIRED")
+		return nil
+	}
+
 	saveLog("SKIPPED_UNHANDLED_STATUS_" + status)
 	return nil
 }
