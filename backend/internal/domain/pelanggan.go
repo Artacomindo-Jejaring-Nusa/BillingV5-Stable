@@ -12,6 +12,7 @@ import (
 // Pelanggan represents the customer table.
 type Pelanggan struct {
 	ID               uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
+	CustomerID       *string        `gorm:"type:varchar(20);uniqueIndex" json:"customer_id"`
 	NoKtp            string         `gorm:"type:varchar(191)" json:"no_ktp"`
 	Nama             string         `gorm:"type:varchar(191)" json:"nama"`
 	Alamat           string         `gorm:"type:varchar(191)" json:"alamat"`

@@ -1,5 +1,6 @@
 export interface Pelanggan {
   id: number;
+  customer_id?: string | null;
   no_ktp: string;
   nama: string;
   alamat: string;

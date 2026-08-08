@@ -82,6 +82,25 @@ func (m *mockPelangganRepo) GetByNoTelp(ctx context.Context, noTelp string) (*do
 	return nil, nil
 }
 
+func (m *mockPelangganRepo) GetByCustomerID(ctx context.Context, customerID string) (*domain.Pelanggan, error) {
+	for _, p := range m.data {
+		if p.CustomerID != nil && *p.CustomerID == customerID {
+			return p, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *mockPelangganRepo) GetWithoutCustomerID(ctx context.Context) ([]domain.Pelanggan, error) {
+	var res []domain.Pelanggan
+	for _, p := range m.data {
+		if p.CustomerID == nil || *p.CustomerID == "" {
+			res = append(res, *p)
+		}
+	}
+	return res, nil
+}
+
 type mockLanggananRepo struct {
 	domain.LanggananRepository
 	data map[uint64]*domain.Langganan

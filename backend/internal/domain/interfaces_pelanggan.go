@@ -6,6 +6,8 @@ import "context"
 type PelangganRepository interface {
 	GetAll(ctx context.Context, limit, offset int, search, connectionStatus string) ([]Pelanggan, int64, error)
 	GetByID(ctx context.Context, id uint64) (*Pelanggan, error)
+	GetByCustomerID(ctx context.Context, customerID string) (*Pelanggan, error)
+	GetWithoutCustomerID(ctx context.Context) ([]Pelanggan, error)
 	Create(ctx context.Context, pelanggan *Pelanggan) error
 	Update(ctx context.Context, pelanggan *Pelanggan) error
 	Delete(ctx context.Context, id uint64) error
@@ -26,4 +28,5 @@ type PelangganUsecase interface {
 	GetUniqueLocations(ctx context.Context) ([]string, error)
 	Export(ctx context.Context, format string) ([]byte, string, error)
 	ImportFromCSV(ctx context.Context, csvContent string) (int, error)
+	BackfillCustomerIDs(ctx context.Context) error
 }

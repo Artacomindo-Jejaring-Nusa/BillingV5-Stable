@@ -1,0 +1,1 @@
+ALTER TABLE pelanggan ADD COLUMN customer_id VARCHAR(20) NULL UNIQUE AFTER id;

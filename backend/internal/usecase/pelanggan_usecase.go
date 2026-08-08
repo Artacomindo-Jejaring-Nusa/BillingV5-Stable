@@ -3,9 +3,11 @@ package usecase
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -72,6 +74,33 @@ func isDummyKtp(ktp string) bool {
 	return true
 }
 
+func generateRandomCustomerID() string {
+	// First digit: 1-9
+	nBig, err := rand.Int(rand.Reader, big.NewInt(9))
+	firstDigit := int64(1)
+	if err == nil {
+		firstDigit = nBig.Int64() + 1
+	}
+	// Remaining 10 digits: 0000000000 to 9999999999
+	nBig2, err2 := rand.Int(rand.Reader, big.NewInt(10000000000))
+	rem := int64(0)
+	if err2 == nil {
+		rem = nBig2.Int64()
+	}
+	return fmt.Sprintf("%d%010d", firstDigit, rem)
+}
+
+func (u *pelangganUsecase) generateUniqueCustomerID(ctx context.Context) (string, error) {
+	for i := 0; i < 10; i++ {
+		cid := generateRandomCustomerID()
+		existing, err := u.pelangganRepo.GetByCustomerID(ctx, cid)
+		if err == nil && existing == nil {
+			return cid, nil
+		}
+	}
+	return "", errors.New("failed to generate unique customer id after 10 attempts")
+}
+
 func (u *pelangganUsecase) Store(ctx context.Context, pelanggan *domain.Pelanggan) error {
 	if pelanggan.Email == "" { return errors.New("email is required") }
 	existingEmail, err := u.pelangganRepo.GetByEmail(ctx, pelanggan.Email)
@@ -81,22 +110,30 @@ func (u *pelangganUsecase) Store(ctx context.Context, pelanggan *domain.Pelangga
 		existingPhone, err := u.pelangganRepo.GetByNoTelp(ctx, pelanggan.NoTelp)
 		if err == nil && existingPhone != nil { return errors.New("No. Telepon sudah terdaftar") }
 	}
-	
+
+	// Auto-generate unique 11-digit CustomerID if not set
+	if pelanggan.CustomerID == nil || *pelanggan.CustomerID == "" {
+		cid, err := u.generateUniqueCustomerID(ctx)
+		if err != nil {
+			return fmt.Errorf("gagal membuat ID pelanggan unik: %w", err)
+		}
+		pelanggan.CustomerID = &cid
+	}
+
 	// Encrypt NIK if it's not already encrypted and not dummy
 	if pelanggan.NoKtp != "" && !utils.GlobalEncryptionService.IsEncrypted(pelanggan.NoKtp) {
 		pelanggan.NoKtp = utils.Encrypt(pelanggan.NoKtp)
 	}
 
 	if !isDummyKtp(pelanggan.NoKtp) {
-		// Decrypt temporarily for uniqueness check if necessary, or just check as is if repo handles it
-		// Usually we check plaintext in repo, so we might need a GetByNoKtpPlaintext method 
-		// but for now let's assume we check the encrypted value or repo does decryption.
-		// Actually, Fernet encryption is non-deterministic (different every time), 
-		// so we CANNOT search by encrypted value.
-		// This is a bigger issue. For now, let's just proceed with Store.
+		// Decrypt temporarily for uniqueness check if necessary
 	}
 	if err := u.pelangganRepo.Create(ctx, pelanggan); err != nil { return err }
-	u.logActivity(ctx, "Create Pelanggan", fmt.Sprintf("Created pelanggan: %s (ID: %d)", pelanggan.Nama, pelanggan.ID))
+	cidStr := ""
+	if pelanggan.CustomerID != nil {
+		cidStr = *pelanggan.CustomerID
+	}
+	u.logActivity(ctx, "Create Pelanggan", fmt.Sprintf("Created pelanggan: %s (ID: %d, CustomerID: %s)", pelanggan.Nama, pelanggan.ID, cidStr))
 	if websocket.GlobalHub != nil {
 		websocket.GlobalHub.BroadcastNotification("new_customer", map[string]interface{}{"pelanggan_nama": pelanggan.Nama})
 	}
@@ -317,4 +354,30 @@ func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, s
 		w.Flush()
 		return buf.Bytes(), "text/csv", nil
 	}
+}
+
+func (u *pelangganUsecase) BackfillCustomerIDs(ctx context.Context) error {
+	list, err := u.pelangganRepo.GetWithoutCustomerID(ctx)
+	if err != nil {
+		return err
+	}
+	if len(list) == 0 {
+		return nil
+	}
+	count := 0
+	for i := range list {
+		p := &list[i]
+		cid, err := u.generateUniqueCustomerID(ctx)
+		if err != nil {
+			continue
+		}
+		p.CustomerID = &cid
+		if err := u.pelangganRepo.Update(ctx, p); err == nil {
+			count++
+		}
+	}
+	if count > 0 {
+		u.logActivity(ctx, "Backfill Customer IDs", fmt.Sprintf("Berhasil meng-generate Customer ID untuk %d pelanggan lama", count))
+	}
+	return nil
 }

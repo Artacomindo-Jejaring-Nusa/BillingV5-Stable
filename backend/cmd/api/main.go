@@ -260,6 +260,9 @@ func main() {
 	// Pelanggan
 	pelangganRepo := repository.NewPelangganRepository(db)
 	pelangganUsecase := usecase.NewPelangganUsecase(pelangganRepo, systemRepo)
+	if err := pelangganUsecase.BackfillCustomerIDs(context.Background()); err != nil {
+		logger.Warn("BackfillCustomerIDs warning: %v", err)
+	}
 	httpDelivery.NewPelangganHandler(api, pelangganUsecase, authMw)
 
 	// Mikrotik

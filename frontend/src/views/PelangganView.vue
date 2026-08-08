@@ -398,6 +398,11 @@
 
               <!-- Customer Details -->
               <div class="mobile-details">
+                <div v-if="item.customer_id" class="detail-row">
+                  <v-icon size="small" class="me-2 text-indigo">mdi-card-account-details-outline</v-icon>
+                  <span class="detail-label">ID Pelanggan:</span>
+                  <span class="detail-value font-mono font-weight-bold text-indigo">{{ item.customer_id }}</span>
+                </div>
                 <div class="detail-row">
                   <v-icon size="small" class="me-2 text-medium-emphasis">mdi-card-account-details</v-icon>
                   <span class="detail-label">No. KTP:</span>
@@ -513,6 +518,19 @@
 
           <template v-slot:item.nomor="{ index }">
             {{ (desktopPage - 1) * itemsPerPage + index + 1 }}
+          </template>
+
+          <template v-slot:item.customer_id="{ item }">
+            <v-chip v-if="item.customer_id"
+              size="small"
+              color="indigo"
+              variant="tonal"
+              class="font-mono font-weight-bold"
+            >
+              <v-icon start size="x-small">mdi-card-account-details-outline</v-icon>
+              {{ item.customer_id }}
+            </v-chip>
+            <span v-else class="text-medium-emphasis">-</span>
           </template>
 
           <template v-slot:item.nama="{ item }">
@@ -672,6 +690,22 @@
                   </div>
                   
                   <v-row class="form-row">
+                    <v-col v-if="editedItem.customer_id" cols="12">
+                      <div class="input-group">
+                        <label class="input-label text-indigo font-weight-bold">
+                          <v-icon size="small" class="mr-2 text-indigo">mdi-card-account-details-outline</v-icon>
+                          ID Pelanggan (11 Digit Unik)
+                        </label>
+                        <v-text-field 
+                          v-model="editedItem.customer_id" 
+                          variant="outlined" 
+                          readonly
+                          disabled
+                          class="elegant-input font-mono font-weight-bold"
+                          density="comfortable"
+                        ></v-text-field>
+                      </div>
+                    </v-col>
                     <v-col cols="12" md="6">
                       <div class="input-group">
                         <label class="input-label">
@@ -1281,6 +1315,7 @@ const loadingMore = ref(false);
 
 const defaultItem: Partial<Pelanggan> = { 
   id: undefined, 
+  customer_id: '',
   nama: '', 
   no_ktp: '', 
   email: '', 
@@ -1342,6 +1377,7 @@ const rules = {
 // --- TABLE HEADERS ---
 const headers = [
   { title: 'No', key: 'nomor', sortable: false, align: 'center', width: '60px' },
+  { title: 'Customer ID', key: 'customer_id', sortable: true, minWidth: '140px' },
   { title: 'Pelanggan', key: 'nama', sortable: true, minWidth: '160px' },
   { title: 'No. KTP', key: 'no_ktp', sortable: true },
   { title: 'Email', key: 'email', sortable: true },

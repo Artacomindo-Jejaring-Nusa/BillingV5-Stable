@@ -102,6 +102,24 @@ func (r *pelangganRepository) GetByID(ctx context.Context, id uint64) (*domain.P
 	return &pelanggan, nil
 }
 
+func (r *pelangganRepository) GetByCustomerID(ctx context.Context, customerID string) (*domain.Pelanggan, error) {
+	var pelanggan domain.Pelanggan
+	err := r.db.WithContext(ctx).Where("customer_id = ?", customerID).First(&pelanggan).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &pelanggan, nil
+}
+
+func (r *pelangganRepository) GetWithoutCustomerID(ctx context.Context) ([]domain.Pelanggan, error) {
+	var list []domain.Pelanggan
+	err := r.db.WithContext(ctx).Where("customer_id IS NULL OR customer_id = ''").Find(&list).Error
+	return list, err
+}
+
 func (r *pelangganRepository) Create(ctx context.Context, pelanggan *domain.Pelanggan) error {
 	return r.db.WithContext(ctx).Create(pelanggan).Error
 }
