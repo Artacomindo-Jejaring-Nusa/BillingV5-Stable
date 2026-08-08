@@ -399,9 +399,8 @@
               <!-- Customer Details -->
               <div class="mobile-details">
                 <div v-if="item.customer_id" class="detail-row">
-                  <v-icon size="small" class="me-2 text-indigo">mdi-card-account-details-outline</v-icon>
                   <span class="detail-label">ID Pelanggan:</span>
-                  <span class="detail-value font-mono font-weight-bold text-indigo">{{ item.customer_id }}</span>
+                  <span class="detail-value font-mono font-weight-bold text-body-1 text-black">{{ item.customer_id }}</span>
                 </div>
                 <div class="detail-row">
                   <v-icon size="small" class="me-2 text-medium-emphasis">mdi-card-account-details</v-icon>
@@ -521,15 +520,9 @@
           </template>
 
           <template v-slot:item.customer_id="{ item }">
-            <v-chip v-if="item.customer_id"
-              size="small"
-              color="indigo"
-              variant="tonal"
-              class="font-mono font-weight-bold"
-            >
-              <v-icon start size="x-small">mdi-card-account-details-outline</v-icon>
+            <span v-if="item.customer_id" class="font-mono font-weight-bold text-subtitle-1 text-black">
               {{ item.customer_id }}
-            </v-chip>
+            </span>
             <span v-else class="text-medium-emphasis">-</span>
           </template>
 
@@ -692,8 +685,7 @@
                   <v-row class="form-row">
                     <v-col v-if="editedItem.customer_id" cols="12">
                       <div class="input-group">
-                        <label class="input-label text-indigo font-weight-bold">
-                          <v-icon size="small" class="mr-2 text-indigo">mdi-card-account-details-outline</v-icon>
+                        <label class="input-label font-weight-bold">
                           ID Pelanggan (11 Digit Unik)
                         </label>
                         <v-text-field 
@@ -701,7 +693,7 @@
                           variant="outlined" 
                           readonly
                           disabled
-                          class="elegant-input font-mono font-weight-bold"
+                          class="elegant-input font-mono font-weight-bold text-subtitle-1 text-black"
                           density="comfortable"
                         ></v-text-field>
                       </div>
