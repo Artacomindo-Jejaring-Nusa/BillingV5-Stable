@@ -61,3 +61,6 @@ frontend/coverage/
 # Skills
 code-guide-billing.md
 .agents/rules
+
+security_audit_guide.md
+.agents/skills
