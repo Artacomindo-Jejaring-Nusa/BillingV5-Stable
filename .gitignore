@@ -50,6 +50,8 @@ DataTerbaru-Juli2026.sql
 DataTerbaru-Juli2026_Cleaned.sql
 DataTerbaru*.sql
 import-production-data.ps1
+import-to-docker.ps1
+clean-agustus-data.ps1
 backups/
 
 # Coverage & Scans
