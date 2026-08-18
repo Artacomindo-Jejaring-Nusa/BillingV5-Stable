@@ -26,13 +26,18 @@ func (r *dashboardRepository) GetRevenueSummary(ctx context.Context) (*domain.Re
 	}
 	var results []Result
 
-	// Calculate Piutang (Total expected monthly revenue from active/suspended subscriptions per brand)
-	err := r.db.WithContext(ctx).Table("langganan").
+	// Subquery to get the latest subscription (MAX id) per customer to prevent duplicate row sums
+	latestLanggananSubQuery := r.db.WithContext(ctx).Table("langganan").
+		Select("pelanggan_id, MAX(id) as max_id").
+		Where("deleted_at IS NULL").
+		Group("pelanggan_id")
+
+	err := r.db.WithContext(ctx).Table("pelanggan").
 		Select("harga_layanan.brand, SUM(langganan.harga_awal) as total_revenue").
-		Joins("JOIN pelanggan ON langganan.pelanggan_id = pelanggan.id AND pelanggan.deleted_at IS NULL").
+		Joins("JOIN (?) latest_l ON pelanggan.id = latest_l.pelanggan_id", latestLanggananSubQuery).
+		Joins("JOIN langganan ON latest_l.max_id = langganan.id").
 		Joins("JOIN harga_layanan ON pelanggan.id_brand = harga_layanan.id_brand").
-		Where("langganan.status != ?", "Berhenti").
-		Where("langganan.deleted_at IS NULL").
+		Where("pelanggan.deleted_at IS NULL").
 		Where("harga_layanan.brand IS NOT NULL").
 		Group("harga_layanan.brand").
 		Order("harga_layanan.brand ASC").
@@ -72,10 +77,8 @@ func (r *dashboardRepository) GetPelangganStatCards(ctx context.Context) ([]doma
 	var results []Result
 
 	err := r.db.WithContext(ctx).Table("harga_layanan").
-		Select("harga_layanan.brand, COUNT(DISTINCT pelanggan.id) as count").
+		Select("harga_layanan.brand, COUNT(pelanggan.id) as count").
 		Joins("LEFT JOIN pelanggan ON harga_layanan.id_brand = pelanggan.id_brand AND pelanggan.deleted_at IS NULL").
-		Joins("LEFT JOIN langganan ON pelanggan.id = langganan.pelanggan_id AND langganan.deleted_at IS NULL").
-		Where("langganan.status IS NULL OR langganan.status != ?", "Berhenti").
 		Group("harga_layanan.brand").
 		Scan(&results).Error
 
