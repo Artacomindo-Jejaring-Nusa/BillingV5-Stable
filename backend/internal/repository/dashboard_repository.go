@@ -26,21 +26,22 @@ func (r *dashboardRepository) GetRevenueSummary(ctx context.Context) (*domain.Re
 	}
 	var results []Result
 
-	// Subquery to get the latest subscription (MAX id) per customer to get exact expected monthly piutang
-	latestLanggananSubQuery := r.db.WithContext(ctx).Table("langganan").
-		Select("pelanggan_id, MAX(id) as max_id").
-		Where("deleted_at IS NULL").
-		Group("pelanggan_id")
+	// V4 Python Logic (app/routers/dashboard.py lines 63-96):
+	// SUM(invoices.total_harga) WHERE status_invoice='Lunas' AND paid_at in current month
+	// Grouped by harga_layanan.brand
+	now := time.Now()
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	endOfMonth := startOfMonth.AddDate(0, 1, 0)
 
-	err := r.db.WithContext(ctx).Table("pelanggan").
-		Select("harga_layanan.brand, SUM(langganan.harga_awal) as total_revenue").
-		Joins("JOIN (?) latest_l ON pelanggan.id = latest_l.pelanggan_id", latestLanggananSubQuery).
-		Joins("JOIN langganan ON latest_l.max_id = langganan.id").
-		Joins("JOIN harga_layanan ON pelanggan.id_brand = harga_layanan.id_brand").
-		Where("pelanggan.deleted_at IS NULL").
+	err := r.db.WithContext(ctx).Table("invoices").
+		Select("harga_layanan.brand, SUM(invoices.total_harga) as total_revenue").
+		Joins("LEFT JOIN pelanggan ON invoices.pelanggan_id = pelanggan.id").
+		Joins("LEFT JOIN harga_layanan ON pelanggan.id_brand = harga_layanan.id_brand").
+		Where("invoices.status_invoice = ?", "Lunas").
 		Where("harga_layanan.brand IS NOT NULL").
+		Where("invoices.paid_at >= ?", startOfMonth).
+		Where("invoices.paid_at < ?", endOfMonth).
 		Group("harga_layanan.brand").
-		Order("harga_layanan.brand ASC").
 		Scan(&results).Error
 
 	if err != nil {
@@ -57,7 +58,6 @@ func (r *dashboardRepository) GetRevenueSummary(ctx context.Context) (*domain.Re
 		total += row.TotalRevenue
 	}
 
-	now := time.Now()
 	nextMonth := now.AddDate(0, 1, 0)
 	monthsID := []string{"Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"}
 	periodeStr := fmt.Sprintf("%s %d", monthsID[nextMonth.Month()-1], nextMonth.Year())
