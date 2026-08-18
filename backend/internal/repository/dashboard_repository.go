@@ -20,31 +20,22 @@ func NewDashboardRepository(db *gorm.DB) domain.DashboardRepository {
 }
 
 func (r *dashboardRepository) GetRevenueSummary(ctx context.Context) (*domain.RevenueSummary, error) {
-	now := time.Now()
-	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	var endOfMonth time.Time
-	if now.Month() == 12 {
-		endOfMonth = time.Date(now.Year()+1, 1, 1, 0, 0, 0, 0, now.Location())
-	} else {
-		endOfMonth = time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location())
-	}
-
 	type Result struct {
 		Brand        string
 		TotalRevenue float64
 	}
 	var results []Result
 
-	err := r.db.WithContext(ctx).Table("invoices").
-		Select("harga_layanan.brand, SUM(invoices.total_harga) as total_revenue").
-		Joins("LEFT JOIN pelanggan ON invoices.pelanggan_id = pelanggan.id").
-		Joins("LEFT JOIN harga_layanan ON pelanggan.id_brand = harga_layanan.id_brand").
-		Where("invoices.status_invoice = ?", "Lunas").
+	// Calculate Piutang (Total expected monthly revenue from active/suspended subscriptions per brand)
+	err := r.db.WithContext(ctx).Table("langganan").
+		Select("harga_layanan.brand, SUM(langganan.harga_awal) as total_revenue").
+		Joins("JOIN pelanggan ON langganan.pelanggan_id = pelanggan.id AND pelanggan.deleted_at IS NULL").
+		Joins("JOIN harga_layanan ON pelanggan.id_brand = harga_layanan.id_brand").
+		Where("langganan.status != ?", "Berhenti").
+		Where("langganan.deleted_at IS NULL").
 		Where("harga_layanan.brand IS NOT NULL").
-		Where("invoices.paid_at >= ?", startOfMonth).
-		Where("invoices.paid_at < ?", endOfMonth).
-		Where("invoices.deleted_at IS NULL").
 		Group("harga_layanan.brand").
+		Order("harga_layanan.brand ASC").
 		Scan(&results).Error
 
 	if err != nil {
@@ -61,6 +52,7 @@ func (r *dashboardRepository) GetRevenueSummary(ctx context.Context) (*domain.Re
 		total += row.TotalRevenue
 	}
 
+	now := time.Now()
 	nextMonth := now.AddDate(0, 1, 0)
 	monthsID := []string{"Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"}
 	periodeStr := fmt.Sprintf("%s %d", monthsID[nextMonth.Month()-1], nextMonth.Year())
@@ -80,8 +72,10 @@ func (r *dashboardRepository) GetPelangganStatCards(ctx context.Context) ([]doma
 	var results []Result
 
 	err := r.db.WithContext(ctx).Table("harga_layanan").
-		Select("harga_layanan.brand, COUNT(pelanggan.id) as count").
+		Select("harga_layanan.brand, COUNT(DISTINCT pelanggan.id) as count").
 		Joins("LEFT JOIN pelanggan ON harga_layanan.id_brand = pelanggan.id_brand AND pelanggan.deleted_at IS NULL").
+		Joins("LEFT JOIN langganan ON pelanggan.id = langganan.pelanggan_id AND langganan.deleted_at IS NULL").
+		Where("langganan.status IS NULL OR langganan.status != ?", "Berhenti").
 		Group("harga_layanan.brand").
 		Scan(&results).Error
 
