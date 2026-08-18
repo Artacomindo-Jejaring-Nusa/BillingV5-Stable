@@ -95,6 +95,18 @@ func (r *dashboardRepository) GetPelangganStatCards(ctx context.Context) ([]doma
 		counts[strings.ToLower(row.Brand)] = row.Count
 	}
 
+	// Fetch Mikrotik Server stats (Total Servers, Online Servers, Offline Servers)
+	type ServerCount struct {
+		Total   int
+		Online  int
+		Offline int
+	}
+	var sCount ServerCount
+	_ = r.db.WithContext(ctx).Table("mikrotik_servers").
+		Select("COUNT(*) as total, SUM(CASE WHEN status = 'Online' OR status IS NULL THEN 1 ELSE 0 END) as online, SUM(CASE WHEN status = 'Offline' THEN 1 ELSE 0 END) as offline").
+		Where("deleted_at IS NULL").
+		Scan(&sCount).Error
+
 	return []domain.StatCard{
 		{
 			Title:       "Jumlah Pelanggan Jakinet",
@@ -110,6 +122,21 @@ func (r *dashboardRepository) GetPelangganStatCards(ctx context.Context) ([]doma
 			Title:       "Pelanggan Jelantik Nagrak",
 			Value:       counts["jelantik nagrak"],
 			Description: "Total Pelanggan Rusun Nagrak",
+		},
+		{
+			Title:       "Total Servers",
+			Value:       sCount.Total,
+			Description: "Total Mikrotik servers",
+		},
+		{
+			Title:       "Online Servers",
+			Value:       sCount.Online,
+			Description: "Servers online",
+		},
+		{
+			Title:       "Offline Servers",
+			Value:       sCount.Offline,
+			Description: "Servers offline",
 		},
 	}, nil
 }
