@@ -254,6 +254,29 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 
 	var totalPemasukan float64
 	_ = paymentQuery.Select("COALESCE(SUM(invoices.total_harga), 0)").Row().Scan(&totalPemasukan)
+
+	// Add archive invoices payment sum (matching Python V4 report.py lines 61-79)
+	archivePaymentQuery := r.db.WithContext(ctx).Table("invoices_archive").
+		Joins("LEFT JOIN pelanggan ON invoices_archive.pelanggan_id = pelanggan.id").
+		Where("invoices_archive.status_invoice = ?", "Lunas")
+
+	if startDate != "" {
+		archivePaymentQuery = archivePaymentQuery.Where("invoices_archive.paid_at >= ?", startDate)
+	}
+	if endDate != "" {
+		archivePaymentQuery = archivePaymentQuery.Where("invoices_archive.paid_at <= ?", endDate)
+	}
+	if params.Alamat != "" {
+		archivePaymentQuery = archivePaymentQuery.Where("pelanggan.alamat = ?", params.Alamat)
+	}
+	if params.IDBrand != "" {
+		archivePaymentQuery = archivePaymentQuery.Where("pelanggan.id_brand = ?", params.IDBrand)
+	}
+
+	var totalPemasukanArchive float64
+	_ = archivePaymentQuery.Select("COALESCE(SUM(invoices_archive.total_harga), 0)").Row().Scan(&totalPemasukanArchive)
+	totalPemasukan += totalPemasukanArchive
+
 	report.TotalPendapatan = totalPemasukan
 	report.FinancialSummary.TotalPemasukan = totalPemasukan
 	report.FinancialSummary.SaldoAkhir = totalPemasukan
