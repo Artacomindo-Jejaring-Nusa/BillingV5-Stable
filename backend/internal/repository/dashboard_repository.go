@@ -35,19 +35,15 @@ func (r *dashboardRepository) GetRevenueSummary(ctx context.Context) (*domain.Re
 	}
 	var results []Result
 
-	// Exact 1-to-1 V4 Python calculation:
-	// SELECT harga_layanan.brand, SUM(invoices.total_harga)
-	// FROM invoices LEFT JOIN pelanggan LEFT JOIN harga_layanan
-	// WHERE status_invoice = 'Lunas' AND paid_at >= startOfMonth AND paid_at < endOfMonth
+	// Exact 1-to-1 V4 Python calculation (app/routers/dashboard.py lines 77-89):
 	err := r.db.WithContext(ctx).Table("invoices").
 		Select("harga_layanan.brand, SUM(invoices.total_harga) as total_revenue").
-		Joins("LEFT JOIN pelanggan ON invoices.pelanggan_id = pelanggan.id AND pelanggan.deleted_at IS NULL").
+		Joins("LEFT JOIN pelanggan ON invoices.pelanggan_id = pelanggan.id").
 		Joins("LEFT JOIN harga_layanan ON pelanggan.id_brand = harga_layanan.id_brand").
 		Where("invoices.status_invoice = ?", "Lunas").
 		Where("harga_layanan.brand IS NOT NULL").
 		Where("invoices.paid_at >= ?", startOfMonth).
 		Where("invoices.paid_at < ?", endOfMonth).
-		Where("invoices.deleted_at IS NULL").
 		Group("harga_layanan.brand").
 		Scan(&results).Error
 
@@ -83,13 +79,10 @@ func (r *dashboardRepository) GetPelangganStatCards(ctx context.Context) ([]doma
 	}
 	var results []Result
 
-	// Exact 1-to-1 V4 Python calculation:
-	// SELECT harga_layanan.brand, COUNT(pelanggan.id)
-	// FROM harga_layanan LEFT JOIN pelanggan ON harga_layanan.id_brand = pelanggan.id_brand
-	// GROUP BY harga_layanan.brand
+	// Exact 1-to-1 V4 Python calculation (app/routers/dashboard.py lines 101-105):
 	err := r.db.WithContext(ctx).Table("harga_layanan").
 		Select("harga_layanan.brand, COUNT(pelanggan.id) as count").
-		Joins("LEFT JOIN pelanggan ON harga_layanan.id_brand = pelanggan.id_brand AND pelanggan.deleted_at IS NULL").
+		Joins("LEFT JOIN pelanggan ON harga_layanan.id_brand = pelanggan.id_brand").
 		Group("harga_layanan.brand").
 		Scan(&results).Error
 
