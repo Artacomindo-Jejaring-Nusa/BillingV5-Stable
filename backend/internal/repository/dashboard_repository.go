@@ -111,7 +111,7 @@ func (r *dashboardRepository) GetPelangganStatCards(ctx context.Context) ([]doma
 		counts[strings.ToLower(row.Brand)] = row.Count
 	}
 
-	// Fetch Mikrotik Server stats using correct column is_active
+	// Fetch Mikrotik Server stats using is_active and last_connection_status
 	type ServerCount struct {
 		Total   int
 		Online  int
@@ -119,7 +119,11 @@ func (r *dashboardRepository) GetPelangganStatCards(ctx context.Context) ([]doma
 	}
 	var sCount ServerCount
 	_ = r.db.WithContext(ctx).Table("mikrotik_servers").
-		Select("COUNT(*) as total, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as online, SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) as offline").
+		Select(`
+			COUNT(*) as total,
+			SUM(CASE WHEN is_active = 1 AND (last_connection_status IS NULL OR LOWER(last_connection_status) != 'failed') THEN 1 ELSE 0 END) as online,
+			SUM(CASE WHEN is_active = 0 OR LOWER(last_connection_status) = 'failed' THEN 1 ELSE 0 END) as offline
+		`).
 		Where("deleted_at IS NULL").
 		Scan(&sCount).Error
 

@@ -109,7 +109,7 @@ func (u *dashboardUsecase) GetDashboardData(ctx context.Context, userPermissions
 			} else {
 				cards, err = u.repo.GetPelangganStatCards(ctx)
 				if err == nil {
-					setCache(ctx, "dashboard:cache:stat_cards", &cards, 5*time.Minute)
+					setCache(ctx, "dashboard:cache:stat_cards", &cards, 30*time.Second)
 				}
 			}
 			if err == nil {

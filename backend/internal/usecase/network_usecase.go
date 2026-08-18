@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"billing-backend/internal/domain"
+	"billing-backend/internal/websocket"
 	"billing-backend/pkg/mikrotik"
 	"billing-backend/pkg/utils"
 )
@@ -95,6 +96,11 @@ func (u *mikrotikUsecase) TestConnection(ctx context.Context, id uint64) (map[st
 		server.LastConnectionStatus = &status
 		_ = u.mikrotikRepo.Update(ctx, server)
 
+		// Invalidate dashboard stat cards cache
+		if rdb := websocket.GetRedisClient(); rdb != nil {
+			_ = rdb.Del(ctx, "dashboard:cache:stat_cards").Err()
+		}
+
 		testResult := map[string]interface{}{
 			"message": fmt.Sprintf("Failed to connect to MikroTik server: %v", connErr),
 			"data":    nil,
@@ -111,6 +117,11 @@ func (u *mikrotikUsecase) TestConnection(ctx context.Context, id uint64) (map[st
 	server.LastConnectedAt = &now
 
 	_ = u.mikrotikRepo.Update(ctx, server)
+
+	// Invalidate dashboard stat cards cache
+	if rdb := websocket.GetRedisClient(); rdb != nil {
+		_ = rdb.Del(ctx, "dashboard:cache:stat_cards").Err()
+	}
 
 	testResult := map[string]interface{}{
 		"message": "Successfully connected to MikroTik server",
