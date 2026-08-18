@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strings"
 	"time"
 
 	"billing-backend/internal/domain"
@@ -225,18 +226,50 @@ func (r *invoiceRepository) GetInvoiceSummary(ctx context.Context) (*domain.Invo
 func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain.RevenueReportParams) (*domain.RevenueReportResponse, error) {
 	var report domain.RevenueReportResponse
 
-	// Helper to build base query
-	buildBaseQuery := func() *gorm.DB {
+	startDate := params.StartDate
+	endDate := params.EndDate
+	if endDate != "" && !strings.Contains(endDate, ":") {
+		endDate = endDate + " 23:59:59"
+	}
+
+	// 1. FINANCIAL SUMMARY (CASH FLOW) - Payments RECEIVED in this period (paid_at)
+	// Exact 1-to-1 V4 Python calculation (app/routers/report.py lines 44-88)
+	paymentQuery := r.db.WithContext(ctx).Table("invoices").
+		Joins("LEFT JOIN pelanggan ON invoices.pelanggan_id = pelanggan.id").
+		Where("invoices.deleted_at IS NULL").
+		Where("invoices.status_invoice = ?", "Lunas")
+
+	if startDate != "" {
+		paymentQuery = paymentQuery.Where("invoices.paid_at >= ?", startDate)
+	}
+	if endDate != "" {
+		paymentQuery = paymentQuery.Where("invoices.paid_at <= ?", endDate)
+	}
+	if params.Alamat != "" {
+		paymentQuery = paymentQuery.Where("pelanggan.alamat = ?", params.Alamat)
+	}
+	if params.IDBrand != "" {
+		paymentQuery = paymentQuery.Where("pelanggan.id_brand = ?", params.IDBrand)
+	}
+
+	var totalPemasukan float64
+	_ = paymentQuery.Select("COALESCE(SUM(invoices.total_harga), 0)").Row().Scan(&totalPemasukan)
+	report.TotalPendapatan = totalPemasukan
+	report.FinancialSummary.TotalPemasukan = totalPemasukan
+	report.FinancialSummary.SaldoAkhir = totalPemasukan
+
+	// 2. BILLING SUMMARY & TAXES - Invoices BILLED/DUE in this period (tgl_jatuh_tempo)
+	// Exact 1-to-1 V4 Python calculation (app/routers/report.py lines 95-200)
+	billingQuery := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Table("invoices").
 			Joins("LEFT JOIN pelanggan ON invoices.pelanggan_id = pelanggan.id").
 			Where("invoices.deleted_at IS NULL")
 
-		if params.StartDate != "" {
-			q = q.Where("invoices.tgl_invoice >= ?", params.StartDate)
+		if startDate != "" {
+			q = q.Where("invoices.tgl_jatuh_tempo >= ?", startDate)
 		}
-		if params.EndDate != "" {
-			// Using 23:59:59 to cover the whole end day if it's a datetime column
-			q = q.Where("invoices.tgl_invoice <= ?", params.EndDate+" 23:59:59")
+		if endDate != "" {
+			q = q.Where("invoices.tgl_jatuh_tempo <= ?", endDate)
 		}
 		if params.Alamat != "" {
 			q = q.Where("pelanggan.alamat = ?", params.Alamat)
@@ -247,15 +280,6 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 		return q
 	}
 
-	// 1. Total Invoices
-	var totalInvoices int64
-	if err := buildBaseQuery().Count(&totalInvoices).Error; err != nil {
-		return nil, err
-	}
-	report.TotalInvoices = int(totalInvoices)
-	report.BillingSummary.TotalTagihan.Count = int(totalInvoices)
-
-	// 2. Billing Summary by Status
 	type StatusResult struct {
 		Status      string
 		Count       int
@@ -264,13 +288,16 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 		TotalAmount float64
 	}
 	var statusResults []StatusResult
-	err := buildBaseQuery().
+	err := billingQuery().
 		Select("status_invoice as status, COUNT(*) as count, SUM(COALESCE(harga_sebelum_diskon, total_harga)) as nominal, SUM(COALESCE(diskon_amount, 0)) as diskon, SUM(total_harga) as total_amount").
 		Group("status_invoice").
 		Scan(&statusResults).Error
 	if err != nil {
 		return nil, err
 	}
+
+	var totalCount int
+	var totalNominal, totalDiskon, totalAmount float64
 
 	for _, res := range statusResults {
 		stat := domain.BillStat{
@@ -279,12 +306,13 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 			Diskon:  res.Diskon,
 			Total:   res.TotalAmount,
 		}
-		report.BillingSummary.TotalTagihan.Count += res.Count
-		report.BillingSummary.TotalTagihan.Nominal += res.Nominal
-		report.BillingSummary.TotalTagihan.Diskon += res.Diskon
-		report.BillingSummary.TotalTagihan.Total += res.TotalAmount
-		
-		// Calculate taxes for this status
+
+		totalCount += res.Count
+		totalNominal += res.Nominal
+		totalDiskon += res.Diskon
+		totalAmount += res.TotalAmount
+
+		// Calculate taxes
 		tax := domain.TaxStat{}
 		if res.TotalAmount > 0 {
 			tax.Ppn = math.Floor(res.TotalAmount - (res.TotalAmount / 1.11) + 0.5)
@@ -297,61 +325,57 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 		switch res.Status {
 		case "Lunas":
 			report.BillingSummary.Lunas = stat
-			report.TotalPendapatan = res.TotalAmount
-			report.FinancialSummary.TotalPemasukan = res.TotalAmount
 			report.TaxSummary.Lunas = tax
-		case "Belum Bayar":
+		case "Belum Bayar", "Belum Dibayar":
 			report.BillingSummary.Pending = stat
 			report.TaxSummary.Pending = tax
-		case "Expired":
+		case "Expired", "Kadaluarsa", "Telat", "Suspend", "Suspended":
 			report.BillingSummary.Expired = stat
 			report.TaxSummary.Expired = tax
 		}
 	}
-	report.FinancialSummary.SaldoAkhir = report.FinancialSummary.TotalPemasukan
 
-	// 3. Overall Tax Summary
-	// Total tax is the sum of taxes from all statuses (or just Lunas, depending on business rules)
-	// The user's output showed total was the sum of something.
-	// Let's make Total the sum of Lunas, Pending, and Expired tax for now to match the "TOTAL" line
+	report.TotalInvoices = totalCount
+	report.BillingSummary.TotalTagihan = domain.BillStat{
+		Count:   totalCount,
+		Nominal: totalNominal,
+		Diskon:  totalDiskon,
+		Total:   totalAmount,
+	}
+
 	report.TaxSummary.Total.Ppn = report.TaxSummary.Lunas.Ppn + report.TaxSummary.Pending.Ppn + report.TaxSummary.Expired.Ppn
 	report.TaxSummary.Total.Bhp = report.TaxSummary.Lunas.Bhp + report.TaxSummary.Pending.Bhp + report.TaxSummary.Expired.Bhp
 	report.TaxSummary.Total.Uso = report.TaxSummary.Lunas.Uso + report.TaxSummary.Pending.Uso + report.TaxSummary.Expired.Uso
 	report.TaxSummary.Total.TotalPajak = report.TaxSummary.Total.Ppn + report.TaxSummary.Total.Bhp + report.TaxSummary.Total.Uso
 
-	// 4. Payment Methods (Only for Lunas)
+	// 3. Payment Methods (Only for Lunas)
 	type MethodResult struct {
 		Method      string
 		Count       int
 		TotalAmount float64
-		Pajak       float64
 		Diskon      float64
 	}
 	var methodResults []MethodResult
-	err = buildBaseQuery().
+	err = billingQuery().
 		Select("metode_pembayaran as method, COUNT(*) as count, SUM(total_harga) as total_amount, SUM(diskon_amount) as diskon").
 		Where("status_invoice = ?", "Lunas").
 		Group("metode_pembayaran").
 		Scan(&methodResults).Error
-	if err != nil {
-		return nil, err
-	}
-
-	for _, res := range methodResults {
-		method := res.Method
-		if method == "" {
-			method = "Lainnya"
+	if err == nil {
+		for _, res := range methodResults {
+			method := res.Method
+			if method == "" {
+				method = "Lainnya"
+			}
+			ppn := math.Floor(res.TotalAmount - (res.TotalAmount / 1.11) + 0.5)
+			report.PaymentMethods = append(report.PaymentMethods, domain.PaymentMethodStat{
+				Method:      method,
+				Count:       res.Count,
+				TotalAmount: res.TotalAmount,
+				Pajak:       ppn,
+				Diskon:      res.Diskon,
+			})
 		}
-		// Calculate PPN for this method
-		ppn := math.Floor(res.TotalAmount - (res.TotalAmount / 1.11) + 0.5)
-		
-		report.PaymentMethods = append(report.PaymentMethods, domain.PaymentMethodStat{
-			Method:      method,
-			Count:       res.Count,
-			TotalAmount: res.TotalAmount,
-			Pajak:       ppn,
-			Diskon:      res.Diskon,
-		})
 	}
 
 	return &report, nil
@@ -366,10 +390,14 @@ func (r *invoiceRepository) GetRevenueReportDetails(ctx context.Context, params 
 		Where("invoices.deleted_at IS NULL")
 
 	if params.StartDate != "" {
-		query = query.Where("invoices.tgl_invoice >= ?", params.StartDate)
+		query = query.Where("invoices.tgl_jatuh_tempo >= ?", params.StartDate)
 	}
 	if params.EndDate != "" {
-		query = query.Where("invoices.tgl_invoice <= ?", params.EndDate+" 23:59:59")
+		endDate := params.EndDate
+		if !strings.Contains(endDate, ":") {
+			endDate = endDate + " 23:59:59"
+		}
+		query = query.Where("invoices.tgl_jatuh_tempo <= ?", endDate)
 	}
 	if params.Alamat != "" {
 		query = query.Where("pelanggan.alamat = ?", params.Alamat)
@@ -385,7 +413,7 @@ func (r *invoiceRepository) GetRevenueReportDetails(ctx context.Context, params 
 		query = query.Offset(params.Skip)
 	}
 
-	err := query.Order("invoices.tgl_invoice desc").Scan(&items).Error
+	err := query.Order("invoices.tgl_jatuh_tempo desc").Scan(&items).Error
 	return items, err
 }
 
