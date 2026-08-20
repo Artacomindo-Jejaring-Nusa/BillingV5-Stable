@@ -34,6 +34,7 @@ type Config struct {
 	QontakTemplateIDInvoice         string
 	QontakTemplateIDInvoiceJakinet  string
 	QontakTemplateIDInvoiceJelantik string
+	QontakBroadcastEnabled          bool
 	Menus                           []string
 	DashboardWidgets                []string
 	SystemFeatures                  []string
@@ -84,6 +85,7 @@ func LoadConfig() *Config {
 		QontakTemplateIDInvoice:         getEnv("QONTAK_TEMPLATE_ID_INVOICE", ""),
 		QontakTemplateIDInvoiceJakinet:  getEnv("QONTAK_TEMPLATE_ID_INVOICE_JAKINET", ""),
 		QontakTemplateIDInvoiceJelantik: getEnv("QONTAK_TEMPLATE_ID_INVOICE_JELANTIK", ""),
+		QontakBroadcastEnabled:          getEnvAsBool("QONTAK_BROADCAST_ENABLED", false),
 		SchedulerEnabled:                getEnv("SCHEDULER_ENABLED", "true") == "true",
 		
 		Menus: []string{
@@ -142,6 +144,17 @@ func getEnvAsInt(key string, defaultVal int) int {
 	valueStr := getEnv(key, "")
 	if value, err := strconv.Atoi(valueStr); err == nil {
 		return value
+	}
+	return defaultVal
+}
+
+func getEnvAsBool(key string, defaultVal bool) bool {
+	valueStr := getEnv(key, "")
+	if valueStr == "" {
+		return defaultVal
+	}
+	if val, err := strconv.ParseBool(valueStr); err == nil {
+		return val
 	}
 	return defaultVal
 }

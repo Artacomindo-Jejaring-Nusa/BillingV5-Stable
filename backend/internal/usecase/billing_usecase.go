@@ -202,6 +202,11 @@ func (u *billingUsecase) sendQontakInvoiceBroadcast(ctx context.Context, pelangg
 		return
 	}
 
+	if !u.cfg.QontakBroadcastEnabled {
+		logger.Info("Mekari Qontak WA broadcast is disabled (QONTAK_BROADCAST_ENABLED=false), skipping broadcast for invoice %s", invoice.InvoiceNumber)
+		return
+	}
+
 	brandName := "JELANTIK"
 	if pelanggan.HargaLayanan != nil && strings.Contains(strings.ToUpper(pelanggan.HargaLayanan.XenditKeyName), "JAKINET") {
 		brandName = "JAKINET"
