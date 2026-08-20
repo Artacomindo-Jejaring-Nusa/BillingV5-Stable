@@ -2,9 +2,19 @@ package domain
 
 import "context"
 
+type PelangganFilterParams struct {
+	Search           string
+	ConnectionStatus string
+	Alamat           string
+	IDBrand          string
+	Layanan          string
+	TglInstalasiFrom string
+	TglInstalasiTo   string
+}
+
 // PelangganRepository defines database operations for Pelanggan
 type PelangganRepository interface {
-	GetAll(ctx context.Context, limit, offset int, search, connectionStatus string) ([]Pelanggan, int64, error)
+	GetAll(ctx context.Context, limit, offset int, filters PelangganFilterParams) ([]Pelanggan, int64, error)
 	GetByID(ctx context.Context, id uint64) (*Pelanggan, error)
 	GetByCustomerID(ctx context.Context, customerID string) (*Pelanggan, error)
 	GetWithoutCustomerID(ctx context.Context) ([]Pelanggan, error)
@@ -20,7 +30,7 @@ type PelangganRepository interface {
 
 // PelangganUsecase defines business logic operations for Pelanggan
 type PelangganUsecase interface {
-	FetchAll(ctx context.Context, skip, limit int, search, connectionStatus string) ([]Pelanggan, int64, error)
+	FetchAll(ctx context.Context, skip, limit int, filters PelangganFilterParams) ([]Pelanggan, int64, error)
 	GetByID(ctx context.Context, id uint64) (*Pelanggan, error)
 	Store(ctx context.Context, pelanggan *Pelanggan) error
 	Update(ctx context.Context, id uint64, pelanggan *Pelanggan) error

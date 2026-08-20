@@ -72,6 +72,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
+      - DATABASE_URL=${DATABASE_URL:-root:root@tcp(mysql-master:3306)/billing_revaktor?charset=utf8mb4&parseTime=True&loc=Local}
       - REDIS_URL=redis://redis:6379
       - ENVIRONMENT=production
       - SCHEDULER_ENABLED=true
@@ -93,6 +94,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
+      - DATABASE_URL=${DATABASE_URL:-root:root@tcp(mysql-master:3306)/billing_revaktor?charset=utf8mb4&parseTime=True&loc=Local}
       - REDIS_URL=redis://redis:6379
       - ENVIRONMENT=production
       - SCHEDULER_ENABLED=false

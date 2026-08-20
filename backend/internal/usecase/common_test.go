@@ -12,9 +12,18 @@ type mockPelangganRepo struct {
 	data map[uint64]*domain.Pelanggan
 }
 
-func (m *mockPelangganRepo) GetAll(ctx context.Context, limit, offset int, search, connectionStatus string) ([]domain.Pelanggan, int64, error) {
+func (m *mockPelangganRepo) GetAll(ctx context.Context, limit, offset int, filters domain.PelangganFilterParams) ([]domain.Pelanggan, int64, error) {
 	var result []domain.Pelanggan
 	for _, p := range m.data {
+		if filters.Alamat != "" && p.Alamat != filters.Alamat {
+			continue
+		}
+		if filters.IDBrand != "" && p.IDBrand != nil && *p.IDBrand != filters.IDBrand {
+			continue
+		}
+		if filters.Layanan != "" && p.Layanan != nil && *p.Layanan != filters.Layanan {
+			continue
+		}
 		result = append(result, *p)
 	}
 	return result, int64(len(result)), nil
@@ -106,7 +115,7 @@ type mockLanggananRepo struct {
 	data map[uint64]*domain.Langganan
 }
 
-func (m *mockLanggananRepo) GetAll(ctx context.Context, limit, offset int, search, status string, forInvoiceSelection bool, sortBy, sortOrder string) ([]domain.Langganan, int64, error) {
+func (m *mockLanggananRepo) GetAll(ctx context.Context, limit, offset int, filters domain.LanggananFilterParams) ([]domain.Langganan, int64, error) {
 	var res []domain.Langganan
 	for _, l := range m.data { res = append(res, *l) }
 	return res, int64(len(res)), nil

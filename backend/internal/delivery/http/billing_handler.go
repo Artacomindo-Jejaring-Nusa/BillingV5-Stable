@@ -209,15 +209,24 @@ func (h *BillingHandler) FetchLangganan(c *gin.Context) {
 	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	
-	search := c.Query("search")
-	status := c.Query("status")
-	forInvoiceSelection := c.Query("for_invoice_selection") == "true"
-	sortBy := c.Query("sort_by")
-	sortOrder := c.Query("sort_order")
+	filters := domain.LanggananFilterParams{
+		Search:              c.Query("search"),
+		Status:              c.Query("status"),
+		Alamat:              c.Query("alamat"),
+		Blok:                c.Query("blok"),
+		PaketLayananID:      c.Query("paket_layanan_id"),
+		JatuhTempoStart:     c.Query("jatuh_tempo_start"),
+		JatuhTempoEnd:       c.Query("jatuh_tempo_end"),
+		CreatedAtStart:      c.Query("created_at_start"),
+		CreatedAtEnd:        c.Query("created_at_end"),
+		ForInvoiceSelection: c.Query("for_invoice_selection") == "true",
+		SortBy:              c.Query("sort_by"),
+		SortOrder:           c.Query("sort_order"),
+	}
 
 	page := (skip / limit) + 1
 
-	langganans, total, err := h.billingUsecase.FetchLangganan(c.Request.Context(), page, limit, search, status, forInvoiceSelection, sortBy, sortOrder)
+	langganans, total, err := h.billingUsecase.FetchLangganan(c.Request.Context(), page, limit, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

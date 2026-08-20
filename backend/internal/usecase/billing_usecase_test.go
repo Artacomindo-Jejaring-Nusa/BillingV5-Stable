@@ -678,7 +678,7 @@ type mockLanggananRepoForGenerate struct {
 	data []domain.Langganan
 }
 
-func (m *mockLanggananRepoForGenerate) GetAll(ctx context.Context, limit, offset int, search, status string, forInvoiceSelection bool, sortBy, sortOrder string) ([]domain.Langganan, int64, error) {
+func (m *mockLanggananRepoForGenerate) GetAll(ctx context.Context, limit, offset int, filters domain.LanggananFilterParams) ([]domain.Langganan, int64, error) {
 	return m.data, int64(len(m.data)), nil
 }
 

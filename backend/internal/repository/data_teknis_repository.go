@@ -30,15 +30,15 @@ func (r *dataTeknisRepository) GetAll(ctx context.Context, skip, limit int, sear
 				searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 
-	if olt != "" && olt != "Semua" {
+	if olt != "" && olt != "Semua" && olt != "Semua OLT" {
 		db = db.Where("data_teknis.olt = ?", olt)
 	}
 
-	if profile != "" && profile != "Semua" {
+	if profile != "" && profile != "Semua" && profile != "Semua Profile" {
 		db = db.Where("data_teknis.profile_pppoe = ?", profile)
 	}
 
-	if vlan != "" && vlan != "Semua" {
+	if vlan != "" && vlan != "Semua" && vlan != "Semua VLAN" {
 		db = db.Where("data_teknis.id_vlan = ?", vlan)
 	}
 

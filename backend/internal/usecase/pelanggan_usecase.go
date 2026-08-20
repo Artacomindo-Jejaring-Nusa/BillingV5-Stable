@@ -47,8 +47,8 @@ func (u *pelangganUsecase) logActivity(ctx context.Context, action string, detai
 	_ = u.systemRepo.CreateActivityLog(ctx, log)
 }
 
-func (u *pelangganUsecase) FetchAll(ctx context.Context, skip, limit int, search, connectionStatus string) ([]domain.Pelanggan, int64, error) {
-	pelanggans, total, err := u.pelangganRepo.GetAll(ctx, limit, skip, search, connectionStatus)
+func (u *pelangganUsecase) FetchAll(ctx context.Context, skip, limit int, filters domain.PelangganFilterParams) ([]domain.Pelanggan, int64, error) {
+	pelanggans, total, err := u.pelangganRepo.GetAll(ctx, limit, skip, filters)
 	if err == nil {
 		for i := range pelanggans {
 			pelanggans[i].NoKtp = utils.Decrypt(pelanggans[i].NoKtp)
@@ -260,7 +260,7 @@ func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, s
 
 		row := 2
 		for {
-			pelanggans, _, err := u.pelangganRepo.GetAll(ctx, limit, offset, "", "")
+			pelanggans, _, err := u.pelangganRepo.GetAll(ctx, limit, offset, domain.PelangganFilterParams{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -306,7 +306,7 @@ func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, s
 		w.Write(headers)
 
 		for {
-			pelanggans, _, err := u.pelangganRepo.GetAll(ctx, limit, offset, "", "")
+			pelanggans, _, err := u.pelangganRepo.GetAll(ctx, limit, offset, domain.PelangganFilterParams{})
 			if err != nil {
 				return nil, "", err
 			}

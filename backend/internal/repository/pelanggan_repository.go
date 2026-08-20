@@ -20,22 +20,46 @@ func NewPelangganRepository(db *gorm.DB) domain.PelangganRepository {
 	return &pelangganRepository{db: db}
 }
 
-func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, search, connectionStatus string) ([]domain.Pelanggan, int64, error) {
+func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, filters domain.PelangganFilterParams) ([]domain.Pelanggan, int64, error) {
 	var pelanggans []domain.Pelanggan
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&domain.Pelanggan{})
 
-	if connectionStatus == "unconfigured" {
+	if filters.ConnectionStatus == "unconfigured" {
 		query = query.
 			Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id").
 			Where("data_teknis.id IS NULL")
+	} else if filters.ConnectionStatus == "configured" {
+		query = query.
+			Joins("INNER JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id")
 	}
 
-	if search != "" {
-		words := strings.Fields(search)
+	if filters.Alamat != "" && filters.Alamat != "Semua" && filters.Alamat != "Semua alamat" {
+		query = query.Where("(pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ?)", "%"+filters.Alamat+"%", "%"+filters.Alamat+"%")
+	}
+
+	if filters.IDBrand != "" && filters.IDBrand != "Semua" {
+		// Support filtering by both id_brand (e.g. ajn-01) and brand name (e.g. JAKINET)
+		query = query.Where("(pelanggan.id_brand = ? OR pelanggan.id_brand IN (SELECT id_brand FROM harga_layanan WHERE brand = ?))", filters.IDBrand, filters.IDBrand)
+	}
+
+	if filters.Layanan != "" && filters.Layanan != "Semua" && filters.Layanan != "Semua layanan" {
+		query = query.Where("pelanggan.layanan LIKE ?", "%"+filters.Layanan+"%")
+	}
+
+	if filters.TglInstalasiFrom != "" {
+		query = query.Where("pelanggan.tgl_instalasi >= ?", filters.TglInstalasiFrom)
+	}
+
+	if filters.TglInstalasiTo != "" {
+		query = query.Where("pelanggan.tgl_instalasi <= ?", filters.TglInstalasiTo+" 23:59:59")
+	}
+
+	if filters.Search != "" {
+		words := strings.Fields(filters.Search)
 		if len(words) == 1 {
-			searchTerm := "%" + search + "%"
+			searchTerm := "%" + filters.Search + "%"
 			query = query.Where(
 				"(pelanggan.nama LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ? OR pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ? OR pelanggan.blok LIKE ? OR pelanggan.unit LIKE ?)",
 				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,

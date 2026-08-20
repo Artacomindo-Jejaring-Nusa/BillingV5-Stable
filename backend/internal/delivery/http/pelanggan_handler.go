@@ -120,10 +120,17 @@ func (h *PelangganHandler) FetchAll(c *gin.Context) {
 	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
-	search := c.Query("search")
-	connectionStatus := c.Query("connection_status")
+	filters := domain.PelangganFilterParams{
+		Search:           c.Query("search"),
+		ConnectionStatus: c.Query("connection_status"),
+		Alamat:           c.Query("alamat"),
+		IDBrand:          c.Query("id_brand"),
+		Layanan:          c.Query("layanan"),
+		TglInstalasiFrom: c.Query("tgl_instalasi_from"),
+		TglInstalasiTo:   c.Query("tgl_instalasi_to"),
+	}
 
-	pelanggans, total, err := h.pelangganUsecase.FetchAll(c.Request.Context(), skip, limit, search, connectionStatus)
+	pelanggans, total, err := h.pelangganUsecase.FetchAll(c.Request.Context(), skip, limit, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

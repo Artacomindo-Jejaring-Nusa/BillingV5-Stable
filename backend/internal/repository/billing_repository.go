@@ -500,7 +500,7 @@ func NewLanggananRepository(db *gorm.DB) domain.LanggananRepository {
 	return &langgananRepository{db: db}
 }
 
-func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, search, status string, forInvoiceSelection bool, sortBy, sortOrder string) ([]domain.Langganan, int64, error) {
+func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, filters domain.LanggananFilterParams) ([]domain.Langganan, int64, error) {
 	var langganans []domain.Langganan
 	var total int64
 
@@ -515,18 +515,51 @@ func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, sea
 		Joins("JOIN pelanggan ON pelanggan.id = langganan.pelanggan_id AND pelanggan.deleted_at IS NULL").
 		Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id")
 
-	if forInvoiceSelection {
+	if filters.ForInvoiceSelection {
 		dbCount = dbCount.Clauses(dbresolver.Write).Where("langganan.status != ?", "Berhenti")
 		dbFind = dbFind.Clauses(dbresolver.Write).Where("langganan.status != ?", "Berhenti")
 	}
 
-	if status != "" {
-		dbCount = dbCount.Where("langganan.status = ?", status)
-		dbFind = dbFind.Where("langganan.status = ?", status)
+	if filters.Status != "" && filters.Status != "Semua" {
+		dbCount = dbCount.Where("langganan.status = ?", filters.Status)
+		dbFind = dbFind.Where("langganan.status = ?", filters.Status)
 	}
 
-	if search != "" {
-		searchTerm := "%" + search + "%"
+	if filters.Alamat != "" && filters.Alamat != "Semua" && filters.Alamat != "Semua alamat" {
+		dbCount = dbCount.Where("(pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ?)", "%"+filters.Alamat+"%", "%"+filters.Alamat+"%")
+		dbFind = dbFind.Where("(pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ?)", "%"+filters.Alamat+"%", "%"+filters.Alamat+"%")
+	}
+
+	if filters.Blok != "" && filters.Blok != "Semua" {
+		dbCount = dbCount.Where("pelanggan.blok = ?", filters.Blok)
+		dbFind = dbFind.Where("pelanggan.blok = ?", filters.Blok)
+	}
+
+	if filters.PaketLayananID != "" && filters.PaketLayananID != "0" && filters.PaketLayananID != "Semua" {
+		dbCount = dbCount.Where("langganan.paket_layanan_id = ?", filters.PaketLayananID)
+		dbFind = dbFind.Where("langganan.paket_layanan_id = ?", filters.PaketLayananID)
+	}
+
+	if filters.JatuhTempoStart != "" {
+		dbCount = dbCount.Where("langganan.tgl_jatuh_tempo >= ?", filters.JatuhTempoStart)
+		dbFind = dbFind.Where("langganan.tgl_jatuh_tempo >= ?", filters.JatuhTempoStart)
+	}
+	if filters.JatuhTempoEnd != "" {
+		dbCount = dbCount.Where("langganan.tgl_jatuh_tempo <= ?", filters.JatuhTempoEnd+" 23:59:59")
+		dbFind = dbFind.Where("langganan.tgl_jatuh_tempo <= ?", filters.JatuhTempoEnd+" 23:59:59")
+	}
+
+	if filters.CreatedAtStart != "" {
+		dbCount = dbCount.Where("langganan.created_at >= ?", filters.CreatedAtStart)
+		dbFind = dbFind.Where("langganan.created_at >= ?", filters.CreatedAtStart)
+	}
+	if filters.CreatedAtEnd != "" {
+		dbCount = dbCount.Where("langganan.created_at <= ?", filters.CreatedAtEnd+" 23:59:59")
+		dbFind = dbFind.Where("langganan.created_at <= ?", filters.CreatedAtEnd+" 23:59:59")
+	}
+
+	if filters.Search != "" {
+		searchTerm := "%" + filters.Search + "%"
 		dbCount = dbCount.Where("pelanggan.nama LIKE ? OR data_teknis.id_pelanggan LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ?", searchTerm, searchTerm, searchTerm, searchTerm)
 		dbFind = dbFind.Where("pelanggan.nama LIKE ? OR data_teknis.id_pelanggan LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ?", searchTerm, searchTerm, searchTerm, searchTerm)
 	}
@@ -547,9 +580,9 @@ func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, sea
 		"created_at":         "langganan.created_at",
 		"id":                 "langganan.id",
 	}
-	if col, ok := allowedSortColumns[sortBy]; ok {
+	if col, ok := allowedSortColumns[filters.SortBy]; ok {
 		direction := "asc"
-		if sortOrder == "desc" {
+		if filters.SortOrder == "desc" {
 			direction = "desc"
 		}
 		orderClause = col + " " + direction

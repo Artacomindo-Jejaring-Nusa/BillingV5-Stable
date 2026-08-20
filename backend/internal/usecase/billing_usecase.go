@@ -297,7 +297,7 @@ func (u *billingUsecase) GetInvoiceSummary(ctx context.Context) (*domain.Invoice
 
 // --- Langganan Logic ---
 
-func (u *billingUsecase) FetchLangganan(ctx context.Context, page, pageSize int, search, status string, forInvoiceSelection bool, sortBy, sortOrder string) ([]domain.Langganan, int64, error) {
+func (u *billingUsecase) FetchLangganan(ctx context.Context, page, pageSize int, filters domain.LanggananFilterParams) ([]domain.Langganan, int64, error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -305,7 +305,7 @@ func (u *billingUsecase) FetchLangganan(ctx context.Context, page, pageSize int,
 		pageSize = 10
 	}
 	offset := (page - 1) * pageSize
-	return u.langgananRepo.GetAll(ctx, pageSize, offset, search, status, forInvoiceSelection, sortBy, sortOrder)
+	return u.langgananRepo.GetAll(ctx, pageSize, offset, filters)
 }
 
 func (u *billingUsecase) GetNewUserLangganans(ctx context.Context) ([]domain.Langganan, error) {
@@ -908,7 +908,10 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 
 	for {
 		// Set parameter forInvoiceSelection menjadi true agar query selalu membaca dari Master Database (menghindari repl lag)
-		langganans, _, err := u.langgananRepo.GetAll(ctx, limit, offset, "", "Aktif", true, "", "")
+		langganans, _, err := u.langgananRepo.GetAll(ctx, limit, offset, domain.LanggananFilterParams{
+			Status:              "Aktif",
+			ForInvoiceSelection: true,
+		})
 		if err != nil {
 			u.logSystem(ctx, "ERROR", fmt.Sprintf("Failed to fetch active subscriptions: %v", err))
 			return err
@@ -1491,7 +1494,7 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 
 		row := 2
 		for {
-			chunk, _, err := u.langgananRepo.GetAll(ctx, limit, offset, "", "", false, "", "")
+			chunk, _, err := u.langgananRepo.GetAll(ctx, limit, offset, domain.LanggananFilterParams{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -1530,7 +1533,7 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 		w.Write(headers)
 
 		for {
-			chunk, _, err := u.langgananRepo.GetAll(ctx, limit, offset, "", "", false, "", "")
+			chunk, _, err := u.langgananRepo.GetAll(ctx, limit, offset, domain.LanggananFilterParams{})
 			if err != nil {
 				return nil, "", err
 			}
@@ -1578,7 +1581,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	offset1 := 0
 	row1 := 2
 	for {
-		ls, _, err := u.langgananRepo.GetAll(ctx, limit, offset1, "", "", false, "", "")
+		ls, _, err := u.langgananRepo.GetAll(ctx, limit, offset1, domain.LanggananFilterParams{})
 		if err != nil {
 			return nil, "", err
 		}
