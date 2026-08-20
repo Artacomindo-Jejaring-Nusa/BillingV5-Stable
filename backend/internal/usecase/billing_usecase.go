@@ -1198,8 +1198,13 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 	db := database.GetDB()
 	suspendedCount := 0
 
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		loc = time.Local
+	}
+	now := time.Now().In(loc)
+
 	if db != nil {
-		today := time.Now()
 		limit := 500
 		offset := 0
 
@@ -1209,7 +1214,7 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 				Preload("Pelanggan").
 				Preload("Pelanggan.DataTeknis").
 				Preload("Pelanggan.Langganan", "status = ?", "Aktif").
-				Where("status_invoice = ? AND tgl_jatuh_tempo < ?", "Belum Bayar", today).
+				Where("status_invoice = ?", "Belum Bayar").
 				Limit(limit).
 				Offset(offset).
 				Order("id desc").
@@ -1225,6 +1230,25 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 			}
 
 			for _, inv := range invoices {
+				// Ketentuan Manajemen:
+				// 1. Masa Pembayaran: Tanggal 1 – 10 setiap bulannya (meskipun jatuh tempo tercatat tgl 1).
+				// 2. Isolir / Suspend: Tanggal 11 pukul 00:00:00 WIB (jika belum lunas hingga tgl 10 pukul 23:59).
+				var suspendCutoffDate time.Time
+				invDueDate := inv.TglJatuhTempo.In(loc)
+
+				if invDueDate.Day() <= 10 {
+					// Tagihan siklus awal bulan (tgl 1-10), isolir berlaku mulai tanggal 11 pada bulan tersebut
+					suspendCutoffDate = time.Date(invDueDate.Year(), invDueDate.Month(), 11, 0, 0, 0, 0, loc)
+				} else {
+					// Tagihan siklus tanggal lain, isolir berlaku H+1 setelah tanggal jatuh tempo
+					suspendCutoffDate = time.Date(invDueDate.Year(), invDueDate.Month(), invDueDate.Day()+1, 0, 0, 0, 0, loc)
+				}
+
+				// Jika waktu sekarang belum mencapai batas isolir (misal masih tanggal 1-10), jangan diisolir
+				if now.Before(suspendCutoffDate) {
+					continue
+				}
+
 				if inv.Pelanggan == nil || len(inv.Pelanggan.Langganan) == 0 {
 					continue
 				}
@@ -1265,14 +1289,25 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 		}
 	} else {
 		// Fallback for unit testing where database connection is mock/nil
-		today := time.Now()
 		invoices, _, err := u.invoiceRepo.GetAll(ctx, 5000, 0, "", "")
 		if err != nil {
 			return err
 		}
 
 		for _, inv := range invoices {
-			if inv.StatusInvoice == "Belum Bayar" && inv.TglJatuhTempo.Before(today) {
+			if inv.StatusInvoice == "Belum Bayar" {
+				var suspendCutoffDate time.Time
+				invDueDate := inv.TglJatuhTempo.In(loc)
+				if invDueDate.Day() <= 10 {
+					suspendCutoffDate = time.Date(invDueDate.Year(), invDueDate.Month(), 11, 0, 0, 0, 0, loc)
+				} else {
+					suspendCutoffDate = time.Date(invDueDate.Year(), invDueDate.Month(), invDueDate.Day()+1, 0, 0, 0, 0, loc)
+				}
+
+				if now.Before(suspendCutoffDate) {
+					continue
+				}
+
 				var l *domain.Langganan
 				if inv.LanggananID != nil {
 					l, _ = u.langgananRepo.GetByID(ctx, *inv.LanggananID)

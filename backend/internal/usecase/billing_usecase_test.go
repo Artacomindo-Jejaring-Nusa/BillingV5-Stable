@@ -430,7 +430,7 @@ func TestAutoSuspend(t *testing.T) {
 				ID:            1,
 				PelangganID:   1,
 				StatusInvoice: "Belum Bayar",
-				TglJatuhTempo: time.Now().AddDate(0, 0, -1),
+				TglJatuhTempo: time.Now().AddDate(0, -1, 0),
 			},
 		},
 	}
@@ -459,6 +459,49 @@ func TestAutoSuspend(t *testing.T) {
 	// Verify that the langganan status was updated to Suspended
 	if langRepo.data[1].Status != "Suspended" {
 		t.Errorf("expected langganan status to be Suspended, got %q", langRepo.data[1].Status)
+	}
+}
+
+func TestAutoSuspend_GracePeriod(t *testing.T) {
+	// Invoice generated on 1st of CURRENT month
+	now := time.Now()
+	firstOfCurrentMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
+
+	invRepo := &mockInvoiceRepoCallback{
+		invoices: map[string]*domain.Invoice{
+			"INV_CURRENT": {
+				ID:            2,
+				PelangganID:   2,
+				StatusInvoice: "Belum Bayar",
+				TglJatuhTempo: firstOfCurrentMonth,
+			},
+		},
+	}
+	langRepo := &mockLanggananRepo{
+		data: map[uint64]*domain.Langganan{
+			2: {
+				ID:          2,
+				PelangganID: 2,
+				Status:      "Aktif",
+			},
+		},
+	}
+	sysRepo := &mockSystemRepo{}
+	u := NewBillingUsecase(invRepo, langRepo, nil, nil, nil, nil, nil, nil, sysRepo, nil).(*billingUsecase)
+
+	err := u.AutoSuspend(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// If today is day 1..10, the invoice and langganan MUST remain active (not suspended)
+	if now.Day() <= 10 {
+		if invRepo.invoices["INV_CURRENT"].StatusInvoice != "Belum Bayar" {
+			t.Errorf("expected invoice status to remain Belum Bayar during grace period (day 1-10), got %q", invRepo.invoices["INV_CURRENT"].StatusInvoice)
+		}
+		if langRepo.data[2].Status != "Aktif" {
+			t.Errorf("expected langganan status to remain Aktif during grace period (day 1-10), got %q", langRepo.data[2].Status)
+		}
 	}
 }
 
