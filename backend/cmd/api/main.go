@@ -85,6 +85,8 @@ func main() {
 	ensureDeletedAt("syarat_ketentuan")
 	ensureDeletedAt("activity_logs")
 	ensureDeletedAt("payment_callback_logs")
+	ensureDeletedAt("api_keys")
+	ensureDeletedAt("user_fcm_tokens")
 
 	// Initialize structured logger
 	logger.Init(db)
