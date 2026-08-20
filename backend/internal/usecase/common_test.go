@@ -167,9 +167,12 @@ func (m *mockInvoiceRepoCallback) CreateCallbackLog(ctx context.Context, log *do
 	return nil
 }
 
-func (m *mockInvoiceRepoCallback) GetAll(ctx context.Context, limit, offset int, search, status string) ([]domain.Invoice, int64, error) {
+func (m *mockInvoiceRepoCallback) GetAll(ctx context.Context, limit, offset int, search, status string, pelangganID *uint64) ([]domain.Invoice, int64, error) {
 	var res []domain.Invoice
 	for _, inv := range m.invoices {
+		if pelangganID != nil && *pelangganID > 0 && inv.PelangganID != *pelangganID {
+			continue
+		}
 		if status == "" || inv.StatusInvoice == status {
 			res = append(res, *inv)
 		}

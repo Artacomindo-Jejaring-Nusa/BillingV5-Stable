@@ -22,20 +22,26 @@ func NewInvoiceRepository(db *gorm.DB) domain.InvoiceRepository {
 	return &invoiceRepository{db: db}
 }
 
-func (r *invoiceRepository) GetAll(ctx context.Context, limit, offset int, search, status string) ([]domain.Invoice, int64, error) {
+func (r *invoiceRepository) GetAll(ctx context.Context, limit, offset int, search, status string, pelangganID *uint64) ([]domain.Invoice, int64, error) {
 	var invoices []domain.Invoice
 	var total int64
 
 	buildFilter := func(tx *gorm.DB) *gorm.DB {
+		if pelangganID != nil && *pelangganID > 0 {
+			tx = tx.Where("invoices.pelanggan_id = ?", *pelangganID)
+		}
 		if status != "" {
-			tx = tx.Where("status_invoice = ?", status)
+			tx = tx.Where("invoices.status_invoice = ?", status)
 		}
 		if search != "" {
-			searchTerm := "%" + search + "%"
-			tx = tx.Where(
-				"invoice_number LIKE ? OR pelanggan_id IN (SELECT id FROM pelanggan WHERE nama LIKE ?)",
-				searchTerm, searchTerm,
-			)
+			words := strings.Fields(search)
+			for _, word := range words {
+				wordTerm := "%" + word + "%"
+				tx = tx.Where(
+					"(invoices.invoice_number LIKE ? OR invoices.id_pelanggan LIKE ? OR invoices.no_telp LIKE ? OR invoices.email LIKE ? OR invoices.pelanggan_id IN (SELECT id FROM pelanggan WHERE nama LIKE ? OR no_telp LIKE ?))",
+					wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm,
+				)
+			}
 		}
 		return tx
 	}
@@ -48,7 +54,7 @@ func (r *invoiceRepository) GetAll(ctx context.Context, limit, offset int, searc
 		Preload("Pelanggan").
 		Limit(limit).
 		Offset(offset).
-		Order("id desc").
+		Order("invoices.id desc").
 		Find(&invoices).Error
 
 	for i := range invoices {

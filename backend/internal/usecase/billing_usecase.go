@@ -82,7 +82,7 @@ func (u *billingUsecase) logActivity(ctx context.Context, action string, details
 
 // --- Invoice Logic ---
 
-func (u *billingUsecase) FetchInvoices(ctx context.Context, page, pageSize int, search, status string) ([]domain.Invoice, int64, error) {
+func (u *billingUsecase) FetchInvoices(ctx context.Context, page, pageSize int, search, status string, pelangganID *uint64) ([]domain.Invoice, int64, error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -90,7 +90,7 @@ func (u *billingUsecase) FetchInvoices(ctx context.Context, page, pageSize int, 
 		pageSize = 10
 	}
 	offset := (page - 1) * pageSize
-	invoices, total, err := u.invoiceRepo.GetAll(ctx, pageSize, offset, search, status)
+	invoices, total, err := u.invoiceRepo.GetAll(ctx, pageSize, offset, search, status, pelangganID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1292,7 +1292,7 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 		}
 	} else {
 		// Fallback for unit testing where database connection is mock/nil
-		invoices, _, err := u.invoiceRepo.GetAll(ctx, 5000, 0, "", "")
+		invoices, _, err := u.invoiceRepo.GetAll(ctx, 5000, 0, "", "", nil)
 		if err != nil {
 			return err
 		}
@@ -1396,14 +1396,14 @@ func (u *billingUsecase) VerifyPayments(ctx context.Context) error {
 	u.logSystem(ctx, "INFO", "Scheduler 'job_verify_payments' started. Checking Xendit status...")
 
 	// 1. Fetch pending invoices (Belum Bayar)
-	invoices1, _, err1 := u.invoiceRepo.GetAll(ctx, 1000, 0, "", "Belum Bayar")
+	invoices1, _, err1 := u.invoiceRepo.GetAll(ctx, 1000, 0, "", "Belum Bayar", nil)
 	if err1 != nil {
 		u.logSystem(ctx, "ERROR", fmt.Sprintf("VerifyPayments failed to fetch pending invoices: %v", err1))
 		return err1
 	}
 
 	// 2. Fetch expired invoices (Expired)
-	invoices2, _, err2 := u.invoiceRepo.GetAll(ctx, 1000, 0, "", "Expired")
+	invoices2, _, err2 := u.invoiceRepo.GetAll(ctx, 1000, 0, "", "Expired", nil)
 	if err2 != nil {
 		u.logSystem(ctx, "ERROR", fmt.Sprintf("VerifyPayments failed to fetch expired invoices: %v", err2))
 		return err2
@@ -1713,7 +1713,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	offset3 := 0
 	row3 := 2
 	for {
-		invs, _, err := u.invoiceRepo.GetAll(ctx, limit, offset3, "", "")
+		invs, _, err := u.invoiceRepo.GetAll(ctx, limit, offset3, "", "", nil)
 		if err != nil {
 			return nil, "", err
 		}
@@ -1848,7 +1848,7 @@ func (u *billingUsecase) ExportInvoices(ctx context.Context, format string) ([]b
 
 		row := 2
 		for {
-			invoices, _, err := u.invoiceRepo.GetAll(ctx, limit, offset, "", "")
+			invoices, _, err := u.invoiceRepo.GetAll(ctx, limit, offset, "", "", nil)
 			if err != nil {
 				return nil, "", err
 			}
@@ -1890,7 +1890,7 @@ func (u *billingUsecase) ExportInvoices(ctx context.Context, format string) ([]b
 		w.Write(headers)
 
 		for {
-			invoices, _, err := u.invoiceRepo.GetAll(ctx, limit, offset, "", "")
+			invoices, _, err := u.invoiceRepo.GetAll(ctx, limit, offset, "", "", nil)
 			if err != nil {
 				return nil, "", err
 			}

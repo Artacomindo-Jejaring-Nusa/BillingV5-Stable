@@ -3642,39 +3642,11 @@ async function openPelangganView(item: Langganan) {
   }
 
   try {
-    // Use existing search parameter to find invoices by pelanggan name/id
-    // Non-disruptive approach - no API changes needed
-    const customerName = getPelangganName(item.pelanggan_id);
-    const customerId = item.pelanggan_id.toString();
-
-    // Try both name and ID in search to maximize results concurrently
-    const searchTerms = [customerName, customerId];
-    
-    const searchPromises = searchTerms.map(async (searchTerm) => {
-      try {
-        const response = await apiClient.get(`/invoices?search=${encodeURIComponent(searchTerm)}&limit=100`);
-        if (response.data && response.data.data && Array.isArray(response.data.data)) {
-          return response.data.data.filter((invoice: any) =>
-            invoice.pelanggan_id === item.pelanggan_id ||
-            invoice.no_telp === getPelangganPhone(item.pelanggan_id)
-          );
-        }
-      } catch (searchError) {
-        console.warn(`Search with term "${searchTerm}" failed:`, searchError);
-      }
-      return [];
-    });
-
-    const results = await Promise.all(searchPromises);
-    let allInvoices: any[] = [];
-    results.forEach(invoices => {
-      allInvoices.push(...invoices);
-    });
-
-    // Remove duplicates by ID
-    const uniqueInvoices = allInvoices.filter((invoice, index, self) =>
-      index === self.findIndex((inv) => inv.id === invoice.id)
-    );
+    // Fetch invoices directly by pelanggan_id to ensure complete and accurate payment history
+    const response = await apiClient.get(`/invoices?pelanggan_id=${item.pelanggan_id}&limit=100`);
+    const uniqueInvoices = (response.data && response.data.data && Array.isArray(response.data.data))
+      ? response.data.data
+      : (Array.isArray(response.data) ? response.data : []);
 
     if (uniqueInvoices.length > 0) {
       paymentHistory.value = uniqueInvoices.map((invoice: any) => {

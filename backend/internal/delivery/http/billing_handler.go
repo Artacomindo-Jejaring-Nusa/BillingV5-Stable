@@ -87,12 +87,16 @@ func (h *BillingHandler) FetchInvoices(c *gin.Context) {
 	search := c.Query("search")
 	status := c.Query("status_invoice")
 
-	// Calculate page for usecase (internal logic still uses page/pageSize)
-	// Or better: update usecase to use skip/limit too?
-	// For now, let's just map skip to page
+	var pelangganID *uint64
+	if pidStr := c.Query("pelanggan_id"); pidStr != "" {
+		if pid, err := strconv.ParseUint(pidStr, 10, 64); err == nil && pid > 0 {
+			pelangganID = &pid
+		}
+	}
+
 	page := (skip / limit) + 1
 
-	invoices, total, err := h.billingUsecase.FetchInvoices(c.Request.Context(), page, limit, search, status)
+	invoices, total, err := h.billingUsecase.FetchInvoices(c.Request.Context(), page, limit, search, status, pelangganID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
