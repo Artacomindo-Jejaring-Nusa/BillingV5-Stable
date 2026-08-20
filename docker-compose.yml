@@ -2,7 +2,7 @@ services:
   mysql-master:
     image: mysql:8.0
     container_name: mysql-master
-    command: --server-id=1 --log-bin=mysql-bin --binlog-format=ROW --binlog-do-db=billing_revaktor
+    command: --server-id=1 --log-bin=mysql-bin --binlog-format=ROW --binlog-do-db=billing_revaktor --replica-skip-errors=1062,1032,1060,1050
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
       MYSQL_DATABASE: billing_revaktor
