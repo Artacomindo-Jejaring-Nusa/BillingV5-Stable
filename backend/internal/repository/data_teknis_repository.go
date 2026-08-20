@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"billing-backend/internal/domain"
 
@@ -21,44 +22,69 @@ func (r *dataTeknisRepository) GetAll(ctx context.Context, skip, limit int, sear
 	var list []domain.DataTeknis
 	var total int64
 
-	db := r.db.WithContext(ctx).Model(&domain.DataTeknis{})
+	dbCount := r.db.WithContext(ctx).Model(&domain.DataTeknis{}).
+		Joins("LEFT JOIN pelanggan ON pelanggan.id = data_teknis.pelanggan_id AND pelanggan.deleted_at IS NULL")
+
+	dbFind := r.db.WithContext(ctx).
+		Select("data_teknis.*").
+		Preload("Pelanggan").
+		Preload("MikrotikServer").
+		Preload("Odp").
+		Joins("LEFT JOIN pelanggan ON pelanggan.id = data_teknis.pelanggan_id AND pelanggan.deleted_at IS NULL")
 
 	if search != "" {
-		searchTerm := "%" + search + "%"
-		db = db.Joins("LEFT JOIN pelanggan ON pelanggan.id = data_teknis.pelanggan_id").
-			Where("pelanggan.nama LIKE ? OR data_teknis.id_pelanggan LIKE ? OR data_teknis.ip_pelanggan LIKE ? OR data_teknis.sn LIKE ?",
-				searchTerm, searchTerm, searchTerm, searchTerm)
+		words := strings.Fields(search)
+		if len(words) == 1 {
+			searchTerm := "%" + search + "%"
+			condition := "pelanggan.nama LIKE ? OR pelanggan.customer_id LIKE ? OR data_teknis.id_pelanggan LIKE ? OR data_teknis.ip_pelanggan LIKE ? OR data_teknis.sn LIKE ? OR data_teknis.olt LIKE ? OR data_teknis.profile_pppoe LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.alamat LIKE ?"
+			dbCount = dbCount.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
+			dbFind = dbFind.Where(condition, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
+		} else {
+			for _, word := range words {
+				lowerWord := strings.ToLower(word)
+				if lowerWord == "blok" || lowerWord == "unit" || lowerWord == "no" || lowerWord == "nomor" || lowerWord == "rt" || lowerWord == "rw" {
+					continue
+				}
+				wordTerm := "%" + word + "%"
+				condition := "(pelanggan.nama LIKE ? OR pelanggan.customer_id LIKE ? OR data_teknis.id_pelanggan LIKE ? OR data_teknis.ip_pelanggan LIKE ? OR data_teknis.sn LIKE ? OR data_teknis.olt LIKE ? OR data_teknis.profile_pppoe LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.alamat LIKE ?)"
+				dbCount = dbCount.Where(condition, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm)
+				dbFind = dbFind.Where(condition, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm)
+			}
+		}
 	}
 
 	if olt != "" && olt != "Semua" && olt != "Semua OLT" {
-		db = db.Where("data_teknis.olt = ?", olt)
+		dbCount = dbCount.Where("data_teknis.olt = ?", olt)
+		dbFind = dbFind.Where("data_teknis.olt = ?", olt)
 	}
 
 	if profile != "" && profile != "Semua" && profile != "Semua Profile" {
-		db = db.Where("data_teknis.profile_pppoe = ?", profile)
+		dbCount = dbCount.Where("data_teknis.profile_pppoe = ?", profile)
+		dbFind = dbFind.Where("data_teknis.profile_pppoe = ?", profile)
 	}
 
 	if vlan != "" && vlan != "Semua" && vlan != "Semua VLAN" {
-		db = db.Where("data_teknis.id_vlan = ?", vlan)
+		dbCount = dbCount.Where("data_teknis.id_vlan = ?", vlan)
+		dbFind = dbFind.Where("data_teknis.id_vlan = ?", vlan)
 	}
 
 	if onuPowerMin != nil {
-		db = db.Where("data_teknis.onu_power >= ?", *onuPowerMin)
+		dbCount = dbCount.Where("data_teknis.onu_power >= ?", *onuPowerMin)
+		dbFind = dbFind.Where("data_teknis.onu_power >= ?", *onuPowerMin)
 	}
 
 	if onuPowerMax != nil {
-		db = db.Where("data_teknis.onu_power <= ?", *onuPowerMax)
+		dbCount = dbCount.Where("data_teknis.onu_power <= ?", *onuPowerMax)
+		dbFind = dbFind.Where("data_teknis.onu_power <= ?", *onuPowerMax)
 	}
 
 	// Count total
-	if err := db.Count(&total).Error; err != nil {
+	if err := dbCount.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	// Fetch page with preload relations
-	err := db.Preload("Pelanggan").
-		Preload("MikrotikServer").
-		Preload("Odp").
+	err := dbFind.
 		Order("data_teknis.id desc").
 		Offset(skip).
 		Limit(limit).
