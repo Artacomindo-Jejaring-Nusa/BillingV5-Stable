@@ -330,6 +330,86 @@ func TestProcessXenditCallback(t *testing.T) {
 	}
 }
 
+func TestProcessXenditCallback_Prorate(t *testing.T) {
+	cfg := &config.Config{
+		XenditCallbackTokenArtacomindo: "artacom_token_123",
+		XenditCallbackTokenJelantik:    "jelantik_token_123",
+	}
+
+	tglJatuhTempo := time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC)
+	tglJatuhTempoPembayaran := time.Date(2026, 8, 20, 0, 0, 0, 0, time.UTC)
+	tglMulaiLangganan := time.Date(2026, 8, 20, 0, 0, 0, 0, time.UTC)
+
+	invoice := &domain.Invoice{
+		ID:            2,
+		InvoiceNumber: "JELANTIK/INV/002",
+		StatusInvoice: "Belum Bayar",
+		TotalHarga:    58064.0,
+		Pelanggan: &domain.Pelanggan{
+			ID:   2,
+			Nama: "Risna",
+			Langganan: []domain.Langganan{
+				{
+					ID:                      2,
+					Status:                  "Suspended",
+					MetodePembayaran:        "Prorate",
+					TglJatuhTempo:           &tglJatuhTempo,
+					TglJatuhTempoPembayaran: &tglJatuhTempoPembayaran,
+					TglMulaiLangganan:       &tglMulaiLangganan,
+				},
+			},
+		},
+	}
+
+	invRepo := &mockInvoiceRepoCallback{
+		invoices: map[string]*domain.Invoice{
+			"JELANTIK/INV/002": invoice,
+		},
+	}
+
+	langgRepo := &mockLanggananRepo{
+		data: map[uint64]*domain.Langganan{
+			2: &invoice.Pelanggan.Langganan[0],
+		},
+	}
+
+	u := NewBillingUsecase(invRepo, langgRepo, nil, nil, nil, nil, nil, nil, nil, cfg)
+
+	payload := map[string]interface{}{
+		"id":          "xendit_456",
+		"external_id": "JELANTIK/INV/002",
+		"status":      "PAID",
+		"paid_amount": 58064.0,
+		"paid_at":     "2026-08-20T15:00:00Z",
+	}
+
+	err := u.ProcessXenditCallback(context.Background(), "jelantik_token_123", payload, "idempotency_456")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	l := invoice.Pelanggan.Langganan[0]
+	if l.Status != "Aktif" {
+		t.Errorf("expected langganan status to be Aktif, got %s", l.Status)
+	}
+
+	if l.MetodePembayaran != "Otomatis" {
+		t.Errorf("expected MetodePembayaran to transition to Otomatis, got %s", l.MetodePembayaran)
+	}
+
+	// 2026-08-31 + 1 day = 2026-09-01
+	expectedDue := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	if !l.TglJatuhTempo.Equal(expectedDue) {
+		t.Errorf("expected TglJatuhTempo to be 2026-09-01, got %s", l.TglJatuhTempo.Format("2006-01-02"))
+	}
+	if !l.TglJatuhTempoPembayaran.Equal(expectedDue) {
+		t.Errorf("expected TglJatuhTempoPembayaran to be 2026-09-01, got %s", l.TglJatuhTempoPembayaran.Format("2006-01-02"))
+	}
+	if !l.TglMulaiLangganan.Equal(expectedDue) {
+		t.Errorf("expected TglMulaiLangganan to be 2026-09-01, got %s", l.TglMulaiLangganan.Format("2006-01-02"))
+	}
+}
+
 func TestExportLangganan(t *testing.T) {
 	langRepo := &mockLanggananRepo{
 		data: map[uint64]*domain.Langganan{

@@ -2339,32 +2339,49 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 
 		l := targetLangganan
 		l.Status = "Aktif"
-		if l.TglJatuhTempo != nil {
-			var next time.Time
-			if !inv.TglJatuhTempo.IsZero() {
-				next = inv.TglJatuhTempo.AddDate(0, 1, 0)
-			} else {
-				next = l.TglJatuhTempo.AddDate(0, 1, 0)
+		if l.MetodePembayaran == "Prorate" {
+			l.MetodePembayaran = "Otomatis"
+			if l.TglJatuhTempo != nil {
+				// TglJatuhTempo for Prorate is the last day of the coverage month (e.g., 2026-08-31)
+				// The day after is the 1st day of the next cycle month (e.g., 2026-09-01)
+				next := l.TglJatuhTempo.AddDate(0, 0, 1)
+				l.TglJatuhTempo = &next
+				
+				// Make sure payment due date and start date are also aligned to the 1st of the next cycle month
+				nextPay := next
+				l.TglJatuhTempoPembayaran = &nextPay
+				
+				nextMulai := next
+				l.TglMulaiLangganan = &nextMulai
 			}
-			l.TglJatuhTempo = &next
-		}
-		if l.TglJatuhTempoPembayaran != nil {
-			var nextPay time.Time
-			if !inv.TglJatuhTempo.IsZero() {
-				nextPay = inv.TglJatuhTempo.AddDate(0, 1, 0)
-			} else {
-				nextPay = l.TglJatuhTempoPembayaran.AddDate(0, 1, 0)
+		} else {
+			if l.TglJatuhTempo != nil {
+				var next time.Time
+				if !inv.TglJatuhTempo.IsZero() {
+					next = inv.TglJatuhTempo.AddDate(0, 1, 0)
+				} else {
+					next = l.TglJatuhTempo.AddDate(0, 1, 0)
+				}
+				l.TglJatuhTempo = &next
 			}
-			l.TglJatuhTempoPembayaran = &nextPay
-		}
-		if l.TglMulaiLangganan != nil {
-			var nextMulai time.Time
-			if !inv.TglJatuhTempo.IsZero() {
-				nextMulai = inv.TglJatuhTempo.AddDate(0, 1, 0)
-			} else {
-				nextMulai = l.TglMulaiLangganan.AddDate(0, 1, 0)
+			if l.TglJatuhTempoPembayaran != nil {
+				var nextPay time.Time
+				if !inv.TglJatuhTempo.IsZero() {
+					nextPay = inv.TglJatuhTempo.AddDate(0, 1, 0)
+				} else {
+					nextPay = l.TglJatuhTempoPembayaran.AddDate(0, 1, 0)
+				}
+				l.TglJatuhTempoPembayaran = &nextPay
 			}
-			l.TglMulaiLangganan = &nextMulai
+			if l.TglMulaiLangganan != nil {
+				var nextMulai time.Time
+				if !inv.TglJatuhTempo.IsZero() {
+					nextMulai = inv.TglJatuhTempo.AddDate(0, 1, 0)
+				} else {
+					nextMulai = l.TglMulaiLangganan.AddDate(0, 1, 0)
+				}
+				l.TglMulaiLangganan = &nextMulai
+			}
 		}
 		_ = u.langgananRepo.Update(ctx, l)
 		if inv.Pelanggan.DataTeknis != nil {
