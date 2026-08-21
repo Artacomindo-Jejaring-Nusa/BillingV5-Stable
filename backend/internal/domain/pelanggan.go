@@ -13,14 +13,14 @@ import (
 type Pelanggan struct {
 	ID               uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
 	CustomerID       *string        `gorm:"type:varchar(20);uniqueIndex" json:"customer_id"`
-	NoKtp            string         `gorm:"type:varchar(191)" json:"no_ktp"`
-	Nama             string         `gorm:"type:varchar(191)" json:"nama"`
+	NoKtp            string         `gorm:"type:varchar(191);index" json:"no_ktp"`
+	Nama             string         `gorm:"type:varchar(191);index" json:"nama"`
 	Alamat           string         `gorm:"type:varchar(191)" json:"alamat"`
 	AlamatCustom     *string        `gorm:"column:alamat_2;type:text" json:"alamat_custom"`
 	TglInstalasi     *time.Time     `gorm:"type:date" json:"tgl_instalasi"`
 	Blok             string         `gorm:"type:varchar(191)" json:"blok"`
 	Unit             string         `gorm:"type:varchar(191)" json:"unit"`
-	NoTelp           string         `gorm:"type:varchar(191)" json:"no_telp"`
+	NoTelp           string         `gorm:"type:varchar(191);index" json:"no_telp"`
 	Email            string         `gorm:"type:varchar(191);uniqueIndex" json:"email"`
 	IDBrand          *string        `gorm:"type:varchar(191)" json:"id_brand"`
 	Layanan          *string        `gorm:"type:varchar(191)" json:"layanan"`

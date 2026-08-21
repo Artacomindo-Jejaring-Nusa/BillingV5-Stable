@@ -320,6 +320,10 @@ func main() {
 	// Notifications
 	httpDelivery.NewNotificationHandler(api, authMw)
 
+	// Portal Pelanggan High-Performance Lookup
+	portalHandler := httpDelivery.NewPortalHandler(db)
+	api.GET("/portal/customer/lookup", authMw, portalHandler.CustomerLookup)
+
 	// General Uploads
 	httpDelivery.NewUploadsHandler(api, authMw)
 	api.Static("/static/uploads", "./uploads")

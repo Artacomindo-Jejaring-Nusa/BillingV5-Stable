@@ -139,12 +139,12 @@ type Invoice struct {
 	LanggananID        *uint64        `gorm:"index" json:"langganan_id"`
 	IDPelanggan        string         `gorm:"type:varchar(255)" json:"id_pelanggan"` // Historical string ID
 	Brand              string         `gorm:"type:varchar(191)" json:"brand"`
-	NoTelp             string         `gorm:"type:varchar(191)" json:"no_telp"`
-	Email              string         `gorm:"type:varchar(191)" json:"email"`
+	NoTelp             string         `gorm:"type:varchar(191);index" json:"no_telp"`
+	Email              string         `gorm:"type:varchar(191);index" json:"email"`
 	TotalHarga         float64        `gorm:"type:decimal(15,2);not null" json:"total_harga"`
 	TglInvoice         time.Time      `gorm:"type:date;not null" json:"tgl_invoice"`
 	TglJatuhTempo      time.Time      `gorm:"type:date;not null;index" json:"tgl_jatuh_tempo"`
-	StatusInvoice      string         `gorm:"type:varchar(50);not null" json:"status_invoice"`
+	StatusInvoice      string         `gorm:"type:varchar(50);not null;index" json:"status_invoice"`
 	DiskonID           *uint64        `gorm:"index" json:"diskon_id"`
 	DiskonPersen       *float64       `gorm:"type:decimal(5,2)" json:"diskon_persen"`
 	DiskonAmount       *float64       `gorm:"type:decimal(15,2)" json:"diskon_amount"`
@@ -155,7 +155,7 @@ type Invoice struct {
 	PaidAmount         *float64       `gorm:"type:decimal(15,2)" json:"paid_amount"`
 	PaidAt             *time.Time     `gorm:"type:timestamp" json:"paid_at"`
 	XenditID           *string        `gorm:"type:varchar(191);index" json:"xendit_id"`
-	XenditExternalID   *string        `gorm:"type:varchar(191)" json:"xendit_external_id"`
+	XenditExternalID   *string        `gorm:"type:varchar(191);index" json:"xendit_external_id"`
 	IsProcessing       bool           `gorm:"default:false" json:"is_processing"`
 	XenditRetryCount   int64          `gorm:"default:0" json:"xendit_retry_count"`
 	XenditLastRetry    *time.Time     `gorm:"type:datetime" json:"xendit_last_retry"`

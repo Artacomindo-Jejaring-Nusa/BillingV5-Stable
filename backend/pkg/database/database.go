@@ -126,9 +126,9 @@ func InitDatabase(cfg *config.Config) (*gorm.DB, error) {
 	var maxLifetime time.Duration
 
 	if cfg.Environment == "production" {
-		poolSize = 15
-		maxOverflow = 25
-		maxLifetime = 20 * time.Minute
+		poolSize = 25
+		maxOverflow = 75
+		maxLifetime = 30 * time.Minute
 	} else {
 		poolSize = 20
 		maxOverflow = 30
