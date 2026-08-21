@@ -113,9 +113,10 @@ func RoleMiddleware(requiredRoles ...string) gin.HandlerFunc {
 			return
 		}
 
-		roleStr := userRole.(string)
+		roleStr := strings.ToLower(userRole.(string))
 		for _, role := range requiredRoles {
-			if roleStr == role || roleStr == "superadmin" || roleStr == "admin" {
+			roleLower := strings.ToLower(role)
+			if roleStr == roleLower || roleStr == "superadmin" || roleStr == "admin" {
 				c.Next()
 				return
 			}
@@ -141,9 +142,10 @@ func PermissionMiddleware(requiredPermission string) gin.HandlerFunc {
 			return
 		}
 
-		// Superadmin and Admin bypass permission checks
+		// Superadmin and Admin bypass permission checks (case-insensitive)
 		roleStr := role.(string)
-		if roleStr == "superadmin" || roleStr == "admin" {
+		roleLower := strings.ToLower(roleStr)
+		if roleLower == "superadmin" || roleLower == "admin" {
 			c.Next()
 			return
 		}
@@ -153,10 +155,28 @@ func PermissionMiddleware(requiredPermission string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
-		userID, _ := strconv.ParseUint(userIDStr.(string), 10, 64)
 
 		db := dbVal.(*gorm.DB)
 
+		// Handle API Key permissions
+		if strings.HasPrefix(userIDStr.(string), "api_key_") {
+			var count int64
+			err := db.Table("roles").
+				Joins("JOIN role_has_permissions ON role_has_permissions.role_id = roles.id").
+				Joins("JOIN permissions ON permissions.id = role_has_permissions.permission_id").
+				Where("LOWER(roles.name) = ? AND permissions.name = ?", roleLower, requiredPermission).
+				Count(&count).Error
+
+			if err != nil || count == 0 {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden: You do not have permission to perform this action"})
+				return
+			}
+			c.Next()
+			return
+		}
+
+		// Handle standard user permissions
+		userID, _ := strconv.ParseUint(userIDStr.(string), 10, 64)
 		var count int64
 		err := db.Table("users").
 			Joins("JOIN role_has_permissions ON role_has_permissions.role_id = users.role_id").
