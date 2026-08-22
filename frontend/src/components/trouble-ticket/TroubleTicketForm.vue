@@ -656,16 +656,20 @@ const dialog= computed({
 
 const isEdit = computed(() => !!props.ticket)
 
-// Custom filter for customer autocomplete (name, phone, address, ID)
+// Custom filter for customer autocomplete (multi-word match across name, phone, address, ID)
 const customCustomerFilter = (value: string, query: string, item?: any) => {
-  if (!query) return true
-  const q = query.toLowerCase().trim()
-  const rawItem = item?.raw || item
+  if (!query || !query.trim()) return true
+  const rawItem = item?.raw || item || {}
   const name = (rawItem.nama || '').toLowerCase()
   const phone = (rawItem.no_telp || '').toLowerCase()
   const address = (rawItem.alamat || '').toLowerCase()
+  const address2 = (rawItem.alamat_2 || '').toLowerCase()
   const idStr = String(rawItem.id || '')
-  return name.includes(q) || phone.includes(q) || address.includes(q) || idStr.includes(q)
+  const customerIdStr = String(rawItem.customer_id || '')
+  const combined = `${name} ${phone} ${address} ${address2} ${idStr} ${customerIdStr}`
+  
+  const words = query.toLowerCase().trim().split(/\s+/)
+  return words.every(word => combined.includes(word))
 }
 
 // Ensure unique customers for dropdown
