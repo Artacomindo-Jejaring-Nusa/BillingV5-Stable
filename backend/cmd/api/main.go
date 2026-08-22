@@ -65,6 +65,9 @@ func main() {
 	// 3.1. Ensure core system tables and columns exist immediately
 	// This fixes errors where GORM expects certain columns but legacy dump doesn't have them
 	db.Exec("CREATE TABLE IF NOT EXISTS system_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, timestamp DATETIME(6), level VARCHAR(50), message TEXT);")
+	db.Exec("ALTER TABLE action_taken MODIFY COLUMN action_description TEXT NULL;")
+	db.Exec("ALTER TABLE action_taken MODIFY COLUMN summary_problem TEXT NULL;")
+	db.Exec("ALTER TABLE action_taken MODIFY COLUMN summary_action TEXT NULL;")
 	
 	ensureDeletedAt := func(tableName string) {
 		var columnCount int

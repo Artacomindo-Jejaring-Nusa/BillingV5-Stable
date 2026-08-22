@@ -101,9 +101,9 @@ func (TicketHistory) TableName() string {
 type ActionTaken struct {
 	ID                uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	TicketID          uint64    `gorm:"index;not null" json:"ticket_id"`
-	ActionDescription string    `gorm:"type:text;not null" json:"action_description"`
-	SummaryProblem    string    `gorm:"type:text;not null" json:"summary_problem"`
-	SummaryAction     string    `gorm:"type:text;not null" json:"summary_action"`
+	ActionDescription string    `gorm:"type:text" json:"action_description"`
+	SummaryProblem    string    `gorm:"type:text" json:"summary_problem"`
+	SummaryAction     string    `gorm:"type:text" json:"summary_action"`
 	Evidence          *string   `gorm:"type:text" json:"evidence"` // JSON array string for multiple files
 	Notes             *string   `gorm:"type:text" json:"notes"`
 	TakenBy           *uint64   `gorm:"index" json:"taken_by"`
