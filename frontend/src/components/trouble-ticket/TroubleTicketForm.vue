@@ -62,6 +62,7 @@
                   :items="uniqueCustomers"
                   item-title="nama"
                   item-value="id"
+                  :custom-filter="customCustomerFilter"
                   :loading="loadingCustomers"
                   :rules="[v => !!v || 'Customer is required']"
                   clearable
@@ -69,14 +70,21 @@
                   variant="outlined"
                   density="comfortable"
                   rounded="lg"
-                  hide-no-data
-                  no-data-text="No customers available"
-                  placeholder="Search customer..."
-                  auto-select-first
+                  no-data-text="No customer found"
+                  placeholder="Search by customer name, phone, address..."
                   class="modern-input"
                 >
                   <template v-slot:prepend-inner>
                     <v-icon color="primary" size="20">mdi-account-circle</v-icon>
+                  </template>
+                  <template v-slot:item="{ props, item }">
+                    <v-list-item v-bind="props" :title="item.raw.nama" :subtitle="`${item.raw.no_telp || '-'} | ${item.raw.alamat || '-'}`">
+                      <template v-slot:prepend>
+                        <v-avatar size="32" color="primary" class="text-white text-caption font-weight-bold me-2">
+                          {{ getInitials(item.raw.nama) }}
+                        </v-avatar>
+                      </template>
+                    </v-list-item>
                   </template>
                   <template v-slot:append-inner>
                     <v-chip v-if="formData.pelanggan_id" size="x-small" color="success" variant="flat">
@@ -648,6 +656,18 @@ const dialog= computed({
 
 const isEdit = computed(() => !!props.ticket)
 
+// Custom filter for customer autocomplete (name, phone, address, ID)
+const customCustomerFilter = (value: string, query: string, item?: any) => {
+  if (!query) return true
+  const q = query.toLowerCase().trim()
+  const rawItem = item?.raw || item
+  const name = (rawItem.nama || '').toLowerCase()
+  const phone = (rawItem.no_telp || '').toLowerCase()
+  const address = (rawItem.alamat || '').toLowerCase()
+  const idStr = String(rawItem.id || '')
+  return name.includes(q) || phone.includes(q) || address.includes(q) || idStr.includes(q)
+}
+
 // Ensure unique customers for dropdown
 const uniqueCustomers = computed(() => {
   const seen = new Set()
@@ -775,7 +795,7 @@ const getFileIconColor = (file: File) => {
 const fetchCustomers = async () => {
   loadingCustomers.value = true
   try {
-    const response = await apiClient.get('/pelanggan?limit=1000&include_relations=true')
+    const response = await apiClient.get('/pelanggan?limit=10000&include_relations=true')
     const rawData = response.data.data || response.data || []
 
     const uniqueCustomers = rawData.reduce((acc: Customer[], current: Customer) => {

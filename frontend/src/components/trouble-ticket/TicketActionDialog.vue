@@ -379,7 +379,7 @@ const shouldShowSummaryFields = computed(() => {
 })
 
 const shouldShowActionDetails = computed(() => {
-  return formData.value.status && formData.value.status !== ''
+  return (formData.value.status && formData.value.status !== '') || (formData.value.action_description && formData.value.action_description !== '')
 })
 
 // Validation rules
@@ -421,22 +421,14 @@ const submitForm = async () => {
       evidenceUrls.value = await Promise.all(uploadPromises)
     }
 
-    // Prepare API payload - only include relevant fields
+    // Prepare API payload - send clean strings instead of null
     const payload: any = {
-      status: formData.value.status,
-      notes: formData.value.notes || null,
-      evidence: evidenceUrls.value.length > 0 ? JSON.stringify(evidenceUrls.value) : null
-    }
-
-    // Only include action description if we're showing the field
-    if (shouldShowActionDetails.value) {
-      payload.action_description = formData.value.action_description || null
-    }
-
-    // Only include summary fields if status is closed
-    if (shouldShowSummaryFields.value) {
-      payload.summary_problem = formData.value.summary_problem
-      payload.summary_action = formData.value.summary_action
+      status: formData.value.status || '',
+      notes: formData.value.notes || '',
+      action_description: formData.value.action_description || '',
+      summary_problem: formData.value.summary_problem || '',
+      summary_action: formData.value.summary_action || '',
+      evidence: evidenceUrls.value.length > 0 ? JSON.stringify(evidenceUrls.value) : ''
     }
 
     // Check if status is being updated or just adding action

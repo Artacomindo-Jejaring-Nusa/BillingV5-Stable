@@ -356,68 +356,76 @@ func (u *troubleTicketUsecase) UpdateStatus(ctx context.Context, id uint64, stat
 	}
 
 	oldStatus := ticket.Status
-	if oldStatus == status {
-		return nil
-	}
+	statusChanged := oldStatus != status
 
-	ticket.Status = status
-	ticket.UpdatedAt = time.Now()
+	if statusChanged {
+		ticket.Status = status
+		ticket.UpdatedAt = time.Now()
 
-	now := time.Now()
-	// Auto-set resolved_at
-	if status == domain.TicketStatusResolved || status == domain.TicketStatusClosed {
-		ticket.ResolvedAt = &now
-		if ticket.DowntimeStart != nil && ticket.DowntimeEnd == nil {
-			ticket.DowntimeEnd = &now
-		}
-		if ticket.PendingStart != nil {
-			pendingDuration := int(now.Sub(*ticket.PendingStart).Minutes())
-			ticket.TotalPendingMinutes += pendingDuration
-			ticket.PendingStart = nil
-		}
-		ticket.UpdateDowntime()
-	} else if status == domain.TicketStatusPendingCustomer || status == domain.TicketStatusPendingVendor {
-		if ticket.PendingStart == nil {
-			ticket.PendingStart = &now
-		}
-		ticket.UpdateDowntime()
-	} else if (oldStatus == domain.TicketStatusPendingCustomer || oldStatus == domain.TicketStatusPendingVendor) && (status == domain.TicketStatusOpen || status == domain.TicketStatusInProgress) {
-		if ticket.PendingStart != nil {
-			pendingDuration := int(now.Sub(*ticket.PendingStart).Minutes())
-			ticket.TotalPendingMinutes += pendingDuration
-			ticket.PendingStart = nil
-		}
-		ticket.UpdateDowntime()
-	} else if (status == domain.TicketStatusOpen || status == domain.TicketStatusInProgress) && !(oldStatus == domain.TicketStatusOpen || oldStatus == domain.TicketStatusInProgress) {
-		if ticket.DowntimeStart == nil || (ticket.DowntimeEnd != nil && ticket.DowntimeStart.Before(*ticket.DowntimeEnd)) {
-			ticket.DowntimeStart = &now
-			ticket.DowntimeEnd = nil
-			ticket.PendingStart = nil
-			ticket.TotalPendingMinutes = 0
+		now := time.Now()
+		// Auto-set resolved_at
+		if status == domain.TicketStatusResolved || status == domain.TicketStatusClosed {
+			ticket.ResolvedAt = &now
+			if ticket.DowntimeStart != nil && ticket.DowntimeEnd == nil {
+				ticket.DowntimeEnd = &now
+			}
+			if ticket.PendingStart != nil {
+				pendingDuration := int(now.Sub(*ticket.PendingStart).Minutes())
+				ticket.TotalPendingMinutes += pendingDuration
+				ticket.PendingStart = nil
+			}
 			ticket.UpdateDowntime()
+		} else if status == domain.TicketStatusPendingCustomer || status == domain.TicketStatusPendingVendor {
+			if ticket.PendingStart == nil {
+				ticket.PendingStart = &now
+			}
+			ticket.UpdateDowntime()
+		} else if (oldStatus == domain.TicketStatusPendingCustomer || oldStatus == domain.TicketStatusPendingVendor) && (status == domain.TicketStatusOpen || status == domain.TicketStatusInProgress) {
+			if ticket.PendingStart != nil {
+				pendingDuration := int(now.Sub(*ticket.PendingStart).Minutes())
+				ticket.TotalPendingMinutes += pendingDuration
+				ticket.PendingStart = nil
+			}
+			ticket.UpdateDowntime()
+		} else if (status == domain.TicketStatusOpen || status == domain.TicketStatusInProgress) && !(oldStatus == domain.TicketStatusOpen || oldStatus == domain.TicketStatusInProgress) {
+			if ticket.DowntimeStart == nil || (ticket.DowntimeEnd != nil && ticket.DowntimeStart.Before(*ticket.DowntimeEnd)) {
+				ticket.DowntimeStart = &now
+				ticket.DowntimeEnd = nil
+				ticket.PendingStart = nil
+				ticket.TotalPendingMinutes = 0
+				ticket.UpdateDowntime()
+			}
 		}
+
+		if err := u.repo.Update(ctx, ticket); err != nil {
+			return err
+		}
+
+		// Create History
+		historyNotes := notes
+		if historyNotes == "" && actionDesc != "" {
+			historyNotes = actionDesc
+		}
+		history := &domain.TicketHistory{
+			TicketID:  ticket.ID,
+			OldStatus: &oldStatus,
+			NewStatus: status,
+			ChangedBy: &userID,
+			Notes:     &historyNotes,
+			CreatedAt: time.Now(),
+		}
+		_ = u.repo.CreateHistory(ctx, history)
 	}
 
-	if err := u.repo.Update(ctx, ticket); err != nil {
-		return err
-	}
-
-	// Create History
-	history := &domain.TicketHistory{
-		TicketID:  ticket.ID,
-		OldStatus: &oldStatus,
-		NewStatus: status,
-		ChangedBy: &userID,
-		Notes:     &notes,
-		CreatedAt: time.Now(),
-	}
-	_ = u.repo.CreateHistory(ctx, history)
-
-	// Create Action Taken if provided
-	if actionDesc != "" || problemSummary != "" || actionSummary != "" {
+	// Create Action Taken if actionDesc, problemSummary, actionSummary, notes, or evidence is provided
+	if actionDesc != "" || problemSummary != "" || actionSummary != "" || notes != "" || evidence != "" {
 		var evPtr *string
 		if evidence != "" {
 			evPtr = &evidence
+		}
+		var notesPtr *string
+		if notes != "" {
+			notesPtr = &notes
 		}
 		action := &domain.ActionTaken{
 			TicketID:          ticket.ID,
@@ -425,11 +433,14 @@ func (u *troubleTicketUsecase) UpdateStatus(ctx context.Context, id uint64, stat
 			SummaryProblem:    problemSummary,
 			SummaryAction:     actionSummary,
 			Evidence:          evPtr,
-			Notes:             &notes,
+			Notes:             notesPtr,
 			TakenBy:           &userID,
 			CreatedAt:         time.Now(),
 		}
-		_ = u.repo.CreateActionTaken(ctx, action)
+		if err := u.repo.CreateActionTaken(ctx, action); err != nil {
+			log.Printf("Error creating action taken for ticket %d: %v\n", ticket.ID, err)
+			return fmt.Errorf("failed to save ticket action: %w", err)
+		}
 	}
 
 	u.logActivity(ctx, userID, "Update Ticket Status", fmt.Sprintf("Updated status of ticket ID: %d to %s", ticket.ID, string(status)))
