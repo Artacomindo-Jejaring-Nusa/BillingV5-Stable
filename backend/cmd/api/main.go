@@ -20,14 +20,23 @@ import (
 	"billing-backend/internal/websocket"
 	"billing-backend/pkg/database"
 	"billing-backend/pkg/logger"
+	"billing-backend/pkg/telemetry"
 	"billing-backend/pkg/utils"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"strings"
 )
 
 func main() {
+	// 0. Initialize OpenTelemetry Tracer
+	shutdownTracer := telemetry.InitTracer("billing-backend")
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdownTracer(ctx)
+	}()
 	// 0. Print Banner
 	logger.PrintBanner()
 
@@ -162,6 +171,7 @@ func main() {
 	websocket.InitRedis()
 
 	router := gin.Default()
+	router.Use(otelgin.Middleware("billing-backend"))
 
 	// Set global DB in gin context
 	router.Use(func(c *gin.Context) {

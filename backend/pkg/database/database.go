@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 	"gorm.io/plugin/dbresolver"
+	"gorm.io/plugin/opentelemetry/tracing"
 )
 
 var DB *gorm.DB
@@ -114,6 +115,13 @@ func InitDatabase(cfg *config.Config) (*gorm.DB, error) {
 			log.Println("✅ DBResolver configured successfully for Read/Write splitting.")
 		}
 		}
+	}
+
+	// Register OpenTelemetry tracing plugin for GORM DB queries
+	if err := db.Use(tracing.NewPlugin(tracing.WithoutMetrics())); err != nil {
+		log.Printf("⚠️ Failed to register OpenTelemetry tracing plugin on GORM: %v", err)
+	} else {
+		log.Println("🔭 OpenTelemetry GORM Tracing plugin enabled.")
 	}
 
 	sqlDB, err := db.DB()
