@@ -49,14 +49,19 @@ func (u *troubleTicketUsecase) generateTicketNumber(ctx context.Context) (string
 	}
 	prefix := "TFTTH"
 	nextNum := 1
-	if last != nil && last.TicketNumber != "" {
-		parts := strings.Split(last.TicketNumber, "-")
-		if len(parts) == 2 {
-			var lastNum int
-			_, err := fmt.Sscanf(parts[1], "%d", &lastNum)
-			if err == nil {
-				nextNum = lastNum + 1
+	if last != nil {
+		if last.TicketNumber != "" {
+			parts := strings.Split(last.TicketNumber, "-")
+			if len(parts) == 2 {
+				var lastNum int
+				_, err := fmt.Sscanf(parts[1], "%d", &lastNum)
+				if err == nil {
+					nextNum = lastNum + 1
+				}
 			}
+		}
+		if nextNum <= int(last.ID) {
+			nextNum = int(last.ID) + 1
 		}
 	}
 	return fmt.Sprintf("%s-%04d", prefix, nextNum), nil

@@ -148,7 +148,7 @@ func (r *troubleTicketRepository) Create(ctx context.Context, ticket *domain.Tro
 		}
 	}
 
-	return r.db.WithContext(ctx).Create(ticket).Error
+	return r.db.WithContext(ctx).Omit("Pelanggan", "DataTeknis", "AssignedUser").Create(ticket).Error
 }
 
 func (r *troubleTicketRepository) Update(ctx context.Context, ticket *domain.TroubleTicket) error {
@@ -161,7 +161,7 @@ func (r *troubleTicketRepository) Delete(ctx context.Context, id uint64) error {
 
 func (r *troubleTicketRepository) GetLastTicket(ctx context.Context) (*domain.TroubleTicket, error) {
 	var ticket domain.TroubleTicket
-	err := r.db.WithContext(ctx).Order("ticket_number desc").First(&ticket).Error
+	err := r.db.WithContext(ctx).Order("id desc").First(&ticket).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
