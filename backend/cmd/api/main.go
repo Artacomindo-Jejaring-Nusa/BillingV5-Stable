@@ -66,9 +66,33 @@ func main() {
 	// This fixes errors where GORM expects certain columns but legacy dump doesn't have them
 	db.Exec("CREATE TABLE IF NOT EXISTS system_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, timestamp DATETIME(6), level VARCHAR(50), message TEXT);")
 	db.Exec("ALTER TABLE action_taken MODIFY COLUMN action_description TEXT NULL;")
-	db.Exec("ALTER TABLE action_taken MODIFY COLUMN summary_problem TEXT NULL;")
-	db.Exec("ALTER TABLE action_taken MODIFY COLUMN summary_action TEXT NULL;")
-	
+	ensureColumn := func(tableName, columnName, columnSpec string) {
+		var columnCount int
+		err := db.Raw("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?", tableName, columnName).Scan(&columnCount).Error
+		if err == nil && columnCount == 0 {
+			log.Printf("[DB FIX] Adding missing '%s' column to '%s' table...", columnName, tableName)
+			db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s;", tableName, columnName, columnSpec))
+		}
+	}
+
+	ensureColumn("trouble_ticket", "pending_start", "DATETIME NULL DEFAULT NULL")
+	ensureColumn("trouble_ticket", "total_pending_minutes", "INT NOT NULL DEFAULT 0")
+	ensureColumn("trouble_ticket", "downtime_start", "DATETIME NULL DEFAULT NULL")
+	ensureColumn("trouble_ticket", "downtime_end", "DATETIME NULL DEFAULT NULL")
+	ensureColumn("trouble_ticket", "total_downtime_minutes", "INT NULL DEFAULT NULL")
+	ensureColumn("trouble_ticket", "customer_notified", "TINYINT(1) NOT NULL DEFAULT 0")
+	ensureColumn("trouble_ticket", "last_customer_contact", "DATETIME NULL DEFAULT NULL")
+	ensureColumn("trouble_ticket", "resolution_notes", "TEXT NULL DEFAULT NULL")
+	ensureColumn("trouble_ticket", "resolved_at", "DATETIME NULL DEFAULT NULL")
+	ensureColumn("trouble_ticket", "evidence", "TEXT NULL DEFAULT NULL")
+
+	ensureColumn("action_taken", "action_description", "TEXT NULL DEFAULT NULL")
+	ensureColumn("action_taken", "summary_problem", "TEXT NULL DEFAULT NULL")
+	ensureColumn("action_taken", "summary_action", "TEXT NULL DEFAULT NULL")
+	ensureColumn("action_taken", "evidence", "TEXT NULL DEFAULT NULL")
+	ensureColumn("action_taken", "notes", "TEXT NULL DEFAULT NULL")
+	ensureColumn("action_taken", "taken_by", "BIGINT UNSIGNED NULL DEFAULT NULL")
+
 	ensureDeletedAt := func(tableName string) {
 		var columnCount int
 		// Check if column exists in the current database
