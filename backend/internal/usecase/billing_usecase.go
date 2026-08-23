@@ -1479,9 +1479,33 @@ func (u *billingUsecase) GetRevenueReportDetails(ctx context.Context, params *do
 // --- Portability ---
 
 func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]byte, string, error) {
-	headers := []string{"ID", "Pelanggan", "Status", "Paket"}
+	headers := []string{"ID", "Pelanggan", "Brand", "Status", "Paket"}
 	limit := 1000
 	offset := 0
+
+	brandMap := make(map[string]string)
+	db := database.GetDB()
+	if db != nil {
+		var brands []domain.HargaLayanan
+		if err := db.WithContext(ctx).Find(&brands).Error; err == nil {
+			for _, b := range brands {
+				if b.IDBrand != "" && b.Brand != "" {
+					brandMap[strings.ToLower(b.IDBrand)] = b.Brand
+					brandMap[strings.ToLower(b.Brand)] = b.Brand
+				}
+			}
+		}
+	}
+
+	getBrandName := func(raw *string) string {
+		if raw == nil || *raw == "" {
+			return ""
+		}
+		if name, ok := brandMap[strings.ToLower(*raw)]; ok {
+			return name
+		}
+		return *raw
+	}
 
 	if format == "excel" {
 		f := excelize.NewFile()
@@ -1503,14 +1527,15 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 			}
 
 			for _, l := range chunk {
-				pName, pkName := "", ""
+				pName, pkName, brandName := "", "", ""
 				if l.Pelanggan != nil {
 					pName = l.Pelanggan.Nama
+					brandName = getBrandName(l.Pelanggan.IDBrand)
 				}
 				if l.PaketLayanan != nil {
 					pkName = l.PaketLayanan.NamaPaket
 				}
-				vals := []interface{}{l.ID, pName, l.Status, pkName}
+				vals := []interface{}{l.ID, pName, brandName, l.Status, pkName}
 				for c, v := range vals {
 					cell, _ := excelize.CoordinatesToCellName(c+1, row)
 					f.SetCellValue(s, cell, v)
@@ -1542,14 +1567,15 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 			}
 
 			for _, l := range chunk {
-				n, pk := "", ""
+				n, pk, brandName := "", "", ""
 				if l.Pelanggan != nil {
 					n = l.Pelanggan.Nama
+					brandName = getBrandName(l.Pelanggan.IDBrand)
 				}
 				if l.PaketLayanan != nil {
 					pk = l.PaketLayanan.NamaPaket
 				}
-				w.Write([]string{fmt.Sprintf("%d", l.ID), n, l.Status, pk})
+				w.Write([]string{fmt.Sprintf("%d", l.ID), n, brandName, l.Status, pk})
 			}
 
 			offset += limit
@@ -1568,10 +1594,34 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	today := time.Now()
 	limit := 1000
 
+	brandMap := make(map[string]string)
+	db := database.GetDB()
+	if db != nil {
+		var brands []domain.HargaLayanan
+		if err := db.WithContext(ctx).Find(&brands).Error; err == nil {
+			for _, b := range brands {
+				if b.IDBrand != "" && b.Brand != "" {
+					brandMap[strings.ToLower(b.IDBrand)] = b.Brand
+					brandMap[strings.ToLower(b.Brand)] = b.Brand
+				}
+			}
+		}
+	}
+
+	getBrandName := func(raw *string) string {
+		if raw == nil || *raw == "" {
+			return ""
+		}
+		if name, ok := brandMap[strings.ToLower(*raw)]; ok {
+			return name
+		}
+		return *raw
+	}
+
 	// 1. DAFTAR LANGGANAN
 	s1 := "Daftar Langganan"
 	f.SetSheetName("Sheet1", s1)
-	headers1 := []string{"ID", "Nama Pelanggan", "Alamat", "Paket", "Status", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Metode"}
+	headers1 := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Status", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Metode"}
 	for i, h := range headers1 {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(s1, cell, h)
@@ -1599,10 +1649,11 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 				totalBerhenti++
 			}
 
-			pName, addr := "", ""
+			pName, addr, brandName := "", "", ""
 			if l.Pelanggan != nil {
 				pName = l.Pelanggan.Nama
 				addr = l.Pelanggan.Alamat
+				brandName = getBrandName(l.Pelanggan.IDBrand)
 			}
 			pkName := ""
 			if l.PaketLayanan != nil {
@@ -1620,7 +1671,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 				h = *l.HargaAwal
 			}
 
-			vals := []interface{}{l.ID, pName, addr, pkName, l.Status, h, jt, sm, l.MetodePembayaran}
+			vals := []interface{}{l.ID, pName, addr, brandName, pkName, l.Status, h, jt, sm, l.MetodePembayaran}
 			for c, v := range vals {
 				cell, _ := excelize.CoordinatesToCellName(c+1, row1)
 				f.SetCellValue(s1, cell, v)

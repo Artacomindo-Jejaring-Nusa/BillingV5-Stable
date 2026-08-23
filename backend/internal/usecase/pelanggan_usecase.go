@@ -13,6 +13,7 @@ import (
 
 	"billing-backend/internal/domain"
 	"billing-backend/internal/websocket"
+	"billing-backend/pkg/database"
 	"billing-backend/pkg/utils"
 
 	"github.com/xuri/excelize/v2"
@@ -245,9 +246,33 @@ func (u *pelangganUsecase) ImportFromCSV(ctx context.Context, csvContent string)
 }
 
 func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, string, error) {
-	headers := []string{"ID", "No KTP", "Nama", "Alamat", "Alamat Tambahan", "Blok", "Unit", "No Telp", "Email", "Layanan", "ID Brand", "Tgl Instalasi"}
+	headers := []string{"ID", "No KTP", "Nama", "Alamat", "Alamat Tambahan", "Blok", "Unit", "No Telp", "Email", "Layanan", "Brand", "Tgl Instalasi"}
 	limit := 1000
 	offset := 0
+
+	brandMap := make(map[string]string)
+	db := database.GetDB()
+	if db != nil {
+		var brands []domain.HargaLayanan
+		if err := db.WithContext(ctx).Find(&brands).Error; err == nil {
+			for _, b := range brands {
+				if b.IDBrand != "" && b.Brand != "" {
+					brandMap[strings.ToLower(b.IDBrand)] = b.Brand
+					brandMap[strings.ToLower(b.Brand)] = b.Brand
+				}
+			}
+		}
+	}
+
+	getBrandName := func(raw *string) string {
+		if raw == nil || *raw == "" {
+			return ""
+		}
+		if name, ok := brandMap[strings.ToLower(*raw)]; ok {
+			return name
+		}
+		return *raw
+	}
 
 	if format == "excel" {
 		f := excelize.NewFile()
@@ -270,13 +295,11 @@ func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, s
 
 			for _, p := range pelanggans {
 				noKtpDec := utils.Decrypt(p.NoKtp)
-				tgl, brand, lay, al2 := "", "", "", ""
+				tgl, lay, al2 := "", "", ""
 				if p.TglInstalasi != nil {
 					tgl = p.TglInstalasi.Format("2006-01-02")
 				}
-				if p.IDBrand != nil {
-					brand = *p.IDBrand
-				}
+				brand := getBrandName(p.IDBrand)
 				if p.Layanan != nil {
 					lay = *p.Layanan
 				}
@@ -316,13 +339,11 @@ func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, s
 
 			for _, p := range pelanggans {
 				noKtpDec := utils.Decrypt(p.NoKtp)
-				tgl, brand, lay, al2 := "", "", "", ""
+				tgl, lay, al2 := "", "", ""
 				if p.TglInstalasi != nil {
 					tgl = p.TglInstalasi.Format("2006-01-02")
 				}
-				if p.IDBrand != nil {
-					brand = *p.IDBrand
-				}
+				brand := getBrandName(p.IDBrand)
 				if p.Layanan != nil {
 					lay = *p.Layanan
 				}
