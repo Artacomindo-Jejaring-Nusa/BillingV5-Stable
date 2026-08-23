@@ -1343,16 +1343,20 @@ async function sendWhatsAppReminder(invoice: Invoice) {
   }
 }
 
-const applyFilters = debounce(() => {
+const applySearchFilter = debounce(() => {
   fetchInvoices();
+}, 500);
+
+const applyInstantFilter = debounce(() => {
+  fetchInvoices();
+}, 50);
+
+watch(searchQuery, () => {
+  applySearchFilter();
 });
 
-watch([searchQuery, selectedStatus, startDate, endDate, selectedLimit], () => {
-  applyFilters();
-});
-
-watch(showPaidInvoices, () => {
-  applyFilters();
+watch([selectedStatus, startDate, endDate, selectedLimit, showPaidInvoices], () => {
+  applyInstantFilter();
 });
 
 function resetFilters() {
@@ -1362,6 +1366,7 @@ function resetFilters() {
   endDate.value = null;
   showPaidInvoices.value = false;
   selectedLimit.value = 10;
+  fetchInvoices();
 }
 
 const handleNewNotification = (event: Event) => {

@@ -1656,13 +1656,24 @@ async function fetchOdpList() {
 
 
 
-const applyFilters = debounce(() => {
-  fetchDataTeknis(false); // Panggil dengan `isLoadMore = false` untuk mereset
-  // Statistik akan dihitung ulang otomatis di dalam fetchDataTeknis()
+const applySearchFilter = debounce(() => {
+  desktopPage.value = 1;
+  mobilePage.value = 1;
+  fetchDataTeknis(false);
 }, 500);
 
-watch([searchQuery, selectedOlt, selectedProfile, selectedVlan, selectedOnuPowerRange], () => {
-  applyFilters();
+const applyInstantFilter = debounce(() => {
+  desktopPage.value = 1;
+  mobilePage.value = 1;
+  fetchDataTeknis(false);
+}, 50);
+
+watch(searchQuery, () => {
+  applySearchFilter();
+});
+
+watch([selectedOlt, selectedProfile, selectedVlan, selectedOnuPowerRange], () => {
+  applyInstantFilter();
 });
 
 function resetFilters() {
@@ -1671,7 +1682,9 @@ function resetFilters() {
   selectedProfile.value = null;
   selectedVlan.value = null;
   selectedOnuPowerRange.value = null;
-  // fetchDataTeknis() akan ter-trigger oleh watch
+  desktopPage.value = 1;
+  mobilePage.value = 1;
+  fetchDataTeknis(false);
 }
 
 async function fetchMikrotikServers() {
