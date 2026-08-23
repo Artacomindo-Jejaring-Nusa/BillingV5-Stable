@@ -488,11 +488,11 @@
               ></v-select>
             </div>
             
-            <!-- Filter Brand (Export) -->
+            <!-- Filter Brand -->
             <div class="filter-grid-item">
               <label class="filter-label">
                 <v-icon size="16" class="mr-1">mdi-domain</v-icon>
-                Export Filter Brand
+                Brand
               </label>
               <v-select
                 v-model="selectedExportBrand"
@@ -2633,6 +2633,7 @@ async function fetchLangganan(isLoadMore = false, explicitPage: number | null = 
     if (selectedBlok.value) params.append('blok', selectedBlok.value);
     if (selectedPaket.value) params.append('paket_layanan_id', String(selectedPaket.value));
     if (selectedStatus.value) params.append('status', selectedStatus.value);
+    if (selectedExportBrand.value) params.append('id_brand', selectedExportBrand.value);
     if (selectedJatuhTempoStart.value) params.append('jatuh_tempo_start', toISODateString(selectedJatuhTempoStart.value));
     if (selectedJatuhTempoEnd.value) params.append('jatuh_tempo_end', toISODateString(selectedJatuhTempoEnd.value));
     if (selectedCreatedAtStart.value) params.append('created_at_start', toISODateString(selectedCreatedAtStart.value));
@@ -2773,6 +2774,7 @@ watch(
     selectedBlok,
     selectedPaket,
     selectedStatus,
+    selectedExportBrand,
     selectedJatuhTempoStart,
     selectedJatuhTempoEnd,
     selectedCreatedAtStart,
@@ -2780,6 +2782,8 @@ watch(
     sortBy
   ],
   () => {
+    desktopPage.value = 1;
+    mobilePage.value = 1;
     applyFiltersInstant();
   }
 );
@@ -2913,6 +2917,9 @@ function resetFilters() {
   selectedCreatedAtStart.value = null;
   selectedCreatedAtEnd.value = null;
   sortBy.value = [];
+  desktopPage.value = 1;
+  mobilePage.value = 1;
+  fetchLangganan();
 }
 // ============================================
 
