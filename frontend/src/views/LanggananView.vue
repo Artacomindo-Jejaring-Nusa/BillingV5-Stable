@@ -2764,6 +2764,8 @@ const applyFiltersInstant = debounce(() => {
 
 // Perhatikan perubahan pada filter text
 watch(searchQuery, () => {
+  desktopPage.value = 1;
+  mobilePage.value = 1;
   applyFilters();
 });
 
