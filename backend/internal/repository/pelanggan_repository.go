@@ -41,7 +41,7 @@ func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, fil
 
 	if filters.IDBrand != "" && filters.IDBrand != "Semua" {
 		// Support filtering by both id_brand (e.g. ajn-01) and brand name (e.g. JAKINET)
-		query = query.Where("(pelanggan.id_brand = ? OR pelanggan.id_brand IN (SELECT id_brand FROM harga_layanan WHERE brand = ?))", filters.IDBrand, filters.IDBrand)
+		query = query.Where("(pelanggan.id_brand = ? OR pelanggan.id_brand IN (SELECT id_brand FROM harga_layanan WHERE brand = ? OR id_brand = ?) OR pelanggan.id_brand IN (SELECT brand FROM harga_layanan WHERE id_brand = ? OR brand = ?))", filters.IDBrand, filters.IDBrand, filters.IDBrand, filters.IDBrand, filters.IDBrand)
 	}
 
 	if filters.Layanan != "" && filters.Layanan != "Semua" && filters.Layanan != "Semua layanan" {
@@ -61,8 +61,8 @@ func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, fil
 		if len(words) == 1 {
 			searchTerm := "%" + filters.Search + "%"
 			query = query.Where(
-				"(pelanggan.nama LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ? OR pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ? OR pelanggan.blok LIKE ? OR pelanggan.unit LIKE ?)",
-				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,
+				"(pelanggan.nama LIKE ? OR pelanggan.customer_id LIKE ? OR pelanggan.no_ktp LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ? OR pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ? OR pelanggan.blok LIKE ? OR pelanggan.unit LIKE ? OR pelanggan.id = ?)",
+				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, filters.Search,
 			)
 		} else {
 			for _, word := range words {
@@ -72,8 +72,8 @@ func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, fil
 				}
 				wordTerm := "%" + word + "%"
 				query = query.Where(
-					"(pelanggan.nama LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ? OR pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ? OR pelanggan.blok LIKE ? OR pelanggan.unit LIKE ?)",
-					wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm,
+					"(pelanggan.nama LIKE ? OR pelanggan.customer_id LIKE ? OR pelanggan.no_ktp LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ? OR pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ? OR pelanggan.blok LIKE ? OR pelanggan.unit LIKE ?)",
+					wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm,
 				)
 			}
 		}

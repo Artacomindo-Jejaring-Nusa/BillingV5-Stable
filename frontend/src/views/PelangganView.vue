@@ -1557,12 +1557,24 @@ async function goToNextPage() {
   }
 }
 
-const applyFilters = debounce(() => {
+const applySearchFilter = debounce(() => {
+  desktopPage.value = 1;
+  mobilePage.value = 1;
   fetchPelanggan();
 }, 500);
 
-watch([searchQuery, selectedAlamat, selectedBrand, selectedLayanan, selectedConnectionStatus, dateFrom, dateTo], () => {
-  applyFilters();
+const applyInstantFilter = debounce(() => {
+  desktopPage.value = 1;
+  mobilePage.value = 1;
+  fetchPelanggan();
+}, 50);
+
+watch(searchQuery, () => {
+  applySearchFilter();
+});
+
+watch([selectedAlamat, selectedBrand, selectedLayanan, selectedConnectionStatus, dateFrom, dateTo], () => {
+  applyInstantFilter();
 });
 
 function resetFilters() {
@@ -1573,6 +1585,9 @@ function resetFilters() {
   selectedConnectionStatus.value = null;
   dateFrom.value = null;
   dateTo.value = null;
+  desktopPage.value = 1;
+  mobilePage.value = 1;
+  fetchPelanggan();
 }
 
 function getBrandLabel(brandId: string): string {

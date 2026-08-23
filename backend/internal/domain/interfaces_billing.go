@@ -35,6 +35,7 @@ type LanggananFilterParams struct {
 	Status              string
 	Alamat              string
 	Blok                string
+	IDBrand             string
 	PaketLayananID      string
 	JatuhTempoStart     string
 	JatuhTempoEnd       string

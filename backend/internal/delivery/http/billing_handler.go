@@ -218,6 +218,7 @@ func (h *BillingHandler) FetchLangganan(c *gin.Context) {
 		Status:              c.Query("status"),
 		Alamat:              c.Query("alamat"),
 		Blok:                c.Query("blok"),
+		IDBrand:             c.Query("id_brand"),
 		PaketLayananID:      c.Query("paket_layanan_id"),
 		JatuhTempoStart:     c.Query("jatuh_tempo_start"),
 		JatuhTempoEnd:       c.Query("jatuh_tempo_end"),

@@ -38,8 +38,8 @@ func (r *invoiceRepository) GetAll(ctx context.Context, limit, offset int, searc
 			for _, word := range words {
 				wordTerm := "%" + word + "%"
 				tx = tx.Where(
-					"(invoices.invoice_number LIKE ? OR invoices.id_pelanggan LIKE ? OR invoices.no_telp LIKE ? OR invoices.email LIKE ? OR invoices.pelanggan_id IN (SELECT id FROM pelanggan WHERE nama LIKE ? OR no_telp LIKE ?))",
-					wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm,
+					"(invoices.invoice_number LIKE ? OR invoices.id_pelanggan LIKE ? OR invoices.no_telp LIKE ? OR invoices.email LIKE ? OR invoices.pelanggan_id IN (SELECT id FROM pelanggan WHERE nama LIKE ? OR customer_id LIKE ? OR no_ktp LIKE ? OR no_telp LIKE ? OR alamat LIKE ? OR alamat_2 LIKE ?))",
+					wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm, wordTerm,
 				)
 			}
 		}
@@ -536,6 +536,12 @@ func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, fil
 		dbFind = dbFind.Where("(pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ?)", "%"+filters.Alamat+"%", "%"+filters.Alamat+"%")
 	}
 
+	if filters.IDBrand != "" && filters.IDBrand != "Semua" {
+		brandCond := "(pelanggan.id_brand = ? OR pelanggan.id_brand IN (SELECT id_brand FROM harga_layanan WHERE brand = ? OR id_brand = ?) OR pelanggan.id_brand IN (SELECT brand FROM harga_layanan WHERE id_brand = ? OR brand = ?))"
+		dbCount = dbCount.Where(brandCond, filters.IDBrand, filters.IDBrand, filters.IDBrand, filters.IDBrand, filters.IDBrand)
+		dbFind = dbFind.Where(brandCond, filters.IDBrand, filters.IDBrand, filters.IDBrand, filters.IDBrand, filters.IDBrand)
+	}
+
 	if filters.Blok != "" && filters.Blok != "Semua" {
 		dbCount = dbCount.Where("pelanggan.blok = ?", filters.Blok)
 		dbFind = dbFind.Where("pelanggan.blok = ?", filters.Blok)
@@ -566,8 +572,9 @@ func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, fil
 
 	if filters.Search != "" {
 		searchTerm := "%" + filters.Search + "%"
-		dbCount = dbCount.Where("pelanggan.nama LIKE ? OR data_teknis.id_pelanggan LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ?", searchTerm, searchTerm, searchTerm, searchTerm)
-		dbFind = dbFind.Where("pelanggan.nama LIKE ? OR data_teknis.id_pelanggan LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ?", searchTerm, searchTerm, searchTerm, searchTerm)
+		searchCond := "(pelanggan.nama LIKE ? OR pelanggan.customer_id LIKE ? OR pelanggan.no_ktp LIKE ? OR data_teknis.id_pelanggan LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.email LIKE ? OR pelanggan.alamat LIKE ? OR pelanggan.alamat_2 LIKE ?)"
+		dbCount = dbCount.Where(searchCond, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
+		dbFind = dbFind.Where(searchCond, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 
 	if err := dbCount.Count(&total).Error; err != nil {

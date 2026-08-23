@@ -66,3 +66,7 @@ code-guide-billing.md
 
 security_audit_guide.md
 .agents/skills
+agent
+.claude
+skills-lock.json
+.agents

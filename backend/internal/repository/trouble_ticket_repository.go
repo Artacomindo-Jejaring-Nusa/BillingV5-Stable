@@ -44,10 +44,13 @@ func (r *troubleTicketRepository) GetAll(ctx context.Context, limit, offset int,
 	}
 	if search, ok := filters["search"]; ok && search != "" {
 		searchTerm := "%" + search.(string) + "%"
-		query = query.Where("title LIKE ? OR description LIKE ? OR ticket_number LIKE ?", searchTerm, searchTerm, searchTerm)
+		query = query.Joins("LEFT JOIN pelanggan ON pelanggan.id = trouble_ticket.pelanggan_id").
+			Where("trouble_ticket.title LIKE ? OR trouble_ticket.description LIKE ? OR trouble_ticket.ticket_number LIKE ? OR pelanggan.nama LIKE ? OR pelanggan.customer_id LIKE ? OR pelanggan.no_telp LIKE ? OR pelanggan.alamat LIKE ?",
+				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 	if idBrand, ok := filters["id_brand"]; ok && idBrand != "" {
-		query = query.Joins("JOIN pelanggan ON pelanggan.id = trouble_ticket.pelanggan_id").Where("pelanggan.id_brand = ?", idBrand)
+		query = query.Joins("LEFT JOIN pelanggan ON pelanggan.id = trouble_ticket.pelanggan_id").
+			Where("(pelanggan.id_brand = ? OR pelanggan.id_brand IN (SELECT id_brand FROM harga_layanan WHERE brand = ? OR id_brand = ?) OR pelanggan.id_brand IN (SELECT brand FROM harga_layanan WHERE id_brand = ? OR brand = ?))", idBrand, idBrand, idBrand, idBrand, idBrand)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
