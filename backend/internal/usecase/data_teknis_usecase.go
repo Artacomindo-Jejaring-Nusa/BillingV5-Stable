@@ -150,12 +150,38 @@ func (u *dataTeknisUsecase) Store(ctx context.Context, data *domain.DataTeknis) 
 
 	// 3. IP validation
 	if data.IPPelanggan != nil && *data.IPPelanggan != "" {
-		isTaken, err := u.CheckIPAddress(ctx, *data.IPPelanggan, nil)
+		// Check in DB
+		existsInDB, err := u.dataTeknisRepo.CheckIPAddress(ctx, *data.IPPelanggan, nil)
 		if err != nil {
 			return err
 		}
-		if isTaken {
-			return fmt.Errorf("IP address %s is already in use", *data.IPPelanggan)
+		if existsInDB {
+			return fmt.Errorf("IP address %s is already in use in database", *data.IPPelanggan)
+		}
+
+		// Check in Mikrotik: If the secret in Mikrotik already belongs to this customer, it's allowed
+		servers, err := u.mikrotikRepo.GetAll(ctx)
+		if err == nil {
+			for _, server := range servers {
+				if !server.IsActive {
+					continue
+				}
+				decryptedPassword := ""
+				if server.Password != "" {
+					decryptedPassword = utils.GlobalEncryptionService.Decrypt(server.Password)
+				}
+				client, err := mikrotik.GlobalPool.GetConnection(server.HostIP, server.Port, server.Username, decryptedPassword)
+				if err != nil {
+					continue
+				}
+				owner, err := mikrotik.CheckIPInSecrets(client, *data.IPPelanggan)
+				mikrotik.GlobalPool.ReturnConnection(client, server.HostIP, server.Port)
+				if err == nil && owner != "" {
+					if !strings.EqualFold(owner, data.IDPelanggan) {
+						return fmt.Errorf("IP address %s is already in use by %s on Mikrotik (%s)", *data.IPPelanggan, owner, server.Name)
+					}
+				}
+			}
 		}
 	}
 
@@ -199,12 +225,36 @@ func (u *dataTeknisUsecase) Update(ctx context.Context, id uint64, data *domain.
 	// IP validation (if IP is changed)
 	if data.IPPelanggan != nil && *data.IPPelanggan != "" {
 		if existing.IPPelanggan == nil || *existing.IPPelanggan != *data.IPPelanggan {
-			isTaken, err := u.CheckIPAddress(ctx, *data.IPPelanggan, &id)
+			existsInDB, err := u.dataTeknisRepo.CheckIPAddress(ctx, *data.IPPelanggan, &id)
 			if err != nil {
 				return err
 			}
-			if isTaken {
-				return fmt.Errorf("IP address %s is already in use", *data.IPPelanggan)
+			if existsInDB {
+				return fmt.Errorf("IP address %s is already in use in database", *data.IPPelanggan)
+			}
+
+			servers, err := u.mikrotikRepo.GetAll(ctx)
+			if err == nil {
+				for _, server := range servers {
+					if !server.IsActive {
+						continue
+					}
+					decryptedPassword := ""
+					if server.Password != "" {
+						decryptedPassword = utils.GlobalEncryptionService.Decrypt(server.Password)
+					}
+					client, err := mikrotik.GlobalPool.GetConnection(server.HostIP, server.Port, server.Username, decryptedPassword)
+					if err != nil {
+						continue
+					}
+					owner, err := mikrotik.CheckIPInSecrets(client, *data.IPPelanggan)
+					mikrotik.GlobalPool.ReturnConnection(client, server.HostIP, server.Port)
+					if err == nil && owner != "" {
+						if !strings.EqualFold(owner, data.IDPelanggan) && !strings.EqualFold(owner, oldIDPelanggan) {
+							return fmt.Errorf("IP address %s is already in use by %s on Mikrotik (%s)", *data.IPPelanggan, owner, server.Name)
+						}
+					}
+				}
 			}
 		}
 	}
