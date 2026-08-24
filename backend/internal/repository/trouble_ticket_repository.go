@@ -351,14 +351,24 @@ func (r *troubleTicketRepository) GetMonthlyTrends(ctx context.Context, months i
 }
 
 func (r *troubleTicketRepository) GetCategoryPerformance(ctx context.Context, dateFrom, dateTo *time.Time) ([]map[string]interface{}, error) {
-	type CatPerfRow struct {
-		Category             string
-		TotalTickets         int64
-		TotalDowntimeMinutes int64
+	type CatAggRow struct {
+		Category             string  `gorm:"column:category"`
+		TotalTickets         int64   `gorm:"column:total_tickets"`
+		TotalDowntimeMinutes int64   `gorm:"column:total_downtime_minutes"`
+		ResolvedTickets      int64   `gorm:"column:resolved_tickets"`
+		TotalResolutionHours float64 `gorm:"column:total_resolution_hours"`
+		ValidResolutionCount int64   `gorm:"column:valid_resolution_count"`
 	}
 
-	query := r.db.WithContext(ctx).Model(&domain.TroubleTicket{}).
-		Select("category, COUNT(id) as total_tickets, SUM(COALESCE(total_downtime_minutes, 0)) as total_downtime_minutes")
+	query := r.db.WithContext(ctx).Table("trouble_ticket").
+		Select(`
+			category, 
+			COUNT(id) as total_tickets, 
+			SUM(COALESCE(total_downtime_minutes, 0)) as total_downtime_minutes,
+			SUM(CASE WHEN LOWER(status) = 'resolved' THEN 1 ELSE 0 END) as resolved_tickets,
+			COALESCE(SUM(CASE WHEN LOWER(status) = 'resolved' AND resolved_at IS NOT NULL AND created_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, created_at, resolved_at) / 60.0 ELSE 0 END), 0) as total_resolution_hours,
+			COALESCE(SUM(CASE WHEN LOWER(status) = 'resolved' AND resolved_at IS NOT NULL AND created_at IS NOT NULL THEN 1 ELSE 0 END), 0) as valid_resolution_count
+		`)
 
 	if dateFrom != nil {
 		query = query.Where("created_at >= ?", *dateFrom)
@@ -367,68 +377,26 @@ func (r *troubleTicketRepository) GetCategoryPerformance(ctx context.Context, da
 		query = query.Where("created_at <= ?", *dateTo)
 	}
 
-	var rows []CatPerfRow
+	var rows []CatAggRow
 	if err := query.Group("category").Order("total_tickets DESC").Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 
 	var performance []map[string]interface{}
 	for _, row := range rows {
-		resolvedQuery := r.db.WithContext(ctx).Model(&domain.TroubleTicket{}).
-			Where("category = ? AND status = ?", row.Category, domain.TicketStatusResolved)
-		if dateFrom != nil {
-			resolvedQuery = resolvedQuery.Where("created_at >= ?", *dateFrom)
-		}
-		if dateTo != nil {
-			resolvedQuery = resolvedQuery.Where("created_at <= ?", *dateTo)
-		}
-
-		var resolved int64
-		if err := resolvedQuery.Count(&resolved).Error; err != nil {
-			return nil, err
-		}
-
 		avgResolution := 0.0
-		if resolved > 0 {
-			type TimeRow struct {
-				CreatedAt  *time.Time
-				ResolvedAt *time.Time
-			}
-			var timeRows []TimeRow
-			tQuery := r.db.WithContext(ctx).Model(&domain.TroubleTicket{}).
-				Select("created_at, resolved_at").
-				Where("category = ? AND status = ? AND resolved_at IS NOT NULL AND created_at IS NOT NULL", row.Category, domain.TicketStatusResolved)
-			if dateFrom != nil {
-				tQuery = tQuery.Where("created_at >= ?", *dateFrom)
-			}
-			if dateTo != nil {
-				tQuery = tQuery.Where("created_at <= ?", *dateTo)
-			}
-
-			if err := tQuery.Scan(&timeRows).Error; err == nil && len(timeRows) > 0 {
-				var totalHours float64
-				validCount := 0
-				for _, tr := range timeRows {
-					if tr.CreatedAt != nil && tr.ResolvedAt != nil {
-						hours := tr.ResolvedAt.Sub(*tr.CreatedAt).Hours()
-						totalHours += hours
-						validCount++
-					}
-				}
-				if validCount > 0 {
-					avgResolution = mathRound(totalHours/float64(validCount), 2)
-				}
-			}
+		if row.ValidResolutionCount > 0 {
+			avgResolution = mathRound(row.TotalResolutionHours/float64(row.ValidResolutionCount), 2)
 		}
 
 		resolutionRate := 0.0
 		if row.TotalTickets > 0 {
-			resolutionRate = mathRound(float64(resolved)/float64(row.TotalTickets)*100, 2)
+			resolutionRate = mathRound(float64(row.ResolvedTickets)/float64(row.TotalTickets)*100, 2)
 		}
 
 		avgDowntime := 0.0
-		if resolved > 0 {
-			avgDowntime = mathRound(float64(row.TotalDowntimeMinutes)/float64(resolved), 2)
+		if row.ResolvedTickets > 0 {
+			avgDowntime = mathRound(float64(row.TotalDowntimeMinutes)/float64(row.ResolvedTickets), 2)
 		}
 
 		catDisplay := strings.ReplaceAll(row.Category, "_", " ")
@@ -438,7 +406,7 @@ func (r *troubleTicketRepository) GetCategoryPerformance(ctx context.Context, da
 			"category":                row.Category,
 			"category_display":        catDisplay,
 			"total_tickets":           row.TotalTickets,
-			"resolved_tickets":        resolved,
+			"resolved_tickets":        row.ResolvedTickets,
 			"resolution_rate_percent": resolutionRate,
 			"avg_resolution_hours":    avgResolution,
 			"avg_downtime_minutes":    avgDowntime,
@@ -450,16 +418,28 @@ func (r *troubleTicketRepository) GetCategoryPerformance(ctx context.Context, da
 }
 
 func (r *troubleTicketRepository) GetUserPerformance(ctx context.Context, dateFrom, dateTo *time.Time) ([]map[string]interface{}, error) {
-	type UserPerfRow struct {
-		UserID        uint64
-		UserName      string
-		TotalAssigned int64
-		FirstTicket   *time.Time
-		LastTicket    *time.Time
+	type UserAggRow struct {
+		UserID               uint64     `gorm:"column:user_id"`
+		UserName             string     `gorm:"column:user_name"`
+		TotalAssigned        int64      `gorm:"column:total_assigned"`
+		ResolvedTickets      int64      `gorm:"column:resolved_tickets"`
+		TotalResolutionHours float64    `gorm:"column:total_resolution_hours"`
+		ValidResolutionCount int64      `gorm:"column:valid_resolution_count"`
+		FirstTicket          *time.Time `gorm:"column:first_ticket"`
+		LastTicket           *time.Time `gorm:"column:last_ticket"`
 	}
 
 	query := r.db.WithContext(ctx).Table("trouble_ticket").
-		Select("users.id as user_id, users.name as user_name, COUNT(trouble_ticket.id) as total_assigned, MIN(trouble_ticket.created_at) as first_ticket, MAX(trouble_ticket.created_at) as last_ticket").
+		Select(`
+			users.id as user_id, 
+			users.name as user_name, 
+			COUNT(trouble_ticket.id) as total_assigned,
+			SUM(CASE WHEN LOWER(trouble_ticket.status) = 'resolved' THEN 1 ELSE 0 END) as resolved_tickets,
+			COALESCE(SUM(CASE WHEN LOWER(trouble_ticket.status) = 'resolved' AND trouble_ticket.resolved_at IS NOT NULL AND trouble_ticket.created_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, trouble_ticket.created_at, trouble_ticket.resolved_at) / 60.0 ELSE 0 END), 0) as total_resolution_hours,
+			COALESCE(SUM(CASE WHEN LOWER(trouble_ticket.status) = 'resolved' AND trouble_ticket.resolved_at IS NOT NULL AND trouble_ticket.created_at IS NOT NULL THEN 1 ELSE 0 END), 0) as valid_resolution_count,
+			MIN(trouble_ticket.created_at) as first_ticket, 
+			MAX(trouble_ticket.created_at) as last_ticket
+		`).
 		Joins("JOIN users ON trouble_ticket.assigned_to = users.id").
 		Where("trouble_ticket.assigned_to IS NOT NULL")
 
@@ -470,63 +450,21 @@ func (r *troubleTicketRepository) GetUserPerformance(ctx context.Context, dateFr
 		query = query.Where("trouble_ticket.created_at <= ?", *dateTo)
 	}
 
-	var rows []UserPerfRow
+	var rows []UserAggRow
 	if err := query.Group("users.id, users.name").Order("total_assigned DESC").Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 
 	var performance []map[string]interface{}
 	for _, row := range rows {
-		resolvedQuery := r.db.WithContext(ctx).Model(&domain.TroubleTicket{}).
-			Where("assigned_to = ? AND status = ?", row.UserID, domain.TicketStatusResolved)
-		if dateFrom != nil {
-			resolvedQuery = resolvedQuery.Where("created_at >= ?", *dateFrom)
-		}
-		if dateTo != nil {
-			resolvedQuery = resolvedQuery.Where("created_at <= ?", *dateTo)
-		}
-
-		var resolved int64
-		if err := resolvedQuery.Count(&resolved).Error; err != nil {
-			return nil, err
-		}
-
 		avgResolution := 0.0
-		if resolved > 0 {
-			type TimeRow struct {
-				CreatedAt  *time.Time
-				ResolvedAt *time.Time
-			}
-			var timeRows []TimeRow
-			tQuery := r.db.WithContext(ctx).Model(&domain.TroubleTicket{}).
-				Select("created_at, resolved_at").
-				Where("assigned_to = ? AND status = ? AND resolved_at IS NOT NULL AND created_at IS NOT NULL", row.UserID, domain.TicketStatusResolved)
-			if dateFrom != nil {
-				tQuery = tQuery.Where("created_at >= ?", *dateFrom)
-			}
-			if dateTo != nil {
-				tQuery = tQuery.Where("created_at <= ?", *dateTo)
-			}
-
-			if err := tQuery.Scan(&timeRows).Error; err == nil && len(timeRows) > 0 {
-				var totalHours float64
-				validCount := 0
-				for _, tr := range timeRows {
-					if tr.CreatedAt != nil && tr.ResolvedAt != nil {
-						hours := tr.ResolvedAt.Sub(*tr.CreatedAt).Hours()
-						totalHours += hours
-						validCount++
-					}
-				}
-				if validCount > 0 {
-					avgResolution = mathRound(totalHours/float64(validCount), 2)
-				}
-			}
+		if row.ValidResolutionCount > 0 {
+			avgResolution = mathRound(row.TotalResolutionHours/float64(row.ValidResolutionCount), 2)
 		}
 
 		resolutionRate := 0.0
 		if row.TotalAssigned > 0 {
-			resolutionRate = mathRound(float64(resolved)/float64(row.TotalAssigned)*100, 2)
+			resolutionRate = mathRound(float64(row.ResolvedTickets)/float64(row.TotalAssigned)*100, 2)
 		}
 
 		var firstDateStr, lastDateStr *string
@@ -543,7 +481,7 @@ func (r *troubleTicketRepository) GetUserPerformance(ctx context.Context, dateFr
 			"user_id":                 row.UserID,
 			"user_name":               row.UserName,
 			"total_assigned":          row.TotalAssigned,
-			"resolved_tickets":        resolved,
+			"resolved_tickets":        row.ResolvedTickets,
 			"resolution_rate_percent": resolutionRate,
 			"avg_resolution_hours":    avgResolution,
 			"first_ticket_date":       firstDateStr,

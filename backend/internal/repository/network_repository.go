@@ -122,11 +122,30 @@ func (r *odpRepository) GetAll(ctx context.Context) ([]domain.ODP, error) {
 		return nil, err
 	}
 
-	// Calculate PortTerpakai for each ODP
-	for i := range odps {
-		var count int64
-		r.db.WithContext(ctx).Model(&domain.DataTeknis{}).Where("odp_id = ?", odps[i].ID).Count(&count)
-		odps[i].PortTerpakai = int(count)
+	// Calculate PortTerpakai for each ODP with single batch GROUP BY query (prevents N+1)
+	if len(odps) > 0 {
+		type ODPUsage struct {
+			ODPID uint64 `gorm:"column:odp_id"`
+			Count int64  `gorm:"column:count"`
+		}
+		var usages []ODPUsage
+		var odpIDs []uint64
+		for _, odp := range odps {
+			odpIDs = append(odpIDs, odp.ID)
+		}
+		_ = r.db.WithContext(ctx).Model(&domain.DataTeknis{}).
+			Select("odp_id, COUNT(id) as count").
+			Where("odp_id IN (?)", odpIDs).
+			Group("odp_id").
+			Scan(&usages).Error
+
+		usageMap := make(map[uint64]int)
+		for _, u := range usages {
+			usageMap[u.ODPID] = int(u.Count)
+		}
+		for i := range odps {
+			odps[i].PortTerpakai = usageMap[odps[i].ID]
+		}
 	}
 
 	return odps, nil
