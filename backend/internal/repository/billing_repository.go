@@ -211,20 +211,29 @@ func (r *invoiceRepository) GetInvoiceByPelangganAndDueDateRange(ctx context.Con
 func (r *invoiceRepository) GetInvoiceSummary(ctx context.Context) (*domain.InvoiceSummaryStats, error) {
 	var summary domain.InvoiceSummaryStats
 
-	// Count automatic invoices
-	if err := r.db.WithContext(ctx).Model(&domain.Invoice{}).Where("invoice_type = ?", "automatic").Count(&summary.InvoiceTypes.Automatic).Error; err != nil {
+	type SummaryResult struct {
+		Automatic int64 `gorm:"column:automatic_count"`
+		Manual    int64 `gorm:"column:manual_count"`
+		Reinvoice int64 `gorm:"column:reinvoice_count"`
+	}
+
+	var res SummaryResult
+	err := r.db.WithContext(ctx).Table("invoices").
+		Select(`
+			COALESCE(SUM(CASE WHEN invoice_type = 'automatic' THEN 1 ELSE 0 END), 0) AS automatic_count,
+			COALESCE(SUM(CASE WHEN invoice_type = 'manual' THEN 1 ELSE 0 END), 0) AS manual_count,
+			COALESCE(SUM(CASE WHEN is_reinvoice = 1 OR is_reinvoice = true THEN 1 ELSE 0 END), 0) AS reinvoice_count
+		`).
+		Where("deleted_at IS NULL").
+		Scan(&res).Error
+
+	if err != nil {
 		return nil, err
 	}
 
-	// Count manual invoices
-	if err := r.db.WithContext(ctx).Model(&domain.Invoice{}).Where("invoice_type = ?", "manual").Count(&summary.InvoiceTypes.Manual).Error; err != nil {
-		return nil, err
-	}
-
-	// Count total reinvoices
-	if err := r.db.WithContext(ctx).Model(&domain.Invoice{}).Where("is_reinvoice = ?", true).Count(&summary.TotalReinvoice).Error; err != nil {
-		return nil, err
-	}
+	summary.InvoiceTypes.Automatic = res.Automatic
+	summary.InvoiceTypes.Manual = res.Manual
+	summary.TotalReinvoice = res.Reinvoice
 
 	return &summary, nil
 }

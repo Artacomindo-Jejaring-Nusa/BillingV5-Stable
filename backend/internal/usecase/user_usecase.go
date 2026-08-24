@@ -179,7 +179,11 @@ func (u *userUsecase) Logout(ctx context.Context, refreshTokenStr string) error 
 
 	err = u.tokenBlacklist.Blacklist(ctx, claims.ID, claims.UserID, "refresh", expTime, "User logout")
 	if err == nil {
-		u.logActivity(ctx, claims.UserID, "Logout", fmt.Sprintf("User %s logged out successfully", claims.Email))
+		go func(uid uint64, email string) {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			u.logActivity(bgCtx, uid, "Logout", fmt.Sprintf("User %s logged out successfully", email))
+		}(claims.UserID, claims.Email)
 	}
 	return err
 }

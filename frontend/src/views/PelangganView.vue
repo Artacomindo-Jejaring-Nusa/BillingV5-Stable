@@ -400,7 +400,7 @@
               <div class="mobile-details">
                 <div v-if="item.customer_id" class="detail-row">
                   <span class="detail-label">ID Pelanggan:</span>
-                  <span class="detail-value font-mono font-weight-bold text-body-1 text-black">{{ item.customer_id }}</span>
+                  <span class="detail-value font-mono font-weight-bold text-body-1 text-high-emphasis">{{ item.customer_id }}</span>
                 </div>
                 <div class="detail-row">
                   <v-icon size="small" class="me-2 text-medium-emphasis">mdi-card-account-details</v-icon>
@@ -439,7 +439,7 @@
                     size="small"
                     :color="getBrandChipColor(item.id_brand)"
                     variant="tonal"
-                    class="ml-2"
+                    class="ml-2 brand-chip font-weight-medium"
                   >
                     {{ getBrandLabel(item.id_brand) }}
                   </v-chip>
@@ -520,7 +520,7 @@
           </template>
 
           <template v-slot:item.customer_id="{ item }">
-            <span v-if="item.customer_id" class="font-mono font-weight-bold text-subtitle-1 text-black">
+            <span v-if="item.customer_id" class="font-mono font-weight-bold text-subtitle-1 text-high-emphasis customer-id-cell">
               {{ item.customer_id }}
             </span>
             <span v-else class="text-medium-emphasis">-</span>
@@ -537,7 +537,7 @@
               size="small"
               :color="getBrandChipColor(item.id_brand)"
               variant="tonal"
-              class="brand-chip"
+              class="brand-chip font-weight-medium"
             >
               <v-icon start size="small">mdi-wifi</v-icon>
               {{ getBrandLabel(item.id_brand) }}
@@ -693,7 +693,7 @@
                           variant="outlined" 
                           readonly
                           disabled
-                          class="elegant-input font-mono font-weight-bold text-subtitle-1 text-black"
+                          class="elegant-input font-mono font-weight-bold text-subtitle-1 text-high-emphasis"
                           density="comfortable"
                         ></v-text-field>
                       </div>
@@ -1807,11 +1807,11 @@ function downloadFile(blobData: any, filename: string) {
 
 function getBrandChipColor(idBrand: string): string {
   const brand = hargaLayananList.value.find(b => b.id_brand === idBrand);
-  const brandName = brand?.brand || '';
+  const brandName = (brand?.brand || idBrand || '').toUpperCase();
 
-  if (brandName.includes('JAKINET')) return 'blue';
-  if (brandName.includes('JELANTIK')) return 'purple';
-  if (brandName.includes('JELANTIK NAGRAK')) return 'emerald';
+  if (brandName.includes('JAKINET') || idBrand === 'ajn-01') return 'blue';
+  if (brandName.includes('JELANTIK NAGRAK') || brandName.includes('NAGRAK') || idBrand === 'ajn-03') return 'teal';
+  if (brandName.includes('JELANTIK') || idBrand === 'ajn-02') return 'purple-lighten-2';
   return 'grey';
 }
 
@@ -2160,6 +2160,46 @@ function showSnackbar(text: string, color: 'success' | 'error' | 'warning') {
   font-weight: 600;
   color: #1a1a1a;
   font-size: 0.875rem;
+}
+
+.customer-id-cell {
+  letter-spacing: 0.03em;
+}
+
+.brand-chip {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Dark Mode Overrides for Table & Components */
+.v-theme--dark .elegant-table {
+  background: transparent !important;
+}
+
+.v-theme--dark .elegant-table :deep(thead) {
+  background: rgba(var(--v-theme-surface-variant), 0.2) !important;
+}
+
+.v-theme--dark .elegant-table :deep(th) {
+  color: rgba(var(--v-theme-on-surface), 0.7) !important;
+  border-bottom: 2px solid rgba(var(--v-theme-outline-variant), 0.3) !important;
+}
+
+.v-theme--dark .elegant-table :deep(td) {
+  border-bottom: 1px solid rgba(var(--v-theme-outline-variant), 0.15) !important;
+  color: rgba(var(--v-theme-on-surface), 0.87) !important;
+}
+
+.v-theme--dark .elegant-table :deep(tbody tr:hover) {
+  background-color: rgba(var(--v-theme-primary), 0.08) !important;
+}
+
+.v-theme--dark .customer-name {
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.v-theme--dark .brand-chip {
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .customer-email {
