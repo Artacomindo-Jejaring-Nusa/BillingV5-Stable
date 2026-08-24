@@ -66,7 +66,7 @@ type DataTeknis struct {
 	OdpID               *uint64        `gorm:"index" json:"odp_id"`
 	PortOdp             *int           `gorm:"index" json:"port_odp"`
 	Sn                  *string        `gorm:"type:varchar(191);index" json:"sn"`
-	OnuPower            *int           `gorm:"index" json:"onu_power"`
+	OnuPower            *int           `gorm:"type:int;index" json:"onu_power"`
 	SpeedtestProof      *string        `gorm:"type:varchar(191);index" json:"speedtest_proof"`
 	MikrotikSyncPending bool           `gorm:"default:false;index" json:"mikrotik_sync_pending"`
 	MikrotikServerID    *uint64        `gorm:"index" json:"mikrotik_server_id"`

@@ -179,6 +179,7 @@ func main() {
 
 	// Standardize legacy data
 	logger.Info("Standardizing legacy data...")
+	db.Exec("ALTER TABLE data_teknis MODIFY COLUMN onu_power INT SIGNED NULL;")
 	db.Exec("UPDATE invoices SET status_invoice = 'Expired' WHERE status_invoice = 'Kadaluarsa';")
 	db.Exec("UPDATE invoices_archive SET status_invoice = 'Expired' WHERE status_invoice = 'Kadaluarsa';")
 	db.Exec("UPDATE pelanggan SET email = CONCAT('deleted_', UNIX_TIMESTAMP(), '_', email) WHERE deleted_at IS NOT NULL AND email NOT LIKE 'deleted_%';")

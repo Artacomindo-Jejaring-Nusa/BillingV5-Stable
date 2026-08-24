@@ -159,27 +159,34 @@ func (u *dataTeknisUsecase) Store(ctx context.Context, data *domain.DataTeknis) 
 			return fmt.Errorf("IP address %s is already in use in database", *data.IPPelanggan)
 		}
 
-		// Check in Mikrotik: If the secret in Mikrotik already belongs to this customer, it's allowed
-		servers, err := u.mikrotikRepo.GetAll(ctx)
-		if err == nil {
-			for _, server := range servers {
-				if !server.IsActive {
-					continue
-				}
-				decryptedPassword := ""
-				if server.Password != "" {
-					decryptedPassword = utils.GlobalEncryptionService.Decrypt(server.Password)
-				}
-				client, err := mikrotik.GlobalPool.GetConnection(server.HostIP, server.Port, server.Username, decryptedPassword)
-				if err != nil {
-					continue
-				}
-				owner, err := mikrotik.CheckIPInSecrets(client, *data.IPPelanggan)
-				mikrotik.GlobalPool.ReturnConnection(client, server.HostIP, server.Port)
-				if err == nil && owner != "" {
-					if !strings.EqualFold(owner, data.IDPelanggan) {
-						return fmt.Errorf("IP address %s is already in use by %s on Mikrotik (%s)", *data.IPPelanggan, owner, server.Name)
-					}
+		// Check in Mikrotik: Only check the RELEVANT Mikrotik server (data.MikrotikServerID or matched by OLT)
+		var targetServers []domain.MikrotikServer
+		if data.MikrotikServerID != nil {
+			if srv, err := u.mikrotikRepo.GetByID(ctx, *data.MikrotikServerID); err == nil && srv != nil && srv.IsActive {
+				targetServers = append(targetServers, *srv)
+			}
+		} else if data.Olt != nil && *data.Olt != "" {
+			if srv, err := u.mikrotikRepo.GetByName(ctx, *data.Olt); err == nil && srv != nil && srv.IsActive {
+				targetServers = append(targetServers, *srv)
+			}
+		}
+
+		for _, server := range targetServers {
+			decryptedPassword := ""
+			if server.Password != "" {
+				decryptedPassword = utils.GlobalEncryptionService.Decrypt(server.Password)
+			}
+			client, err := mikrotik.GlobalPool.GetConnection(server.HostIP, server.Port, server.Username, decryptedPassword)
+			if err != nil {
+				continue
+			}
+			owner, err := mikrotik.CheckIPInSecrets(client, *data.IPPelanggan)
+			mikrotik.GlobalPool.ReturnConnection(client, server.HostIP, server.Port)
+			if err == nil && owner != "" {
+				cleanOwner := strings.TrimSpace(strings.ToLower(owner))
+				cleanID := strings.TrimSpace(strings.ToLower(data.IDPelanggan))
+				if cleanOwner != cleanID {
+					return fmt.Errorf("IP address %s is already in use by %s on Mikrotik (%s)", *data.IPPelanggan, owner, server.Name)
 				}
 			}
 		}
@@ -233,26 +240,34 @@ func (u *dataTeknisUsecase) Update(ctx context.Context, id uint64, data *domain.
 				return fmt.Errorf("IP address %s is already in use in database", *data.IPPelanggan)
 			}
 
-			servers, err := u.mikrotikRepo.GetAll(ctx)
-			if err == nil {
-				for _, server := range servers {
-					if !server.IsActive {
-						continue
-					}
-					decryptedPassword := ""
-					if server.Password != "" {
-						decryptedPassword = utils.GlobalEncryptionService.Decrypt(server.Password)
-					}
-					client, err := mikrotik.GlobalPool.GetConnection(server.HostIP, server.Port, server.Username, decryptedPassword)
-					if err != nil {
-						continue
-					}
-					owner, err := mikrotik.CheckIPInSecrets(client, *data.IPPelanggan)
-					mikrotik.GlobalPool.ReturnConnection(client, server.HostIP, server.Port)
-					if err == nil && owner != "" {
-						if !strings.EqualFold(owner, data.IDPelanggan) && !strings.EqualFold(owner, oldIDPelanggan) {
-							return fmt.Errorf("IP address %s is already in use by %s on Mikrotik (%s)", *data.IPPelanggan, owner, server.Name)
-						}
+			var targetServers []domain.MikrotikServer
+			if data.MikrotikServerID != nil {
+				if srv, err := u.mikrotikRepo.GetByID(ctx, *data.MikrotikServerID); err == nil && srv != nil && srv.IsActive {
+					targetServers = append(targetServers, *srv)
+				}
+			} else if data.Olt != nil && *data.Olt != "" {
+				if srv, err := u.mikrotikRepo.GetByName(ctx, *data.Olt); err == nil && srv != nil && srv.IsActive {
+					targetServers = append(targetServers, *srv)
+				}
+			}
+
+			for _, server := range targetServers {
+				decryptedPassword := ""
+				if server.Password != "" {
+					decryptedPassword = utils.GlobalEncryptionService.Decrypt(server.Password)
+				}
+				client, err := mikrotik.GlobalPool.GetConnection(server.HostIP, server.Port, server.Username, decryptedPassword)
+				if err != nil {
+					continue
+				}
+				owner, err := mikrotik.CheckIPInSecrets(client, *data.IPPelanggan)
+				mikrotik.GlobalPool.ReturnConnection(client, server.HostIP, server.Port)
+				if err == nil && owner != "" {
+					cleanOwner := strings.TrimSpace(strings.ToLower(owner))
+					cleanID := strings.TrimSpace(strings.ToLower(data.IDPelanggan))
+					cleanOldID := strings.TrimSpace(strings.ToLower(oldIDPelanggan))
+					if cleanOwner != cleanID && cleanOwner != cleanOldID {
+						return fmt.Errorf("IP address %s is already in use by %s on Mikrotik (%s)", *data.IPPelanggan, owner, server.Name)
 					}
 				}
 			}
@@ -682,6 +697,8 @@ func (u *dataTeknisUsecase) ImportFromCSV(ctx context.Context, csvContent string
 		emails = append(emails, rd.email)
 		if rd.serverName != "" {
 			serverNames = append(serverNames, rd.serverName)
+		} else if rd.olt != "" {
+			serverNames = append(serverNames, rd.olt)
 		}
 		if rd.kodeOdp != "" {
 			odpCodes = append(odpCodes, rd.kodeOdp)
@@ -747,6 +764,10 @@ func (u *dataTeknisUsecase) ImportFromCSV(ctx context.Context, csvContent string
 				continue
 			}
 			serverID = &srv.ID
+		} else if rd.olt != "" {
+			if srv, srvExists := serverMap[strings.ToLower(rd.olt)]; srvExists {
+				serverID = &srv.ID
+			}
 		}
 
 		var odpID *uint64
