@@ -584,3 +584,12 @@ func (u *troubleTicketUsecase) GetUserPerformance(ctx context.Context, dateFrom,
 func (u *troubleTicketUsecase) GetDowntimeAnalysis(ctx context.Context, dateFrom, dateTo *time.Time) (map[string]interface{}, error) {
 	return u.repo.GetDowntimeAnalysis(ctx, dateFrom, dateTo)
 }
+
+func (u *troubleTicketUsecase) GetCustomers(ctx context.Context, search string) ([]domain.Pelanggan, error) {
+	return u.repo.GetCustomers(ctx, search)
+}
+
+func (u *troubleTicketUsecase) GetTechnicians(ctx context.Context) ([]domain.User, error) {
+	return u.repo.GetTechnicians(ctx)
+}
+

@@ -26,6 +26,8 @@ func NewTroubleTicketHandler(r *gin.RouterGroup, tu domain.TroubleTicketUsecase,
 	ticketGroup.Use(authMiddleware)
 	{
 		ticketGroup.GET("", handler.FetchAll)
+		ticketGroup.GET("/customers", handler.GetCustomers)
+		ticketGroup.GET("/technicians", handler.GetTechnicians)
 		ticketGroup.GET("/statistics", handler.GetStatistics)
 		ticketGroup.GET("/statistics/dashboard", handler.GetStatistics)
 		ticketGroup.GET("/:id", handler.GetByID)
@@ -536,3 +538,23 @@ func (h *TroubleTicketHandler) GetDowntimeAnalysis(c *gin.Context) {
 
 	c.JSON(http.StatusOK, analysis)
 }
+
+func (h *TroubleTicketHandler) GetCustomers(c *gin.Context) {
+	search := c.Query("search")
+	customers, err := h.usecase.GetCustomers(c.Request.Context(), search)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": customers})
+}
+
+func (h *TroubleTicketHandler) GetTechnicians(c *gin.Context) {
+	technicians, err := h.usecase.GetTechnicians(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": technicians})
+}
+

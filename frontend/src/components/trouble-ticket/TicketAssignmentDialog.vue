@@ -269,7 +269,12 @@ const dialog = computed({
 const fetchUsers = async () => {
   loadingUsers.value = true
   try {
-    const response = await apiClient.get('/users?limit=1000')
+    let response
+    try {
+      response = await apiClient.get('/trouble-tickets/technicians')
+    } catch (e) {
+      response = await apiClient.get('/users?limit=1000')
+    }
     const rawData = response.data.data || response.data || []
 
     // Remove duplicates based on user ID first

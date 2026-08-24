@@ -656,3 +656,44 @@ func (r *troubleTicketRepository) GetDowntimeAnalysis(ctx context.Context, dateF
 		"top_customers": customerDowntime,
 	}, nil
 }
+
+func (r *troubleTicketRepository) GetCustomers(ctx context.Context, search string) ([]domain.Pelanggan, error) {
+	var pelanggan []domain.Pelanggan
+	query := r.db.WithContext(ctx).Model(&domain.Pelanggan{}).
+		Preload("HargaLayanan")
+
+	if search != "" {
+		searchTerm := "%" + strings.TrimSpace(search) + "%"
+		query = query.Where("nama LIKE ? OR no_telp LIKE ? OR alamat LIKE ? OR customer_id LIKE ?",
+			searchTerm, searchTerm, searchTerm, searchTerm)
+	}
+
+	err := query.Order("nama asc").Find(&pelanggan).Error
+	return pelanggan, err
+}
+
+func (r *troubleTicketRepository) GetTechnicians(ctx context.Context) ([]domain.User, error) {
+	var users []domain.User
+	var role domain.Role
+
+	// Cari role teknisi
+	if err := r.db.WithContext(ctx).Where("LOWER(name) = ?", "teknisi").First(&role).Error; err == nil {
+		err := r.db.WithContext(ctx).
+			Preload("Role").
+			Where("role_id = ? AND is_active = ?", role.ID, true).
+			Order("name asc").
+			Find(&users).Error
+		if err == nil && len(users) > 0 {
+			return users, nil
+		}
+	}
+
+	// Fallback to all active users
+	err := r.db.WithContext(ctx).
+		Preload("Role").
+		Where("is_active = ?", true).
+		Order("name asc").
+		Find(&users).Error
+	return users, err
+}
+

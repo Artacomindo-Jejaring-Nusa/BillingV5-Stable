@@ -799,7 +799,12 @@ const getFileIconColor = (file: File) => {
 const fetchCustomers = async () => {
   loadingCustomers.value = true
   try {
-    const response = await apiClient.get('/pelanggan?limit=10000&include_relations=true')
+    let response
+    try {
+      response = await apiClient.get('/trouble-tickets/customers')
+    } catch (e) {
+      response = await apiClient.get('/pelanggan?limit=10000&include_relations=true')
+    }
     const rawData = response.data.data || response.data || []
 
     const uniqueCustomers = rawData.reduce((acc: Customer[], current: Customer) => {
@@ -848,7 +853,12 @@ const fetchTechnicalData = async (pelangganId: number) => {
 const fetchUsers = async () => {
   loadingUsers.value = true
   try {
-    const response = await apiClient.get('/users?limit=1000')
+    let response
+    try {
+      response = await apiClient.get('/trouble-tickets/technicians')
+    } catch (e) {
+      response = await apiClient.get('/users?limit=1000')
+    }
     const rawData = response.data.data || response.data || []
 
     const uniqueUsersById = rawData.filter((user: any, index: number, self: any[]) =>

@@ -23,6 +23,8 @@ type TroubleTicketRepository interface {
 	GetCategoryPerformance(ctx context.Context, dateFrom, dateTo *time.Time) ([]map[string]interface{}, error)
 	GetUserPerformance(ctx context.Context, dateFrom, dateTo *time.Time) ([]map[string]interface{}, error)
 	GetDowntimeAnalysis(ctx context.Context, dateFrom, dateTo *time.Time) (map[string]interface{}, error)
+	GetCustomers(ctx context.Context, search string) ([]Pelanggan, error)
+	GetTechnicians(ctx context.Context) ([]User, error)
 }
 
 type TroubleTicketUsecase interface {
@@ -42,4 +44,6 @@ type TroubleTicketUsecase interface {
 	GetCategoryPerformance(ctx context.Context, dateFrom, dateTo *time.Time) ([]map[string]interface{}, error)
 	GetUserPerformance(ctx context.Context, dateFrom, dateTo *time.Time) ([]map[string]interface{}, error)
 	GetDowntimeAnalysis(ctx context.Context, dateFrom, dateTo *time.Time) (map[string]interface{}, error)
+	GetCustomers(ctx context.Context, search string) ([]Pelanggan, error)
+	GetTechnicians(ctx context.Context) ([]User, error)
 }
