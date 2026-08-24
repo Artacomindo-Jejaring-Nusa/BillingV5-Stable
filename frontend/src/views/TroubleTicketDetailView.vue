@@ -458,46 +458,79 @@ const goToTicketAction = () => {
   }
 }
 
+const isTicketResolvedOrClosed = () => {
+  if (!ticket.value) return false
+  const status = (ticket.value.status || '').toLowerCase().trim()
+  return status === 'resolved' || status === 'closed' || status === 'cancelled' || !!ticket.value.downtime_end
+}
+
+const isTicketPending = () => {
+  if (!ticket.value) return false
+  const status = (ticket.value.status || '').toLowerCase().trim()
+  return status === 'pending' || status === 'pending_customer' || status === 'pending_vendor'
+}
+
+const getCompletedDowntimeFormatted = () => {
+  if (!ticket.value) return '00:00:00'
+  const start = new Date(ticket.value.downtime_start || ticket.value.created_at || new Date())
+  const end = new Date(ticket.value.downtime_end || ticket.value.resolved_at || ticket.value.updated_at || start)
+  const totalPendingMs = (ticket.value.total_pending_minutes || 0) * 60000
+  const diff = Math.max(0, end.getTime() - start.getTime() - totalPendingMs)
+
+  const hours = Math.floor(diff / 3600000)
+  const minutes = Math.floor((diff % 3600000) / 60000)
+  const seconds = Math.floor((diff % 60000) / 1000)
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+}
+
 const updateLiveTimers = () => {
   if (!ticket.value) return
 
-  const now = new Date()
+  // 1. Jika tiket sudah selesai, tampilkan total downtime final yang statis
+  if (isTicketResolvedOrClosed()) {
+    liveDowntimeTimer.value = getCompletedDowntimeFormatted()
 
-  // Update Live Downtime Timer
-  if (ticket.value.created_at) {
-    const start = new Date(ticket.value.downtime_start || ticket.value.created_at)
-    let diff = now.getTime() - start.getTime()
-
-    // Kurangi total pending minutes yang sudah tersimpan
     const totalPendingMs = (ticket.value.total_pending_minutes || 0) * 60000
-    diff -= totalPendingMs
+    const pHours = Math.floor(totalPendingMs / 3600000)
+    const pMinutes = Math.floor((totalPendingMs % 3600000) / 60000)
+    const pSeconds = Math.floor((totalPendingMs % 60000) / 1000)
+    livePendingTimer.value = `${pHours.toString().padStart(2, '0')}:${pMinutes.toString().padStart(2, '0')}:${pSeconds.toString().padStart(2, '0')}`
+    return
+  }
 
-    // Jika saat ini sedang PENDING, kurangi juga durasi pending yang sedang berjalan
-    if (ticket.value.pending_start && 
-        (ticket.value.status === 'pending_customer' || ticket.value.status === 'pending_vendor')) {
-      const pStart = new Date(ticket.value.pending_start)
-      const currentPendingMs = now.getTime() - pStart.getTime()
-      diff -= currentPendingMs
-    }
+  const now = new Date()
+  const start = new Date(ticket.value.downtime_start || ticket.value.created_at)
+  const totalPendingMs = (ticket.value.total_pending_minutes || 0) * 60000
 
-    diff = Math.max(0, diff)
-    const hours = Math.floor(diff / 3600000)
-    const minutes = Math.floor((diff % 3600000) / 60000)
-    const seconds = Math.floor((diff % 60000) / 1000)
+  // 2. Jika tiket sedang PENDING, clock downtime PAUSED (freeze di waktu sebelum pending), clock pending BERTAMBAH
+  if (isTicketPending()) {
+    const pStart = ticket.value.pending_start ? new Date(ticket.value.pending_start) : now
+
+    const frozenDowntimeMs = Math.max(0, pStart.getTime() - start.getTime() - totalPendingMs)
+    const hours = Math.floor(frozenDowntimeMs / 3600000)
+    const minutes = Math.floor((frozenDowntimeMs % 3600000) / 60000)
+    const seconds = Math.floor((frozenDowntimeMs % 60000) / 1000)
     liveDowntimeTimer.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+
+    const currentPendingMs = Math.max(0, now.getTime() - pStart.getTime())
+    const totalLivePendingMs = totalPendingMs + currentPendingMs
+    const pHours = Math.floor(totalLivePendingMs / 3600000)
+    const pMinutes = Math.floor((totalLivePendingMs % 3600000) / 60000)
+    const pSeconds = Math.floor((totalLivePendingMs % 60000) / 1000)
+    livePendingTimer.value = `${pHours.toString().padStart(2, '0')}:${pMinutes.toString().padStart(2, '0')}:${pSeconds.toString().padStart(2, '0')}`
+    return
   }
 
-  // Update Live Pending Timer
-  let pendingDiff = (ticket.value.total_pending_minutes || 0) * 60000
-  if (ticket.value.pending_start && 
-      (ticket.value.status === 'pending_customer' || ticket.value.status === 'pending_vendor')) {
-    const pStart = new Date(ticket.value.pending_start)
-    pendingDiff += (now.getTime() - pStart.getTime())
-  }
+  // 3. Status OPEN / IN PROGRESS (Running Live)
+  let diff = Math.max(0, now.getTime() - start.getTime() - totalPendingMs)
+  const hours = Math.floor(diff / 3600000)
+  const minutes = Math.floor((diff % 3600000) / 60000)
+  const seconds = Math.floor((diff % 60000) / 1000)
+  liveDowntimeTimer.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 
-  const pHours = Math.floor(pendingDiff / 3600000)
-  const pMinutes = Math.floor((pendingDiff % 3600000) / 60000)
-  const pSeconds = Math.floor((pendingDiff % 60000) / 1000)
+  const pHours = Math.floor(totalPendingMs / 3600000)
+  const pMinutes = Math.floor((totalPendingMs % 3600000) / 60000)
+  const pSeconds = Math.floor((totalPendingMs % 60000) / 1000)
   livePendingTimer.value = `${pHours.toString().padStart(2, '0')}:${pMinutes.toString().padStart(2, '0')}:${pSeconds.toString().padStart(2, '0')}`
 }
 

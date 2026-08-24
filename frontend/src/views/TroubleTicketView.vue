@@ -562,14 +562,25 @@
         <!-- Downtime Timer -->
         <template v-slot:item.downtime="{ item }">
           <div class="downtime-container">
-            <div v-if="item.status !== 'resolved' && item.status !== 'closed' && item.status !== 'cancelled'">
+            <div v-if="!isTicketResolvedOrClosed(item)">
               <v-chip
-                :color="getDowntimeColor(item.created_at)"
+                v-if="isTicketPending(item)"
+                color="orange"
+                size="small"
+                variant="flat"
+                class="downtime-timer font-weight-bold"
+                prepend-icon="mdi-pause-circle"
+              >
+                {{ calculateTicketDowntime(item) }}
+              </v-chip>
+              <v-chip
+                v-else
+                :color="getDowntimeColor(item)"
                 size="small"
                 variant="flat"
                 class="downtime-timer font-weight-bold"
               >
-                {{ calculateTicketDowntime(item.created_at) }}
+                {{ calculateTicketDowntime(item) }}
               </v-chip>
             </div>
             <div v-else-if="item.total_downtime_minutes && item.total_downtime_minutes > 0">
@@ -580,6 +591,16 @@
                 class="downtime-resolved font-weight-bold"
               >
                 {{ formatDowntime(item.total_downtime_minutes) }}
+              </v-chip>
+            </div>
+            <div v-else-if="item.downtime_start && item.downtime_end">
+              <v-chip
+                :color="getDowntimeColorFromMinutes(getCompletedTicketMinutes(item))"
+                size="small"
+                variant="flat"
+                class="downtime-resolved font-weight-bold"
+              >
+                {{ formatDowntime(getCompletedTicketMinutes(item)) }}
               </v-chip>
             </div>
             <div v-else class="no-downtime">
@@ -1104,11 +1125,50 @@ const formatCurrentTime = () => {
   })
 }
 
-const calculateTicketDowntime = (created_at: string) => {
-  const start = new Date(created_at)
-  const now = currentTime.value
-  const diff = now.getTime() - start.getTime()
+const isTicketResolvedOrClosed = (ticket: TroubleTicket) => {
+  if (!ticket) return false
+  const status = (ticket.status || '').toLowerCase().trim()
+  return status === 'resolved' || status === 'closed' || status === 'cancelled' || !!ticket.downtime_end
+}
 
+const isTicketPending = (ticket: TroubleTicket) => {
+  if (!ticket) return false
+  const status = (ticket.status || '').toLowerCase().trim()
+  return status === 'pending' || status === 'pending_customer' || status === 'pending_vendor'
+}
+
+const getCompletedTicketMinutes = (ticket: TroubleTicket) => {
+  if (!ticket) return 0
+  if (typeof ticket.total_downtime_minutes === 'number' && ticket.total_downtime_minutes > 0) {
+    return ticket.total_downtime_minutes
+  }
+  if (ticket.downtime_start && ticket.downtime_end) {
+    const start = new Date(ticket.downtime_start)
+    const end = new Date(ticket.downtime_end)
+    const totalPendingMs = (ticket.total_pending_minutes || 0) * 60000
+    const diffMs = Math.max(0, end.getTime() - start.getTime() - totalPendingMs)
+    return Math.floor(diffMs / 60000)
+  }
+  return 0
+}
+
+const calculateTicketDowntime = (ticket: TroubleTicket) => {
+  if (!ticket || !ticket.created_at) return '00:00:00'
+  const start = new Date(ticket.downtime_start || ticket.created_at)
+  const now = currentTime.value
+  const totalPendingMs = (ticket.total_pending_minutes || 0) * 60000
+
+  // Jika pending, waktu downtime dibekukan di pending_start
+  if (isTicketPending(ticket)) {
+    const pStart = ticket.pending_start ? new Date(ticket.pending_start) : now
+    const frozenDowntimeMs = Math.max(0, pStart.getTime() - start.getTime() - totalPendingMs)
+    const hours = Math.floor(frozenDowntimeMs / 3600000)
+    const minutes = Math.floor((frozenDowntimeMs % 3600000) / 60000)
+    const seconds = Math.floor((frozenDowntimeMs % 60000) / 1000)
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  let diff = Math.max(0, now.getTime() - start.getTime() - totalPendingMs)
   const hours = Math.floor(diff / 3600000)
   const minutes = Math.floor((diff % 3600000) / 60000)
   const seconds = Math.floor((diff % 60000) / 1000)
@@ -1116,10 +1176,14 @@ const calculateTicketDowntime = (created_at: string) => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
-const getDowntimeColor = (created_at: string) => {
-  const start = new Date(created_at)
+const getDowntimeColor = (ticket: TroubleTicket) => {
+  if (isTicketPending(ticket)) return 'orange'
+  if (!ticket || !ticket.created_at) return 'grey'
+
+  const start = new Date(ticket.downtime_start || ticket.created_at)
   const now = currentTime.value
-  const diff = now.getTime() - start.getTime()
+  const totalPendingMs = (ticket.total_pending_minutes || 0) * 60000
+  const diff = Math.max(0, now.getTime() - start.getTime() - totalPendingMs)
   const minutes = Math.floor(diff / 60000)
 
   if (minutes < 60) return 'success'

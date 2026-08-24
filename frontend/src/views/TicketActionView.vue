@@ -247,8 +247,64 @@
                     TOTAL DOWNTIME
                   </v-list-item-subtitle>
                   
-                  <!-- Live Timer - ALWAYS RUNNING -->
-                  <div v-if="!isTicketResolvedOrClosed() && ticket.created_at">
+                  <!-- Completed Downtime (Resolved / Closed / Cancelled or End Time exists) -->
+                  <div v-if="isTicketResolvedOrClosed()">
+                    <v-card 
+                      :color="getDowntimeColor(getCompletedDowntimeMinutes()) + '-lighten-5'" 
+                      variant="flat" 
+                      class="pa-6 text-center rounded-xl elevation-2"
+                    >
+                      <v-avatar :color="getDowntimeColor(getCompletedDowntimeMinutes())" size="64" class="mb-4">
+                        <v-icon color="white" size="36">mdi-check-circle</v-icon>
+                      </v-avatar>
+                      <div class="downtime-timer-text text-h2 font-weight-bold mb-3" :class="'text-' + getDowntimeColor(getCompletedDowntimeMinutes())">
+                        {{ getCompletedDowntimeFormatted() }}
+                      </div>
+                      <v-chip 
+                        :color="getDowntimeColor(getCompletedDowntimeMinutes())" 
+                        size="small" 
+                        variant="flat"
+                        class="font-weight-bold mb-2"
+                      >
+                        <v-icon start size="14">mdi-clock-check</v-icon>
+                        {{ formatDowntime(getCompletedDowntimeMinutes()) }}
+                      </v-chip>
+                      <div class="text-caption text-medium-emphasis mt-2">
+                        Total downtime recorded
+                      </div>
+                    </v-card>
+                  </div>
+                  
+                  <!-- Pending State (Downtime Clock Paused) -->
+                  <div v-else-if="isTicketPending()">
+                    <v-card 
+                      color="orange-lighten-5" 
+                      variant="flat" 
+                      class="pa-6 text-center rounded-xl downtime-card elevation-2"
+                    >
+                      <v-avatar color="orange" size="64" class="mb-4">
+                        <v-icon color="white" size="36">mdi-pause-circle</v-icon>
+                      </v-avatar>
+                      <div class="downtime-timer-text text-h2 font-weight-bold mb-3 text-orange">
+                        {{ liveDowntimeTimer }}
+                      </div>
+                      <v-chip 
+                        color="orange" 
+                        size="small" 
+                        variant="flat"
+                        class="font-weight-bold mb-2"
+                      >
+                        <v-icon start size="14">mdi-pause</v-icon>
+                        Clock Paused (Pending)
+                      </v-chip>
+                      <div class="text-caption text-medium-emphasis mt-2">
+                        Downtime clock paused during pending state
+                      </div>
+                    </v-card>
+                  </div>
+
+                  <!-- Live Running Timer (Open / In Progress) -->
+                  <div v-else-if="ticket.created_at">
                     <v-card 
                       :color="getDowntimeCardColor()" 
                       variant="flat" 
@@ -274,26 +330,7 @@
                       </div>
                     </v-card>
                   </div>
-                  
-                  <!-- Completed Downtime -->
-                  <div v-else-if="ticket.total_downtime_minutes && ticket.total_downtime_minutes > 0">
-                    <v-card 
-                      :color="getDowntimeColor(ticket.total_downtime_minutes) + '-lighten-5'" 
-                      variant="flat" 
-                      class="pa-6 text-center rounded-xl elevation-2"
-                    >
-                      <v-avatar :color="getDowntimeColor(ticket.total_downtime_minutes)" size="64" class="mb-4">
-                        <v-icon color="white" size="36">mdi-check-circle</v-icon>
-                      </v-avatar>
-                      <div class="text-h3 font-weight-bold mb-3" :class="'text-' + getDowntimeColor(ticket.total_downtime_minutes)">
-                        {{ formatDowntime(ticket.total_downtime_minutes) }}
-                      </div>
-                      <div class="text-caption text-medium-emphasis">
-                        Total downtime recorded
-                      </div>
-                    </v-card>
-                  </div>
-                  
+
                   <!-- No Downtime -->
                   <div v-else>
                     <v-card color="grey-lighten-4" variant="flat" class="pa-6 text-center rounded-xl">
@@ -952,71 +989,112 @@ const liveDowntimeTimer = ref('00:00:00')
 const livePendingTimer = ref('00:00:00')
 
 const isTicketResolvedOrClosed = () => {
-  return ticket.value?.status === 'resolved' ||
-         ticket.value?.status === 'closed' ||
-         ticket.value?.status === 'cancelled'
+  if (!ticket.value) return false
+  const status = (ticket.value.status || '').toLowerCase().trim()
+  return status === 'resolved' || status === 'closed' || status === 'cancelled' || !!ticket.value.downtime_end
+}
+
+const isTicketPending = () => {
+  if (!ticket.value) return false
+  const status = (ticket.value.status || '').toLowerCase().trim()
+  return status === 'pending' || status === 'pending_customer' || status === 'pending_vendor'
+}
+
+const getCompletedDowntimeMinutes = () => {
+  if (!ticket.value) return 0
+  if (typeof ticket.value.total_downtime_minutes === 'number' && ticket.value.total_downtime_minutes > 0) {
+    return ticket.value.total_downtime_minutes
+  }
+  if (ticket.value.downtime_start && (ticket.value.downtime_end || ticket.value.resolved_at || ticket.value.updated_at)) {
+    const start = new Date(ticket.value.downtime_start)
+    const end = new Date(ticket.value.downtime_end || ticket.value.resolved_at || ticket.value.updated_at || start)
+    const totalPendingMs = (ticket.value.total_pending_minutes || 0) * 60000
+    const diffMs = Math.max(0, end.getTime() - start.getTime() - totalPendingMs)
+    return Math.floor(diffMs / 60000)
+  }
+  return 0
+}
+
+const getCompletedDowntimeFormatted = () => {
+  if (!ticket.value) return '00:00:00'
+  const start = new Date(ticket.value.downtime_start || ticket.value.created_at || new Date())
+  const end = new Date(ticket.value.downtime_end || ticket.value.resolved_at || ticket.value.updated_at || start)
+  const totalPendingMs = (ticket.value.total_pending_minutes || 0) * 60000
+  const diff = Math.max(0, end.getTime() - start.getTime() - totalPendingMs)
+
+  const hours = Math.floor(diff / 3600000)
+  const minutes = Math.floor((diff % 3600000) / 60000)
+  const seconds = Math.floor((diff % 60000) / 1000)
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
 const updateLiveDowntimeTimer = () => {
   if (!ticket.value?.created_at) {
     liveDowntimeTimer.value = '00:00:00'
+    livePendingTimer.value = '00:00:00'
     return
   }
 
-  // Jika tiket sudah selesai, tampilkan total downtime yang tersimpan
+  // 1. Jika tiket sudah selesai (resolved/closed/cancelled/downtime_end), tampilkan total downtime yang static
   if (isTicketResolvedOrClosed()) {
-    const totalMinutes = ticket.value.total_downtime_minutes || 0
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
-    liveDowntimeTimer.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`
+    liveDowntimeTimer.value = getCompletedDowntimeFormatted()
+
+    // Static pending timer
+    const totalPendingMs = (ticket.value.total_pending_minutes || 0) * 60000
+    const pHours = Math.floor(totalPendingMs / 3600000)
+    const pMinutes = Math.floor((totalPendingMs % 3600000) / 60000)
+    const pSeconds = Math.floor((totalPendingMs % 60000) / 1000)
+    livePendingTimer.value = `${pHours.toString().padStart(2, '0')}:${pMinutes.toString().padStart(2, '0')}:${pSeconds.toString().padStart(2, '0')}`
     return
   }
 
   const start = new Date(ticket.value.downtime_start || ticket.value.created_at)
   const now = new Date()
-  let diff = now.getTime() - start.getTime()
-
-  // Kurangi total pending minutes yang sudah tersimpan
   const totalPendingMs = (ticket.value.total_pending_minutes || 0) * 60000
-  diff -= totalPendingMs
 
-  // Jika saat ini sedang PENDING, kurangi juga durasi pending yang sedang berjalan
-  if (ticket.value.pending_start && 
-      (ticket.value.status === 'pending_customer' || ticket.value.status === 'pending_vendor')) {
-    const pStart = new Date(ticket.value.pending_start)
-    const currentPendingMs = now.getTime() - pStart.getTime()
-    diff -= currentPendingMs
+  // 2. Jika tiket sedang PENDING, clock downtime PAUSED (freeze di waktu sebelum pending), clock pending BERTAMBAH
+  if (isTicketPending()) {
+    const pStart = ticket.value.pending_start ? new Date(ticket.value.pending_start) : now
+
+    // Frozen downtime = (pStart - start) - totalPendingMs
+    const frozenDowntimeMs = Math.max(0, pStart.getTime() - start.getTime() - totalPendingMs)
+    const hours = Math.floor(frozenDowntimeMs / 3600000)
+    const minutes = Math.floor((frozenDowntimeMs % 3600000) / 60000)
+    const seconds = Math.floor((frozenDowntimeMs % 60000) / 1000)
+    liveDowntimeTimer.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+
+    // Live Pending duration = past accumulated pending + current pending duration (now - pStart)
+    const currentPendingMs = Math.max(0, now.getTime() - pStart.getTime())
+    const totalLivePendingMs = totalPendingMs + currentPendingMs
+    const pHours = Math.floor(totalLivePendingMs / 3600000)
+    const pMinutes = Math.floor((totalLivePendingMs % 3600000) / 60000)
+    const pSeconds = Math.floor((totalLivePendingMs % 60000) / 1000)
+    livePendingTimer.value = `${pHours.toString().padStart(2, '0')}:${pMinutes.toString().padStart(2, '0')}:${pSeconds.toString().padStart(2, '0')}`
+    return
   }
 
-  // Pastikan diff tidak negatif
-  diff = Math.max(0, diff)
-
+  // 3. Status OPEN / IN PROGRESS (Running Live)
+  let diff = Math.max(0, now.getTime() - start.getTime() - totalPendingMs)
   const hours = Math.floor(diff / 3600000)
   const minutes = Math.floor((diff % 3600000) / 60000)
   const seconds = Math.floor((diff % 60000) / 1000)
-
   liveDowntimeTimer.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 
-  // Update Live Pending Timer
-  let pendingDiff = (ticket.value.total_pending_minutes || 0) * 60000
-  if (ticket.value.pending_start && 
-      (ticket.value.status === 'pending_customer' || ticket.value.status === 'pending_vendor')) {
-    const pStart = new Date(ticket.value.pending_start)
-    pendingDiff += (now.getTime() - pStart.getTime())
-  }
-
-  const pHours = Math.floor(pendingDiff / 3600000)
-  const pMinutes = Math.floor((pendingDiff % 3600000) / 60000)
-  const pSeconds = Math.floor((pendingDiff % 60000) / 1000)
+  // Static past pending duration
+  const pHours = Math.floor(totalPendingMs / 3600000)
+  const pMinutes = Math.floor((totalPendingMs % 3600000) / 60000)
+  const pSeconds = Math.floor((totalPendingMs % 60000) / 1000)
   livePendingTimer.value = `${pHours.toString().padStart(2, '0')}:${pMinutes.toString().padStart(2, '0')}:${pSeconds.toString().padStart(2, '0')}`
 }
 
 const getDowntimeCardColor = () => {
+  if (isTicketPending()) return 'orange-lighten-5'
   if (!ticket.value?.created_at) return 'grey-lighten-4'
   
-  const start = new Date(ticket.value.created_at)
+  const start = new Date(ticket.value.downtime_start || ticket.value.created_at)
   const now = new Date()
-  const diff = now.getTime() - start.getTime()
+  const totalPendingMs = (ticket.value.total_pending_minutes || 0) * 60000
+  const diff = Math.max(0, now.getTime() - start.getTime() - totalPendingMs)
   const minutes = Math.floor(diff / 60000)
 
   if (minutes < 60) return 'success-lighten-5'
@@ -1026,11 +1104,13 @@ const getDowntimeCardColor = () => {
 }
 
 const getDowntimeIconColor = () => {
+  if (isTicketPending()) return 'orange'
   if (!ticket.value?.created_at) return 'grey'
   
-  const start = new Date(ticket.value.created_at)
+  const start = new Date(ticket.value.downtime_start || ticket.value.created_at)
   const now = new Date()
-  const diff = now.getTime() - start.getTime()
+  const totalPendingMs = (ticket.value.total_pending_minutes || 0) * 60000
+  const diff = Math.max(0, now.getTime() - start.getTime() - totalPendingMs)
   const minutes = Math.floor(diff / 60000)
 
   if (minutes < 60) return 'success'
@@ -1040,28 +1120,14 @@ const getDowntimeIconColor = () => {
 }
 
 const getDowntimeLabel = () => {
+  if (isTicketPending()) return 'Clock Paused (Pending)'
   if (!ticket.value?.created_at) return 'No start time'
   
   const start = new Date(ticket.value.downtime_start || ticket.value.created_at)
   const now = new Date()
-  let diff = now.getTime() - start.getTime()
-  
-  // Subtract pending
   const totalPendingMs = (ticket.value.total_pending_minutes || 0) * 60000
-  diff -= totalPendingMs
-  
-  if (ticket.value.pending_start && 
-      (ticket.value.status === 'pending_customer' || ticket.value.status === 'pending_vendor')) {
-    const pStart = new Date(ticket.value.pending_start)
-    const currentPendingMs = now.getTime() - pStart.getTime()
-    diff -= currentPendingMs
-  }
-  
-  const minutes = Math.max(0, Math.floor(diff / 60000))
-
-  if (ticket.value.status === 'pending_customer' || ticket.value.status === 'pending_vendor') {
-    return 'Clock Paused (Pending)'
-  }
+  const diff = Math.max(0, now.getTime() - start.getTime() - totalPendingMs)
+  const minutes = Math.floor(diff / 60000)
 
   if (minutes < 60) return 'Running normally'
   if (minutes < 240) return 'Attention needed'
