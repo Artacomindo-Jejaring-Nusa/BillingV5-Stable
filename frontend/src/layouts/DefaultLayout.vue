@@ -1725,16 +1725,28 @@ async function markAllAsRead() {
 }
 
 async function fetchRoleCount() {
+  const roleName = authStore.user?.role?.name?.toLowerCase();
+  const isAdminOrSuper = roleName === 'admin' || roleName === 'superadmin';
+  const hasPerm = userPermissions.value.includes('*') || userPermissions.value.includes('view_roles');
+  if (!isAdminOrSuper && !hasPerm) return;
+
   try {
     const response = await apiClient.get('/roles');
     const data = Array.isArray(response.data) ? response.data : (response.data.data || []);
     roleCount.value = data.length;
-  } catch (error) {
-    console.error("Gagal mengambil jumlah roles:", error);
+  } catch (error: any) {
+    if (error?.response?.status !== 403) {
+      console.error("Gagal mengambil jumlah roles:", error);
+    }
   }
 }
 
 async function fetchUserCount() {
+  const roleName = authStore.user?.role?.name?.toLowerCase();
+  const isAdminOrSuper = roleName === 'admin' || roleName === 'superadmin';
+  const hasPerm = userPermissions.value.includes('*') || userPermissions.value.includes('view_users');
+  if (!isAdminOrSuper && !hasPerm) return;
+
   try {
     const response = await apiClient.get('/users');
     if (response.data && typeof response.data.total_count === 'number') {
@@ -1743,8 +1755,10 @@ async function fetchUserCount() {
       const data = Array.isArray(response.data) ? response.data : (response.data.data || []);
       userCount.value = data.length;
     }
-  } catch (error) {
-    console.error("Gagal mengambil jumlah users:", error);
+  } catch (error: any) {
+    if (error?.response?.status !== 403) {
+      console.error("Gagal mengambil jumlah users:", error);
+    }
   }
 }
 
