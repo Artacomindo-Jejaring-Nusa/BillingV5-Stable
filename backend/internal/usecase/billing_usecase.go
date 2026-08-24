@@ -1479,9 +1479,11 @@ func (u *billingUsecase) GetRevenueReportDetails(ctx context.Context, params *do
 // --- Portability ---
 
 func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]byte, string, error) {
-	headers := []string{"ID", "Pelanggan", "Brand", "Status", "Paket"}
+	headers := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Status", "Kategori User", "Harga Awal", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti", "Metode"}
 	limit := 1000
 	offset := 0
+	today := time.Now()
+	startOfMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
 
 	brandMap := make(map[string]string)
 	db := database.GetDB()
@@ -1527,15 +1529,36 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 			}
 
 			for _, l := range chunk {
-				pName, pkName, brandName := "", "", ""
+				pName, addr, pkName, brandName := "", "", "", ""
 				if l.Pelanggan != nil {
 					pName = l.Pelanggan.Nama
+					addr = l.Pelanggan.Alamat
 					brandName = getBrandName(l.Pelanggan.IDBrand)
 				}
 				if l.PaketLayanan != nil {
 					pkName = l.PaketLayanan.NamaPaket
 				}
-				vals := []interface{}{l.ID, pName, brandName, l.Status, pkName}
+				sm, tb, al := "", "", ""
+				if l.TglMulaiLangganan != nil {
+					sm = l.TglMulaiLangganan.Format("2006-01-02")
+				}
+				if l.TglBerhenti != nil {
+					tb = l.TglBerhenti.Format("2006-01-02")
+				}
+				if l.AlasanBerhenti != nil {
+					al = *l.AlasanBerhenti
+				}
+				h := 0.0
+				if l.HargaAwal != nil {
+					h = *l.HargaAwal
+				}
+
+				userCategory := "Existing User"
+				if (l.TglMulaiLangganan != nil && (l.TglMulaiLangganan.After(startOfMonth) || l.TglMulaiLangganan.Equal(startOfMonth))) || (l.CreatedAt != nil && l.CreatedAt.After(startOfMonth)) {
+					userCategory = "New User"
+				}
+
+				vals := []interface{}{l.ID, pName, addr, brandName, pkName, l.Status, userCategory, h, sm, tb, al, l.MetodePembayaran}
 				for c, v := range vals {
 					cell, _ := excelize.CoordinatesToCellName(c+1, row)
 					f.SetCellValue(s, cell, v)
@@ -1567,15 +1590,36 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 			}
 
 			for _, l := range chunk {
-				n, pk, brandName := "", "", ""
+				n, addr, pk, brandName := "", "", "", ""
 				if l.Pelanggan != nil {
 					n = l.Pelanggan.Nama
+					addr = l.Pelanggan.Alamat
 					brandName = getBrandName(l.Pelanggan.IDBrand)
 				}
 				if l.PaketLayanan != nil {
 					pk = l.PaketLayanan.NamaPaket
 				}
-				w.Write([]string{fmt.Sprintf("%d", l.ID), n, brandName, l.Status, pk})
+				sm, tb, al := "", "", ""
+				if l.TglMulaiLangganan != nil {
+					sm = l.TglMulaiLangganan.Format("2006-01-02")
+				}
+				if l.TglBerhenti != nil {
+					tb = l.TglBerhenti.Format("2006-01-02")
+				}
+				if l.AlasanBerhenti != nil {
+					al = *l.AlasanBerhenti
+				}
+				hStr := "0"
+				if l.HargaAwal != nil {
+					hStr = fmt.Sprintf("%.2f", *l.HargaAwal)
+				}
+
+				userCategory := "Existing User"
+				if (l.TglMulaiLangganan != nil && (l.TglMulaiLangganan.After(startOfMonth) || l.TglMulaiLangganan.Equal(startOfMonth))) || (l.CreatedAt != nil && l.CreatedAt.After(startOfMonth)) {
+					userCategory = "New User"
+				}
+
+				w.Write([]string{fmt.Sprintf("%d", l.ID), n, addr, brandName, pk, l.Status, userCategory, hStr, sm, tb, al, l.MetodePembayaran})
 			}
 
 			offset += limit
@@ -1621,13 +1665,44 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	// 1. DAFTAR LANGGANAN
 	s1 := "Daftar Langganan"
 	f.SetSheetName("Sheet1", s1)
-	headers1 := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Status", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Metode"}
+	headers1 := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Status", "Kategori User", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti", "Metode"}
 	for i, h := range headers1 {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(s1, cell, h)
 	}
 
+	type StoppedUser struct {
+		ID             uint64
+		Nama           string
+		Alamat         string
+		Brand          string
+		Paket          string
+		MulaiLangganan string
+		TglBerhenti    string
+		AlasanBerhenti string
+	}
+
+	type NewUserInfo struct {
+		ID             uint64
+		Nama           string
+		Alamat         string
+		Brand          string
+		Paket          string
+		Status         string
+		Harga          float64
+		JatuhTempo     string
+		MulaiLangganan string
+		Metode         string
+	}
+
 	var totalAktif, totalSuspended, totalBerhenti, totalLangganan int64
+	var totalNewUsersThisMonth, totalStoppedThisMonth int64
+	var stoppedUsers []StoppedUser
+	var newUsers []NewUserInfo
+
+	startOfMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
+	endOfMonth := startOfMonth.AddDate(0, 1, 0)
+
 	offset1 := 0
 	row1 := 2
 	for {
@@ -1659,19 +1734,74 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 			if l.PaketLayanan != nil {
 				pkName = l.PaketLayanan.NamaPaket
 			}
-			jt, sm := "", ""
+			jt, sm, tb, al := "", "", "", ""
 			if l.TglJatuhTempo != nil {
 				jt = l.TglJatuhTempo.Format("2006-01-02")
 			}
 			if l.TglMulaiLangganan != nil {
 				sm = l.TglMulaiLangganan.Format("2006-01-02")
 			}
+			if l.TglBerhenti != nil {
+				tb = l.TglBerhenti.Format("2006-01-02")
+			}
+			if l.AlasanBerhenti != nil {
+				al = *l.AlasanBerhenti
+			}
 			h := 0.0
 			if l.HargaAwal != nil {
 				h = *l.HargaAwal
 			}
 
-			vals := []interface{}{l.ID, pName, addr, brandName, pkName, l.Status, h, jt, sm, l.MetodePembayaran}
+			// Determine if New User
+			userCategory := "Existing User"
+			isNew := false
+			if l.TglMulaiLangganan != nil {
+				if (l.TglMulaiLangganan.After(startOfMonth) || l.TglMulaiLangganan.Equal(startOfMonth)) && l.TglMulaiLangganan.Before(endOfMonth) {
+					userCategory = "New User"
+					isNew = true
+					totalNewUsersThisMonth++
+				} else if today.Sub(*l.TglMulaiLangganan).Hours() <= 24*35 && l.TglMulaiLangganan.Before(today.Add(24*time.Hour)) {
+					userCategory = "New User"
+					isNew = true
+				}
+			} else if l.CreatedAt != nil && l.CreatedAt.After(startOfMonth) {
+				userCategory = "New User"
+				isNew = true
+				totalNewUsersThisMonth++
+			}
+
+			if isNew {
+				newUsers = append(newUsers, NewUserInfo{
+					ID:             l.ID,
+					Nama:           pName,
+					Alamat:         addr,
+					Brand:          brandName,
+					Paket:          pkName,
+					Status:         l.Status,
+					Harga:          h,
+					JatuhTempo:     jt,
+					MulaiLangganan: sm,
+					Metode:         l.MetodePembayaran,
+				})
+			}
+
+			if l.Status == "Berhenti" || tb != "" {
+				if l.TglBerhenti != nil && (l.TglBerhenti.After(startOfMonth) || l.TglBerhenti.Equal(startOfMonth)) && l.TglBerhenti.Before(endOfMonth) {
+					totalStoppedThisMonth++
+				}
+				stoppedUsers = append(stoppedUsers, StoppedUser{
+					ID:             l.ID,
+					Nama:           pName,
+					Alamat:         addr,
+					Brand:          brandName,
+					Paket:          pkName,
+					MulaiLangganan: sm,
+					TglBerhenti:    tb,
+					AlasanBerhenti: al,
+				})
+			}
+
+			vals := []interface{}{l.ID, pName, addr, brandName, pkName, l.Status, userCategory, h, jt, sm, tb, al, l.MetodePembayaran}
 			for c, v := range vals {
 				cell, _ := excelize.CoordinatesToCellName(c+1, row1)
 				f.SetCellValue(s1, cell, v)
@@ -1685,7 +1815,39 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 		}
 	}
 
-	// 2. DATA TEKNIS
+	// 2. USER BARU (NEW USER) SHEET
+	sNew := "User Baru (New User)"
+	f.NewSheet(sNew)
+	headersNew := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Status", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Metode"}
+	for i, h := range headersNew {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sNew, cell, h)
+	}
+	for i, uNew := range newUsers {
+		vals := []interface{}{uNew.ID, uNew.Nama, uNew.Alamat, uNew.Brand, uNew.Paket, uNew.Status, uNew.Harga, uNew.JatuhTempo, uNew.MulaiLangganan, uNew.Metode}
+		for c, v := range vals {
+			cell, _ := excelize.CoordinatesToCellName(c+1, i+2)
+			f.SetCellValue(sNew, cell, v)
+		}
+	}
+
+	// 3. USER BERHENTI SHEET
+	sStopped := "User Berhenti"
+	f.NewSheet(sStopped)
+	headersStopped := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti"}
+	for i, h := range headersStopped {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sStopped, cell, h)
+	}
+	for i, uStop := range stoppedUsers {
+		vals := []interface{}{uStop.ID, uStop.Nama, uStop.Alamat, uStop.Brand, uStop.Paket, uStop.MulaiLangganan, uStop.TglBerhenti, uStop.AlasanBerhenti}
+		for c, v := range vals {
+			cell, _ := excelize.CoordinatesToCellName(c+1, i+2)
+			f.SetCellValue(sStopped, cell, v)
+		}
+	}
+
+	// 4. DATA TEKNIS
 	s2 := "Data Teknis"
 	f.NewSheet(s2)
 	headers2 := []string{"ID Pelanggan", "PPPoE User", "Profile", "IP Address", "VLAN", "OLT", "PON/OTB/ODC", "SN", "ONU Power"}
@@ -1752,7 +1914,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 		}
 	}
 
-	// 3. RIWAYAT INVOICE (RIWAYAT PEMBAYARAN)
+	// 5. RIWAYAT INVOICE (RIWAYAT PEMBAYARAN)
 	s3 := "Riwayat Invoice"
 	f.NewSheet(s3)
 	headers3 := []string{"No Invoice", "Pelanggan", "Total Tagihan", "Status", "Tgl Invoice", "Tgl Lunas", "Metode Bayar"}
@@ -1797,10 +1959,10 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 		}
 	}
 
-	// 4. STATISTIK & RINGKASAN
+	// 6. STATISTIK & RINGKASAN
 	s4 := "Statistik & Ringkasan"
 	f.NewSheet(s4)
-	f.SetCellValue(s4, "A1", "RINGKASAN OPERASIONAL")
+	f.SetCellValue(s4, "A1", "RINGKASAN OPERASIONAL & KEUANGAN")
 	f.SetCellValue(s4, "A2", "Generated At:")
 	f.SetCellValue(s4, "B2", today.Format("2006-01-02 15:04:05"))
 
@@ -1813,6 +1975,27 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	f.SetCellValue(s4, "B7", totalBerhenti)
 	f.SetCellValue(s4, "A8", "TOTAL")
 	f.SetCellValue(s4, "B8", totalLangganan)
+
+	f.SetCellValue(s4, "A10", "STATISTIK PERIODE INI (AUDIT FINANCE)")
+	f.SetCellValue(s4, "A11", "New User (Bulan Ini)")
+	f.SetCellValue(s4, "B11", totalNewUsersThisMonth)
+	f.SetCellValue(s4, "A12", "User Berhenti (Bulan Ini)")
+	f.SetCellValue(s4, "B12", totalStoppedThisMonth)
+
+	// Rincian Daftar User Berhenti di Sheet Statistik
+	f.SetCellValue(s4, "A14", "DAFTAR DETAIL PELANGGAN BERHENTI (AUDIT FINANCE)")
+	auditHeaders := []string{"No", "ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti"}
+	for i, h := range auditHeaders {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 15)
+		f.SetCellValue(s4, cell, h)
+	}
+	for i, uStop := range stoppedUsers {
+		vals := []interface{}{i + 1, uStop.ID, uStop.Nama, uStop.Alamat, uStop.Brand, uStop.Paket, uStop.MulaiLangganan, uStop.TglBerhenti, uStop.AlasanBerhenti}
+		for c, v := range vals {
+			cell, _ := excelize.CoordinatesToCellName(c+1, i+16)
+			f.SetCellValue(s4, cell, v)
+		}
+	}
 
 	buf, err := f.WriteToBuffer()
 	if err != nil {
