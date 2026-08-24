@@ -403,10 +403,12 @@ interface TroubleTicket {
     id: number
     name: string
   }
-  downtime_start?: string
+  downtime_start?: string | null
+  downtime_end?: string | null
   total_downtime_minutes?: number
-  pending_start?: string
+  pending_start?: string | null
   total_pending_minutes: number
+  resolved_at?: string | null
   created_at: string
   updated_at: string
 }
