@@ -928,46 +928,41 @@ const fetchTickets = async () => {
   loading.value = true
   try {
     const params: any = {
+      page: currentPage.value,
+      pageSize: itemsPerPage.value,
       skip: (currentPage.value - 1) * itemsPerPage.value,
       limit: itemsPerPage.value,
+      show_closed: filters.showClosed ? 'true' : 'false',
       include_relations: true
     }
 
-      Object.entries(filters).forEach(([key, value]) => {
-      if (value) {
-        if (key === 'brand') {
-          params[key] = value
-        } else if (key === 'search') {
-          params.search = value
-        } else if (key === 'showClosed') {
-          // showClosed akan dihandle client-side, tidak perlu dikirim ke backend
-        } else {
-          params[key] = value
-        }
-      }
-    })
-
-    // Debug: Log parameters yang dikirim (d komentar untuk production)
-    // console.log('Filter params:', params)
-    // console.log('showClosed value:', filters.showClosed)
+    if (filters.status) {
+      params.status = filters.status
+    }
+    if (filters.category) {
+      params.category = filters.category
+    }
+    if (filters.brand) {
+      params.id_brand = filters.brand
+      params.brand = filters.brand
+    }
+    if (filters.search) {
+      params.search = filters.search
+    }
 
     const response = await apiClient.get('/trouble-tickets', { params })
-    let allTickets = response.data.data
+    let allTickets = response.data.data || []
 
-    // Client-side filtering untuk closed tickets
-    if (!filters.showClosed) {
-      allTickets = allTickets.filter((ticket: any) => ticket.status !== 'closed')
+    // Fallback client-side filtering untuk closed tickets (case-insensitive)
+    if (!filters.showClosed && !filters.status) {
+      allTickets = allTickets.filter((ticket: any) => {
+        const s = (ticket.status || '').toLowerCase().trim()
+        return s !== 'closed' && s !== 'resolved' && s !== 'cancelled'
+      })
     }
 
     tickets.value = allTickets
-    // Jika filter showClosed aktif, adjust totalItems untuk refleksi filter client-side
-    if (!filters.showClosed) {
-      // Hitung jumlah closed tickets yang di-filter
-      const closedCount = response.data.data.filter((ticket: any) => ticket.status === 'closed').length
-      totalItems.value = (response.data.total || 0) - closedCount
-    } else {
-      totalItems.value = response.data.total || 0
-    }
+    totalItems.value = response.data.total !== undefined ? response.data.total : allTickets.length
   } catch (error) {
     console.error('Failed to fetch tickets:', error)
   } finally {

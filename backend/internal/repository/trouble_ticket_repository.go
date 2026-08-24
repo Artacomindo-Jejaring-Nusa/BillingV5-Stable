@@ -28,7 +28,13 @@ func (r *troubleTicketRepository) GetAll(ctx context.Context, limit, offset int,
 
 	// Apply Filters
 	if status, ok := filters["status"]; ok && status != "" {
-		query = query.Where("status = ?", status)
+		query = query.Where("LOWER(trouble_ticket.status) = ?", strings.ToLower(status.(string)))
+	} else {
+		if showClosed, ok := filters["show_closed"]; ok && (showClosed == "false" || showClosed == false || showClosed == "0") {
+			query = query.Where("LOWER(trouble_ticket.status) NOT IN ('closed', 'resolved', 'cancelled')")
+		} else if hideClosed, ok := filters["hide_closed"]; ok && (hideClosed == "true" || hideClosed == true || hideClosed == "1") {
+			query = query.Where("LOWER(trouble_ticket.status) NOT IN ('closed', 'resolved', 'cancelled')")
+		}
 	}
 	if priority, ok := filters["priority"]; ok && priority != "" {
 		query = query.Where("priority = ?", priority)

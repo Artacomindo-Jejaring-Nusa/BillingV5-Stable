@@ -66,10 +66,26 @@ func NewTroubleTicketHandler(r *gin.RouterGroup, tu domain.TroubleTicketUsecase,
 func (h *TroubleTicketHandler) FetchAll(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "15"))
+	if limit := c.Query("limit"); limit != "" && pageSize == 15 {
+		if l, err := strconv.Atoi(limit); err == nil && l > 0 {
+			pageSize = l
+		}
+	}
+	if skip := c.Query("skip"); skip != "" && page == 1 {
+		if s, err := strconv.Atoi(skip); err == nil && s >= 0 && pageSize > 0 {
+			page = (s / pageSize) + 1
+		}
+	}
 
 	filters := make(map[string]interface{})
 	if status := c.Query("status"); status != "" {
 		filters["status"] = status
+	}
+	if showClosed := c.Query("show_closed"); showClosed != "" {
+		filters["show_closed"] = showClosed
+	}
+	if hideClosed := c.Query("hide_closed"); hideClosed != "" {
+		filters["hide_closed"] = hideClosed
 	}
 	if priority := c.Query("priority"); priority != "" {
 		filters["priority"] = priority
