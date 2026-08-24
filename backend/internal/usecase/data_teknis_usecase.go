@@ -508,21 +508,7 @@ func (u *dataTeknisUsecase) GetLastUsedIP(ctx context.Context, mikrotikServerID 
 }
 
 func (u *dataTeknisUsecase) ImportFromCSV(ctx context.Context, csvContent string) (int, error) {
-	delimiter := ','
-	firstLine := csvContent
-	if idx := strings.Index(csvContent, "\n"); idx != -1 {
-		firstLine = csvContent[:idx]
-	}
-	if strings.Count(firstLine, ";") > strings.Count(firstLine, ",") {
-		delimiter = ';'
-	}
-
-	reader := csv.NewReader(strings.NewReader(csvContent))
-	reader.Comma = delimiter
-	reader.LazyQuotes = true
-	reader.TrimLeadingSpace = true
-
-	records, err := reader.ReadAll()
+	records, err := utils.ParseCSV(csvContent)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse CSV: %w", err)
 	}
@@ -534,15 +520,52 @@ func (u *dataTeknisUsecase) ImportFromCSV(ctx context.Context, csvContent string
 	headers := records[0]
 	headerMap := make(map[string]int)
 	for i, h := range headers {
+		norm := utils.NormalizeCSVHeader(h)
+		headerMap[norm] = i
 		headerMap[strings.ToLower(strings.TrimSpace(h))] = i
 	}
 
-	required := []string{"email_pelanggan", "id_pelanggan", "password_pppoe"}
-	for _, req := range required {
-		if _, ok := headerMap[req]; !ok {
-			return 0, fmt.Errorf("missing required column: %s", req)
+	findCol := func(keys ...string) int {
+		for _, k := range keys {
+			norm := utils.NormalizeCSVHeader(k)
+			if idx, ok := headerMap[norm]; ok {
+				return idx
+			}
+			if idx, ok := headerMap[strings.ToLower(strings.TrimSpace(k))]; ok {
+				return idx
+			}
 		}
+		return -1
 	}
+
+	emailColIdx := findCol("email_pelanggan", "email", "email_customer", "email_user")
+	idPelangganColIdx := findCol("id_pelanggan", "id pelanggan", "customer_id", "id_customer", "username_pppoe", "id")
+	passwordPppoeColIdx := findCol("password_pppoe", "password pppoe", "password", "pppoe_password", "pass_pppoe", "pass")
+
+	if emailColIdx == -1 {
+		return 0, fmt.Errorf("missing required column: email_pelanggan")
+	}
+	if idPelangganColIdx == -1 {
+		return 0, fmt.Errorf("missing required column: id_pelanggan")
+	}
+	if passwordPppoeColIdx == -1 {
+		return 0, fmt.Errorf("missing required column: password_pppoe")
+	}
+
+	profileColIdx := findCol("profile_pppoe", "profile pppoe", "profile", "paket", "profile_paket")
+	ipColIdx := findCol("ip_pelanggan", "ip pelanggan", "ip_address", "ip", "ip_static")
+	vlanColIdx := findCol("id_vlan", "id vlan", "vlan", "vlan_id")
+	oltColIdx := findCol("olt", "nama_olt", "olt_name")
+	oltCustomColIdx := findCol("olt_custom", "olt_custor", "olt_cust", "olt custom", "custom_olt")
+	ponColIdx := findCol("pon", "port_pon", "pon_port")
+	otbColIdx := findCol("otb", "port_otb")
+	odcColIdx := findCol("odc", "port_odc")
+	odpColIdx := findCol("kode_odp", "kode odp", "odp", "nama_odp", "odp_code")
+	portOdpColIdx := findCol("port_odp", "port odp", "port", "port_ke")
+	snColIdx := findCol("sn", "serial_number", "serialnumber", "sn_modem", "mac_sn")
+	onuPowerColIdx := findCol("onu_power", "onu power", "redaman", "power_onu", "rx_power")
+	speedtestColIdx := findCol("speedtest_proof", "speedtest proof", "speedtest", "bukti_speedtest")
+	serverColIdx := findCol("mikrotik_server", "mikrotik server", "server", "router", "mikrotik")
 
 	var emails []string
 	var serverNames []string
@@ -571,35 +594,35 @@ func (u *dataTeknisUsecase) ImportFromCSV(ctx context.Context, csvContent string
 	var rows []RowData
 	for i := 1; i < len(records); i++ {
 		row := records[i]
-		if len(row) < len(headers) {
+		if len(row) == 0 {
 			continue
 		}
 
-		getVal := func(key string) string {
-			if idx, ok := headerMap[key]; ok && idx < len(row) {
-				return strings.TrimSpace(row[idx])
+		getVal := func(colIdx int) string {
+			if colIdx >= 0 && colIdx < len(row) {
+				return strings.TrimSpace(row[colIdx])
 			}
 			return ""
 		}
 
 		rd := RowData{
-			email:          getVal("email_pelanggan"),
-			idPelanggan:    getVal("id_pelanggan"),
-			passwordPppoe:  getVal("password_pppoe"),
-			profilePppoe:   getVal("profile_pppoe"),
-			ipPelanggan:    getVal("ip_pelanggan"),
-			idVlan:         getVal("id_vlan"),
-			olt:            getVal("olt"),
-			oltCustom:      getVal("olt_custom"),
-			pon:            getVal("pon"),
-			otb:            getVal("otb"),
-			odc:            getVal("odc"),
-			kodeOdp:        getVal("kode_odp"),
-			portOdp:        getVal("port_odp"),
-			sn:             getVal("sn"),
-			onuPower:       getVal("onu_power"),
-			speedtestProof: getVal("speedtest_proof"),
-			serverName:     getVal("mikrotik_server"),
+			email:          getVal(emailColIdx),
+			idPelanggan:    getVal(idPelangganColIdx),
+			passwordPppoe:  getVal(passwordPppoeColIdx),
+			profilePppoe:   getVal(profileColIdx),
+			ipPelanggan:    getVal(ipColIdx),
+			idVlan:         getVal(vlanColIdx),
+			olt:            getVal(oltColIdx),
+			oltCustom:      getVal(oltCustomColIdx),
+			pon:            getVal(ponColIdx),
+			otb:            getVal(otbColIdx),
+			odc:            getVal(odcColIdx),
+			kodeOdp:        getVal(odpColIdx),
+			portOdp:        getVal(portOdpColIdx),
+			sn:             getVal(snColIdx),
+			onuPower:       getVal(onuPowerColIdx),
+			speedtestProof: getVal(speedtestColIdx),
+			serverName:     getVal(serverColIdx),
 		}
 
 		if rd.email == "" {

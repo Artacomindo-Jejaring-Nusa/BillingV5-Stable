@@ -1822,9 +1822,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 }
 
 func (u *billingUsecase) ImportLanggananFromCSV(ctx context.Context, content string) (int, error) {
-	reader := csv.NewReader(strings.NewReader(content))
-	reader.Comma = ';'
-	rows, err := reader.ReadAll()
+	rows, err := utils.ParseCSV(content)
 	if err != nil || len(rows) < 2 {
 		return 0, errors.New("invalid csv format")
 	}
@@ -1832,6 +1830,7 @@ func (u *billingUsecase) ImportLanggananFromCSV(ctx context.Context, content str
 	header := rows[0]
 	colMap := make(map[string]int)
 	for i, name := range header {
+		colMap[utils.NormalizeCSVHeader(name)] = i
 		colMap[strings.ToLower(strings.TrimSpace(name))] = i
 	}
 

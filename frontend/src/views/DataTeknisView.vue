@@ -2280,16 +2280,25 @@ async function importData() {
     
   } catch (error: any) {
     console.error("Gagal mengimpor data:", error);
-    const detail = error.response?.data?.detail;
-    let snackbarMessage = "Gagal mengimpor data.";
-    let errorList: string[] = ["Terjadi kesalahan yang tidak diketahui."];
+    const resData = error.response?.data;
+    const detail = resData?.detail;
+    let snackbarMessage = resData?.message || resData?.error || "Gagal mengimpor data.";
+    let errorList: string[] = [];
 
-    if (typeof detail === 'object' && detail !== null && Array.isArray(detail.errors)) {
+    if (Array.isArray(resData?.errors) && resData.errors.length > 0) {
+      errorList = resData.errors;
+    } else if (typeof detail === 'object' && detail !== null && Array.isArray(detail.errors)) {
       snackbarMessage = detail.message || snackbarMessage;
       errorList = detail.errors;
     } else if (typeof detail === 'string') {
       snackbarMessage = detail;
       errorList = [detail];
+    } else if (resData?.error) {
+      errorList = [resData.error];
+    } else if (resData?.message) {
+      errorList = [resData.message];
+    } else {
+      errorList = ["Terjadi kesalahan yang tidak diketahui."];
     }
     
     importErrors.value = errorList;

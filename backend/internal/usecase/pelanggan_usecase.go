@@ -200,19 +200,30 @@ func (u *pelangganUsecase) GetUniqueLocations(ctx context.Context) ([]string, er
 }
 
 func (u *pelangganUsecase) ImportFromCSV(ctx context.Context, csvContent string) (int, error) {
-	reader := csv.NewReader(strings.NewReader(csvContent))
-	reader.Comma = ';'
-	rows, err := reader.ReadAll()
-	if err != nil || len(rows) < 2 { return 0, errors.New("invalid csv") }
+	rows, err := utils.ParseCSV(csvContent)
+	if err != nil || len(rows) < 2 {
+		return 0, errors.New("invalid csv")
+	}
 	header := rows[0]
 	colMap := make(map[string]int)
-	for i, name := range header { colMap[strings.ToLower(strings.TrimSpace(name))] = i }
+	for i, name := range header {
+		colMap[utils.NormalizeCSVHeader(name)] = i
+		colMap[strings.ToLower(strings.TrimSpace(name))] = i
+	}
 	successCount := 0
 	for i := 1; i < len(rows); i++ {
 		row := rows[i]
-		if len(row) == 0 { continue }
+		if len(row) == 0 {
+			continue
+		}
 		getV := func(k string) string {
-			if idx, ok := colMap[k]; ok && idx < len(row) { return strings.TrimSpace(row[idx]) }
+			norm := utils.NormalizeCSVHeader(k)
+			if idx, ok := colMap[norm]; ok && idx < len(row) {
+				return strings.TrimSpace(row[idx])
+			}
+			if idx, ok := colMap[strings.ToLower(strings.TrimSpace(k))]; ok && idx < len(row) {
+				return strings.TrimSpace(row[idx])
+			}
 			return ""
 		}
 		nama, email := getV("nama"), getV("email")
