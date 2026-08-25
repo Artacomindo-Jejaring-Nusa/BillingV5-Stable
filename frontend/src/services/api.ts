@@ -28,7 +28,7 @@ const getBaseURL = (): string => {
       if (window.location.hostname !== urlObj.hostname) {
         return '/api/v1';
       }
-    } catch (e) {
+    } catch {
       // Abaikan error parsing
     }
     return envUrl;
@@ -69,17 +69,27 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     // Jika response dari server adalah error 401 (Unauthorized)
-    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh')) {
-      originalRequest._retry = true; // Tandai request sudah pernah dicoba
+    if (error.response?.status === 401 && !originalRequest?._retry && !originalRequest?.url?.includes('/auth/refresh')) {
+      if (originalRequest) {
+        originalRequest._retry = true; // Tandai request sudah pernah dicoba
+      }
+
+      // Ambil refresh token dari storage
+      const refreshToken = getEncryptedToken('refresh_token');
+      if (!refreshToken) {
+        // Jika tidak ada refresh token (misal user baru saja klik logout), bersihkan state dan redirect tanpa spam error
+        removeEncryptedToken('access_token');
+        removeEncryptedToken('refresh_token');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        if (router.currentRoute.value.path !== '/login') {
+          router.push('/login');
+        }
+        return Promise.reject(error);
+      }
 
       try {
         console.log('[API] Access token expired, attempting refresh...');
-
-        // Ambil refresh token dari storage
-        const refreshToken = getEncryptedToken('refresh_token');
-        if (!refreshToken) {
-          throw new Error('No refresh token available');
-        }
 
         // Request token baru ke backend
         const response = await apiClient.post('/auth/refresh', {
@@ -96,7 +106,9 @@ apiClient.interceptors.response.use(
         }
 
         // Update Authorization header untuk request yang gagal
-        originalRequest.headers.Authorization = `Bearer ${access_token}`;
+        if (originalRequest?.headers) {
+          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+        }
 
         console.log('[API] Token refreshed successfully');
 
@@ -113,8 +125,10 @@ apiClient.interceptors.response.use(
         localStorage.removeItem('refresh_token');
 
         // Redirect ke halaman login
-        router.push('/login');
-        return Promise.reject(refreshError);
+        if (router.currentRoute.value.path !== '/login') {
+          router.push('/login');
+        }
+        return Promise.reject(error);
       }
     }
 
@@ -131,7 +145,10 @@ apiClient.interceptors.response.use(
 apiClient.interceptors.response.use(
   (response) => response, // Success: just return response
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error?.config;
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
 
     // Skip if it's already a network error request
     if (originalRequest.headers?.['X-Skip-Network-Interceptor']) {
