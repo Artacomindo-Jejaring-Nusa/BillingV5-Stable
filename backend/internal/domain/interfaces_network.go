@@ -39,6 +39,7 @@ type DataTeknisRepository interface {
 	GetOdpByCode(ctx context.Context, code string) (*ODP, error)
 	GetOdpByCodes(ctx context.Context, codes []string) ([]ODP, error)
 	GetPendingSync(ctx context.Context) ([]DataTeknis, error)
+	GetUnconfiguredPelanggan(ctx context.Context, search string) ([]Pelanggan, error)
 }
 
 // DataTeknisUsecase defines business logic for DataTeknis

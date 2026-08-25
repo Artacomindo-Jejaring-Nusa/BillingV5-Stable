@@ -680,10 +680,11 @@
                     :disabled="isEditMode"
                     variant="outlined"
                     class="mb-4"
-                    placeholder="Ketik nama pelanggan untuk mencari..."
+                    placeholder="Ketik nama atau alamat pelanggan untuk mencari..."
                     no-data-text="Tidak ada pelanggan yang belum dikonfigurasi"
                     clearable
                     :loading="pelangganSearchLoading"
+                    :custom-filter="customPelangganFilter"
                   >
                     <template v-slot:item="{ props, item }">
                       <v-list-item v-bind="props" class="px-4">
@@ -1432,6 +1433,16 @@ const lastIpInfo = ref({
 const pelangganForSelect = computed(() => {
   return Array.isArray(pelangganList.value) ? pelangganList.value : [];
 });
+
+function customPelangganFilter(value: string, query: string, item?: any): boolean {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  const raw = item?.raw;
+  if (!raw) return (value || '').toLowerCase().includes(q);
+  const nama = (raw.nama || '').toLowerCase();
+  const alamat = (raw.alamat || '').toLowerCase();
+  return nama.includes(q) || alamat.includes(q);
+}
 
 
 

@@ -573,21 +573,25 @@ func (u *dataTeknisUsecase) GetLastUsedIP(ctx context.Context, mikrotikServerID 
 }
 
 func (u *dataTeknisUsecase) GetUnconfiguredPelanggan(ctx context.Context, search string) ([]map[string]interface{}, error) {
-	// Fetch pelanggan yang belum punya data teknis, dengan optional search filter
-	pelanggans, _, err := u.pelangganRepo.GetAll(ctx, 0, 1000, domain.PelangganFilterParams{
-		ConnectionStatus: "unconfigured",
-		Search:           search,
-	})
+	pelanggans, err := u.dataTeknisRepo.GetUnconfiguredPelanggan(ctx, search)
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]map[string]interface{}, 0, len(pelanggans))
 	for _, p := range pelanggans {
+		alamatDisplay := p.Alamat
+		if p.AlamatCustom != nil && *p.AlamatCustom != "" {
+			if alamatDisplay != "" {
+				alamatDisplay += " - " + *p.AlamatCustom
+			} else {
+				alamatDisplay = *p.AlamatCustom
+			}
+		}
 		result = append(result, map[string]interface{}{
 			"id":         p.ID,
 			"nama":       p.Nama,
-			"alamat":     p.Alamat,
+			"alamat":     alamatDisplay,
 			"created_at": p.CreatedAt,
 		})
 	}

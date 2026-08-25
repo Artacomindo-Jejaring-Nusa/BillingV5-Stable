@@ -218,3 +218,19 @@ func (r *dataTeknisRepository) GetPendingSync(ctx context.Context) ([]domain.Dat
 		Find(&list).Error
 	return list, err
 }
+
+func (r *dataTeknisRepository) GetUnconfiguredPelanggan(ctx context.Context, search string) ([]domain.Pelanggan, error) {
+	var list []domain.Pelanggan
+	query := r.db.WithContext(ctx).Table("pelanggan").
+		Select("pelanggan.id, pelanggan.nama, pelanggan.alamat, pelanggan.alamat_2, pelanggan.created_at").
+		Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id AND data_teknis.deleted_at IS NULL").
+		Where("pelanggan.deleted_at IS NULL AND data_teknis.id IS NULL")
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where("(pelanggan.nama LIKE ? OR pelanggan.customer_id LIKE ? OR pelanggan.alamat LIKE ? OR pelanggan.no_telp LIKE ?)", searchTerm, searchTerm, searchTerm, searchTerm)
+	}
+
+	err := query.Order("pelanggan.id desc").Limit(500).Find(&list).Error
+	return list, err
+}
