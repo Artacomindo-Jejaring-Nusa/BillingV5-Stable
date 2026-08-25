@@ -672,7 +672,7 @@
                   <label class="input-label">
                     Pilih Pelanggan <span class="required-flag text-error">*</span>
                   </label>
-                  <v-select
+                  <v-autocomplete
                     v-model="editedItem.pelanggan_id"
                     :items="pelangganForSelect"
                     item-title="nama"
@@ -680,6 +680,10 @@
                     :disabled="isEditMode"
                     variant="outlined"
                     class="mb-4"
+                    placeholder="Ketik nama pelanggan untuk mencari..."
+                    no-data-text="Tidak ada pelanggan yang belum dikonfigurasi"
+                    clearable
+                    :loading="pelangganSearchLoading"
                   >
                     <template v-slot:item="{ props, item }">
                       <v-list-item v-bind="props" class="px-4">
@@ -702,9 +706,12 @@
                             </v-chip>
                           </div>
                         </template>
+                        <template v-slot:subtitle>
+                          <span v-if="item.raw.alamat" class="text-caption text-grey">{{ item.raw.alamat }}</span>
+                        </template>
                       </v-list-item>
                     </template>
-                  </v-select>
+                  </v-autocomplete>
 
                   <v-row>
                 <v-col cols="12" sm="6">
@@ -1230,6 +1237,7 @@ interface DataTeknis {
 interface Pelanggan {
   id: number;
   nama: string;
+  alamat?: string;
   created_at?: string;
 }
 
@@ -1247,6 +1255,7 @@ interface PaketLayananSelectItem {
 const dataTeknisList = ref<DataTeknis[]>([]);
 const pelangganList = ref<Pelanggan[]>([]);
 const pelangganMap = ref(new Map<number, Pelanggan>());
+const pelangganSearchLoading = ref(false);
 const loading = ref(true);
 const saving = ref(false);
 const deleting = ref(false);
@@ -1775,27 +1784,25 @@ function calculateStatisticsFromExistingData() {
 }
 
 async function fetchPelanggan() {
+  pelangganSearchLoading.value = true;
   try {
     // OPTIMIZED: Hanya ambil pelanggan yang BELUM dikonfigurasi data teknisnya (untuk dropdown)
-    // Server-side filtering, jauh lebih cepat & payload lebih kecil
-    // Request created_at juga untuk badge "BARU"
-    const response = await apiClient.get('/pelanggan?connection_status=unconfigured&limit=1000&use_minimal_loading=true&fields=id,nama,created_at');
+    // Menggunakan endpoint /data_teknis/unconfigured-pelanggan sehingga role NOC dapat mengakses tanpa 403 Forbidden
+    const response = await apiClient.get('/data_teknis/unconfigured-pelanggan');
     
-    // Response is paginated, so the actual data is in response.data.data
     const rawData = response.data?.data ?? response.data;
     pelangganList.value = Array.isArray(rawData) ? rawData : [];
 
-    // Untuk pelangganMap, kita hanya memetakan yang baru diambil.
-    // Untuk display tabel, kita akan gunakan item.pelanggan.nama langsung dari backend join.
-    // Namun kita tetap maintain map untuk fallback.
+    // Maintain map untuk lookup nama pelanggan
     const newMap = new Map<number, Pelanggan>();
-    const pelangganData = response.data.data || response.data;
-    for (const pelanggan of pelangganData) {
+    for (const pelanggan of pelangganList.value) {
       newMap.set(pelanggan.id, pelanggan);
     }
     pelangganMap.value = newMap;
   } catch(error) {
     console.error("Gagal mengambil daftar pelanggan:", error);
+  } finally {
+    pelangganSearchLoading.value = false;
   }
 }
 

@@ -572,6 +572,28 @@ func (u *dataTeknisUsecase) GetLastUsedIP(ctx context.Context, mikrotikServerID 
 	}, nil
 }
 
+func (u *dataTeknisUsecase) GetUnconfiguredPelanggan(ctx context.Context, search string) ([]map[string]interface{}, error) {
+	// Fetch pelanggan yang belum punya data teknis, dengan optional search filter
+	pelanggans, _, err := u.pelangganRepo.GetAll(ctx, 0, 1000, domain.PelangganFilterParams{
+		ConnectionStatus: "unconfigured",
+		Search:           search,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]map[string]interface{}, 0, len(pelanggans))
+	for _, p := range pelanggans {
+		result = append(result, map[string]interface{}{
+			"id":         p.ID,
+			"nama":       p.Nama,
+			"alamat":     p.Alamat,
+			"created_at": p.CreatedAt,
+		})
+	}
+	return result, nil
+}
+
 func (u *dataTeknisUsecase) ImportFromCSV(ctx context.Context, csvContent string) (int, error) {
 	records, err := utils.ParseCSV(csvContent)
 	if err != nil {
