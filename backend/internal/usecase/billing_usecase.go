@@ -312,6 +312,10 @@ func (u *billingUsecase) GetNewUserLangganans(ctx context.Context) ([]domain.Lan
 	return u.langgananRepo.GetNewUserLangganans(ctx)
 }
 
+func (u *billingUsecase) GetActivePelangganIDs(ctx context.Context) ([]uint64, error) {
+	return u.langgananRepo.GetActivePelangganIDs(ctx)
+}
+
 func (u *billingUsecase) GetLangganan(ctx context.Context, id uint64) (*domain.Langganan, error) {
 	return u.langgananRepo.GetByID(ctx, id)
 }

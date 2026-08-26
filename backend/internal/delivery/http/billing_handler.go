@@ -49,6 +49,7 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 	{
 		langgananGroup.GET("", middleware.PermissionMiddleware("view_langganan"), handler.FetchLangganan)
 		langgananGroup.GET("/new-users", middleware.PermissionMiddleware("view_langganan"), handler.GetNewUserLangganans)
+		langgananGroup.GET("/active-pelanggan-ids", middleware.PermissionMiddleware("view_langganan"), handler.GetActivePelangganIDs)
 		langgananGroup.GET("/:id", middleware.PermissionMiddleware("view_langganan"), handler.GetLangganan)
 		langgananGroup.POST("", middleware.PermissionMiddleware("create_langganan"), handler.CreateLangganan)
 		langgananGroup.PUT("/:id", middleware.PermissionMiddleware("edit_langganan"), handler.UpdateLangganan)
@@ -264,6 +265,15 @@ func (h *BillingHandler) GetNewUserLangganans(c *gin.Context) {
 		"data":        responses,
 		"total_count": len(responses),
 	})
+}
+
+func (h *BillingHandler) GetActivePelangganIDs(c *gin.Context) {
+	ids, err := h.billingUsecase.GetActivePelangganIDs(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, ids)
 }
 
 func (h *BillingHandler) mapToLanggananResponse(ctx context.Context, lang domain.Langganan) domain.LanggananResponse {

@@ -10,6 +10,7 @@ type PelangganFilterParams struct {
 	Layanan          string
 	TglInstalasiFrom string
 	TglInstalasiTo   string
+	ForSelection     bool
 }
 
 // PelangganRepository defines database operations for Pelanggan

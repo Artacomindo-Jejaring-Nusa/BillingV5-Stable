@@ -85,11 +85,13 @@ func (r *pelangganRepository) GetAll(ctx context.Context, limit, offset int, fil
 	}
 
 	// Fetch with limit and offset, preload relationships
-	fetchQuery := query.
-		Select("pelanggan.*").
-		Preload("DataTeknis").
-		Preload("MikrotikServer").
-		Preload("Langganan")
+	fetchQuery := query.Select("pelanggan.*")
+	if !filters.ForSelection {
+		fetchQuery = fetchQuery.
+			Preload("DataTeknis").
+			Preload("MikrotikServer").
+			Preload("Langganan")
+	}
 
 	if limit > 0 {
 		fetchQuery = fetchQuery.Limit(limit)

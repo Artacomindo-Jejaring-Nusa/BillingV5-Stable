@@ -66,7 +66,7 @@ func (u *pelangganUsecase) logActivity(ctx context.Context, action string, detai
 
 func (u *pelangganUsecase) FetchAll(ctx context.Context, skip, limit int, filters domain.PelangganFilterParams) ([]domain.Pelanggan, int64, error) {
 	pelanggans, total, err := u.pelangganRepo.GetAll(ctx, limit, skip, filters)
-	if err == nil {
+	if err == nil && !filters.ForSelection {
 		for i := range pelanggans {
 			pelanggans[i].NoKtp = utils.Decrypt(pelanggans[i].NoKtp)
 		}

@@ -1107,6 +1107,7 @@
           <v-autocomplete
             v-model="editedItem.pelanggan_id"
             :items="dropdownPelangganSource"
+            :loading="pelangganLoading"
             item-title="nama"
             item-value="id"
             placeholder="Ketik nama pelanggan untuk mencari..."
@@ -1161,6 +1162,11 @@
                     >
                       USER BARU
                     </v-chip>
+                  </div>
+                </template>
+                <template v-slot:subtitle v-if="item.raw.alamat">
+                  <div class="text-caption text-medium-emphasis">
+                    {{ item.raw.alamat }}
                   </div>
                 </template>
               </v-list-item>
@@ -2070,6 +2076,7 @@ const filteredPaketLayanan = ref<PaketLayananSelectItem[]>([]);
 
 const loading = ref(true);
 const paketLoading = ref(true);
+const pelangganLoading = ref(false);
 const isPaketLocked = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
@@ -2408,13 +2415,9 @@ async function checkPelangganDataTeknis(pelangganId: number): Promise<boolean | 
 // --- Lifecycle ---
 onMounted(() => {
   fetchLangganan();
-  fetchPelangganForSelect();
-  fetchPaketLayananForSelect();
   fetchAlamatOptions();
-  // fetchTotalCount(); // This is now redundant
 
   window.addEventListener('new-notification', handleNewNotification);
-
 });
 
 onUnmounted(() => {
@@ -2426,18 +2429,7 @@ const dropdownPelangganSource = computed(() => {
   if (notificationPelangganList.value) {
     return notificationPelangganList.value;
   }
-
-  // Saat mode Edit, tampilkan semua pelanggan agar pilihan yang ada tidak hilang
-  if (isEditMode.value) {
-    return pelangganSelectList.value;
-  }
-
-  // Saat mode Tambah: HANYA tampilkan pelanggan yang benar-benar baru (belum pernah ada langganan)
-  const newPelangganOnly = pelangganSelectList.value.filter(pelanggan =>
-    isPelangganBaru(pelanggan.id)
-  );
-
-  return newPelangganOnly;
+  return pelangganSelectList.value;
 });
 
 let pelangganWatcherRequestId = 0;
@@ -2700,9 +2692,6 @@ async function fetchLangganan(isLoadMore = false, explicitPage: number | null = 
     } else {
       langgananList.value = filteredData;
       totalLanggananCount.value = newTotalCount;
-
-      // Update cache pelanggan baru ketika data berubah (bukan loadMore)
-      updatePelangganBaruCache();
     }
 
     if (langgananList.value.length >= newTotalCount) {
@@ -2826,15 +2815,11 @@ const alamatOptions = ref<string[]>([]);
 // Fungsi untuk mengambil semua alamat unik dari database
 async function fetchAlamatOptions() {
   try {
-    // Gunakan limit=1000 (batas maksimal yang diizinkan backend)
-    const response = await apiClient.get('/pelanggan?limit=1000&use_minimal_loading=true');
-    const pelangganData = response.data.data || response.data;
+    const response = await apiClient.get<string[]>('/pelanggan/locations');
+    const pelangganData = response.data;
     
     if (Array.isArray(pelangganData)) {
-      const allAlamat = pelangganData
-        .map((pelanggan: any) => pelanggan.alamat || '')
-        .filter((alamat: string) => typeof alamat === 'string' && alamat.trim() !== '');
-      alamatOptions.value = [...new Set(allAlamat)].sort() as string[];
+      alamatOptions.value = pelangganData.filter((alamat: string) => typeof alamat === 'string' && alamat.trim() !== '').sort();
     } else {
       alamatOptions.value = [];
     }
@@ -2925,80 +2910,37 @@ function resetFilters() {
 }
 // ============================================
 
-// eligiblePelangganForSelect sudah tidak digunakan lagi, digantikan oleh dropdownPelangganSource
+const activePelangganIdsSet = ref<Set<number>>(new Set());
+
+// Fungsi: Cek apakah pelanggan benar-benar baru (belum memiliki langganan aktif)
+function isPelangganBaru(pelangganId: number): boolean {
+  if (!pelangganId || activePelangganIdsSet.value.size === 0) return false;
+  return !activePelangganIdsSet.value.has(pelangganId);
+}
 
 async function fetchPelangganForSelect() {
+  pelangganLoading.value = true;
   try {
-    // Load semua pelanggan tanpa limit untuk dropdown select (gunakan limit=0 & for_invoice_selection=true)
-    const response = await apiClient.get<{ data: PelangganSelectItem[] }>('/pelanggan?for_invoice_selection=true&limit=0');
+    const [pelangganRes, activeIdsRes] = await Promise.allSettled([
+      apiClient.get<{ data: PelangganSelectItem[] }>('/pelanggan?for_invoice_selection=true&limit=0'),
+      apiClient.get<number[]>('/langganan/active-pelanggan-ids')
+    ]);
 
-    if (response.data && Array.isArray(response.data.data)) {
-      pelangganSelectList.value = response.data.data;
-
-      // Update cache untuk semua pelanggan (await agar cache siap sebelum render)
-      await updatePelangganBaruCache();
+    if (pelangganRes.status === 'fulfilled' && pelangganRes.value.data && Array.isArray(pelangganRes.value.data.data)) {
+      pelangganSelectList.value = pelangganRes.value.data.data;
     } else {
-      console.error("Struktur data pelanggan dari API tidak sesuai. Properti 'data' tidak ditemukan atau bukan array:", response.data);
+      console.error("Struktur data pelanggan dari API tidak sesuai:", pelangganRes);
       pelangganSelectList.value = [];
+    }
+
+    if (activeIdsRes.status === 'fulfilled' && Array.isArray(activeIdsRes.value.data)) {
+      activePelangganIdsSet.value = new Set(activeIdsRes.value.data);
     }
   } catch (error) {
     console.error("Gagal mengambil data pelanggan untuk select:", error);
     pelangganSelectList.value = [];
-  }
-}
-
-// Fungsi untuk mengupdate cache pelanggan baru secara asynchronous
-async function updatePelangganBaruCache() {
-  try {
-    // Load semua langganan tanpa pagination untuk checking yang akurat
-    const response = await apiClient.get('/langganan?limit=10000');
-    const allLangganan = response.data.data || response.data;
-
-    // Buat Map baru (reactive update triggernya dari sini)
-    const newCache = new Map<number, boolean>();
-
-    if (Array.isArray(allLangganan)) {
-      // Pelanggan dianggap baru / eligible jika belum memiliki langganan, atau semua langganannya berstatus 'Berhenti'
-      const activePelangganIds = new Set(
-        allLangganan
-          .filter((l: any) => l.status !== 'Berhenti')
-          .map((l: any) => l.pelanggan_id)
-      );
-
-      // Update cache untuk semua pelanggan
-      pelangganSelectList.value.forEach(pelanggan => {
-        const isNew = !activePelangganIds.has(pelanggan.id);
-        newCache.set(pelanggan.id, isNew);
-      });
-    } else {
-      // Fallback: gunakan data dari current page
-      const activePelangganIds = new Set(
-        langgananList.value
-          .filter(l => l.status !== 'Berhenti')
-          .map(l => l.pelanggan_id)
-      );
-      pelangganSelectList.value.forEach(pelanggan => {
-        const isNew = !activePelangganIds.has(pelanggan.id);
-        newCache.set(pelanggan.id, isNew);
-      });
-    }
-
-    // Assign new Map ke reactive ref → trigger Vue reactivity
-    pelangganBaruCache.value = newCache;
-  } catch (error) {
-    console.warn('Gagal mengupdate cache pelanggan baru, menggunakan fallback:', error);
-    // Fallback: gunakan data dari current page
-    const newCache = new Map<number, boolean>();
-    const activePelangganIds = new Set(
-      langgananList.value
-        .filter(l => l.status !== 'Berhenti')
-        .map(l => l.pelanggan_id)
-    );
-    pelangganSelectList.value.forEach(pelanggan => {
-      const isNew = !activePelangganIds.has(pelanggan.id);
-      newCache.set(pelanggan.id, isNew);
-    });
-    pelangganBaruCache.value = newCache;
+  } finally {
+    pelangganLoading.value = false;
   }
 }
 
@@ -3015,7 +2957,7 @@ async function fetchPaketLayananForSelect() {
   }
 }
 
-async function openDialog(item?: Langganan) {
+function openDialog(item?: Langganan) {
   editedIndex.value = item ? langgananList.value.findIndex(l => l.id === item.id) : -1;
   editedItem.value = item ? { 
     ...item,
@@ -3024,12 +2966,17 @@ async function openDialog(item?: Langganan) {
     tgl_jatuh_tempo_pembayaran: formatDateForInput(item.tgl_jatuh_tempo_pembayaran)
   } : { ...defaultItem };
 
-  // Saat mode Tambah Baru, selalu muat ulang daftar pelanggan agar data pelanggan baru (seperti Nur rahma) langsung muncul
-  if (!item) {
-    await fetchPelangganForSelect();
+  // Langsung buka modal tanpa menunggu request jaringan
+  dialog.value = true;
+
+  if (paketLayananSelectList.value.length === 0) {
+    fetchPaketLayananForSelect();
   }
 
-  dialog.value = true;
+  // Saat mode Tambah Baru, muat ulang daftar pelanggan secara asinkron di background
+  if (!item) {
+    fetchPelangganForSelect();
+  }
 }
 
 function navigateToEdit(item: Langganan) {
@@ -3148,34 +3095,6 @@ async function confirmDelete() {
     deleting.value = false;
   }
 }
-
-// function isPelangganExisting(pelangganId: number): boolean {
-//   // Cari apakah pelanggan sudah pernah memiliki langganan sebelumnya
-//   // yang sudah disimpan (memiliki ID dan bukan item yang sedang diedit)
-//   return langgananList.value.some(l =>
-//     l.pelanggan_id === pelangganId &&
-//     l.id !== editedItem.value.id // Exclude current editing item
-//   );
-// }
-
-// Cache untuk hasil pengecekan pelanggan (REACTIVE agar Vue bisa detect perubahan)
-const pelangganBaruCache = ref<Map<number, boolean>>(new Map());
-
-// Fungsi: Cek apakah pelanggan benar-benar baru (belum pernah ada invoice/langganan sama sekali)
-function isPelangganBaru(pelangganId: number): boolean {
-  if (!pelangganId) return false;
-
-  // Cek reactive cache (diisi oleh updatePelangganBaruCache yang fetch SEMUA langganan)
-  if (pelangganBaruCache.value.has(pelangganId)) {
-    return pelangganBaruCache.value.get(pelangganId)!;
-  }
-
-  // Fallback: Jika cache belum siap, cek di langgananList yang sudah dimuat (current page)
-  // Default: anggap BUKAN pelanggan baru sampai cache terkonfirmasi
-  // Ini mencegah false positive yang menampilkan pelanggan lama sebagai "USER BARU"
-  return false;
-}
-
 
 // --- Helper Methods ---
 function getPelangganName(pelangganId: number | undefined): string {

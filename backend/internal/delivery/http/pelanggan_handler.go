@@ -120,7 +120,8 @@ func (h *PelangganHandler) FetchAll(c *gin.Context) {
 	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
-	if c.Query("for_invoice_selection") == "true" || c.Query("for_selection") == "true" || c.Query("all") == "true" {
+	forSelection := c.Query("for_invoice_selection") == "true" || c.Query("for_selection") == "true" || c.Query("all") == "true"
+	if forSelection {
 		limit = 0
 	} else if l := c.Query("limit"); l != "" {
 		if parsedLimit, err := strconv.Atoi(l); err == nil {
@@ -140,6 +141,7 @@ func (h *PelangganHandler) FetchAll(c *gin.Context) {
 		Layanan:          c.Query("layanan"),
 		TglInstalasiFrom: c.Query("tgl_instalasi_from"),
 		TglInstalasiTo:   c.Query("tgl_instalasi_to"),
+		ForSelection:     forSelection,
 	}
 
 	pelanggans, total, err := h.pelangganUsecase.FetchAll(c.Request.Context(), skip, limit, filters)

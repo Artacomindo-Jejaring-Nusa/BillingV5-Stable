@@ -520,15 +520,18 @@ func (r *langgananRepository) GetAll(ctx context.Context, limit, offset int, fil
 	var total int64
 
 	dbCount := r.db.WithContext(ctx).Model(&domain.Langganan{}).
-		Joins("JOIN pelanggan ON pelanggan.id = langganan.pelanggan_id AND pelanggan.deleted_at IS NULL").
-		Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id")
+		Joins("JOIN pelanggan ON pelanggan.id = langganan.pelanggan_id AND pelanggan.deleted_at IS NULL")
 
 	dbFind := r.db.WithContext(ctx).
 		Preload("Pelanggan").
 		Preload("PaketLayanan").
 		Preload("PaketLayanan.HargaLayanan").
-		Joins("JOIN pelanggan ON pelanggan.id = langganan.pelanggan_id AND pelanggan.deleted_at IS NULL").
-		Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id")
+		Joins("JOIN pelanggan ON pelanggan.id = langganan.pelanggan_id AND pelanggan.deleted_at IS NULL")
+
+	if filters.Search != "" {
+		dbCount = dbCount.Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id")
+		dbFind = dbFind.Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id")
+	}
 
 	if filters.ForInvoiceSelection {
 		dbCount = dbCount.Clauses(dbresolver.Write).Where("langganan.status != ?", "Berhenti")
@@ -708,5 +711,15 @@ func (r *langgananRepository) GetNewUserLangganans(ctx context.Context) ([]domai
 		Find(&langganans).Error
 
 	return langganans, err
+}
+
+func (r *langgananRepository) GetActivePelangganIDs(ctx context.Context) ([]uint64, error) {
+	var ids []uint64
+	err := r.db.WithContext(ctx).
+		Model(&domain.Langganan{}).
+		Where("status != ?", "Berhenti").
+		Distinct("pelanggan_id").
+		Pluck("pelanggan_id", &ids).Error
+	return ids, err
 }
 

@@ -59,6 +59,7 @@ type LanggananRepository interface {
 	GetActiveByDueDateRange(ctx context.Context, start, end time.Time) ([]Langganan, error)
 	GetActiveOverdueForSuspend(ctx context.Context, targetDueDate, endOfPrevMonth time.Time) ([]Langganan, error)
 	GetNewUserLangganans(ctx context.Context) ([]Langganan, error)
+	GetActivePelangganIDs(ctx context.Context) ([]uint64, error)
 }
 
 // BillingUsecase defines business logic for Invoices and Subscriptions
@@ -79,6 +80,7 @@ type BillingUsecase interface {
 	// Langganan
 	FetchLangganan(ctx context.Context, page, pageSize int, filters LanggananFilterParams) ([]Langganan, int64, error)
 	GetNewUserLangganans(ctx context.Context) ([]Langganan, error)
+	GetActivePelangganIDs(ctx context.Context) ([]uint64, error)
 	GetLangganan(ctx context.Context, id uint64) (*Langganan, error)
 	CreateLangganan(ctx context.Context, langganan *Langganan) error
 	UpdateLangganan(ctx context.Context, id uint64, langganan *Langganan) error
