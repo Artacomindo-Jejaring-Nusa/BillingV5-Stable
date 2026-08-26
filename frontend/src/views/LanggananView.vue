@@ -686,7 +686,7 @@
           ></v-checkbox>
           <div class="flex-grow-1">
             <h3 class="text-body-1 font-weight-bold">{{ item.pelanggan?.nama || 'N/A' }}</h3>
-            <p class="text-caption text-medium-emphasis">{{ getPaketName(item.paket_layanan_id) }}</p>
+            <p class="text-caption text-medium-emphasis">{{ getPaketName(item.paket_layanan_id, item) }}</p>
           </div>
           <v-chip
             size="small"
@@ -877,7 +877,7 @@
           </template>
 
           <template v-slot:item.paket_layanan_id="{ item }: { item: Langganan }">
-            <div class="font-weight-medium">{{ getPaketName(item.paket_layanan_id) }}</div>
+            <div class="font-weight-medium">{{ getPaketName(item.paket_layanan_id, item) }}</div>
           </template>
           
           <template v-slot:item.metode_pembayaran="{ item }: { item: Langganan }">
@@ -1635,7 +1635,7 @@
                       <v-icon size="20" class="me-3 text-medium-emphasis">mdi-package-variant</v-icon>
                     </template>
                     <v-list-item-title class="font-weight-bold">Paket Layanan</v-list-item-title>
-                    <v-list-item-subtitle>{{ getPaketName(selectedPelanggan.paket_layanan_id) }}</v-list-item-subtitle>
+                    <v-list-item-subtitle>{{ getPaketName(selectedPelanggan.paket_layanan_id, selectedPelanggan) }}</v-list-item-subtitle>
                   </v-list-item>
                   <v-list-item>
                     <template v-slot:prepend>
@@ -2026,6 +2026,8 @@ interface Langganan {
   id: number;
   pelanggan_id: number;
   paket_layanan_id: number;
+  nama_paket?: string;
+  nama_pelanggan?: string;
   status: string;
   pelanggan: PelangganData;
   tgl_jatuh_tempo: string | null;
@@ -2416,6 +2418,7 @@ async function checkPelangganDataTeknis(pelangganId: number): Promise<boolean | 
 onMounted(() => {
   fetchLangganan();
   fetchAlamatOptions();
+  fetchPaketLayananForSelect();
 
   window.addEventListener('new-notification', handleNewNotification);
 });
@@ -2429,6 +2432,17 @@ const dropdownPelangganSource = computed(() => {
   if (notificationPelangganList.value) {
     return notificationPelangganList.value;
   }
+
+  // Saat mode Edit, tampilkan semua agar pelanggan yang sedang diedit tidak hilang
+  if (editedIndex.value !== -1) {
+    return pelangganSelectList.value;
+  }
+
+  // Saat mode Tambah Baru: HANYA tampilkan pelanggan yang BELUM memiliki langganan aktif
+  if (activePelangganIdsSet.value.size > 0) {
+    return pelangganSelectList.value.filter(p => !activePelangganIdsSet.value.has(p.id));
+  }
+
   return pelangganSelectList.value;
 });
 
@@ -3153,14 +3167,16 @@ function getPelangganPhone(pelangganId: number | undefined): string {
   return 'N/A';
 }
 
-function getPaketName(paketId: number | undefined): string {
-    if (!paketId) return 'N/A';
-    // Check if paketLayananSelectList.value is an array before calling .find()
-    if (!Array.isArray(paketLayananSelectList.value)) {
-      return `ID Paket ${paketId}`;
+function getPaketName(paketId: number | undefined, langgananItem?: any): string {
+    if (langgananItem?.nama_paket) {
+      return langgananItem.nama_paket;
     }
-    const paket = paketLayananSelectList.value.find(p => p.id === paketId);
-    return paket?.nama_paket || `ID Paket ${paketId}`;
+    if (!paketId) return 'N/A';
+    if (Array.isArray(paketLayananSelectList.value)) {
+      const paket = paketLayananSelectList.value.find(p => p.id === paketId);
+      if (paket?.nama_paket) return paket.nama_paket;
+    }
+    return `ID Paket ${paketId}`;
 }
 
 function formatBrand(pelanggan: PelangganData | undefined): string {
