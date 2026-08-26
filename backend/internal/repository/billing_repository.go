@@ -631,6 +631,16 @@ func (r *langgananRepository) GetByID(ctx context.Context, id uint64) (*domain.L
 	return &lng, nil
 }
 
+func (r *langgananRepository) GetByPelangganID(ctx context.Context, pelangganID uint64) ([]domain.Langganan, error) {
+	var langganans []domain.Langganan
+	err := r.db.WithContext(ctx).
+		Preload("Pelanggan").
+		Preload("PaketLayanan").
+		Where("pelanggan_id = ?", pelangganID).
+		Find(&langganans).Error
+	return langganans, err
+}
+
 func (r *langgananRepository) Create(ctx context.Context, langganan *domain.Langganan) error {
 	return r.db.WithContext(ctx).Create(langganan).Error
 }

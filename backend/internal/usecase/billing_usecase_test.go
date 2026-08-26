@@ -766,6 +766,16 @@ func (m *mockLanggananRepoForGenerate) Update(ctx context.Context, l *domain.Lan
 	return nil
 }
 
+func (m *mockLanggananRepoForGenerate) GetByPelangganID(ctx context.Context, pelangganID uint64) ([]domain.Langganan, error) {
+	var res []domain.Langganan
+	for _, l := range m.data {
+		if l.PelangganID == pelangganID {
+			res = append(res, l)
+		}
+	}
+	return res, nil
+}
+
 type mockDataTeknisRepoForGenerate struct {
 	domain.DataTeknisRepository
 	data *domain.DataTeknis

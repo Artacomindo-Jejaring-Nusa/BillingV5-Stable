@@ -50,6 +50,7 @@ type LanggananFilterParams struct {
 type LanggananRepository interface {
 	GetAll(ctx context.Context, limit, offset int, filters LanggananFilterParams) ([]Langganan, int64, error)
 	GetByID(ctx context.Context, id uint64) (*Langganan, error)
+	GetByPelangganID(ctx context.Context, pelangganID uint64) ([]Langganan, error)
 	Create(ctx context.Context, langganan *Langganan) error
 	Update(ctx context.Context, langganan *Langganan) error
 	Delete(ctx context.Context, id uint64) error

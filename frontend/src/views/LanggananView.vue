@@ -2929,9 +2929,8 @@ function resetFilters() {
 
 async function fetchPelangganForSelect() {
   try {
-    // Load semua pelanggan tanpa limit untuk dropdown select
-    // Gunakan for_invoice_selection=true untuk menghilangkan limit
-    const response = await apiClient.get<{ data: PelangganSelectItem[] }>('/pelanggan?for_invoice_selection=true');
+    // Load semua pelanggan tanpa limit untuk dropdown select (gunakan limit=0 & for_invoice_selection=true)
+    const response = await apiClient.get<{ data: PelangganSelectItem[] }>('/pelanggan?for_invoice_selection=true&limit=0');
 
     if (response.data && Array.isArray(response.data.data)) {
       pelangganSelectList.value = response.data.data;
@@ -2959,19 +2958,27 @@ async function updatePelangganBaruCache() {
     const newCache = new Map<number, boolean>();
 
     if (Array.isArray(allLangganan)) {
-      // Buat Set dari semua pelanggan_id yang sudah ada langganan
-      const existingPelangganIds = new Set(allLangganan.map((l: any) => l.pelanggan_id));
+      // Pelanggan dianggap baru / eligible jika belum memiliki langganan, atau semua langganannya berstatus 'Berhenti'
+      const activePelangganIds = new Set(
+        allLangganan
+          .filter((l: any) => l.status !== 'Berhenti')
+          .map((l: any) => l.pelanggan_id)
+      );
 
       // Update cache untuk semua pelanggan
       pelangganSelectList.value.forEach(pelanggan => {
-        const isNew = !existingPelangganIds.has(pelanggan.id);
+        const isNew = !activePelangganIds.has(pelanggan.id);
         newCache.set(pelanggan.id, isNew);
       });
     } else {
       // Fallback: gunakan data dari current page
-      const existingPelangganIds = new Set(langgananList.value.map(l => l.pelanggan_id));
+      const activePelangganIds = new Set(
+        langgananList.value
+          .filter(l => l.status !== 'Berhenti')
+          .map(l => l.pelanggan_id)
+      );
       pelangganSelectList.value.forEach(pelanggan => {
-        const isNew = !existingPelangganIds.has(pelanggan.id);
+        const isNew = !activePelangganIds.has(pelanggan.id);
         newCache.set(pelanggan.id, isNew);
       });
     }
@@ -2982,9 +2989,13 @@ async function updatePelangganBaruCache() {
     console.warn('Gagal mengupdate cache pelanggan baru, menggunakan fallback:', error);
     // Fallback: gunakan data dari current page
     const newCache = new Map<number, boolean>();
-    const existingPelangganIds = new Set(langgananList.value.map(l => l.pelanggan_id));
+    const activePelangganIds = new Set(
+      langgananList.value
+        .filter(l => l.status !== 'Berhenti')
+        .map(l => l.pelanggan_id)
+    );
     pelangganSelectList.value.forEach(pelanggan => {
-      const isNew = !existingPelangganIds.has(pelanggan.id);
+      const isNew = !activePelangganIds.has(pelanggan.id);
       newCache.set(pelanggan.id, isNew);
     });
     pelangganBaruCache.value = newCache;
@@ -3013,9 +3024,9 @@ async function openDialog(item?: Langganan) {
     tgl_jatuh_tempo_pembayaran: formatDateForInput(item.tgl_jatuh_tempo_pembayaran)
   } : { ...defaultItem };
 
-  // Saat mode Tambah Baru, refresh cache agar dropdown pelanggan selalu akurat
+  // Saat mode Tambah Baru, selalu muat ulang daftar pelanggan agar data pelanggan baru (seperti Nur rahma) langsung muncul
   if (!item) {
-    await updatePelangganBaruCache();
+    await fetchPelangganForSelect();
   }
 
   dialog.value = true;

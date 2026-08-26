@@ -132,6 +132,16 @@ func (m *mockLanggananRepo) GetByID(ctx context.Context, id uint64) (*domain.Lan
 	return m.data[id], nil
 }
 
+func (m *mockLanggananRepo) GetByPelangganID(ctx context.Context, pelangganID uint64) ([]domain.Langganan, error) {
+	var res []domain.Langganan
+	for _, l := range m.data {
+		if l.PelangganID == pelangganID {
+			res = append(res, *l)
+		}
+	}
+	return res, nil
+}
+
 func (m *mockLanggananRepo) Update(ctx context.Context, l *domain.Langganan) error {
 	m.data[l.ID] = l
 	return nil

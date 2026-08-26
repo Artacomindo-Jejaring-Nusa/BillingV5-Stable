@@ -20,8 +20,10 @@ import (
 )
 
 type pelangganUsecase struct {
-	pelangganRepo domain.PelangganRepository
-	systemRepo    domain.SystemRepository
+	pelangganRepo    domain.PelangganRepository
+	systemRepo       domain.SystemRepository
+	langgananRepo    domain.LanggananRepository
+	paketLayananRepo domain.PaketLayananRepository
 }
 
 func NewPelangganUsecase(p domain.PelangganRepository, sr ...domain.SystemRepository) domain.PelangganUsecase {
@@ -32,6 +34,20 @@ func NewPelangganUsecase(p domain.PelangganRepository, sr ...domain.SystemReposi
 	return &pelangganUsecase{
 		pelangganRepo: p,
 		systemRepo:    systemRepo,
+	}
+}
+
+func NewPelangganUsecaseFull(
+	p domain.PelangganRepository,
+	systemRepo domain.SystemRepository,
+	lr domain.LanggananRepository,
+	pr domain.PaketLayananRepository,
+) domain.PelangganUsecase {
+	return &pelangganUsecase{
+		pelangganRepo:    p,
+		systemRepo:       systemRepo,
+		langgananRepo:    lr,
+		paketLayananRepo: pr,
 	}
 }
 
@@ -162,6 +178,15 @@ func (u *pelangganUsecase) Update(ctx context.Context, id uint64, req *domain.Pe
 		req.NoKtp = utils.Encrypt(req.NoKtp)
 	}
 
+	oldLayanan := ""
+	if existing.Layanan != nil {
+		oldLayanan = *existing.Layanan
+	}
+	newLayanan := ""
+	if req.Layanan != nil {
+		newLayanan = *req.Layanan
+	}
+
 	existing.Nama = req.Nama
 	existing.NoKtp = req.NoKtp
 	existing.Alamat = req.Alamat
@@ -179,8 +204,78 @@ func (u *pelangganUsecase) Update(ctx context.Context, id uint64, req *domain.Pe
 	if err == nil {
 		u.logActivity(ctx, "Update Pelanggan", fmt.Sprintf("Updated pelanggan: %s (ID: %d)", existing.Nama, id))
 		websocket.InvalidateDashboardCache(ctx)
+
+		// Sinkronisasi otomatis ke data langganan jika paket layanan berubah
+		if newLayanan != "" && strings.TrimSpace(strings.ToLower(oldLayanan)) != strings.TrimSpace(strings.ToLower(newLayanan)) {
+			u.syncLanggananWithNewLayanan(ctx, existing, newLayanan)
+		}
 	}
 	return err
+}
+
+func (u *pelangganUsecase) syncLanggananWithNewLayanan(ctx context.Context, cust *domain.Pelanggan, newLayanan string) {
+	if u.langgananRepo == nil || u.paketLayananRepo == nil {
+		return
+	}
+
+	pakets, err := u.paketLayananRepo.GetAll(ctx)
+	if err != nil || len(pakets) == 0 {
+		return
+	}
+
+	cleanNewLayanan := strings.TrimSpace(strings.ToLower(newLayanan))
+	var matchingPaket *domain.PaketLayanan
+
+	// 1. Cari exact match nama_paket dan id_brand jika ada
+	for i, p := range pakets {
+		if strings.TrimSpace(strings.ToLower(p.NamaPaket)) == cleanNewLayanan {
+			if cust.IDBrand != nil && *cust.IDBrand != "" && p.IDBrand == *cust.IDBrand {
+				matchingPaket = &pakets[i]
+				break
+			}
+		}
+	}
+
+	// 2. Fallback match nama_paket saja
+	if matchingPaket == nil {
+		for i, p := range pakets {
+			if strings.TrimSpace(strings.ToLower(p.NamaPaket)) == cleanNewLayanan {
+				matchingPaket = &pakets[i]
+				break
+			}
+		}
+	}
+
+	// 3. Fallback partial match (e.g. "10 Mbps" vs "Internet 10 Mbps")
+	if matchingPaket == nil {
+		for i, p := range pakets {
+			pName := strings.TrimSpace(strings.ToLower(p.NamaPaket))
+			if strings.Contains(cleanNewLayanan, pName) || strings.Contains(pName, cleanNewLayanan) {
+				matchingPaket = &pakets[i]
+				break
+			}
+		}
+	}
+
+	if matchingPaket == nil {
+		return
+	}
+
+	// Ambil semua langganan milik pelanggan ini
+	langganans, err := u.langgananRepo.GetByPelangganID(ctx, cust.ID)
+	if err != nil || len(langganans) == 0 {
+		return
+	}
+
+	for _, lng := range langganans {
+		if lng.Status != "Berhenti" {
+			lng.PaketLayananID = matchingPaket.ID
+			harga := matchingPaket.Harga
+			lng.HargaAwal = &harga
+			_ = u.langgananRepo.Update(ctx, &lng)
+			u.logActivity(ctx, "Auto Sync Langganan", fmt.Sprintf("Auto-synced langganan ID %d for %s to paket %s (Rp %.2f)", lng.ID, cust.Nama, matchingPaket.NamaPaket, matchingPaket.Harga))
+		}
+	}
 }
 
 func (u *pelangganUsecase) Delete(ctx context.Context, id uint64) error {

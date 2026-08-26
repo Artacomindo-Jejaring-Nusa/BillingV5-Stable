@@ -120,6 +120,18 @@ func (h *PelangganHandler) FetchAll(c *gin.Context) {
 	skip, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
+	if c.Query("for_invoice_selection") == "true" || c.Query("for_selection") == "true" || c.Query("all") == "true" {
+		limit = 0
+	} else if l := c.Query("limit"); l != "" {
+		if parsedLimit, err := strconv.Atoi(l); err == nil {
+			if parsedLimit <= 0 || parsedLimit >= 10000 {
+				limit = 0
+			} else {
+				limit = parsedLimit
+			}
+		}
+	}
+
 	filters := domain.PelangganFilterParams{
 		Search:           c.Query("search"),
 		ConnectionStatus: c.Query("connection_status"),

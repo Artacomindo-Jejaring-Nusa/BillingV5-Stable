@@ -297,9 +297,12 @@ func main() {
 	diskonUsecase := usecase.NewDiskonUsecase(diskonRepo)
 	httpDelivery.NewLayananHandler(api, hargaLayananUsecase, paketLayananUsecase, diskonUsecase, authMw)
 
+	// Billing & Subscriptions Repositories
+	langgananRepo := repository.NewLanggananRepository(db)
+
 	// Pelanggan
 	pelangganRepo := repository.NewPelangganRepository(db)
-	pelangganUsecase := usecase.NewPelangganUsecase(pelangganRepo, systemRepo)
+	pelangganUsecase := usecase.NewPelangganUsecaseFull(pelangganRepo, systemRepo, langgananRepo, paketLayananRepo)
 	if err := pelangganUsecase.BackfillCustomerIDs(context.Background()); err != nil {
 		logger.Warn("BackfillCustomerIDs warning: %v", err)
 	}
@@ -327,7 +330,6 @@ func main() {
 
 	// Billing
 	invoiceRepo := repository.NewInvoiceRepository(db)
-	langgananRepo := repository.NewLanggananRepository(db)
 	billingUsecase := usecase.NewBillingUsecase(invoiceRepo, langgananRepo, pelangganRepo, paketLayananRepo, hargaLayananRepo, dataTeknisRepo, mikrotikRepo, diskonRepo, systemRepo, cfg)
 
 	// Notification (WhatsApp Outbox)
