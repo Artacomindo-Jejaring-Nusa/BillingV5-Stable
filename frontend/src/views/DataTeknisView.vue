@@ -786,44 +786,34 @@
                       </v-text-field>
 
                       <!-- Loading State untuk IP Discovery -->
-                      <div v-if="lastIpInfo.loading" class="mt-2 pa-2 rounded-lg bg-surface-variant d-flex align-center">
-                        <v-progress-circular indeterminate size="16" width="2" color="primary" class="me-2"></v-progress-circular>
-                        <span class="text-caption">Mengecek ketersediaan IP di Mikrotik...</span>
+                      <div v-if="lastIpInfo.loading" class="mt-1 d-flex align-center">
+                        <v-progress-circular indeterminate size="14" width="2" color="grey" class="me-2"></v-progress-circular>
+                        <span class="text-caption text-medium-emphasis">Mengecek ketersediaan IP...</span>
                       </div>
 
-                      <!-- Smart IP Assistant Box -->
-                      <div v-else-if="lastIpInfo.suggested_ip || lastIpInfo.last_ip" class="mt-2 pa-3 rounded-lg border bg-surface-variant">
-                        <div class="d-flex align-center justify-space-between flex-wrap gap-1 mb-2">
-                          <div class="d-flex align-center text-caption font-weight-medium">
-                            <v-icon size="small" color="primary" class="me-1">mdi-router-network</v-icon>
-                            <span v-if="lastIpInfo.last_ip">IP Terakhir: <strong class="text-primary">{{ lastIpInfo.last_ip }}</strong></span>
-                            <span v-else class="text-medium-emphasis">Belum ada IP terdaftar</span>
-                            <span v-if="lastIpInfo.total_used" class="ms-1 text-grey">({{ lastIpInfo.total_used }} IP aktif)</span>
-                          </div>
-                          <v-chip size="x-small" :color="lastIpInfo.source === 'mikrotik' ? 'success' : 'info'" variant="tonal" class="font-weight-medium">
-                            {{ lastIpInfo.source === 'mikrotik' ? 'Live Mikrotik' : 'Database' }}
-                          </v-chip>
+                      <!-- IP Info & Quick Select -->
+                      <div v-else-if="lastIpInfo.suggested_ip || lastIpInfo.last_ip" class="mt-1">
+                        <div class="text-caption text-medium-emphasis">
+                          <v-icon size="x-small" class="me-1">mdi-information-outline</v-icon>
+                          <span v-if="lastIpInfo.last_ip">IP terakhir: <strong>{{ lastIpInfo.last_ip }}</strong></span>
+                          <span v-else>Belum ada IP terdaftar</span>
+                          <span v-if="lastIpInfo.total_used"> · {{ lastIpInfo.total_used }} aktif</span>
+                          <span> · {{ lastIpInfo.source === 'mikrotik' ? 'Mikrotik' : 'Database' }}</span>
                         </div>
-
-                        <!-- Suggested Quick Select Chips -->
-                        <div v-if="lastIpInfo.available_ips && lastIpInfo.available_ips.length > 0">
-                          <div class="text-caption text-medium-emphasis mb-1 font-weight-medium">
-                            Pilih Rekomendasi IP Tersedia:
-                          </div>
-                          <div class="d-flex flex-wrap gap-1 align-center">
-                            <v-chip
-                              v-for="ip in lastIpInfo.available_ips"
-                              :key="ip"
-                              size="small"
-                              :color="editedItem.ip_pelanggan === ip ? 'primary' : 'default'"
-                              :variant="editedItem.ip_pelanggan === ip ? 'flat' : 'outlined'"
-                              class="cursor-pointer font-weight-bold"
-                              @click="selectSuggestedIp(ip)"
-                            >
-                              <v-icon v-if="ip === lastIpInfo.suggested_ip" start size="x-small" color="amber">mdi-star</v-icon>
-                              {{ ip }}
-                            </v-chip>
-                          </div>
+                        <div v-if="lastIpInfo.available_ips && lastIpInfo.available_ips.length > 0" class="mt-1 d-flex flex-wrap ga-1 align-center">
+                          <span class="text-caption text-medium-emphasis me-1">Tersedia:</span>
+                          <v-chip
+                            v-for="ip in lastIpInfo.available_ips"
+                            :key="ip"
+                            size="x-small"
+                            :color="editedItem.ip_pelanggan === ip ? 'primary' : undefined"
+                            :variant="editedItem.ip_pelanggan === ip ? 'flat' : 'outlined'"
+                            class="cursor-pointer"
+                            @click="selectSuggestedIp(ip)"
+                          >
+                            <v-icon v-if="ip === lastIpInfo.suggested_ip" start size="x-small">mdi-star</v-icon>
+                            {{ ip }}
+                          </v-chip>
                         </div>
                       </div>
                     </v-col>
