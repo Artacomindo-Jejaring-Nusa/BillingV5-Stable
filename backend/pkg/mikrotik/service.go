@@ -48,6 +48,19 @@ func GetAllPPPProfiles(client *routeros.Client) ([]string, error) {
 	return profiles, nil
 }
 
+// GetIPPools fetches all IP pools from the router
+func GetIPPools(client *routeros.Client) ([]map[string]string, error) {
+	reply, err := client.Run("/ip/pool/print")
+	if err != nil {
+		return nil, err
+	}
+	var pools []map[string]string
+	for _, sentence := range reply.Re {
+		pools = append(pools, sentence.Map)
+	}
+	return pools, nil
+}
+
 // CreatePPPoESecret creates a new PPP secret in the router
 func CreatePPPoESecret(client *routeros.Client, name, password, profile, ipAddress string) error {
 	args := []string{

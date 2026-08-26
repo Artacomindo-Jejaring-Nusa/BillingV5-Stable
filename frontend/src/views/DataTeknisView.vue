@@ -765,7 +765,7 @@
                         label="IP Pelanggan"
                         variant="outlined"
                         @update:modelValue="checkIpAvailability"
-                        :loading="ipValidation.loading"
+                        :loading="ipValidation.loading || lastIpInfo.loading"
                         :error-messages="ipValidation.color === 'error' ? ipValidation.message : []"
                         :success-messages="ipValidation.color === 'success' ? ipValidation.message : []"
                         :rules="ipRules"
@@ -784,12 +784,47 @@
                           </v-tooltip>
                         </template>
                       </v-text-field>
-                      <div v-if="lastIpInfo.message" class="mt-1 text-caption" :class="lastIpInfo.last_ip ? 'text-info' : 'text-grey'">
-                        <v-icon size="small">mdi-information</v-icon>
-                        {{ lastIpInfo.message }}
-                        <span v-if="lastIpInfo.source" class="ml-1 text-grey">
-                          (sumber: {{ lastIpInfo.source === 'mikrotik' ? 'Mikrotik' : 'Database' }})
-                        </span>
+
+                      <!-- Loading State untuk IP Discovery -->
+                      <div v-if="lastIpInfo.loading" class="mt-2 pa-2 rounded-lg bg-surface-variant d-flex align-center">
+                        <v-progress-circular indeterminate size="16" width="2" color="primary" class="me-2"></v-progress-circular>
+                        <span class="text-caption">Mengecek ketersediaan IP di Mikrotik...</span>
+                      </div>
+
+                      <!-- Smart IP Assistant Box -->
+                      <div v-else-if="lastIpInfo.suggested_ip || lastIpInfo.last_ip" class="mt-2 pa-3 rounded-lg border bg-surface-variant">
+                        <div class="d-flex align-center justify-space-between flex-wrap gap-1 mb-2">
+                          <div class="d-flex align-center text-caption font-weight-medium">
+                            <v-icon size="small" color="primary" class="me-1">mdi-router-network</v-icon>
+                            <span v-if="lastIpInfo.last_ip">IP Terakhir: <strong class="text-primary">{{ lastIpInfo.last_ip }}</strong></span>
+                            <span v-else class="text-medium-emphasis">Belum ada IP terdaftar</span>
+                            <span v-if="lastIpInfo.total_used" class="ms-1 text-grey">({{ lastIpInfo.total_used }} IP aktif)</span>
+                          </div>
+                          <v-chip size="x-small" :color="lastIpInfo.source === 'mikrotik' ? 'success' : 'info'" variant="tonal" class="font-weight-medium">
+                            {{ lastIpInfo.source === 'mikrotik' ? 'Live Mikrotik' : 'Database' }}
+                          </v-chip>
+                        </div>
+
+                        <!-- Suggested Quick Select Chips -->
+                        <div v-if="lastIpInfo.available_ips && lastIpInfo.available_ips.length > 0">
+                          <div class="text-caption text-medium-emphasis mb-1 font-weight-medium">
+                            Pilih Rekomendasi IP Tersedia:
+                          </div>
+                          <div class="d-flex flex-wrap gap-1 align-center">
+                            <v-chip
+                              v-for="ip in lastIpInfo.available_ips"
+                              :key="ip"
+                              size="small"
+                              :color="editedItem.ip_pelanggan === ip ? 'primary' : 'default'"
+                              :variant="editedItem.ip_pelanggan === ip ? 'flat' : 'outlined'"
+                              class="cursor-pointer font-weight-bold"
+                              @click="selectSuggestedIp(ip)"
+                            >
+                              <v-icon v-if="ip === lastIpInfo.suggested_ip" start size="x-small" color="amber">mdi-star</v-icon>
+                              {{ ip }}
+                            </v-chip>
+                          </div>
+                        </div>
                       </div>
                     </v-col>
                     <v-col cols="12" sm="6">
@@ -1421,12 +1456,30 @@ const idPelangganRules = [
   }
 ];
 
-const lastIpInfo = ref({
+interface LastIpInfo {
+  last_ip: string | null;
+  last_octet: number;
+  suggested_ip?: string | null;
+  available_ips?: string[];
+  total_used?: number;
+  subnet_prefix?: string;
+  server_name?: string;
+  source?: string;
+  message?: string;
+  loading?: boolean;
+}
+
+const lastIpInfo = ref<LastIpInfo>({
   last_ip: null,
   last_octet: 0,
-  message: '',
+  suggested_ip: null,
+  available_ips: [],
+  total_used: 0,
+  subnet_prefix: '',
   server_name: '',
-  source: ''
+  source: '',
+  message: '',
+  loading: false
 });
 
 
@@ -1522,34 +1575,59 @@ function handleOltSelection(serverId: number) {
   if (selectedServer) {
     editedItem.value.olt = selectedServer.name;
     
-    // Ambil informasi IP terakhir untuk server ini
-    fetchLastUsedIp(serverId);
+    // Ambil informasi IP terakhir dan rekomendasi IP untuk server ini (auto-fill jika tambah baru)
+    fetchLastUsedIp(serverId, true);
   }
 }
 
-async function fetchLastUsedIp(serverId: number) {
+function selectSuggestedIp(ip: string) {
+  editedItem.value.ip_pelanggan = ip;
+  checkIpAvailability(ip);
+}
+
+async function fetchLastUsedIp(serverId: number, autoFill: boolean = true) {
   if (!serverId) {
     lastIpInfo.value = {
       last_ip: null,
       last_octet: 0,
-      message: '',
+      suggested_ip: null,
+      available_ips: [],
+      total_used: 0,
+      subnet_prefix: '',
       server_name: '',
-      source: ''
+      source: '',
+      message: '',
+      loading: false
     };
     return;
   }
 
+  lastIpInfo.value.loading = true;
   try {
     const response = await apiClient.get(`/data_teknis/last-ip/${serverId}`);
-    lastIpInfo.value = response.data;
+    lastIpInfo.value = {
+      ...response.data,
+      loading: false
+    };
+
+    // Auto-fill jika IP belum diisi dan dalam mode tambah baru (bukan edit)
+    if (autoFill && !editedItem.value.id && !editedItem.value.ip_pelanggan && response.data.suggested_ip) {
+      editedItem.value.ip_pelanggan = response.data.suggested_ip;
+      checkIpAvailability(response.data.suggested_ip);
+    }
   } catch (error) {
     console.error("Gagal mengambil informasi IP terakhir:", error);
     lastIpInfo.value = {
       last_ip: null,
       last_octet: 0,
-      message: "Gagal mengambil informasi IP terakhir",
+      suggested_ip: null,
+      available_ips: [],
+      total_used: 0,
+      subnet_prefix: '',
       server_name: '',
-      source: ''
+      source: '',
+      message: "Gagal mengambil informasi IP terakhir",
+      loading: false
     };
   }
 }
@@ -1837,9 +1915,14 @@ function openDialog(item?: DataTeknis) {
   lastIpInfo.value = {
     last_ip: null,
     last_octet: 0,
-    message: '',
+    suggested_ip: null,
+    available_ips: [],
+    total_used: 0,
+    subnet_prefix: '',
     server_name: '',
-    source: ''
+    source: '',
+    message: '',
+    loading: false
   };
   
   if (item) {
@@ -1853,9 +1936,9 @@ function openDialog(item?: DataTeknis) {
         }
     }
 
-    // Jika dalam mode edit, ambil informasi IP terakhir untuk server yang dipilih
+    // Jika dalam mode edit, ambil informasi IP terakhir untuk server yang dipilih (tanpa auto-overwrite)
     if (item.mikrotik_server_id) {
-      fetchLastUsedIp(item.mikrotik_server_id);
+      fetchLastUsedIp(item.mikrotik_server_id, false);
     }
   } else {
     // Mode Tambah Baru: Set nilai default di sini
@@ -1884,9 +1967,14 @@ function closeDialog() {
   lastIpInfo.value = {
     last_ip: null,
     last_octet: 0,
-    message: '',
+    suggested_ip: null,
+    available_ips: [],
+    total_used: 0,
+    subnet_prefix: '',
     server_name: '',
-    source: ''
+    source: '',
+    message: '',
+    loading: false
   };
 }
 

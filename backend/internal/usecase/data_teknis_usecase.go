@@ -489,7 +489,14 @@ func (u *dataTeknisUsecase) GetAvailableProfilesForPackage(ctx context.Context, 
 func (u *dataTeknisUsecase) GetLastUsedIP(ctx context.Context, mikrotikServerID uint64) (map[string]interface{}, error) {
 	var lastIP string
 	var lastOctet int
+	var subnetPrefix string
 	source := "mikrotik"
+	usedIPsMap := make(map[string]bool)
+	var serverName string
+
+	if server, err := u.mikrotikRepo.GetByID(ctx, mikrotikServerID); err == nil && server != nil {
+		serverName = server.Name
+	}
 
 	err := u.executeRouterOS(ctx, mikrotikServerID, func(client *routeros.Client) error {
 		secrets, err := mikrotik.GetAllPPPSecrets(client)
@@ -515,60 +522,150 @@ func (u *dataTeknisUsecase) GetLastUsedIP(ctx context.Context, mikrotikServerID 
 				continue
 			}
 
+			usedIPsMap[ipStr] = true
 			octet := int(ipv4[3])
 			if octet > maxOctet {
 				maxOctet = octet
 				bestIP = ipStr
+				subnetPrefix = fmt.Sprintf("%d.%d.%d.", ipv4[0], ipv4[1], ipv4[2])
 			}
 		}
 
 		if bestIP != "" {
 			lastIP = bestIP
 			lastOctet = maxOctet
-		}
-		return nil
-	})
-
-	if err != nil {
-		source = "database"
-		list, _, repoErr := u.dataTeknisRepo.GetAll(ctx, 0, 1000, "", "", "", "", nil, nil)
-		if repoErr == nil {
-			maxOctet := 0
-			bestIP := ""
-			for _, dt := range list {
-				if dt.MikrotikServerID != nil && *dt.MikrotikServerID == mikrotikServerID && dt.IPPelanggan != nil && *dt.IPPelanggan != "" {
-					ip := net.ParseIP(*dt.IPPelanggan)
-					if ip != nil {
-						ipv4 := ip.To4()
-						if ipv4 != nil {
-							octet := int(ipv4[3])
-							if octet > maxOctet {
-								maxOctet = octet
-								bestIP = *dt.IPPelanggan
+		} else {
+			// If no secrets with remote-address, try to check IP pools on router
+			pools, err := mikrotik.GetIPPools(client)
+			if err == nil && len(pools) > 0 {
+				for _, pool := range pools {
+					if ranges, ok := pool["ranges"]; ok && ranges != "" {
+						parts := strings.Split(ranges, "-")
+						if len(parts) > 0 {
+							firstIP := strings.TrimSpace(parts[0])
+							ip := net.ParseIP(firstIP)
+							if ip != nil {
+								if ipv4 := ip.To4(); ipv4 != nil {
+									subnetPrefix = fmt.Sprintf("%d.%d.%d.", ipv4[0], ipv4[1], ipv4[2])
+									break
+								}
 							}
 						}
 					}
 				}
 			}
-			if bestIP != "" {
-				lastIP = bestIP
-				lastOctet = maxOctet
+		}
+		return nil
+	})
+
+	// Also merge with Database records for this mikrotik server
+	list, _, repoErr := u.dataTeknisRepo.GetAll(ctx, 0, 5000, "", "", "", "", nil, nil)
+	if repoErr == nil {
+		for _, dt := range list {
+			if dt.MikrotikServerID != nil && *dt.MikrotikServerID == mikrotikServerID && dt.IPPelanggan != nil && *dt.IPPelanggan != "" {
+				usedIPsMap[*dt.IPPelanggan] = true
+				if lastIP == "" {
+					ip := net.ParseIP(*dt.IPPelanggan)
+					if ip != nil {
+						if ipv4 := ip.To4(); ipv4 != nil {
+							octet := int(ipv4[3])
+							if octet > lastOctet {
+								lastOctet = octet
+								lastIP = *dt.IPPelanggan
+								subnetPrefix = fmt.Sprintf("%d.%d.%d.", ipv4[0], ipv4[1], ipv4[2])
+							}
+						}
+					}
+				}
 			}
 		}
 	}
 
+	if err != nil {
+		source = "database"
+	}
+
+	// Calculate suggested_ip and available_ips
+	var suggestedIP string
+	var availableIPs []string
+
+	if subnetPrefix != "" {
+		// First check starting from lastOctet + 1 up to 254
+		startOctet := lastOctet + 1
+		if startOctet < 2 {
+			startOctet = 2
+		}
+
+		for octet := startOctet; octet <= 254; octet++ {
+			candidateIP := fmt.Sprintf("%s%d", subnetPrefix, octet)
+			if !usedIPsMap[candidateIP] {
+				if suggestedIP == "" {
+					suggestedIP = candidateIP
+				}
+				availableIPs = append(availableIPs, candidateIP)
+				if len(availableIPs) >= 8 {
+					break
+				}
+			}
+		}
+
+		// If we still need more available IPs (e.g. lastOctet was near 254 or to fill earlier gaps),
+		// scan from octet 2 to startOctet
+		if len(availableIPs) < 8 {
+			for octet := 2; octet < startOctet; octet++ {
+				candidateIP := fmt.Sprintf("%s%d", subnetPrefix, octet)
+				if !usedIPsMap[candidateIP] {
+					if suggestedIP == "" {
+						suggestedIP = candidateIP
+					}
+					exists := false
+					for _, a := range availableIPs {
+						if a == candidateIP {
+							exists = true
+							break
+						}
+					}
+					if !exists {
+						availableIPs = append(availableIPs, candidateIP)
+						if len(availableIPs) >= 8 {
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	message := ""
+	if lastIP != "" && suggestedIP != "" {
+		message = fmt.Sprintf("IP Terakhir: %s • Rekomendasi IP Berikutnya: %s", lastIP, suggestedIP)
+	} else if suggestedIP != "" {
+		message = fmt.Sprintf("Rekomendasi IP: %s", suggestedIP)
+	} else if lastIP != "" {
+		message = fmt.Sprintf("IP Terakhir: %s", lastIP)
+	} else {
+		message = "Belum ada IP yang terpakai di server ini"
+	}
+
+	var lastIPVal interface{} = lastIP
 	if lastIP == "" {
-		return map[string]interface{}{
-			"last_ip":    nil,
-			"last_octet": 0,
-			"source":     source,
-		}, nil
+		lastIPVal = nil
+	}
+	var suggestedIPVal interface{} = suggestedIP
+	if suggestedIP == "" {
+		suggestedIPVal = nil
 	}
 
 	return map[string]interface{}{
-		"last_ip":    lastIP,
-		"last_octet": lastOctet,
-		"source":     source,
+		"last_ip":       lastIPVal,
+		"last_octet":    lastOctet,
+		"suggested_ip":  suggestedIPVal,
+		"available_ips": availableIPs,
+		"total_used":    len(usedIPsMap),
+		"subnet_prefix": subnetPrefix,
+		"server_name":   serverName,
+		"source":        source,
+		"message":       message,
 	}, nil
 }
 
