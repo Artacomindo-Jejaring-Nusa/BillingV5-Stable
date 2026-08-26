@@ -70,8 +70,6 @@ type DataTeknis struct {
 	SpeedtestProof      *string        `gorm:"type:varchar(191);index" json:"speedtest_proof"`
 	MikrotikSyncPending bool           `gorm:"default:false;index" json:"mikrotik_sync_pending"`
 	MikrotikServerID    *uint64        `gorm:"index" json:"mikrotik_server_id"`
-	CreatedAt           *time.Time     `gorm:"type:datetime;default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt           *time.Time     `gorm:"type:datetime;default:CURRENT_TIMESTAMP;autoUpdateTime" json:"updated_at"`
 
 	// Relationships
 	Pelanggan      *Pelanggan      `gorm:"foreignKey:PelangganID" json:"pelanggan"`

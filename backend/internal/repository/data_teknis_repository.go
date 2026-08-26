@@ -127,11 +127,11 @@ func (r *dataTeknisRepository) GetByPelangganID(ctx context.Context, pelangganID
 }
 
 func (r *dataTeknisRepository) Create(ctx context.Context, data *domain.DataTeknis) error {
-	return r.db.WithContext(ctx).Create(data).Error
+	return r.db.WithContext(ctx).Omit("Pelanggan", "MikrotikServer", "Odp", "TroubleTickets").Create(data).Error
 }
 
 func (r *dataTeknisRepository) Update(ctx context.Context, data *domain.DataTeknis) error {
-	return r.db.WithContext(ctx).Save(data).Error
+	return r.db.WithContext(ctx).Omit("Pelanggan", "MikrotikServer", "Odp", "TroubleTickets").Save(data).Error
 }
 
 func (r *dataTeknisRepository) Delete(ctx context.Context, id uint64) error {
