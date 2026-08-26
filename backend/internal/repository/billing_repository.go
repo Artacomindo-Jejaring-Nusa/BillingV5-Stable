@@ -717,7 +717,6 @@ func (r *langgananRepository) GetActivePelangganIDs(ctx context.Context) ([]uint
 	var ids []uint64
 	err := r.db.WithContext(ctx).
 		Model(&domain.Langganan{}).
-		Where("status != ?", "Berhenti").
 		Distinct("pelanggan_id").
 		Pluck("pelanggan_id", &ids).Error
 	return ids, err
