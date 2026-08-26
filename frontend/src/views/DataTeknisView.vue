@@ -800,7 +800,7 @@
                         label="Profile PPPoE"
                         variant="outlined"
                         placeholder="Pilih profile yang tersedia..."
-                        no-data-text="Tidak ada profile tersedia untuk paket ini"
+                        :no-data-text="!editedItem.pelanggan_id ? 'Pilih Pelanggan terlebih dahulu' : (!editedItem.mikrotik_server_id ? 'Pilih Mikrotik Server terlebih dahulu' : (profilesLoading ? 'Memuat profile...' : 'Tidak ada profile tersedia untuk paket ini'))"
                       >
                         <template v-slot:label>
                           Profile PPPoE <span class="text-error">*</span>
@@ -1239,6 +1239,7 @@ interface Pelanggan {
   id: number;
   nama: string;
   alamat?: string;
+  layanan?: string;
   created_at?: string;
 }
 
@@ -2368,24 +2369,58 @@ watch(
 );
 
 async function handleProfileFetch(pelangganId: number, serverId: number) {
+  if (!pelangganId || !serverId) {
+    profilesFromApi.value = [];
+    return;
+  }
+
   // Reset state yang relevan
   profilesLoading.value = true;
   profilesFromApi.value = [];
 
   try {
-    // 1. Ambil detail pelanggan untuk mengetahui paket layanan apa yang dia gunakan
-    const pelangganResponse = await apiClient.get(`/pelanggan/${pelangganId}`);
-    const pelangganDetail = pelangganResponse.data?.data ?? pelangganResponse.data;
+    // 1. Ambil detail layanan pelanggan dari cached pelangganList atau dari endpoint data_teknis (aman untuk Role NOC)
+    let layanan = '';
+    const cachedPelanggan = pelangganList.value.find(p => p.id === pelangganId);
+    if (cachedPelanggan?.layanan) {
+      layanan = cachedPelanggan.layanan;
+    } else if (editedItem.value.pelanggan?.layanan) {
+      layanan = editedItem.value.pelanggan.layanan;
+    } else {
+      try {
+        const pelangganResponse = await apiClient.get(`/data_teknis/pelanggan-detail/${pelangganId}`);
+        const pelangganDetail = pelangganResponse.data?.data ?? pelangganResponse.data;
+        layanan = pelangganDetail?.layanan || '';
+      } catch (err) {
+        console.warn("Fallback fetch pelanggan detail:", err);
+      }
+    }
 
-    if (pelangganDetail && pelangganDetail.layanan) {
-      // 2. Cari ID paket yang namanya cocok dengan 'layanan' pelanggan
-      const paketTerkait = paketLayananSelectList.value.find(
-        (p: PaketLayananSelectItem) => p.nama_paket === pelangganDetail.layanan
+    if (layanan) {
+      // Pastikan paket layanan select list sudah terisi
+      if (paketLayananSelectList.value.length === 0) {
+        await fetchPaketLayananForSelect();
+      }
+
+      // 2. Cari ID paket yang namanya cocok dengan 'layanan' pelanggan (case-insensitive & whitespace-trimmed)
+      const cleanLayanan = layanan.trim().toLowerCase();
+      let paketTerkait = paketLayananSelectList.value.find(
+        (p: PaketLayananSelectItem) => p.nama_paket?.trim().toLowerCase() === cleanLayanan
       );
+
+      if (!paketTerkait) {
+        paketTerkait = paketLayananSelectList.value.find(
+          (p: PaketLayananSelectItem) =>
+            cleanLayanan.includes(p.nama_paket?.trim().toLowerCase()) ||
+            p.nama_paket?.trim().toLowerCase().includes(cleanLayanan)
+        );
+      }
 
       if (paketTerkait) {
         // 3. Jika paket ditemukan, panggil API dengan SEMUA info yang dibutuhkan
         await fetchAvailableProfiles(paketTerkait.id, pelangganId, serverId);
+      } else {
+        console.warn(`Paket layanan "${layanan}" tidak ditemukan dalam daftar paket layanan`);
       }
     }
     
@@ -2396,7 +2431,7 @@ async function handleProfileFetch(pelangganId: number, serverId: number) {
       console.warn("Gagal mengambil informasi IP terakhir (tidak memengaruhi fungsi utama):", error);
     }
   } catch (error) {
-    console.error("Gagal mengambil data detail pelanggan:", error);
+    console.error("Gagal mengambil data detail pelanggan / profile:", error);
   } finally {
     profilesLoading.value = false;
   }

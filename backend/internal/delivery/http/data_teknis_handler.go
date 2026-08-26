@@ -49,6 +49,7 @@ func NewDataTeknisHandler(r *gin.RouterGroup, du domain.DataTeknisUsecase, authM
 		g.GET("/available-profiles/:paket_layanan_id/:pelanggan_id", handler.GetAvailableProfilesForPackage)
 		g.GET("/last-ip/:mikrotik_server_id", handler.GetLastUsedIP)
 		g.GET("/unconfigured-pelanggan", handler.GetUnconfiguredPelanggan)
+		g.GET("/pelanggan-detail/:pelanggan_id", handler.GetPelangganDetail)
 		g.GET("/export", handler.Export)
 		g.POST("/import/csv", handler.ImportFromCSV)
 		g.GET("/template/csv", handler.DownloadCSVTemplate)
@@ -59,6 +60,20 @@ func NewDataTeknisHandler(r *gin.RouterGroup, du domain.DataTeknisUsecase, authM
 func (h *DataTeknisHandler) GetUnconfiguredPelanggan(c *gin.Context) {
 	search := c.Query("search")
 	data, err := h.dataTeknisUsecase.GetUnconfiguredPelanggan(c.Request.Context(), search)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (h *DataTeknisHandler) GetPelangganDetail(c *gin.Context) {
+	pelangganID, err := strconv.ParseUint(c.Param("pelanggan_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pelanggan ID"})
+		return
+	}
+	data, err := h.dataTeknisUsecase.GetPelangganDetail(c.Request.Context(), pelangganID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

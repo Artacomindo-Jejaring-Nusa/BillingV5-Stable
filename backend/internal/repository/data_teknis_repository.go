@@ -222,7 +222,7 @@ func (r *dataTeknisRepository) GetPendingSync(ctx context.Context) ([]domain.Dat
 func (r *dataTeknisRepository) GetUnconfiguredPelanggan(ctx context.Context, search string) ([]domain.Pelanggan, error) {
 	var list []domain.Pelanggan
 	query := r.db.WithContext(ctx).Table("pelanggan").
-		Select("pelanggan.id, pelanggan.nama, pelanggan.alamat, pelanggan.alamat_2, pelanggan.created_at").
+		Select("pelanggan.id, pelanggan.nama, pelanggan.alamat, pelanggan.alamat_2, pelanggan.layanan, pelanggan.created_at").
 		Joins("LEFT JOIN data_teknis ON data_teknis.pelanggan_id = pelanggan.id").
 		Where("pelanggan.deleted_at IS NULL AND data_teknis.id IS NULL")
 

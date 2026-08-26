@@ -588,14 +588,55 @@ func (u *dataTeknisUsecase) GetUnconfiguredPelanggan(ctx context.Context, search
 				alamatDisplay = *p.AlamatCustom
 			}
 		}
+		layananStr := ""
+		if p.Layanan != nil {
+			layananStr = *p.Layanan
+		}
 		result = append(result, map[string]interface{}{
 			"id":         p.ID,
 			"nama":       p.Nama,
 			"alamat":     alamatDisplay,
+			"layanan":    layananStr,
 			"created_at": p.CreatedAt,
 		})
 	}
 	return result, nil
+}
+
+func (u *dataTeknisUsecase) GetPelangganDetail(ctx context.Context, pelangganID uint64) (map[string]interface{}, error) {
+	cust, err := u.pelangganRepo.GetByID(ctx, pelangganID)
+	if err != nil {
+		return nil, err
+	}
+	if cust == nil {
+		return nil, errors.New("pelanggan tidak ditemukan")
+	}
+
+	layananStr := ""
+	if cust.Layanan != nil {
+		layananStr = *cust.Layanan
+	}
+	brandStr := ""
+	if cust.IDBrand != nil {
+		brandStr = *cust.IDBrand
+	}
+	alamatDisplay := cust.Alamat
+	if cust.AlamatCustom != nil && *cust.AlamatCustom != "" {
+		if alamatDisplay != "" {
+			alamatDisplay += " - " + *cust.AlamatCustom
+		} else {
+			alamatDisplay = *cust.AlamatCustom
+		}
+	}
+
+	return map[string]interface{}{
+		"id":         cust.ID,
+		"nama":       cust.Nama,
+		"layanan":    layananStr,
+		"id_brand":   brandStr,
+		"alamat":     alamatDisplay,
+		"created_at": cust.CreatedAt,
+	}, nil
 }
 
 func (u *dataTeknisUsecase) ImportFromCSV(ctx context.Context, csvContent string) (int, error) {
