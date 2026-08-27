@@ -296,7 +296,7 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 	report.FinancialSummary.TotalPemasukan = totalPemasukan
 	report.FinancialSummary.SaldoAkhir = totalPemasukan
 
-	// 2. BILLING SUMMARY & TAXES - Invoices BILLED/DUE in this period (tgl_jatuh_tempo)
+	// 2. BILLING SUMMARY & TAXES - Invoices BILLED/DUE in this period OR PAID in this period
 	// Exact 1-to-1 V4 Python calculation (app/routers/report.py lines 95-200)
 	billingQuery := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Table("invoices").
@@ -304,10 +304,10 @@ func (r *invoiceRepository) GetRevenueReport(ctx context.Context, params *domain
 			Where("invoices.deleted_at IS NULL")
 
 		if startDate != "" {
-			q = q.Where("invoices.tgl_jatuh_tempo >= ?", startDate)
+			q = q.Where("((invoices.status_invoice = 'Lunas' AND (invoices.paid_at >= ? OR (invoices.paid_at IS NULL AND invoices.tgl_invoice >= ?))) OR (invoices.status_invoice != 'Lunas' AND invoices.tgl_jatuh_tempo >= ?))", startDate, startDate, startDate)
 		}
 		if endDate != "" {
-			q = q.Where("invoices.tgl_jatuh_tempo <= ?", endDate)
+			q = q.Where("((invoices.status_invoice = 'Lunas' AND (invoices.paid_at <= ? OR (invoices.paid_at IS NULL AND invoices.tgl_invoice <= ?))) OR (invoices.status_invoice != 'Lunas' AND invoices.tgl_jatuh_tempo <= ?))", endDate, endDate, endDate)
 		}
 		if params.Alamat != "" {
 			q = q.Where("pelanggan.alamat = ?", params.Alamat)
@@ -428,14 +428,14 @@ func (r *invoiceRepository) GetRevenueReportDetails(ctx context.Context, params 
 		Where("invoices.deleted_at IS NULL")
 
 	if params.StartDate != "" {
-		query = query.Where("invoices.tgl_jatuh_tempo >= ?", params.StartDate)
+		query = query.Where("((invoices.status_invoice = 'Lunas' AND (invoices.paid_at >= ? OR (invoices.paid_at IS NULL AND invoices.tgl_invoice >= ?))) OR (invoices.status_invoice != 'Lunas' AND invoices.tgl_jatuh_tempo >= ?))", params.StartDate, params.StartDate, params.StartDate)
 	}
 	if params.EndDate != "" {
 		endDate := params.EndDate
 		if !strings.Contains(endDate, ":") {
 			endDate = endDate + " 23:59:59"
 		}
-		query = query.Where("invoices.tgl_jatuh_tempo <= ?", endDate)
+		query = query.Where("((invoices.status_invoice = 'Lunas' AND (invoices.paid_at <= ? OR (invoices.paid_at IS NULL AND invoices.tgl_invoice <= ?))) OR (invoices.status_invoice != 'Lunas' AND invoices.tgl_jatuh_tempo <= ?))", endDate, endDate, endDate)
 	}
 	if params.Alamat != "" {
 		query = query.Where("pelanggan.alamat = ?", params.Alamat)
@@ -451,7 +451,7 @@ func (r *invoiceRepository) GetRevenueReportDetails(ctx context.Context, params 
 		query = query.Offset(params.Skip)
 	}
 
-	err := query.Order("invoices.tgl_jatuh_tempo desc").Scan(&items).Error
+	err := query.Order("COALESCE(invoices.paid_at, invoices.tgl_invoice, invoices.tgl_jatuh_tempo) desc, invoices.id desc").Scan(&items).Error
 	return items, err
 }
 

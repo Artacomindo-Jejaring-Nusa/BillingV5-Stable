@@ -216,7 +216,7 @@
                 Tampilkan
               </label>
               <v-select
-                v-model="selectedLimit"
+                v-model="itemsPerPage"
                 :items="limitOptions"
                 item-title="title"
                 item-value="value"
@@ -224,6 +224,7 @@
                 density="compact"
                 hide-details
                 class="filter-input"
+                @update:model-value="onItemsPerPageChange"
               ></v-select>
             </div>
 
@@ -324,8 +325,7 @@
           </v-btn>
         </div>
       </v-expand-transition>
-            
-      <!-- Tampilan Tabel untuk Desktop (Medium ke atas) -->
+                  <!-- Tampilan Tabel untuk Desktop (Medium ke atas) -->
       <div class="responsive-table-container d-none d-md-block">
         <v-data-table
             v-model="selectedInvoices"
@@ -334,11 +334,13 @@
             :loading="loading"
             item-value="id"
             class="invoice-table"
-            :items-per-page="10"
+            :items-per-page="itemsPerPage"
+            :server-items-length="totalCount"
             :loading-text="'Memuat data invoice...'"
             :no-data-text="'Tidak ada data invoice'"
             show-select
             return-object
+            hide-default-footer
           >
           <template v-slot:loading>
             <SkeletonLoader type="table" :rows="10" />
@@ -516,6 +518,70 @@
             </div>
           </template>
         </v-data-table>
+
+        <!-- Custom Pagination Controls untuk Desktop -->
+        <div class="pa-3 border-t bg-surface">
+          <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+            <!-- Total Count Chip -->
+            <v-chip variant="outlined" color="primary" size="default" class="font-weight-medium">
+              Total: {{ totalCount.toLocaleString('id-ID') }} Invoice di server
+            </v-chip>
+
+            <!-- Custom Pagination -->
+            <div class="d-flex align-center">
+              <span class="text-caption text-medium-emphasis mr-2">Items per page:</span>
+              <v-select
+                v-model="itemsPerPage"
+                :items="[10, 25, 50, 100, 200]"
+                variant="outlined"
+                density="compact"
+                hide-details
+                style="width: 85px"
+                class="mr-3"
+                @update:model-value="onItemsPerPageChange"
+              ></v-select>
+
+              <span class="text-caption text-medium-emphasis mr-3 font-weight-medium">
+                {{ totalCount === 0 ? '0-0 of 0' : `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, totalCount)} of ${totalCount.toLocaleString('id-ID')}` }}
+              </span>
+
+              <v-btn
+                icon="mdi-page-first"
+                variant="text"
+                size="small"
+                :disabled="currentPage === 1 || loading"
+                @click="goToFirstPage"
+                class="mr-1"
+              ></v-btn>
+
+              <v-btn
+                icon="mdi-chevron-left"
+                variant="text"
+                size="small"
+                :disabled="currentPage === 1 || loading"
+                @click="goToPreviousPage"
+                class="mr-1"
+              ></v-btn>
+
+              <v-btn
+                icon="mdi-chevron-right"
+                variant="text"
+                size="small"
+                :disabled="currentPage >= Math.ceil(totalCount / itemsPerPage) || loading"
+                @click="goToNextPage"
+                class="mr-1"
+              ></v-btn>
+
+              <v-btn
+                icon="mdi-page-last"
+                variant="text"
+                size="small"
+                :disabled="currentPage >= Math.ceil(totalCount / itemsPerPage) || loading"
+                @click="goToLastPage"
+              ></v-btn>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Tampilan Kartu untuk Mobile (Small ke bawah) -->
@@ -564,56 +630,38 @@
             </div>
             <v-divider></v-divider>
 
-            <!-- Card Body with details -->
-            <v-list density="compact" class="py-2 px-4">
-              <v-list-item class="px-0">
-                <template v-slot:prepend>
-                  <v-icon color="success" class="me-4">mdi-cash-multiple</v-icon>
-                </template>
-                <v-list-item-title>Total Tagihan</v-list-item-title>
-                <template v-slot:append>
-                  <span class="font-weight-bold text-success">{{ formatCurrency(item.total_harga) }}</span>
-                </template>
-              </v-list-item>
-              <v-list-item class="px-0">
-                <template v-slot:prepend>
-                  <v-icon color="grey" class="me-4">mdi-calendar-start</v-icon>
-                </template>
-                <v-list-item-title>Tgl. Invoice</v-list-item-title>
-                <template v-slot:append>
-                  <span>{{ formatDate(item.tgl_invoice) }}</span>
-                </template>
-              </v-list-item>
-              <v-list-item class="px-0">
-                <template v-slot:prepend>
-                  <v-icon :color="item.status_invoice === 'Expired' ? 'error' : 'warning'" class="me-4">mdi-calendar-alert</v-icon>
-                </template>
-                <v-list-item-title>Jatuh Tempo</v-list-item-title>
-                <template v-slot:append>
-                  <div class="text-right">
-                    <div>{{ formatDate(item.tgl_jatuh_tempo) }}</div>
-                    <div v-if="item.status_invoice !== 'Lunas'" class="text-caption" :class="item.status_invoice === 'Expired' ? 'text-error' : 'text-warning'">
-                      {{ getDueDateLabel(item) }}
-                    </div>
-                  </div>
-                </template>
-              </v-list-item>
-            </v-list>
-            <v-divider></v-divider>
+            <!-- Card Content -->
+            <v-card-text class="py-2" @click="openDetailDialog(item)">
+              <div class="d-flex justify-space-between align-center mb-1">
+                <span class="text-caption text-medium-emphasis">Total Tagihan:</span>
+                <span class="text-subtitle-1 font-weight-bold text-success">{{ formatCurrency(item.total_harga) }}</span>
+              </div>
+              <div class="d-flex justify-space-between align-center mb-1">
+                <span class="text-caption text-medium-emphasis">Tanggal Invoice:</span>
+                <span class="text-caption font-weight-medium">{{ formatDate(item.tgl_invoice) }}</span>
+              </div>
+              <div class="d-flex justify-space-between align-center">
+                <span class="text-caption text-medium-emphasis">Jatuh Tempo:</span>
+                <span class="text-caption font-weight-medium" :class="item.status_invoice === 'Expired' ? 'text-error' : ''">
+                  {{ formatDate(item.tgl_jatuh_tempo) }}
+                </span>
+              </div>
+            </v-card-text>
 
             <!-- Card Actions -->
-            <v-card-actions class="justify-space-between pa-1">
-              <v-tooltip text="Salin Link">
+            <v-divider></v-divider>
+            <v-card-actions class="pa-2 d-flex justify-end">
+              <v-tooltip text="Salin Link" v-if="item.payment_link">
                 <template v-slot:activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="small" color="primary" @click="copyPaymentLink(item.payment_link)" :disabled="!item.payment_link"><v-icon>mdi-content-copy</v-icon></v-btn>
+                  <v-btn v-bind="props" icon variant="text" size="small" color="primary" @click="copyPaymentLink(item.payment_link)"><v-icon>mdi-content-copy</v-icon></v-btn>
                 </template>
               </v-tooltip>
-              <v-tooltip text="Kirim WA">
+              <v-tooltip text="WhatsApp" v-if="item.payment_link && item.no_telp">
                 <template v-slot:activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="small" color="green" @click="sendWhatsAppReminder(item)" :disabled="!item.payment_link || !item.no_telp"><v-icon>mdi-whatsapp</v-icon></v-btn>
+                  <v-btn v-bind="props" icon variant="text" size="small" color="green" @click="sendWhatsAppReminder(item)"><v-icon>mdi-whatsapp</v-icon></v-btn>
                 </template>
               </v-tooltip>
-              <v-tooltip text="Lihat Detail">
+              <v-tooltip text="Detail">
                 <template v-slot:activator="{ props }">
                   <v-btn v-bind="props" icon variant="text" size="small" @click="openDetailDialog(item)"><v-icon>mdi-eye</v-icon></v-btn>
                 </template>
@@ -635,6 +683,31 @@
               </v-tooltip>
             </v-card-actions>
           </v-card>
+
+          <!-- Mobile Pagination Controls -->
+          <div class="d-flex align-center justify-space-between mt-3 pt-3 border-t">
+            <v-btn
+              size="small"
+              variant="outlined"
+              :disabled="currentPage === 1 || loading"
+              @click="goToPreviousPage"
+              prepend-icon="mdi-chevron-left"
+            >
+              Sebelumnya
+            </v-btn>
+            <span class="text-caption font-weight-medium">
+              Hal {{ currentPage }} / {{ Math.max(1, Math.ceil(totalCount / itemsPerPage)) }}
+            </span>
+            <v-btn
+              size="small"
+              variant="outlined"
+              :disabled="currentPage >= Math.ceil(totalCount / itemsPerPage) || loading"
+              @click="goToNextPage"
+              append-icon="mdi-chevron-right"
+            >
+              Berikutnya
+            </v-btn>
+          </div>
         </div>
       </div>
 
@@ -986,13 +1059,14 @@ const startDate = ref<string | null>(null);
 const endDate = ref<string | null>(null);
 const statusOptions = ref(['Lunas', 'Belum Bayar', 'Expired']);
 const showPaidInvoices = ref(false);
-const selectedLimit = ref(10);
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
 const limitOptions = ref([
   { title: '10 item', value: 10 },
+  { title: '25 item', value: 25 },
   { title: '50 item', value: 50 },
   { title: '100 item', value: 100 },
-  { title: '200 item', value: 200 },
-  { title: 'Semua', value: 1000 }
+  { title: '200 item', value: 200 }
 ]);
 const totalCount = ref(0);
 const showAdvancedFilters = ref(false);
@@ -1227,16 +1301,46 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
 }
 
+// --- Pagination Functions ---
+function goToFirstPage() {
+  if (currentPage.value > 1) {
+    currentPage.value = 1;
+    fetchInvoices();
+  }
+}
 
+function goToPreviousPage() {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+    fetchInvoices();
+  }
+}
 
+function goToNextPage() {
+  const maxPage = Math.ceil(totalCount.value / itemsPerPage.value);
+  if (currentPage.value < maxPage) {
+    currentPage.value++;
+    fetchInvoices();
+  }
+}
 
-// --- Methods --- (Tidak ada perubahan di bawah ini, biarkan seperti semula)
+function goToLastPage() {
+  const maxPage = Math.ceil(totalCount.value / itemsPerPage.value);
+  if (currentPage.value < maxPage) {
+    currentPage.value = maxPage;
+    fetchInvoices();
+  }
+}
+
+function onItemsPerPageChange(newLimit: number) {
+  itemsPerPage.value = newLimit;
+  currentPage.value = 1;
+  fetchInvoices();
+}
+
+// --- Methods ---
 onMounted(() => {
   fetchInvoices();
-  // TIDAK LAGI FETCH SEMUA DATA DI AWAL (Over-fetching Prevention)
-  // fetchPelangganForSelect();
-  // fetchLanggananForSelect(); 
-  // fetchAllInvoicesForExistingUserCheck(); // Tidak perlu lagi - deteksi new user sekarang dari backend /new-users
   window.addEventListener('new-notification', handleNewNotification);
 });
 
@@ -1261,8 +1365,9 @@ async function fetchInvoices() {
       }
     }
     
-    // Always append limit based on user selection from dropdown
-    params.append('limit', selectedLimit.value.toString());
+    const skip = (currentPage.value - 1) * itemsPerPage.value;
+    params.append('skip', skip.toString());
+    params.append('limit', itemsPerPage.value.toString());
 
     const response = await apiClient.get<any>(`/invoices?${params.toString()}`);
     const rawData = response.data?.data ?? response.data;
@@ -1279,7 +1384,7 @@ async function fetchInvoices() {
       await fetchTotalCount();
     }
 
-      } catch (error) {
+  } catch (error) {
     console.error('Error fetching invoices:', error);
     showSnackbar('Gagal memuat data invoice. Silakan coba lagi.', 'error');
   } finally {
@@ -1326,7 +1431,7 @@ async function fetchAllInvoicesForExistingUserCheck() {
 
     invoicesForExistingUserCheck.value.push(...newInvoices);
 
-      } catch (error) {
+  } catch (error) {
     console.error('Error fetching all invoices for existing user check:', error);
   }
 }
@@ -1344,10 +1449,12 @@ async function sendWhatsAppReminder(invoice: Invoice) {
 }
 
 const applySearchFilter = debounce(() => {
+  currentPage.value = 1;
   fetchInvoices();
 }, 500);
 
 const applyInstantFilter = debounce(() => {
+  currentPage.value = 1;
   fetchInvoices();
 }, 50);
 
@@ -1355,7 +1462,7 @@ watch(searchQuery, () => {
   applySearchFilter();
 });
 
-watch([selectedStatus, startDate, endDate, selectedLimit, showPaidInvoices], () => {
+watch([selectedStatus, startDate, endDate, showPaidInvoices], () => {
   applyInstantFilter();
 });
 
@@ -1365,7 +1472,8 @@ function resetFilters() {
   startDate.value = null;
   endDate.value = null;
   showPaidInvoices.value = false;
-  selectedLimit.value = 10;
+  itemsPerPage.value = 10;
+  currentPage.value = 1;
   fetchInvoices();
 }
 
