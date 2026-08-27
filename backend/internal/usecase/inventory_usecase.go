@@ -154,6 +154,7 @@ func (u *inventoryUsecase) UpdateItem(ctx context.Context, id uint64, updates *d
 			return nil, fmt.Errorf("invalid item type: %v", err)
 		}
 		existing.ItemTypeID = updates.ItemTypeID
+		existing.ItemType = nil
 	}
 
 	// Verify Status if changed
@@ -163,6 +164,7 @@ func (u *inventoryUsecase) UpdateItem(ctx context.Context, id uint64, updates *d
 			return nil, fmt.Errorf("invalid status: %v", err)
 		}
 		existing.StatusID = updates.StatusID
+		existing.Status = nil
 	}
 
 	existing.Location = updates.Location
@@ -244,7 +246,9 @@ func (u *inventoryUsecase) AssignItem(ctx context.Context, itemID uint64, pelang
 
 	// Update item
 	item.StatusID = assignedStatus.ID
+	item.Status = nil
 	item.PelangganID = &pelangganID
+	item.Pelanggan = nil
 	if notes != "" {
 		if item.Notes != nil && *item.Notes != "" {
 			newNotes := fmt.Sprintf("%s\nAssigned note: %s", *item.Notes, notes)
@@ -299,7 +303,9 @@ func (u *inventoryUsecase) UnassignItem(ctx context.Context, itemID uint64, note
 
 	// Update item
 	item.StatusID = availableStatus.ID
+	item.Status = nil
 	item.PelangganID = nil
+	item.Pelanggan = nil
 	if notes != "" {
 		if item.Notes != nil && *item.Notes != "" {
 			newNotes := fmt.Sprintf("%s\nUnassigned note: %s", *item.Notes, notes)

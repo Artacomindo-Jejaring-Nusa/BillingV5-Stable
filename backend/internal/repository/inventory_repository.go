@@ -104,11 +104,11 @@ func (r *inventoryRepository) GetItemByMacAddress(ctx context.Context, macAddres
 }
 
 func (r *inventoryRepository) CreateItem(ctx context.Context, item *domain.InventoryItem) error {
-	return r.db.WithContext(ctx).Create(item).Error
+	return r.db.WithContext(ctx).Omit("ItemType", "Status", "Pelanggan", "InventoryHistories").Create(item).Error
 }
 
 func (r *inventoryRepository) UpdateItem(ctx context.Context, item *domain.InventoryItem) error {
-	return r.db.WithContext(ctx).Save(item).Error
+	return r.db.WithContext(ctx).Omit("ItemType", "Status", "Pelanggan", "InventoryHistories").Save(item).Error
 }
 
 func (r *inventoryRepository) DeleteItem(ctx context.Context, id uint64) error {
