@@ -20,10 +20,11 @@ import (
 )
 
 type pelangganUsecase struct {
-	pelangganRepo    domain.PelangganRepository
-	systemRepo       domain.SystemRepository
-	langgananRepo    domain.LanggananRepository
-	paketLayananRepo domain.PaketLayananRepository
+	pelangganRepo     domain.PelangganRepository
+	systemRepo        domain.SystemRepository
+	langgananRepo     domain.LanggananRepository
+	paketLayananRepo  domain.PaketLayananRepository
+	dataTeknisUsecase domain.DataTeknisUsecase
 }
 
 func NewPelangganUsecase(p domain.PelangganRepository, sr ...domain.SystemRepository) domain.PelangganUsecase {
@@ -42,12 +43,18 @@ func NewPelangganUsecaseFull(
 	systemRepo domain.SystemRepository,
 	lr domain.LanggananRepository,
 	pr domain.PaketLayananRepository,
+	dtu ...domain.DataTeknisUsecase,
 ) domain.PelangganUsecase {
+	var dataTeknisUsecase domain.DataTeknisUsecase
+	if len(dtu) > 0 {
+		dataTeknisUsecase = dtu[0]
+	}
 	return &pelangganUsecase{
-		pelangganRepo:    p,
-		systemRepo:       systemRepo,
-		langgananRepo:    lr,
-		paketLayananRepo: pr,
+		pelangganRepo:     p,
+		systemRepo:        systemRepo,
+		langgananRepo:     lr,
+		paketLayananRepo:  pr,
+		dataTeknisUsecase: dataTeknisUsecase,
 	}
 }
 
@@ -274,6 +281,14 @@ func (u *pelangganUsecase) syncLanggananWithNewLayanan(ctx context.Context, cust
 			lng.HargaAwal = &harga
 			_ = u.langgananRepo.Update(ctx, &lng)
 			u.logActivity(ctx, "Auto Sync Langganan", fmt.Sprintf("Auto-synced langganan ID %d for %s to paket %s (Rp %.2f)", lng.ID, cust.Nama, matchingPaket.NamaPaket, matchingPaket.Harga))
+		}
+	}
+
+	// Sinkronisasi otomatis ke Data Teknis (Profile PPPoE) dengan memilih profile paling renggang di Mikrotik
+	if u.dataTeknisUsecase != nil {
+		newProf, err := u.dataTeknisUsecase.AutoSyncProfileForPelanggan(ctx, cust.ID, matchingPaket)
+		if err == nil && newProf != "" {
+			u.logActivity(ctx, "Auto Sync Data Teknis", fmt.Sprintf("Auto-updated Data Teknis profile for %s to %s (paling renggang)", cust.Nama, newProf))
 		}
 	}
 }

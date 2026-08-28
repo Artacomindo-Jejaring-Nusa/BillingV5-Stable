@@ -42,6 +42,10 @@ func (m *mockDataTeknisRepoFull) CheckIPAddress(ctx context.Context, ip string, 
 	return false, nil
 }
 
+func (m *mockDataTeknisRepoFull) GetAvailableProfiles(ctx context.Context) ([]string, error) {
+	return []string{"10Mbps-a", "10Mbps-b", "10Mbps-c"}, nil
+}
+
 func TestDataTeknisStore(t *testing.T) {
 	repo := &mockDataTeknisRepoFull{}
 	pRepo := &mockPelangganRepo{data: map[uint64]*domain.Pelanggan{
@@ -97,5 +101,27 @@ func TestDataTeknisExport(t *testing.T) {
 	}
 	if contentType != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" {
 		t.Errorf("expected excel content type, got %s", contentType)
+	}
+}
+
+func TestAutoSyncProfileForPelanggan(t *testing.T) {
+	repo := &mockDataTeknisRepoFull{}
+	pRepo := &mockPelangganRepo{data: map[uint64]*domain.Pelanggan{
+		1: {ID: 1, Nama: "Pelanggan Test"},
+	}}
+	u := NewDataTeknisUsecase(repo, nil, pRepo, nil)
+
+	paket := &domain.PaketLayanan{
+		ID:        1,
+		NamaPaket: "Paket Internet 10 Mbps",
+		Kecepatan: 10,
+	}
+
+	prof, err := u.AutoSyncProfileForPelanggan(context.Background(), 1, paket)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if prof == "" {
+		t.Error("expected a non-empty profile name")
 	}
 }

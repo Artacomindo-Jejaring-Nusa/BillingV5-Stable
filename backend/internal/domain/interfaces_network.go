@@ -61,6 +61,7 @@ type DataTeknisUsecase interface {
 	GetPelangganDetail(ctx context.Context, pelangganID uint64) (map[string]interface{}, error)
 	ImportFromCSV(ctx context.Context, csvContent string) (int, error)
 	Export(ctx context.Context, format string) ([]byte, string, error)
+	AutoSyncProfileForPelanggan(ctx context.Context, pelangganID uint64, paket *PaketLayanan) (string, error)
 }
 
 // OLTRepository defines database operations for OLT

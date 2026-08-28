@@ -300,14 +300,6 @@ func main() {
 	// Billing & Subscriptions Repositories
 	langgananRepo := repository.NewLanggananRepository(db)
 
-	// Pelanggan
-	pelangganRepo := repository.NewPelangganRepository(db)
-	pelangganUsecase := usecase.NewPelangganUsecaseFull(pelangganRepo, systemRepo, langgananRepo, paketLayananRepo)
-	if err := pelangganUsecase.BackfillCustomerIDs(context.Background()); err != nil {
-		logger.Warn("BackfillCustomerIDs warning: %v", err)
-	}
-	httpDelivery.NewPelangganHandler(api, pelangganUsecase, authMw)
-
 	// Mikrotik
 	mikrotikRepo := repository.NewMikrotikRepository(db)
 	mikrotikUsecase := usecase.NewMikrotikUsecase(mikrotikRepo)
@@ -323,10 +315,20 @@ func main() {
 	odpUsecase := usecase.NewODPUsecase(odpRepo)
 	httpDelivery.NewODPHandler(api, odpUsecase, authMw)
 
+	// Pelanggan Repository
+	pelangganRepo := repository.NewPelangganRepository(db)
+
 	// DataTeknis
 	dataTeknisRepo := repository.NewDataTeknisRepository(db)
 	dataTeknisUsecase := usecase.NewDataTeknisUsecase(dataTeknisRepo, mikrotikRepo, pelangganRepo, paketLayananRepo)
 	httpDelivery.NewDataTeknisHandler(api, dataTeknisUsecase, authMw)
+
+	// Pelanggan Usecase & Handler (with Data Teknis auto-sync)
+	pelangganUsecase := usecase.NewPelangganUsecaseFull(pelangganRepo, systemRepo, langgananRepo, paketLayananRepo, dataTeknisUsecase)
+	if err := pelangganUsecase.BackfillCustomerIDs(context.Background()); err != nil {
+		logger.Warn("BackfillCustomerIDs warning: %v", err)
+	}
+	httpDelivery.NewPelangganHandler(api, pelangganUsecase, authMw)
 
 	// Billing
 	invoiceRepo := repository.NewInvoiceRepository(db)

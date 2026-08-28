@@ -6,12 +6,14 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"strconv"
 	"strings"
 
 	"billing-backend/internal/domain"
 	"billing-backend/internal/websocket"
+	"billing-backend/pkg/database"
 	"billing-backend/pkg/mikrotik"
 	"billing-backend/pkg/utils"
 
@@ -1223,4 +1225,159 @@ func (u *dataTeknisUsecase) Export(ctx context.Context, format string) ([]byte, 
 		w.Flush()
 		return buf.Bytes(), "text/csv", nil
 	}
+}
+
+// AutoSyncProfileForPelanggan secara otomatis memilih dan mengalokasikan profile PPPoE yang paling renggang (penggunaan paling sedikit)
+// pada router Mikrotik berdasarkan kecepatan paket layanan yang baru, lalu memperbarui Data Teknis dan sinkronisasi ke Mikrotik.
+func (u *dataTeknisUsecase) AutoSyncProfileForPelanggan(ctx context.Context, pelangganID uint64, paket *domain.PaketLayanan) (string, error) {
+	if paket == nil {
+		return "", errors.New("paket layanan is nil")
+	}
+
+	dt, err := u.dataTeknisRepo.GetByPelangganID(ctx, pelangganID)
+	if err != nil || dt == nil {
+		// Pelanggan belum memiliki konfigurasi Data Teknis
+		return "", nil
+	}
+
+	var serverID uint64
+	if dt.MikrotikServerID != nil && *dt.MikrotikServerID != 0 {
+		serverID = *dt.MikrotikServerID
+	} else {
+		cust, _ := u.pelangganRepo.GetByID(ctx, pelangganID)
+		if cust != nil && cust.MikrotikServerID != nil && *cust.MikrotikServerID != 0 {
+			serverID = *cust.MikrotikServerID
+			dt.MikrotikServerID = cust.MikrotikServerID
+		}
+	}
+
+	var bestProfile string
+	minUsage := math.MaxInt32
+
+	// 1. Prioritas Utama: Ambil daftar profile dan live usage count dari Mikrotik RouterOS langsung
+	if serverID != 0 {
+		_ = u.executeRouterOS(ctx, serverID, func(client *routeros.Client) error {
+			profiles, err := mikrotik.GetAllPPPProfiles(client)
+			if err != nil {
+				return err
+			}
+
+			secrets, err := mikrotik.GetAllPPPSecrets(client)
+			if err != nil {
+				return err
+			}
+
+			usageCount := make(map[string]int)
+			for _, secret := range secrets {
+				if prof, ok := secret["profile"]; ok {
+					usageCount[prof]++
+				}
+			}
+
+			speedStr := fmt.Sprintf("%dmbps", paket.Kecepatan)
+			speedShort1 := fmt.Sprintf("%dm-", paket.Kecepatan)
+			speedShort2 := fmt.Sprintf("%dm_", paket.Kecepatan)
+			speedShort3 := fmt.Sprintf("%dm ", paket.Kecepatan)
+
+			var matchingCandidates []string
+			for _, prof := range profiles {
+				pLower := strings.ToLower(prof)
+				// Abaikan profile default / suspended
+				if pLower == "default" || pLower == "default-encryption" || pLower == "suspended" {
+					continue
+				}
+				if strings.Contains(pLower, speedStr) || strings.HasPrefix(pLower, speedShort1) || strings.HasPrefix(pLower, speedShort2) || strings.HasPrefix(pLower, speedShort3) {
+					matchingCandidates = append(matchingCandidates, prof)
+				}
+			}
+
+			// Cari candidate profile dengan pemakaian terkecil (paling renggang)
+			for _, prof := range matchingCandidates {
+				cnt := usageCount[prof]
+				if cnt < minUsage {
+					minUsage = cnt
+					bestProfile = prof
+				}
+			}
+
+			return nil
+		})
+	}
+
+	// 2. Fallback: Jika Mikrotik sedang offline / tidak terjangkau, cari dari profile yang ada di database lokal
+	if bestProfile == "" {
+		availableProfiles, _ := u.dataTeknisRepo.GetAvailableProfiles(ctx)
+		speedStr := fmt.Sprintf("%dmbps", paket.Kecepatan)
+		var matchingCandidates []string
+		for _, prof := range availableProfiles {
+			pLower := strings.ToLower(prof)
+			if pLower == "default" || pLower == "default-encryption" || pLower == "suspended" {
+				continue
+			}
+			if strings.Contains(pLower, speedStr) {
+				matchingCandidates = append(matchingCandidates, prof)
+			}
+		}
+
+		if len(matchingCandidates) > 0 {
+			db := database.GetDB()
+			if db != nil {
+				type ProfileCount struct {
+					ProfilePppoe string
+					Total        int
+				}
+				var counts []ProfileCount
+				db.WithContext(ctx).Table("data_teknis").
+					Select("profile_pppoe, count(*) as total").
+					Where("profile_pppoe IN ?", matchingCandidates).
+					Group("profile_pppoe").
+					Scan(&counts)
+
+				countMap := make(map[string]int)
+				for _, c := range counts {
+					countMap[c.ProfilePppoe] = c.Total
+				}
+
+				for _, prof := range matchingCandidates {
+					cnt := countMap[prof]
+					if cnt < minUsage {
+						minUsage = cnt
+						bestProfile = prof
+					}
+				}
+			} else {
+				bestProfile = matchingCandidates[0]
+			}
+		}
+	}
+
+	if bestProfile == "" {
+		return "", fmt.Errorf("tidak ditemukan profile yang sesuai untuk kecepatan %d Mbps", paket.Kecepatan)
+	}
+
+	// 3. Update Profile di Data Teknis
+	dt.ProfilePppoe = &bestProfile
+	err = u.dataTeknisRepo.Update(ctx, dt)
+	if err != nil {
+		return "", fmt.Errorf("gagal update profile data teknis: %w", err)
+	}
+
+	// 4. Sinkronisasi perubahan profile langsung ke Mikrotik PPP Secret
+	if serverID != 0 && dt.IDPelanggan != "" {
+		status := "Aktif"
+		if dt.Pelanggan != nil && len(dt.Pelanggan.Langganan) > 0 {
+			status = dt.Pelanggan.Langganan[0].Status
+		}
+		syncErr := u.triggerMikrotikUpdate(ctx, dt.IDPelanggan, dt, status)
+		if syncErr != nil {
+			dt.MikrotikSyncPending = true
+			_ = u.dataTeknisRepo.Update(ctx, dt)
+		} else if dt.MikrotikSyncPending {
+			dt.MikrotikSyncPending = false
+			_ = u.dataTeknisRepo.Update(ctx, dt)
+		}
+	}
+
+	websocket.InvalidateDashboardCache(ctx)
+	return bestProfile, nil
 }
