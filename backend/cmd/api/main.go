@@ -207,6 +207,12 @@ func main() {
 		c.Next()
 	})
 
+	// Set CSP header for iframe embedding in Nextcloud
+	router.Use(func(c *gin.Context) {
+		c.Header("Content-Security-Policy", "frame-ancestors 'self' https://cloud.jelantik.com;")
+		c.Next()
+	})
+
 	// 5. Setup Middleware (CORS)
 	router.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool { return true },
