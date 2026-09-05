@@ -114,3 +114,40 @@ func (r *systemRepository) GetActivityLogs(ctx context.Context, filters domain.A
 	err := db.Order("activity_logs.timestamp desc, activity_logs.id desc").Find(&logs).Error
 	return logs, total, err
 }
+
+func (r *systemRepository) GetSystemLogs(ctx context.Context, filters domain.SystemLogFilters) ([]domain.SystemLog, int64, error) {
+	var logs []domain.SystemLog
+	var total int64
+
+	db := r.db.WithContext(ctx).Model(&domain.SystemLog{})
+
+	if filters.Search != "" {
+		db = db.Where("system_logs.message LIKE ?", "%"+filters.Search+"%")
+	}
+
+	if filters.Level != "" && filters.Level != "ALL" {
+		db = db.Where("system_logs.level = ?", filters.Level)
+	}
+
+	if filters.DateFrom != "" {
+		db = db.Where("DATE(system_logs.timestamp) >= ?", filters.DateFrom)
+	}
+
+	if filters.DateTo != "" {
+		db = db.Where("DATE(system_logs.timestamp) <= ?", filters.DateTo)
+	}
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if filters.Limit > 0 {
+		db = db.Limit(filters.Limit)
+	}
+	if filters.Offset >= 0 {
+		db = db.Offset(filters.Offset)
+	}
+
+	err := db.Order("system_logs.timestamp desc, system_logs.id desc").Find(&logs).Error
+	return logs, total, err
+}

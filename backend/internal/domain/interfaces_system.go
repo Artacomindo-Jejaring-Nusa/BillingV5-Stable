@@ -8,6 +8,7 @@ type SystemRepository interface {
 	GetSettingByKey(ctx context.Context, key string) (*SystemSetting, error)
 	UpdateSetting(ctx context.Context, setting *SystemSetting) error
 	GetActivityLogs(ctx context.Context, filters ActivityLogFilters) ([]ActivityLog, int64, error)
+	GetSystemLogs(ctx context.Context, filters SystemLogFilters) ([]SystemLog, int64, error)
 	
 	// Syarat & Ketentuan (SK)
 	GetSyaratKetentuanAll(ctx context.Context) ([]SyaratKetentuan, error)
@@ -23,6 +24,7 @@ type SystemUsecase interface {
 	GetSetting(ctx context.Context, key string) (string, error)
 	SetSetting(ctx context.Context, key string, value string) error
 	FetchActivityLogs(ctx context.Context, filters ActivityLogFilters) ([]ActivityLog, int64, error)
+	FetchSystemLogs(ctx context.Context, filters SystemLogFilters) ([]SystemLog, int64, error)
 	
 	// SK
 	FetchSKAll(ctx context.Context) ([]SyaratKetentuan, error)

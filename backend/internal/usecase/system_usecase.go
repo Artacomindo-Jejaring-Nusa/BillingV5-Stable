@@ -99,3 +99,13 @@ func (u *systemUsecase) FetchActivityLogs(ctx context.Context, filters domain.Ac
 	}
 	return u.repo.GetActivityLogs(ctx, filters)
 }
+
+func (u *systemUsecase) FetchSystemLogs(ctx context.Context, filters domain.SystemLogFilters) ([]domain.SystemLog, int64, error) {
+	if filters.Limit <= 0 {
+		filters.Limit = 10
+	}
+	if filters.Offset < 0 {
+		filters.Offset = 0
+	}
+	return u.repo.GetSystemLogs(ctx, filters)
+}

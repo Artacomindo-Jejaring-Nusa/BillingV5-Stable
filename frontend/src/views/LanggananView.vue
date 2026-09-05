@@ -789,7 +789,10 @@
 
         <v-divider class="mt-2"></v-divider>
 
-        <div class="d-flex gap-2 mt-3">
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <v-btn size="small" variant="tonal" color="purple" @click="openInvoiceHistory(item)" class="flex-grow-1">
+            <v-icon start size="16">mdi-receipt-text-clock</v-icon> Tagihan
+          </v-btn>
           <v-btn size="small" variant="tonal" color="primary" @click="navigateToEdit(item)" class="flex-grow-1">
             <v-icon start size="16">mdi-pencil</v-icon> Edit
           </v-btn>
@@ -987,6 +990,9 @@
 
           <template v-slot:item.actions="{ item }: { item: Langganan }">
             <div class="d-flex justify-center ga-2">
+              <v-btn size="small" variant="tonal" color="purple" @click="openInvoiceHistory(item)">
+                <v-icon start size="16">mdi-receipt-text-clock</v-icon> Tagihan
+              </v-btn>
               <v-btn size="small" variant="tonal" color="primary" @click="navigateToEdit(item)">
                 <v-icon start size="16">mdi-pencil</v-icon> Edit
               </v-btn>
@@ -1993,6 +1999,112 @@
         {{ snackbar.text }}
       </div>
     </v-snackbar>
+
+    <!-- Dialog Riwayat Tagihan Pelanggan -->
+    <v-dialog v-model="dialogInvoiceHistory" max-width="950px" persistent>
+      <v-card class="rounded-xl overflow-hidden">
+        <div class="pa-6 bg-purple text-white d-flex align-center">
+          <v-avatar color="white" size="48" class="elevation-4 me-4">
+            <v-icon color="purple" size="28">mdi-receipt-text-clock</v-icon>
+          </v-avatar>
+          <div class="flex-grow-1">
+            <h2 class="text-h6 font-weight-bold text-white mb-1">
+              Riwayat Tagihan: {{ selectedLanggananForHistory?.pelanggan?.nama || 'Pelanggan' }}
+            </h2>
+            <p class="text-caption text-white mb-0" style="opacity: 0.9;">
+              ID Pelanggan: {{ selectedLanggananForHistory?.pelanggan_id }} • Paket: {{ getPaketName(selectedLanggananForHistory?.paket_layanan_id, selectedLanggananForHistory) }}
+            </p>
+          </div>
+          <v-btn icon="mdi-close" variant="text" color="white" size="small" @click="dialogInvoiceHistory = false"></v-btn>
+        </div>
+
+        <v-card-text class="pa-6">
+          <div v-if="customerInvoicesLoading" class="py-6">
+            <SkeletonLoader type="table" :rows="5" />
+          </div>
+
+          <div v-else-if="customerInvoices.length === 0" class="text-center py-8">
+            <v-icon size="64" color="grey-lighten-2">mdi-receipt-text-remove-outline</v-icon>
+            <div class="text-h6 text-grey-darken-1 mt-3">Belum Ada Riwayat Tagihan</div>
+            <div class="text-body-2 text-medium-emphasis">
+              Pelanggan ini belum memiliki invoice tagihan yang tercatat di sistem.
+            </div>
+          </div>
+
+          <div v-else class="table-responsive">
+            <v-table density="comfortable" hover>
+              <thead>
+                <tr>
+                  <th class="font-weight-bold">Nomor Invoice</th>
+                  <th class="font-weight-bold">Tanggal</th>
+                  <th class="font-weight-bold">Jatuh Tempo</th>
+                  <th class="font-weight-bold text-right">Total</th>
+                  <th class="font-weight-bold text-center">Status</th>
+                  <th class="font-weight-bold text-center">Link Pembayaran</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="inv in customerInvoices" :key="inv.id">
+                  <td>
+                    <div class="font-weight-bold text-primary">{{ inv.invoice_number }}</div>
+                    <div v-if="inv.is_reinvoice" class="text-caption text-purple font-weight-bold">Reinvoice</div>
+                  </td>
+                  <td>{{ formatDate(inv.tgl_invoice) }}</td>
+                  <td>{{ formatDate(inv.tgl_jatuh_tempo) }}</td>
+                  <td class="text-right font-weight-bold text-success">{{ formatCurrency(inv.total_harga) }}</td>
+                  <td class="text-center">
+                    <v-chip
+                      size="small"
+                      :color="inv.status_invoice === 'Lunas' ? 'success' : inv.status_invoice === 'Expired' ? 'error' : 'warning'"
+                      class="font-weight-bold"
+                      label
+                    >
+                      {{ inv.payment_link_status || inv.status_invoice }}
+                    </v-chip>
+                  </td>
+                  <td class="text-center">
+                    <div class="d-flex align-center justify-center gap-1">
+                      <v-btn
+                        v-if="inv.payment_link"
+                        icon="mdi-content-copy"
+                        size="x-small"
+                        variant="text"
+                        color="primary"
+                        @click="copyInvoiceLink(inv.payment_link)"
+                      ></v-btn>
+                      <v-btn
+                        v-if="inv.payment_link"
+                        icon="mdi-open-in-new"
+                        size="x-small"
+                        variant="text"
+                        color="purple"
+                        :href="inv.payment_link"
+                        target="_blank"
+                      ></v-btn>
+                      <span v-else class="text-caption text-medium-emphasis">-</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </div>
+        </v-card-text>
+
+        <v-divider></v-divider>
+
+        <v-card-actions class="pa-4 bg-grey-lighten-5">
+          <v-spacer></v-spacer>
+          <v-btn
+            color="primary"
+            variant="elevated"
+            @click="dialogInvoiceHistory = false"
+            class="text-none font-weight-bold px-6"
+          >
+            Tutup
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -3660,6 +3772,55 @@ async function openPelangganView(item: Langganan) {
 // --- HELPER FUNCTIONS ---
 function showSnackbar(text: string, color: 'success' | 'error' | 'warning') {
   snackbar.value = { show: true, text, color };
+}
+
+// Invoice History Dialog State & Methods
+const dialogInvoiceHistory = ref(false);
+const selectedLanggananForHistory = ref<Langganan | null>(null);
+const customerInvoices = ref<any[]>([]);
+const customerInvoicesLoading = ref(false);
+
+async function openInvoiceHistory(item: Langganan) {
+  selectedLanggananForHistory.value = item;
+  dialogInvoiceHistory.value = true;
+  customerInvoicesLoading.value = true;
+  try {
+    const response = await apiClient.get(`/invoices?pelanggan_id=${item.pelanggan_id}&limit=100`);
+    const raw = response.data?.data ?? response.data;
+    customerInvoices.value = Array.isArray(raw) ? raw : [];
+  } catch (error) {
+    console.error('Error fetching customer invoices:', error);
+    showSnackbar('Gagal mengambil riwayat tagihan', 'error');
+    customerInvoices.value = [];
+  } finally {
+    customerInvoicesLoading.value = false;
+  }
+}
+
+async function copyInvoiceLink(link: string | null | undefined) {
+  if (!link) {
+    showSnackbar('Tidak ada link pembayaran', 'warning');
+    return;
+  }
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(link);
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = link;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      textArea.remove();
+    }
+    showSnackbar('Link pembayaran berhasil disalin!', 'success');
+  } catch (e) {
+    showSnackbar('Gagal menyalin link', 'error');
+  }
 }
 
 // getPelangganName function sudah ada di line 2206, gunakan yang sudah ada

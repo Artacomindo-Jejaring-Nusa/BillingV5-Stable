@@ -73,6 +73,7 @@ type BillingUsecase interface {
 	GenerateManualInvoice(ctx context.Context, langgananID uint64) (*Invoice, error)
 	DeleteInvoice(ctx context.Context, id uint64) error
 	ResendWhatsAppNotification(ctx context.Context, id uint64) error
+	RetryXenditInvoice(ctx context.Context, id uint64) (*Invoice, error)
 	
 	// Xendit Webhook Callback
 	ProcessXenditCallback(ctx context.Context, xCallbackToken string, payload map[string]interface{}, idempotencyKey string) error

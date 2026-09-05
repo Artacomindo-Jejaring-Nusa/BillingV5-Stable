@@ -93,3 +93,13 @@ type ActivityLogFilters struct {
 	DateTo   string
 }
 
+// SystemLogFilters represents filters for retrieving system trace logs.
+type SystemLogFilters struct {
+	Limit    int
+	Offset   int
+	Level    string
+	Search   string
+	DateFrom string
+	DateTo   string
+}
+

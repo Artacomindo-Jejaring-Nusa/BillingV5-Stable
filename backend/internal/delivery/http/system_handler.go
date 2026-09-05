@@ -42,8 +42,9 @@ func NewSystemHandler(r *gin.RouterGroup, su domain.SystemUsecase, sm *scheduler
 		systemGroup.PUT("/sk/:id", handler.UpdateSK)
 		systemGroup.DELETE("/sk/:id", handler.DeleteSK)
 
-		// Activity Logs
+		// Activity & System Logs
 		systemGroup.GET("/activity-logs", handler.GetActivityLogs)
+		systemGroup.GET("/system-logs", handler.GetSystemLogs)
 	}
 
 	// Register top-level compatibility routes for frontend
@@ -52,6 +53,8 @@ func NewSystemHandler(r *gin.RouterGroup, su domain.SystemUsecase, sm *scheduler
 	{
 		compatGroup.GET("/activity-logs", handler.GetActivityLogs)
 		compatGroup.GET("/activity-logs/", handler.GetActivityLogs)
+		compatGroup.GET("/system-logs", handler.GetSystemLogs)
+		compatGroup.GET("/system-logs/", handler.GetSystemLogs)
 		compatGroup.GET("/sk", handler.GetSKAll)
 		compatGroup.GET("/sk/", handler.GetSKAll)
 		compatGroup.GET("/sk/:id", handler.GetSKByID)
@@ -225,6 +228,55 @@ func (h *SystemHandler) GetActivityLogs(c *gin.Context) {
 			"total":     total,
 			"offset":    offset,
 			"limit":     limit,
+		},
+	})
+}
+
+func (h *SystemHandler) GetSystemLogs(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "15"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("skip", "0"))
+	
+	if pageStr := c.Query("page"); pageStr != "" {
+		page, _ := strconv.Atoi(pageStr)
+		if page < 1 {
+			page = 1
+		}
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "15"))
+		if pageSize < 1 {
+			pageSize = 15
+		}
+		offset = (page - 1) * pageSize
+		limit = pageSize
+	}
+
+	search := c.Query("search")
+	level := c.Query("level")
+	dateFrom := c.Query("date_from")
+	dateTo := c.Query("date_to")
+
+	filters := domain.SystemLogFilters{
+		Limit:    limit,
+		Offset:   offset,
+		Search:   search,
+		Level:    level,
+		DateFrom: dateFrom,
+		DateTo:   dateTo,
+	}
+
+	logs, total, err := h.usecase.FetchSystemLogs(c.Request.Context(), filters)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  logs,
+		"items": logs,
+		"total": total,
+		"meta": gin.H{
+			"total":  total,
+			"offset": offset,
+			"limit":  limit,
 		},
 	})
 }

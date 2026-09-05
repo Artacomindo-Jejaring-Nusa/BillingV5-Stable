@@ -42,6 +42,7 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 		invoiceGroup.PATCH("/:id/status", middleware.PermissionMiddleware("edit_invoices"), handler.UpdateInvoiceStatus)
 		invoiceGroup.DELETE("/:id", middleware.PermissionMiddleware("delete_invoices"), handler.DeleteInvoice)
 		invoiceGroup.POST("/:id/resend-wa", middleware.PermissionMiddleware("edit_invoices"), handler.ResendWA)
+		invoiceGroup.POST("/:id/retry-xendit", middleware.PermissionMiddleware("edit_invoices"), handler.RetryXenditInvoice)
 	}
 
 	langgananGroup := r.Group("/langganan")
@@ -666,4 +667,23 @@ func (h *BillingHandler) ResendWA(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Notifikasi WhatsApp berhasil dikirim ulang"})
+}
+
+func (h *BillingHandler) RetryXenditInvoice(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID invoice tidak valid"})
+		return
+	}
+
+	inv, err := h.billingUsecase.RetryXenditInvoice(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "data": inv})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Invoice berhasil diterbitkan ulang di Xendit",
+		"data":    inv,
+	})
 }

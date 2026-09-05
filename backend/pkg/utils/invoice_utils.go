@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"crypto/subtle"
 	"regexp"
 	"strings"
 )
@@ -105,4 +106,12 @@ func NormalizePhoneDisplay(phone string) string {
 	}
 
 	return "62" + digits
+}
+
+// SecureCompareToken securely compares two token strings in constant time to prevent timing attacks.
+func SecureCompareToken(receivedToken, expectedToken string) bool {
+	if len(receivedToken) == 0 || len(expectedToken) == 0 {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(receivedToken), []byte(expectedToken)) == 1
 }

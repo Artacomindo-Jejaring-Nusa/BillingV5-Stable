@@ -18,6 +18,10 @@ export interface Invoice {
   brand?: string;
   xendit_id?: string | null;
   xendit_external_id?: string | null;
+  xendit_status?: string | null;
+  xendit_error_message?: string | null;
+  xendit_retry_count?: number;
+  xendit_last_retry?: string | null;
   expiry_date?: string | null;
   paid_amount?: number | null;
   created_at?: string | null;

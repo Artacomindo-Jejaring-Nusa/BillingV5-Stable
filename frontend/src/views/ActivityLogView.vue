@@ -16,302 +16,587 @@
       </div>
     </div>
 
-    <!-- Filters Section -->
-    <v-card class="filter-card mb-4 mb-md-6" elevation="0" rounded="xl">
-      <v-card-title class="d-flex align-center pa-6">
-        <v-icon color="purple" size="24" class="me-3">mdi-filter-variant</v-icon>
-        <div>
-          <h3 class="text-h6 font-weight-bold mb-0">Filter Pencarian</h3>
-          <p class="text-caption text-primary mb-0">Temukan aktivitas dengan cepat</p>
-        </div>
-        <v-spacer></v-spacer>
-        <v-btn
-          v-if="hasActiveFilters"
-          variant="text"
-          color="error"
-          prepend-icon="mdi-refresh"
-          size="small"
-          @click="clearFilters"
-          class="clear-filters-btn"
-        >
-          Reset Filter
-        </v-btn>
-      </v-card-title>
-
-      <v-divider class="filter-divider"></v-divider>
-
-      <v-card-text class="filter-content pa-6">
-        <v-row dense>
-          <!-- Search Keyword -->
-          <v-col cols="12" md="3">
-            <v-text-field
-              v-model="filters.search"
-              label="Cari aktivitas..."
-              prepend-inner-icon="mdi-magnify"
-              variant="outlined"
-              density="compact"
-              hide-details
-              clearable
-              placeholder="Kata kunci"
-              class="search-field"
-              @update:model-value="debouncedSearch"
-            ></v-text-field>
-          </v-col>
-
-          <!-- User Filter -->
-          <v-col cols="12" md="3">
-            <v-select
-              v-model="filters.user_id"
-              :items="userOptions"
-              label="Pengguna"
-              prepend-inner-icon="mdi-account"
-              variant="outlined"
-              density="compact"
-              hide-details
-              clearable
-              placeholder="Semua pengguna"
-              item-title="name"
-              item-value="id"
-              class="user-filter"
-              @update:model-value="applyFilters"
-            ></v-select>
-          </v-col>
-
-          <!-- Action Filter -->
-          <v-col cols="12" md="2">
-            <v-select
-              v-model="filters.action"
-              :items="actionOptions"
-              label="Aksi"
-              prepend-inner-icon="mdi-cog"
-              variant="outlined"
-              density="compact"
-              hide-details
-              clearable
-              placeholder="Semua aksi"
-              class="action-filter"
-              @update:model-value="applyFilters"
-            ></v-select>
-          </v-col>
-
-          <!-- Date Range Filter -->
-          <v-col cols="12" md="4">
-            <div class="d-flex gap-2">
-              <v-text-field
-                v-model="filters.date_from"
-                type="date"
-                label="Dari tanggal"
-                prepend-inner-icon="mdi-calendar-start"
-                variant="outlined"
-                density="compact"
-                hide-details
-                clearable
-                class="date-from-filter"
-                @update:model-value="applyFilters"
-              ></v-text-field>
-              <v-text-field
-                v-model="filters.date_to"
-                type="date"
-                label="Sampai tanggal"
-                prepend-inner-icon="mdi-calendar-end"
-                variant="outlined"
-                density="compact"
-                hide-details
-                clearable
-                class="date-to-filter"
-                @update:model-value="applyFilters"
-              ></v-text-field>
-            </div>
-          </v-col>
-        </v-row>
-
-        <!-- Active Filters Display -->
-        <div v-if="hasActiveFilters" class="active-filters mt-4">
-          <div class="d-flex align-center flex-wrap gap-2">
-            <span class="text-caption text-primary me-2">Filter aktif:</span>
-            <v-chip
-              v-if="filters.search"
-              color="primary"
-              variant="tonal"
-              size="small"
-              closable
-              @click:close="filters.search = ''; applyFilters()"
-            >
-              <v-icon start size="14">mdi-magnify</v-icon>
-              {{ filters.search }}
-            </v-chip>
-            <v-chip
-              v-if="filters.user_id"
-              color="purple"
-              variant="tonal"
-              size="small"
-              closable
-              @click:close="filters.user_id = null; applyFilters()"
-            >
-              <v-icon start size="14">mdi-account</v-icon>
-              {{ getUserDisplayName(filters.user_id) }}
-            </v-chip>
-            <v-chip
-              v-if="filters.action"
-              :color="getActionColor(filters.action)"
-              variant="tonal"
-              size="small"
-              closable
-              @click:close="filters.action = ''; applyFilters()"
-            >
-              <v-icon start size="14">{{ getActionIcon(filters.action) }}</v-icon>
-              {{ filters.action }}
-            </v-chip>
-            <v-chip
-              v-if="filters.date_from"
-              color="indigo"
-              variant="tonal"
-              size="small"
-              closable
-              @click:close="filters.date_from = ''; applyFilters()"
-            >
-              <v-icon start size="14">mdi-calendar-start</v-icon>
-              {{ formatDateFilter(filters.date_from) }}
-            </v-chip>
-            <v-chip
-              v-if="filters.date_to"
-              color="indigo"
-              variant="tonal"
-              size="small"
-              closable
-              @click:close="filters.date_to = ''; applyFilters()"
-            >
-              <v-icon start size="14">mdi-calendar-end</v-icon>
-              {{ formatDateFilter(filters.date_to) }}
-            </v-chip>
-          </div>
-        </div>
-      </v-card-text>
+    <!-- Tabs Section -->
+    <v-card class="mb-4 mb-md-6" elevation="0" rounded="xl" style="border: 1px solid rgba(var(--v-border-color), 0.12);">
+      <v-tabs
+        v-model="activeTab"
+        color="purple"
+        density="comfortable"
+        grow
+        class="custom-log-tabs"
+      >
+        <v-tab value="user" class="text-none font-weight-bold">
+          <v-icon start>mdi-account-clock-outline</v-icon>
+          Log Aktivitas Pengguna
+          <v-chip size="x-small" color="purple" variant="tonal" class="ms-2">Audit User</v-chip>
+        </v-tab>
+        <v-tab value="system" class="text-none font-weight-bold">
+          <v-icon start>mdi-server-network</v-icon>
+          Log Sistem & Otomatisasi
+          <v-chip size="x-small" color="indigo" variant="tonal" class="ms-2">Cron & Xendit</v-chip>
+        </v-tab>
+      </v-tabs>
     </v-card>
 
-    <!-- Activity Logs Card -->
-    <v-card class="activity-card" elevation="0" rounded="xl">
-      <!-- Card Header -->
-      <div class="table-header">
+    <!-- TAB 1: User Activity Logs -->
+    <template v-if="activeTab === 'user'">
+      <!-- Filters Section -->
+      <v-card class="filter-card mb-4 mb-md-6" elevation="0" rounded="xl">
         <v-card-title class="d-flex align-center pa-6">
-          <div class="d-flex align-center flex-grow-1">
-            <v-icon color="purple" size="24" class="me-3">mdi-format-list-bulleted</v-icon>
-            <div>
-              <h2 class="text-h6 font-weight-bold mb-0">Riwayat Aktivitas Pengguna</h2>
-              <p class="text-caption text-primary mb-0">
-                {{ totalLogs }} total aktivitas tercatat
-              </p>
+          <v-icon color="purple" size="24" class="me-3">mdi-filter-variant</v-icon>
+          <div>
+            <h3 class="text-h6 font-weight-bold mb-0">Filter Pencarian User</h3>
+            <p class="text-caption text-primary mb-0">Temukan aktivitas pengguna dengan cepat</p>
+          </div>
+          <v-spacer></v-spacer>
+          <v-btn
+            v-if="hasActiveFilters"
+            variant="text"
+            color="error"
+            prepend-icon="mdi-refresh"
+            size="small"
+            @click="clearFilters"
+            class="clear-filters-btn"
+          >
+            Reset Filter
+          </v-btn>
+        </v-card-title>
+
+        <v-divider class="filter-divider"></v-divider>
+
+        <v-card-text class="filter-content pa-6">
+          <v-row dense>
+            <!-- Search Keyword -->
+            <v-col cols="12" md="3">
+              <v-text-field
+                v-model="filters.search"
+                label="Cari aktivitas..."
+                prepend-inner-icon="mdi-magnify"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                placeholder="Kata kunci"
+                class="search-field"
+                @update:model-value="debouncedSearch"
+              ></v-text-field>
+            </v-col>
+
+            <!-- User Filter -->
+            <v-col cols="12" md="3">
+              <v-select
+                v-model="filters.user_id"
+                :items="userOptions"
+                label="Pengguna"
+                prepend-inner-icon="mdi-account"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                placeholder="Semua pengguna"
+                item-title="name"
+                item-value="id"
+                class="user-filter"
+                @update:model-value="applyFilters"
+              ></v-select>
+            </v-col>
+
+            <!-- Action Filter -->
+            <v-col cols="12" md="2">
+              <v-select
+                v-model="filters.action"
+                :items="actionOptions"
+                label="Aksi"
+                prepend-inner-icon="mdi-cog"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                placeholder="Semua aksi"
+                class="action-filter"
+                @update:model-value="applyFilters"
+              ></v-select>
+            </v-col>
+
+            <!-- Date Range Filter -->
+            <v-col cols="12" md="4">
+              <div class="d-flex gap-2">
+                <v-text-field
+                  v-model="filters.date_from"
+                  type="date"
+                  label="Dari tanggal"
+                  prepend-inner-icon="mdi-calendar-start"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  clearable
+                  class="date-from-filter"
+                  @update:model-value="applyFilters"
+                ></v-text-field>
+                <v-text-field
+                  v-model="filters.date_to"
+                  type="date"
+                  label="Sampai tanggal"
+                  prepend-inner-icon="mdi-calendar-end"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  clearable
+                  class="date-to-filter"
+                  @update:model-value="applyFilters"
+                ></v-text-field>
+              </div>
+            </v-col>
+          </v-row>
+
+          <!-- Active Filters Display -->
+          <div v-if="hasActiveFilters" class="active-filters mt-4">
+            <div class="d-flex align-center flex-wrap gap-2">
+              <span class="text-caption text-primary me-2">Filter aktif:</span>
+              <v-chip
+                v-if="filters.search"
+                color="primary"
+                variant="tonal"
+                size="small"
+                closable
+                @click:close="filters.search = ''; applyFilters()"
+              >
+                <v-icon start size="14">mdi-magnify</v-icon>
+                {{ filters.search }}
+              </v-chip>
+              <v-chip
+                v-if="filters.user_id"
+                color="purple"
+                variant="tonal"
+                size="small"
+                closable
+                @click:close="filters.user_id = null; applyFilters()"
+              >
+                <v-icon start size="14">mdi-account</v-icon>
+                {{ getUserDisplayName(filters.user_id) }}
+              </v-chip>
+              <v-chip
+                v-if="filters.action"
+                :color="getActionColor(filters.action)"
+                variant="tonal"
+                size="small"
+                closable
+                @click:close="filters.action = ''; applyFilters()"
+              >
+                <v-icon start size="14">{{ getActionIcon(filters.action) }}</v-icon>
+                {{ filters.action }}
+              </v-chip>
+              <v-chip
+                v-if="filters.date_from"
+                color="indigo"
+                variant="tonal"
+                size="small"
+                closable
+                @click:close="filters.date_from = ''; applyFilters()"
+              >
+                <v-icon start size="14">mdi-calendar-start</v-icon>
+                {{ formatDateFilter(filters.date_from) }}
+              </v-chip>
+              <v-chip
+                v-if="filters.date_to"
+                color="indigo"
+                variant="tonal"
+                size="small"
+                closable
+                @click:close="filters.date_to = ''; applyFilters()"
+              >
+                <v-icon start size="14">mdi-calendar-end</v-icon>
+                {{ formatDateFilter(filters.date_to) }}
+              </v-chip>
             </div>
           </div>
+        </v-card-text>
+      </v-card>
 
-          <!-- Refresh Button -->
-          <v-btn
-            icon="mdi-refresh"
-            variant="text"
-            size="small"
-            color="purple"
+      <!-- Activity Logs Card -->
+      <v-card class="activity-card" elevation="0" rounded="xl">
+        <!-- Card Header -->
+        <div class="table-header">
+          <v-card-title class="d-flex align-center pa-6">
+            <div class="d-flex align-center flex-grow-1">
+              <v-icon color="purple" size="24" class="me-3">mdi-format-list-bulleted</v-icon>
+              <div>
+                <h2 class="text-h6 font-weight-bold mb-0">Riwayat Aktivitas Pengguna</h2>
+                <p class="text-caption text-primary mb-0">
+                  {{ totalLogs }} total aktivitas tercatat
+                </p>
+              </div>
+            </div>
+
+            <!-- Refresh Button -->
+            <v-btn
+              icon="mdi-refresh"
+              variant="text"
+              size="small"
+              color="purple"
+              :loading="loading"
+              @click="refreshData"
+              class="refresh-btn"
+            ></v-btn>
+          </v-card-title>
+        </div>
+
+        <v-divider class="card-divider"></v-divider>
+
+        <!-- Data Table -->
+        <div class="table-container">
+          <v-data-table-server
+            v-model:items-per-page="itemsPerPage"
+            :headers="headers"
+            :items="logs"
+            :items-length="totalLogs"
             :loading="loading"
-            @click="refreshData"
-            class="refresh-btn"
-          ></v-btn>
-        </v-card-title>
-      </div>
-
-      <v-divider class="card-divider"></v-divider>
-
-      <!-- Data Table -->
-      <div class="table-container">
-        <v-data-table-server
-          v-model:items-per-page="itemsPerPage"
-          :headers="headers"
-          :items="logs"
-          :items-length="totalLogs"
-          :loading="loading"
-          @update:options="fetchLogs"
-          class="activity-table"
-          :no-data-text="'Belum ada aktivitas yang tercatat'"
-          loading-text="Memuat data log..."
-          :items-per-page-options="[10, 25, 50, 100]"
-        >
-          <!-- User Column -->
-          <template v-slot:item.user="{ item }">
-            <div class="user-cell d-flex align-center py-2">
-              <div class="user-avatar-wrapper me-3">
-                <v-avatar size="36" class="user-avatar">
-                  <div class="user-avatar-bg">
-                    <span class="user-initial">{{ item.user.name.charAt(0).toUpperCase() }}</span>
-                  </div>
-                </v-avatar>
+            @update:options="fetchLogs"
+            class="activity-table"
+            :no-data-text="'Belum ada aktivitas yang tercatat'"
+            loading-text="Memuat data log..."
+            :items-per-page-options="[10, 25, 50, 100]"
+          >
+            <!-- User Column -->
+            <template v-slot:item.user="{ item }">
+              <div class="user-cell d-flex align-center py-2">
+                <div class="user-avatar-wrapper me-3">
+                  <v-avatar size="36" class="user-avatar">
+                    <div class="user-avatar-bg">
+                      <span class="user-initial">{{ item.user.name.charAt(0).toUpperCase() }}</span>
+                    </div>
+                  </v-avatar>
+                </div>
+                <div class="user-info">
+                  <div class="user-name font-weight-bold text-body-2">{{ item.user.name }}</div>
+                  <div class="user-email text-caption text-medium-emphasis">{{ item.user.email }}</div>
+                </div>
               </div>
-              <div class="user-info">
-                <div class="user-name font-weight-bold text-body-2">{{ item.user.name }}</div>
-                <div class="user-email text-caption text-medium-emphasis">{{ item.user.email }}</div>
-              </div>
-            </div>
-          </template>
+            </template>
 
-          <!-- Action Column -->
-          <template v-slot:item.action="{ item }">
-            <v-chip 
-              :color="getActionColor(item.action)" 
-              variant="flat" 
-              size="small" 
-              class="action-chip font-weight-bold"
-              label
-            >
-              <v-icon start size="16">{{ getActionIcon(item.action) }}</v-icon>
-              {{ item.action }}
-            </v-chip>
-          </template>
-
-          <!-- Timestamp Column -->
-          <template v-slot:item.timestamp="{ item }">
-            <div class="timestamp-cell">
-              <div class="timestamp-primary text-body-2 font-weight-medium">
-                {{ formatDate(item.timestamp) }}
-              </div>
-              <div class="timestamp-secondary text-caption text-medium-emphasis">
-                {{ formatTime(item.timestamp) }}
-              </div>
-            </div>
-          </template>
-
-          <!-- Details Column -->
-          <template v-slot:item.details="{ item }">
-            <div class="details-cell text-center">
-              <v-btn
-                v-if="item.details"
-                icon
-                variant="text"
-                size="small"
-                color="primary"
-                class="details-btn"
-                @click="showDetails(item.details, item)"
+            <!-- Action Column -->
+            <template v-slot:item.action="{ item }">
+              <v-chip 
+                :color="getActionColor(item.action)" 
+                variant="flat" 
+                size="small" 
+                class="action-chip font-weight-bold"
+                label
               >
-                <v-icon size="20">mdi-code-json</v-icon>
-              </v-btn>
-              <span v-else class="text-info">-</span>
+                <v-icon start size="16">{{ getActionIcon(item.action) }}</v-icon>
+                {{ item.action }}
+              </v-chip>
+            </template>
+
+            <!-- Timestamp Column -->
+            <template v-slot:item.timestamp="{ item }">
+              <div class="timestamp-cell">
+                <div class="timestamp-primary text-body-2 font-weight-medium">
+                  {{ formatDate(item.timestamp) }}
+                </div>
+                <div class="timestamp-secondary text-caption text-medium-emphasis">
+                  {{ formatTime(item.timestamp) }}
+                </div>
+              </div>
+            </template>
+
+            <!-- Details Column -->
+            <template v-slot:item.details="{ item }">
+              <div class="details-cell text-center">
+                <v-btn
+                  v-if="item.details"
+                  icon
+                  variant="text"
+                  size="small"
+                  color="primary"
+                  class="details-btn"
+                  @click="showDetails(item.details, item)"
+                >
+                  <v-icon size="20">mdi-code-json</v-icon>
+                </v-btn>
+                <span v-else class="text-info">-</span>
+              </div>
+            </template>
+
+            <!-- Loading State -->
+            <template v-slot:loading>
+              <SkeletonLoader type="table" :rows="8" />
+            </template>
+
+            <!-- No Data State -->
+            <template v-slot:no-data>
+              <div class="no-data-container d-flex flex-column align-center justify-center pa-8">
+                <v-icon size="64" color="disabled" class="mb-4">mdi-history-off</v-icon>
+                <p class="text-h6 font-weight-medium text-primary mb-2">Belum ada aktivitas</p>
+                <p class="text-body-2 text-info mb-0">Data aktivitas akan muncul setelah ada perubahan sistem</p>
+              </div>
+            </template>
+          </v-data-table-server>
+        </div>
+      </v-card>
+    </template>
+
+    <!-- TAB 2: System & Automation Logs -->
+    <template v-else-if="activeTab === 'system'">
+      <!-- System Filters Section -->
+      <v-card class="filter-card mb-4 mb-md-6" elevation="0" rounded="xl">
+        <v-card-title class="d-flex align-center flex-wrap gap-2 pa-6">
+          <v-icon color="indigo" size="24" class="me-3">mdi-server-network</v-icon>
+          <div>
+            <h3 class="text-h6 font-weight-bold mb-0">Filter Log Sistem & Otomatisasi</h3>
+            <p class="text-caption text-primary mb-0">Pantau proses cron auto-billing, suspensi, & callback Xendit</p>
+          </div>
+          <v-spacer></v-spacer>
+          <div class="d-flex align-center gap-2">
+            <v-switch
+              v-model="autoRefresh"
+              color="success"
+              density="compact"
+              hide-details
+              label="Live Refresh (15s)"
+              class="me-2"
+            ></v-switch>
+            <v-btn
+              v-if="hasActiveSystemFilters"
+              variant="text"
+              color="error"
+              prepend-icon="mdi-refresh"
+              size="small"
+              @click="clearSystemFilters"
+              class="clear-filters-btn"
+            >
+              Reset Filter
+            </v-btn>
+          </div>
+        </v-card-title>
+
+        <v-divider class="filter-divider"></v-divider>
+
+        <v-card-text class="filter-content pa-6">
+          <div class="d-flex flex-column gap-4">
+            <!-- Severity Filter Chips -->
+            <div class="d-flex align-center flex-wrap gap-2">
+              <span class="text-caption font-weight-bold me-2">Tingkat Log:</span>
+              <v-chip
+                :variant="systemFilters.level === '' ? 'flat' : 'outlined'"
+                color="primary"
+                size="small"
+                @click="setSystemLevel('')"
+                class="font-weight-medium"
+              >
+                Semua Tingkat
+              </v-chip>
+              <v-chip
+                :variant="systemFilters.level === 'INFO' ? 'flat' : 'outlined'"
+                color="info"
+                size="small"
+                @click="setSystemLevel('INFO')"
+                class="font-weight-medium"
+              >
+                <v-icon start size="14">mdi-information</v-icon>
+                INFO (Normal)
+              </v-chip>
+              <v-chip
+                :variant="systemFilters.level === 'WARN' ? 'flat' : 'outlined'"
+                color="warning"
+                size="small"
+                @click="setSystemLevel('WARN')"
+                class="font-weight-medium"
+              >
+                <v-icon start size="14">mdi-alert</v-icon>
+                WARN (Peringatan)
+              </v-chip>
+              <v-chip
+                :variant="systemFilters.level === 'ERROR' ? 'flat' : 'outlined'"
+                color="error"
+                size="small"
+                @click="setSystemLevel('ERROR')"
+                class="font-weight-medium"
+              >
+                <v-icon start size="14">mdi-alert-circle</v-icon>
+                ERROR (Kegagalan)
+              </v-chip>
             </div>
-          </template>
 
-          <!-- Loading State -->
-          <template v-slot:loading>
-            <SkeletonLoader type="table" :rows="8" />
-          </template>
+            <v-row dense>
+              <!-- Search Keyword -->
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="systemFilters.search"
+                  label="Cari modul, aksi, atau pesan sistem..."
+                  prepend-inner-icon="mdi-magnify"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  clearable
+                  placeholder="Contoh: XENDIT, SUSPEND, CRON, 0812..."
+                  @update:model-value="debouncedSystemSearch"
+                ></v-text-field>
+              </v-col>
 
-          <!-- No Data State -->
-          <template v-slot:no-data>
-            <div class="no-data-container d-flex flex-column align-center justify-center pa-8">
-              <v-icon size="64" color="disabled" class="mb-4">mdi-history-off</v-icon>
-              <p class="text-h6 font-weight-medium text-primary mb-2">Belum ada aktivitas</p>
-              <p class="text-body-2 text-info mb-0">Data aktivitas akan muncul setelah ada perubahan sistem</p>
+              <!-- Date Range Filter -->
+              <v-col cols="12" md="6">
+                <div class="d-flex gap-2">
+                  <v-text-field
+                    v-model="systemFilters.date_from"
+                    type="date"
+                    label="Dari tanggal"
+                    prepend-inner-icon="mdi-calendar-start"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    clearable
+                    @update:model-value="applySystemFilters"
+                  ></v-text-field>
+                  <v-text-field
+                    v-model="systemFilters.date_to"
+                    type="date"
+                    label="Sampai tanggal"
+                    prepend-inner-icon="mdi-calendar-end"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    clearable
+                    @update:model-value="applySystemFilters"
+                  ></v-text-field>
+                </div>
+              </v-col>
+            </v-row>
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <!-- System Logs Table Card -->
+      <v-card class="activity-card" elevation="0" rounded="xl">
+        <div class="table-header">
+          <v-card-title class="d-flex align-center pa-6">
+            <div class="d-flex align-center flex-grow-1">
+              <v-icon color="indigo" size="24" class="me-3">mdi-server-network</v-icon>
+              <div>
+                <h2 class="text-h6 font-weight-bold mb-0">Riwayat Log Sistem & Otomatisasi</h2>
+                <p class="text-caption text-primary mb-0">
+                  {{ totalSystemLogs }} total catatan sistem
+                </p>
+              </div>
             </div>
-          </template>
-        </v-data-table-server>
-      </div>
-    </v-card>
 
-    <!-- Enhanced Details Dialog -->
+            <v-btn
+              icon="mdi-refresh"
+              variant="text"
+              size="small"
+              color="indigo"
+              :loading="systemLoading"
+              @click="refreshSystemData"
+              class="refresh-btn"
+            ></v-btn>
+          </v-card-title>
+        </div>
+
+        <v-divider class="card-divider"></v-divider>
+
+        <div class="table-container">
+          <v-data-table-server
+            v-model:items-per-page="systemItemsPerPage"
+            :headers="systemHeaders"
+            :items="systemLogs"
+            :items-length="totalSystemLogs"
+            :loading="systemLoading"
+            @update:options="onSystemTableOptionsChange"
+            class="activity-table"
+            :no-data-text="'Belum ada log sistem yang tercatat'"
+            loading-text="Memuat data log sistem..."
+            :items-per-page-options="[10, 25, 50, 100]"
+          >
+            <!-- Waktu Column -->
+            <template v-slot:item.created_at="{ item }">
+              <div class="timestamp-cell">
+                <div class="timestamp-primary text-body-2 font-weight-medium">
+                  {{ formatDate(item.created_at) }}
+                </div>
+                <div class="timestamp-secondary text-caption text-medium-emphasis">
+                  {{ formatTime(item.created_at) }}
+                </div>
+              </div>
+            </template>
+
+            <!-- Level Column -->
+            <template v-slot:item.level="{ item }">
+              <v-chip
+                :color="getSystemLevelColor(item.level)"
+                variant="flat"
+                size="small"
+                class="font-weight-bold"
+                label
+              >
+                <v-icon start size="14">{{ getSystemLevelIcon(item.level) }}</v-icon>
+                {{ item.level }}
+              </v-chip>
+            </template>
+
+            <!-- Module Column -->
+            <template v-slot:item.module="{ item }">
+              <div class="d-flex align-center">
+                <v-chip
+                  :color="getModuleColor(item.module)"
+                  variant="tonal"
+                  size="small"
+                  class="font-weight-bold"
+                >
+                  <v-icon start size="14">{{ getModuleIcon(item.module) }}</v-icon>
+                  {{ item.module }}
+                </v-chip>
+              </div>
+            </template>
+
+            <!-- Message Column -->
+            <template v-slot:item.message="{ item }">
+              <div class="py-2">
+                <div class="font-weight-bold text-caption text-indigo mb-1">
+                  {{ item.action }}
+                </div>
+                <div class="text-body-2 font-weight-medium" style="word-break: break-word;">
+                  {{ item.message }}
+                </div>
+              </div>
+            </template>
+
+            <!-- Details Column -->
+            <template v-slot:item.details="{ item }">
+              <div class="details-cell text-center">
+                <v-btn
+                  v-if="item.details"
+                  icon
+                  variant="text"
+                  size="small"
+                  color="indigo"
+                  class="details-btn"
+                  @click="showSystemDetails(item)"
+                >
+                  <v-icon size="20">mdi-code-json</v-icon>
+                </v-btn>
+                <span v-else class="text-medium-emphasis">-</span>
+              </div>
+            </template>
+
+            <!-- Loading State -->
+            <template v-slot:loading>
+              <SkeletonLoader type="table" :rows="8" />
+            </template>
+
+            <!-- No Data State -->
+            <template v-slot:no-data>
+              <div class="no-data-container d-flex flex-column align-center justify-center pa-8">
+                <v-icon size="64" color="disabled" class="mb-4">mdi-server-off</v-icon>
+                <p class="text-h6 font-weight-medium text-primary mb-2">Belum ada log sistem</p>
+                <p class="text-body-2 text-info mb-0">Log otomatisasi sistem akan muncul di sini</p>
+              </div>
+            </template>
+          </v-data-table-server>
+        </div>
+      </v-card>
+    </template>
+
+    <!-- Enhanced Details Dialog (Supports both User and System Logs) -->
     <v-dialog v-model="dialog" max-width="800" class="details-dialog" persistent>
       <v-card class="dialog-card" rounded="xl">
         <!-- Dialog Header with Gradient -->
@@ -322,8 +607,12 @@
                 <v-icon color="white" size="28">mdi-information-outline</v-icon>
               </div>
               <div>
-                <h3 class="dialog-title-enhanced text-h5 font-weight-bold mb-0">Detail Aktivitas</h3>
-                <p class="dialog-subtitle-enhanced text-caption mb-0">Informasi lengkap perubahan data sistem</p>
+                <h3 class="dialog-title-enhanced text-h5 font-weight-bold mb-0">
+                  {{ selectedSystemLog ? 'Detail Log Sistem' : 'Detail Aktivitas Pengguna' }}
+                </h3>
+                <p class="dialog-subtitle-enhanced text-caption mb-0">
+                  {{ selectedSystemLog ? 'Informasi payload dan trace eksekusi sistem' : 'Informasi lengkap perubahan data sistem' }}
+                </p>
               </div>
             </div>
             <v-btn
@@ -332,14 +621,14 @@
               size="small"
               color="white"
               class="close-btn-enhanced"
-              @click="dialog = false"
+              @click="closeDetailDialog"
             ></v-btn>
           </div>
         </div>
 
         <!-- Dialog Content with Cards -->
         <div class="dialog-content-enhanced pa-6">
-          <!-- Summary Section -->
+          <!-- User Summary Section -->
           <div v-if="selectedLog" class="summary-section mb-6">
             <div class="summary-header d-flex align-center mb-4">
               <div class="summary-avatar-wrapper me-3">
@@ -352,7 +641,7 @@
               <div class="summary-info flex-grow-1">
                 <h4 class="summary-user-name text-h6 font-weight-bold mb-1">{{ selectedLog.user.name }}</h4>
                 <div class="summary-user-email text-body-2 text-medium-emphasis mb-2">{{ selectedLog.user.email }}</div>
-                <div class="d-flex align-center gap-2">
+                <div class="d-flex align-center gap-2 flex-wrap">
                   <v-chip
                     :color="getActionColor(selectedLog.action)"
                     variant="elevated"
@@ -378,25 +667,76 @@
             </div>
           </div>
 
+          <!-- System Log Summary Section -->
+          <div v-if="selectedSystemLog" class="summary-section mb-6">
+            <div class="summary-header d-flex align-center mb-4">
+              <div class="summary-avatar-wrapper me-3">
+                <v-avatar size="48" :color="getSystemLevelColor(selectedSystemLog.level)">
+                  <v-icon color="white" size="24">{{ getSystemLevelIcon(selectedSystemLog.level) }}</v-icon>
+                </v-avatar>
+              </div>
+              <div class="summary-info flex-grow-1">
+                <div class="d-flex align-center gap-2 mb-1">
+                  <v-chip
+                    :color="getSystemLevelColor(selectedSystemLog.level)"
+                    variant="flat"
+                    size="small"
+                    class="font-weight-bold"
+                    label
+                  >
+                    {{ selectedSystemLog.level }}
+                  </v-chip>
+                  <v-chip
+                    :color="getModuleColor(selectedSystemLog.module)"
+                    variant="tonal"
+                    size="small"
+                    class="font-weight-bold"
+                  >
+                    {{ selectedSystemLog.module }}
+                  </v-chip>
+                  <v-chip
+                    color="info"
+                    variant="tonal"
+                    size="small"
+                    label
+                  >
+                    <v-icon start size="14">mdi-clock-outline</v-icon>
+                    {{ formatFullDateTime(selectedSystemLog.created_at) }}
+                  </v-chip>
+                </div>
+                <h4 class="text-subtitle-1 font-weight-bold text-primary mt-2 mb-1">
+                  {{ selectedSystemLog.action }}
+                </h4>
+                <div class="text-body-2 text-medium-emphasis">
+                  {{ selectedSystemLog.message }}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Details Content -->
           <div v-if="detailsObject" class="details-content">
-            <!-- Action Path -->
+            <!-- Action Path / Info -->
             <v-card class="detail-card mb-4" elevation="0" variant="outlined">
               <v-card-title class="detail-card-header d-flex align-center pa-4">
                 <v-icon color="primary" size="20" class="me-2">mdi-route</v-icon>
-                <span class="text-subtitle-1 font-weight-bold">Action Path</span>
+                <span class="text-subtitle-1 font-weight-bold">
+                  {{ selectedSystemLog ? 'Aksi / Event' : 'Action Path' }}
+                </span>
               </v-card-title>
               <v-divider class="detail-divider"></v-divider>
               <v-card-text class="pa-4">
-                <code class="action-path">{{ selectedLog?.action || 'N/A' }}</code>
+                <code class="action-path">
+                  {{ selectedSystemLog ? `${selectedSystemLog.module} : ${selectedSystemLog.action}` : (selectedLog?.action || 'N/A') }}
+                </code>
               </v-card-text>
             </v-card>
 
-            <!-- Request Details -->
+            <!-- Payload Details -->
             <v-card class="detail-card mb-4" elevation="0" variant="outlined">
               <v-card-title class="detail-card-header d-flex align-center pa-4">
                 <v-icon color="success" size="20" class="me-2">mdi-code-json</v-icon>
-                <span class="text-subtitle-1 font-weight-bold">Request Details</span>
+                <span class="text-subtitle-1 font-weight-bold">Data Payload & Context</span>
                 <v-spacer></v-spacer>
                 <v-btn
                   icon="mdi-content-copy"
@@ -447,7 +787,7 @@
           <div v-else class="empty-state text-center py-8">
             <v-icon size="64" color="disabled" class="mb-4">mdi-information-off-outline</v-icon>
             <p class="text-h6 font-weight-medium text-primary mb-2">Tidak Ada Detail</p>
-            <p class="text-body-2 text-info mb-0">Aktivitas ini tidak memiliki informasi detail tambahan</p>
+            <p class="text-body-2 text-info mb-0">Catatan ini tidak memiliki informasi detail payload tambahan</p>
           </div>
         </div>
 
@@ -467,7 +807,7 @@
             variant="elevated"
             color="primary"
             prepend-icon="mdi-close"
-            @click="dialog = false"
+            @click="closeDetailDialog"
             class="action-btn"
           >
             Tutup
@@ -479,11 +819,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import apiClient from '@/services/api';
 import { debounce } from 'lodash-es';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
 
+// --- Tab State ---
+const activeTab = ref<'user' | 'system'>('user');
+
+// --- User Activity Log Interfaces & State ---
 interface User {
   id: number;
   name: string;
@@ -515,6 +859,7 @@ const users = ref<User[]>([]);
 const dialog = ref(false);
 const detailsObject = ref<Record<string, any> | null>(null);
 const selectedLog = ref<ActivityLog | null>(null);
+const selectedSystemLog = ref<SystemLog | null>(null);
 
 // Filters state
 const filters = ref<Filters>({
@@ -532,13 +877,61 @@ const headers = [
   { title: 'Detail', key: 'details', sortable: false, align: 'center', width: '20%' },
 ] as const;
 
-// Computed properties
+// --- System Log Interfaces & State ---
+interface SystemLog {
+  id: number;
+  level: string;
+  module: string;
+  action: string;
+  message: string;
+  details?: string | null;
+  created_at: string;
+}
+
+interface SystemFilters {
+  search: string;
+  level: string;
+  date_from: string;
+  date_to: string;
+}
+
+const systemLogs = ref<SystemLog[]>([]);
+const systemLoading = ref(false);
+const totalSystemLogs = ref(0);
+const systemItemsPerPage = ref(10);
+const systemCurrentPage = ref(1);
+const autoRefresh = ref(false);
+let autoRefreshTimer: any = null;
+
+const systemFilters = ref<SystemFilters>({
+  search: '',
+  level: '',
+  date_from: '',
+  date_to: ''
+});
+
+const systemHeaders = [
+  { title: 'Waktu', key: 'created_at', sortable: false, width: '180px' },
+  { title: 'Level', key: 'level', sortable: false, width: '110px' },
+  { title: 'Modul', key: 'module', sortable: false, width: '160px' },
+  { title: 'Aksi & Pesan', key: 'message', sortable: false },
+  { title: 'Detail', key: 'details', sortable: false, align: 'center', width: '90px' },
+] as const;
+
+// --- Computed Properties ---
 const hasActiveFilters = computed(() => {
-  return filters.value.search ||
+  return !!(filters.value.search ||
          filters.value.user_id ||
          filters.value.action ||
          filters.value.date_from ||
-         filters.value.date_to;
+         filters.value.date_to);
+});
+
+const hasActiveSystemFilters = computed(() => {
+  return !!(systemFilters.value.search ||
+         systemFilters.value.level ||
+         systemFilters.value.date_from ||
+         systemFilters.value.date_to);
 });
 
 const userOptions = computed(() => {
@@ -559,22 +952,50 @@ const actionOptions = computed(() => [
   { title: 'GET (View)', value: 'GET' }
 ]);
 
-// Debounced search function
+// Debounced search functions
 const debouncedSearch = debounce(() => {
   applyFilters();
 }, 500);
 
-// Watch for filter changes
-watch(() => filters.value, (newFilters) => {
-  console.log('Filters changed:', newFilters);
-}, { deep: true });
+const debouncedSystemSearch = debounce(() => {
+  applySystemFilters();
+}, 500);
 
+// Watchers
+watch(activeTab, (newTab) => {
+  if (newTab === 'system' && systemLogs.value.length === 0) {
+    fetchSystemLogs({ page: 1, itemsPerPage: systemItemsPerPage.value });
+  }
+});
+
+watch(autoRefresh, (enabled) => {
+  if (enabled) {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer = setInterval(() => {
+      if (activeTab.value === 'system') {
+        fetchSystemLogs({ page: systemCurrentPage.value, itemsPerPage: systemItemsPerPage.value, silent: true });
+      }
+    }, 15000);
+  } else if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+});
+
+onUnmounted(() => {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+});
+
+// --- User Logs Methods ---
 async function fetchUsers() {
   try {
     const response = await apiClient.get('/users', {
       params: {
         skip: 0,
-        limit: 1000, // Get all users for filter options
+        limit: 1000,
       },
     });
     users.value = Array.isArray(response.data) ? response.data : (response.data.data || response.data.items || []);
@@ -591,7 +1012,6 @@ async function fetchLogs({ page, itemsPerPage }: { page: number, itemsPerPage: n
       limit: itemsPerPage,
     };
 
-    // Add filters to params
     if (filters.value.search) params.search = filters.value.search;
     if (filters.value.user_id) params.user_id = filters.value.user_id;
     if (filters.value.action) params.action = filters.value.action;
@@ -599,8 +1019,8 @@ async function fetchLogs({ page, itemsPerPage }: { page: number, itemsPerPage: n
     if (filters.value.date_to) params.date_to = filters.value.date_to;
 
     const response = await apiClient.get('/activity-logs', { params });
-    logs.value = response.data.items;
-    totalLogs.value = response.data.total;
+    logs.value = response.data.items || [];
+    totalLogs.value = response.data.total || 0;
   } catch (error) {
     console.error("Gagal mengambil data log aktivitas:", error);
   } finally {
@@ -613,7 +1033,6 @@ function refreshData() {
 }
 
 function applyFilters() {
-  // Reset to first page when filters are applied
   fetchLogs({ page: 1, itemsPerPage: itemsPerPage.value });
 }
 
@@ -626,6 +1045,113 @@ function clearFilters() {
     date_to: ''
   };
   applyFilters();
+}
+
+// --- System Logs Methods ---
+async function fetchSystemLogs(options?: { page?: number, itemsPerPage?: number, silent?: boolean }) {
+  const page = options?.page || systemCurrentPage.value;
+  const pageSize = options?.itemsPerPage || systemItemsPerPage.value;
+  systemCurrentPage.value = page;
+  systemItemsPerPage.value = pageSize;
+
+  if (!options?.silent) {
+    systemLoading.value = true;
+  }
+
+  try {
+    const params: any = {
+      page: page,
+      page_size: pageSize,
+    };
+
+    if (systemFilters.value.search) params.search = systemFilters.value.search;
+    if (systemFilters.value.level) params.level = systemFilters.value.level;
+    if (systemFilters.value.date_from) params.date_from = systemFilters.value.date_from;
+    if (systemFilters.value.date_to) params.date_to = systemFilters.value.date_to;
+
+    const response = await apiClient.get('/system-logs', { params });
+    if (response.data && response.data.data) {
+      systemLogs.value = response.data.data || [];
+      totalSystemLogs.value = response.data.total || 0;
+    } else {
+      systemLogs.value = Array.isArray(response.data) ? response.data : [];
+      totalSystemLogs.value = response.data.total || systemLogs.value.length;
+    }
+  } catch (error) {
+    console.error("Gagal mengambil system logs:", error);
+  } finally {
+    if (!options?.silent) {
+      systemLoading.value = false;
+    }
+  }
+}
+
+function onSystemTableOptionsChange(options: { page: number, itemsPerPage: number }) {
+  fetchSystemLogs(options);
+}
+
+function refreshSystemData() {
+  fetchSystemLogs({ page: 1, itemsPerPage: systemItemsPerPage.value });
+}
+
+function applySystemFilters() {
+  fetchSystemLogs({ page: 1, itemsPerPage: systemItemsPerPage.value });
+}
+
+function setSystemLevel(level: string) {
+  systemFilters.value.level = level;
+  applySystemFilters();
+}
+
+function clearSystemFilters() {
+  systemFilters.value = {
+    search: '',
+    level: '',
+    date_from: '',
+    date_to: ''
+  };
+  applySystemFilters();
+}
+
+// --- Style & Format Helpers ---
+function getSystemLevelColor(level: string): string {
+  switch (level?.toUpperCase()) {
+    case 'ERROR': return 'error';
+    case 'WARN': return 'warning';
+    case 'INFO': return 'info';
+    default: return 'grey';
+  }
+}
+
+function getSystemLevelIcon(level: string): string {
+  switch (level?.toUpperCase()) {
+    case 'ERROR': return 'mdi-alert-circle';
+    case 'WARN': return 'mdi-alert';
+    case 'INFO': return 'mdi-information';
+    default: return 'mdi-circle-medium';
+  }
+}
+
+function getModuleColor(module: string): string {
+  switch (module?.toUpperCase()) {
+    case 'BILLING_CRON': return 'teal';
+    case 'AUTO_SUSPEND': return 'deep-orange';
+    case 'XENDIT_WEBHOOK': return 'indigo';
+    case 'MANUAL_INVOICE': return 'purple';
+    case 'SUBSCRIPTION': return 'blue';
+    default: return 'grey';
+  }
+}
+
+function getModuleIcon(module: string): string {
+  switch (module?.toUpperCase()) {
+    case 'BILLING_CRON': return 'mdi-clock-check-outline';
+    case 'AUTO_SUSPEND': return 'mdi-account-lock-outline';
+    case 'XENDIT_WEBHOOK': return 'mdi-credit-card-sync-outline';
+    case 'MANUAL_INVOICE': return 'mdi-receipt-text-plus';
+    case 'SUBSCRIPTION': return 'mdi-account-cog-outline';
+    default: return 'mdi-cog-outline';
+  }
 }
 
 function getUserDisplayName(userId: number): string {
@@ -659,6 +1185,7 @@ function getActionIcon(action: string): string {
 }
 
 function showDetails(details: string, log: ActivityLog) {
+  selectedSystemLog.value = null;
   selectedLog.value = log;
   try {
     detailsObject.value = JSON.parse(details);
@@ -668,7 +1195,37 @@ function showDetails(details: string, log: ActivityLog) {
   dialog.value = true;
 }
 
+function showSystemDetails(log: SystemLog) {
+  selectedLog.value = null;
+  selectedSystemLog.value = log;
+  if (log.details) {
+    try {
+      detailsObject.value = JSON.parse(log.details);
+    } catch {
+      detailsObject.value = { "raw_data": log.details };
+    }
+  } else {
+    detailsObject.value = {
+      id: log.id,
+      module: log.module,
+      action: log.action,
+      message: log.message,
+      level: log.level,
+      created_at: log.created_at
+    };
+  }
+  dialog.value = true;
+}
+
+function closeDetailDialog() {
+  dialog.value = false;
+  selectedLog.value = null;
+  selectedSystemLog.value = null;
+  detailsObject.value = null;
+}
+
 function formatFullDateTime(timestamp: string): string {
+  if (!timestamp) return '-';
   const date = new Date(timestamp);
   return date.toLocaleString('id-ID', {
     weekday: 'long',
@@ -713,35 +1270,20 @@ function getValueTypeColor(type: string): string {
 }
 
 async function copyToClipboard(text: string) {
-  const copyToClipboardFallback = async (str: string) => {
+  try {
     if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(str);
-      return true;
+      await navigator.clipboard.writeText(text);
     } else {
       const textArea = document.createElement("textarea");
-      textArea.value = str;
+      textArea.value = text;
       textArea.style.position = "fixed";
       textArea.style.left = "-999999px";
       textArea.style.top = "-999999px";
       document.body.appendChild(textArea);
       textArea.focus();
       textArea.select();
-      try {
-        document.execCommand('copy');
-        textArea.remove();
-        return true;
-      } catch (err) {
-        textArea.remove();
-        return false;
-      }
-    }
-  };
-
-  try {
-    const success = await copyToClipboardFallback(text);
-    if (success) {
-      // Show toast notification here if you have one
-      console.log('Copied to clipboard!');
+      document.execCommand('copy');
+      textArea.remove();
     }
   } catch (err) {
     console.error('Failed to copy:', err);
@@ -749,23 +1291,22 @@ async function copyToClipboard(text: string) {
 }
 
 function downloadDetails() {
-  if (!detailsObject.value || !selectedLog.value) return;
+  if (!detailsObject.value) return;
 
-  const data = {
-    log_info: {
-      id: selectedLog.value.id,
-      user: selectedLog.value.user,
-      action: selectedLog.value.action,
-      timestamp: selectedLog.value.timestamp
-    },
+  const data = selectedSystemLog.value ? {
+    system_log: selectedSystemLog.value,
+    details: detailsObject.value
+  } : {
+    log_info: selectedLog.value,
     details: detailsObject.value
   };
 
+  const id = selectedSystemLog.value?.id || selectedLog.value?.id || 'log';
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `activity-log-${selectedLog.value.id}-${new Date().toISOString().split('T')[0]}.json`;
+  a.download = `log-${id}-${new Date().toISOString().split('T')[0]}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -776,13 +1317,8 @@ function formatKey(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
 }
 
-function formatValue(value: any): string {
-  if (value === null || value === undefined) return '-';
-  if (typeof value === 'object') return JSON.stringify(value, null, 2);
-  return String(value);
-}
-
 function formatDate(timestamp: string): string {
+  if (!timestamp) return '-';
   return new Date(timestamp).toLocaleDateString('id-ID', { 
     day: 'numeric',
     month: 'short', 
@@ -791,9 +1327,11 @@ function formatDate(timestamp: string): string {
 }
 
 function formatTime(timestamp: string): string {
+  if (!timestamp) return '-';
   return new Date(timestamp).toLocaleTimeString('id-ID', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    second: '2-digit'
   });
 }
 

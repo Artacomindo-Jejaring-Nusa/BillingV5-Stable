@@ -143,22 +143,30 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 	invoice.StatusInvoice = "Belum Bayar"
 	invoice.InvoiceType = "manual"
 	if err := u.invoiceRepo.Create(ctx, invoice); err != nil {
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("CreateInvoice: Gagal menyimpan invoice manual %s ke DB: %v", invoice.InvoiceNumber, err))
 		return err
 	}
+
+	u.logSystem(ctx, "INFO", fmt.Sprintf("CreateInvoice: User membuat invoice manual %s untuk pelanggan %s (ID: %d) sebesar Rp %.2f (Due: %s)", invoice.InvoiceNumber, pelanggan.Nama, invoice.PelangganID, invoice.TotalHarga, invoice.TglJatuhTempo.Format("2006-01-02")))
 
 	xResp, xErr := u.createXenditInvoice(ctx, invoice, pelanggan, nil, deskripsi, pajak, noTelpXendit)
 	if xErr == nil {
 		shortURL, _ := xResp["short_url"].(string)
+		if shortURL == "" {
+			shortURL, _ = xResp["invoice_url"].(string)
+		}
 		xID, _ := xResp["id"].(string)
 		invoice.PaymentLink = &shortURL
 		invoice.XenditID = &xID
 		invoice.XenditStatus = "pending"
 
+		u.logSystem(ctx, "INFO", fmt.Sprintf("CreateInvoice: Invoice manual %s berhasil dibuat dengan Payment Link: %s (Xendit ID: %s)", invoice.InvoiceNumber, shortURL, xID))
+
 		if shortURL != "" {
 			go u.sendQontakInvoiceBroadcast(context.Background(), pelanggan, invoice, shortURL)
 		}
 	} else {
-		u.logSystem(ctx, "ERROR", fmt.Sprintf("CreateInvoice: Gagal membuat Xendit invoice untuk pelanggan %d: %v", invoice.PelangganID, xErr))
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("CreateInvoice: Gagal membuat Xendit invoice untuk pelanggan %s (ID: %d): %v", pelanggan.Nama, invoice.PelangganID, xErr))
 		errMsg := xErr.Error()
 		invoice.XenditStatus = "failed"
 		invoice.XenditErrorMessage = &errMsg
@@ -502,8 +510,11 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 	}
 
 	if err := u.invoiceRepo.Create(ctx, invoice); err != nil {
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateManualInvoice: Gagal menyimpan invoice dasar %s ke DB: %v", invoice.InvoiceNumber, err))
 		return nil, err
 	}
+
+	u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateManualInvoice: User generate invoice manual %s untuk Langganan ID %d (Pelanggan: %s, ID: %d) sebesar Rp %.2f (Due: %s)", invoice.InvoiceNumber, langgananID, pelanggan.Nama, invoice.PelangganID, invoice.TotalHarga, dueDate.Format("2006-01-02")))
 
 	xResp, xErr := u.createXenditInvoice(ctx, invoice, pelanggan, nil, deskripsi, pajak, noTelpXendit)
 	if xErr == nil {
@@ -519,19 +530,20 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 			invoice.XenditID = &xID
 		}
 		invoice.XenditStatus = "pending"
-		u.logSystem(ctx, "INFO", fmt.Sprintf("Xendit invoice created: %s", shortURL))
+		u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateManualInvoice: Invoice %s berhasil dibuat dengan Payment Link: %s (Xendit ID: %s)", invoice.InvoiceNumber, shortURL, xID))
 
 		if shortURL != "" {
 			go u.sendQontakInvoiceBroadcast(context.Background(), pelanggan, invoice, shortURL)
 		}
 	} else {
-		u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateManualInvoice: Gagal membuat Xendit invoice untuk pelanggan %d: %v", invoice.PelangganID, xErr))
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateManualInvoice: Gagal membuat Xendit invoice untuk pelanggan %s (ID: %d): %v", pelanggan.Nama, invoice.PelangganID, xErr))
 		errMsg := xErr.Error()
 		invoice.XenditStatus = "failed"
 		invoice.XenditErrorMessage = &errMsg
 	}
 
 	if err := u.invoiceRepo.Update(ctx, invoice); err != nil {
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateManualInvoice: Gagal update invoice %s di DB: %v", invoice.InvoiceNumber, err))
 		return nil, err
 	}
 	u.logActivity(ctx, "Generate Manual Invoice", fmt.Sprintf("Generated manual invoice %s for Langganan ID %d", invoice.InvoiceNumber, langgananID))
@@ -580,6 +592,79 @@ func (u *billingUsecase) ResendWhatsAppNotification(ctx context.Context, id uint
 	u.logActivity(ctx, "Resend WhatsApp Notification", fmt.Sprintf("Resent WhatsApp invoice broadcast for %s to %s", invoice.InvoiceNumber, pelanggan.Nama))
 
 	return nil
+}
+
+func (u *billingUsecase) RetryXenditInvoice(ctx context.Context, id uint64) (*domain.Invoice, error) {
+	invoice, err := u.invoiceRepo.GetByID(ctx, id)
+	if err != nil || invoice == nil {
+		return nil, errors.New("invoice tidak ditemukan")
+	}
+
+	if invoice.StatusInvoice == "Lunas" {
+		return nil, errors.New("invoice sudah berstatus lunas, tidak perlu diterbitkan ulang")
+	}
+
+	pelanggan, err := u.pelangganRepo.GetByID(ctx, invoice.PelangganID)
+	if err != nil || pelanggan == nil {
+		return nil, errors.New("data pelanggan tidak ditemukan")
+	}
+
+	var brand *domain.HargaLayanan
+	if pelanggan.IDBrand != nil && *pelanggan.IDBrand != "" {
+		brand, _ = u.brandRepo.GetByID(ctx, *pelanggan.IDBrand)
+	}
+	if brand == nil {
+		brand = &domain.HargaLayanan{Brand: invoice.Brand, Pajak: 11}
+	}
+	pelanggan.HargaLayanan = brand
+
+	noTelpXendit := utils.NormalizePhoneForXendit(pelanggan.NoTelp)
+	pajak := invoice.TotalHarga - math.Round(invoice.TotalHarga/(1.0+(brand.Pajak/100.0)))
+	deskripsi := fmt.Sprintf("Biaya berlangganan internet jatuh tempo pembayaran tanggal %s", invoice.TglJatuhTempo.Format("02/01/2006"))
+
+	u.logSystem(ctx, "INFO", fmt.Sprintf("RetryXenditInvoice: Mencoba menerbitkan ulang invoice %s untuk pelanggan %s ke Xendit...", invoice.InvoiceNumber, pelanggan.Nama))
+
+	xResp, xErr := u.createXenditInvoice(ctx, invoice, pelanggan, nil, deskripsi, pajak, noTelpXendit)
+	if xErr == nil {
+		shortURL, _ := xResp["short_url"].(string)
+		if shortURL == "" {
+			shortURL, _ = xResp["invoice_url"].(string)
+		}
+		xID, _ := xResp["id"].(string)
+		if shortURL != "" {
+			invoice.PaymentLink = &shortURL
+		}
+		if xID != "" {
+			invoice.XenditID = &xID
+		}
+		invoice.XenditStatus = "pending"
+		invoice.XenditErrorMessage = nil
+
+		u.logSystem(ctx, "INFO", fmt.Sprintf("RetryXenditInvoice: Invoice %s BERHASIL diterbitkan ulang di Xendit dengan Payment Link: %s (Xendit ID: %s)", invoice.InvoiceNumber, shortURL, xID))
+
+		if shortURL != "" {
+			go u.sendQontakInvoiceBroadcast(context.Background(), pelanggan, invoice, shortURL)
+		}
+	} else {
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("RetryXenditInvoice: GAGAL menerbitkan ulang invoice %s untuk pelanggan %s: %v", invoice.InvoiceNumber, pelanggan.Nama, xErr))
+		errMsg := xErr.Error()
+		invoice.XenditStatus = "failed"
+		invoice.XenditErrorMessage = &errMsg
+	}
+
+	if err := u.invoiceRepo.Update(ctx, invoice); err != nil {
+		u.logSystem(ctx, "ERROR", fmt.Sprintf("RetryXenditInvoice: Gagal update invoice %s di DB: %v", invoice.InvoiceNumber, err))
+		return nil, err
+	}
+
+	u.logActivity(ctx, "Retry Xendit Invoice", fmt.Sprintf("Retried Xendit publishing for invoice %s (Status: %s)", invoice.InvoiceNumber, invoice.XenditStatus))
+	websocket.InvalidateDashboardCache(ctx)
+
+	if xErr != nil {
+		return invoice, fmt.Errorf("gagal terbit di Xendit: %v", xErr)
+	}
+
+	return invoice, nil
 }
 
 func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langganan) error {
@@ -695,8 +780,30 @@ func (u *billingUsecase) UpdateLangganan(ctx context.Context, id uint64, l *doma
 	if err == nil {
 		u.logActivity(ctx, "Update Langganan", fmt.Sprintf("Updated subscription ID: %d to status: %s", id, existing.Status))
 		websocket.InvalidateDashboardCache(ctx)
-		if statusChanged && existing.Pelanggan != nil && existing.Pelanggan.DataTeknis != nil {
-			u.triggerMikrotikUpdate(ctx, existing.Pelanggan.DataTeknis.IDPelanggan, existing.Pelanggan.DataTeknis, l.Status)
+		if statusChanged {
+			pName := ""
+			pppoeID := ""
+			if existing.Pelanggan != nil {
+				pName = existing.Pelanggan.Nama
+				if existing.Pelanggan.DataTeknis != nil {
+					pppoeID = existing.Pelanggan.DataTeknis.IDPelanggan
+				}
+			}
+
+			if l.Status == "Suspended" {
+				u.logSystem(ctx, "WARN", fmt.Sprintf("Manual Suspend: Layanan Langganan ID %d (Pelanggan: %s, PPPoE: %s) diubah manual menjadi SUSPENDED oleh user/admin.", id, pName, pppoeID))
+			} else if l.Status == "Aktif" {
+				u.logSystem(ctx, "INFO", fmt.Sprintf("Manual Unsuspend: Layanan Langganan ID %d (Pelanggan: %s, PPPoE: %s) diaktifkan kembali (UNSUSPENDED) secara manual oleh user/admin.", id, pName, pppoeID))
+			} else {
+				u.logSystem(ctx, "INFO", fmt.Sprintf("Update Langganan: Status Langganan ID %d (Pelanggan: %s) diubah menjadi %s.", id, pName, l.Status))
+			}
+
+			if existing.Pelanggan != nil && existing.Pelanggan.DataTeknis != nil {
+				syncErr := u.triggerMikrotikUpdate(ctx, existing.Pelanggan.DataTeknis.IDPelanggan, existing.Pelanggan.DataTeknis, l.Status)
+				if syncErr != nil {
+					u.logSystem(ctx, "ERROR", fmt.Sprintf("Update Langganan: Gagal sync status Mikrotik ke %s untuk user %s: %v", l.Status, existing.Pelanggan.DataTeknis.IDPelanggan, syncErr))
+				}
+			}
 		}
 	}
 	return err
@@ -1273,13 +1380,29 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 					targetLangganan = &inv.Pelanggan.Langganan[0]
 				}
 
+				pName := ""
+				pppoeID := ""
+				if inv.Pelanggan != nil {
+					pName = inv.Pelanggan.Nama
+					if inv.Pelanggan.DataTeknis != nil {
+						pppoeID = inv.Pelanggan.DataTeknis.IDPelanggan
+					}
+				}
+
 				l := targetLangganan
 				l.Status = "Suspended"
 				if err := u.langgananRepo.Update(ctx, l); err == nil {
 					suspendedCount++
+					u.logSystem(ctx, "WARN", fmt.Sprintf("AutoSuspend: Layanan pelanggan %s (PPPoE: %s, Invoice: %s, Due: %s, Cutoff: %s) DIISOLIR / SUSPENDED karena melewati batas jatuh tempo.", pName, pppoeID, inv.InvoiceNumber, invDueDate.Format("2006-01-02"), suspendCutoffDate.Format("2006-01-02")))
+
 					// Sync to Mikrotik
-					if inv.Pelanggan.DataTeknis != nil {
-						_ = u.triggerMikrotikUpdate(ctx, inv.Pelanggan.DataTeknis.IDPelanggan, inv.Pelanggan.DataTeknis, "Suspended")
+					if inv.Pelanggan != nil && inv.Pelanggan.DataTeknis != nil {
+						syncErr := u.triggerMikrotikUpdate(ctx, inv.Pelanggan.DataTeknis.IDPelanggan, inv.Pelanggan.DataTeknis, "Suspended")
+						if syncErr != nil {
+							u.logSystem(ctx, "ERROR", fmt.Sprintf("AutoSuspend: Gagal isolir Mikrotik untuk %s (PPPoE: %s): %v. Ditandai untuk retry.", pName, pppoeID, syncErr))
+						} else {
+							u.logSystem(ctx, "INFO", fmt.Sprintf("AutoSuspend: Berhasil isolir Mikrotik untuk user %s", pppoeID))
+						}
 					}
 					// Update invoice status to Expired
 					inv.StatusInvoice = "Expired"
@@ -1333,6 +1456,16 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 					l.Status = "Suspended"
 					if err := u.langgananRepo.Update(ctx, l); err == nil {
 						suspendedCount++
+						pName := ""
+						pppoeID := ""
+						if l.Pelanggan != nil {
+							pName = l.Pelanggan.Nama
+							if l.Pelanggan.DataTeknis != nil {
+								pppoeID = l.Pelanggan.DataTeknis.IDPelanggan
+							}
+						}
+						u.logSystem(ctx, "WARN", fmt.Sprintf("AutoSuspend: Layanan pelanggan %s (PPPoE: %s, Invoice: %s) DIISOLIR / SUSPENDED.", pName, pppoeID, inv.InvoiceNumber))
+
 						if l.Pelanggan != nil && l.Pelanggan.DataTeknis != nil {
 							_ = u.triggerMikrotikUpdate(ctx, l.Pelanggan.DataTeknis.IDPelanggan, l.Pelanggan.DataTeknis, "Suspended")
 						}
@@ -2445,6 +2578,9 @@ func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.In
 }
 
 func (u *billingUsecase) logSystem(ctx context.Context, level, message string) {
+	if u.systemRepo == nil {
+		return
+	}
 	_ = u.systemRepo.CreateSystemLog(ctx, &domain.SystemLog{Timestamp: time.Now(), Level: level, Message: message})
 }
 
@@ -2479,9 +2615,31 @@ func (u *billingUsecase) ProcessXenditCallback(ctx context.Context, xCallbackTok
 		return errors.New("external_id not found")
 	}
 
-	if xCallbackToken != u.cfg.XenditCallbackTokenArtacomindo && xCallbackToken != u.cfg.XenditCallbackTokenJelantik {
+	// 1. Validasi token konstan waktu (mencegah timing attack)
+	tokenValid := false
+	if u.cfg != nil {
+		if utils.SecureCompareToken(xCallbackToken, u.cfg.XenditCallbackTokenArtacomindo) ||
+			utils.SecureCompareToken(xCallbackToken, u.cfg.XenditCallbackTokenJelantik) {
+			tokenValid = true
+		}
+	}
+	if !tokenValid {
 		saveLog("FAILED_INVALID_TOKEN")
 		return errors.New("invalid callback token")
+	}
+
+	// 2. Distributed Mutex Lock via Redis untuk mencegah race condition (Lock TTL: 30 detik)
+	if rdb := websocket.GetRedisClient(); rdb != nil {
+		lockKey := fmt.Sprintf("lock:xendit:callback:%s", externalID)
+		acquired, errLock := rdb.SetNX(ctx, lockKey, "1", 30*time.Second).Result()
+		if errLock == nil && !acquired {
+			u.logSystem(ctx, "WARN", fmt.Sprintf("ProcessXenditCallback: Concurrent callback processing detected for invoice %s. Skipping duplicate execution.", externalID))
+			saveLog("SKIPPED_CONCURRENT_LOCK")
+			return nil
+		}
+		if acquired {
+			defer rdb.Del(ctx, lockKey)
+		}
 	}
 
 	invoice, err := u.invoiceRepo.GetInvoiceWithRelations(ctx, externalID)
@@ -2638,6 +2796,16 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 			}(inv.InvoiceNumber, *inv.Pelanggan.DataTeknis, "Aktif")
 		}
 	}
+	pName := inv.PelangganNama
+	if pName == "" && inv.Pelanggan != nil {
+		pName = inv.Pelanggan.Nama
+	}
+	pppoeID := inv.IDPelanggan
+	if pppoeID == "" && inv.Pelanggan != nil && inv.Pelanggan.DataTeknis != nil {
+		pppoeID = inv.Pelanggan.DataTeknis.IDPelanggan
+	}
+
+	u.logSystem(ctx, "INFO", fmt.Sprintf("Unsuspend/Payment: Pembayaran DITERIMA untuk Invoice %s (Rp %.2f). Layanan pelanggan %s (PPPoE: %s) berhasil DI-UNSUSPEND / DIAKTIFKAN.", inv.InvoiceNumber, amt, pName, pppoeID))
 	u.logActivity(ctx, "Payment Confirmed", fmt.Sprintf("Invoice %s marked as paid (Lunas) for amount %.2f", inv.InvoiceNumber, amt))
 	websocket.InvalidateDashboardCache(ctx)
 	return nil

@@ -144,6 +144,19 @@
               <v-icon start size="14">mdi-tag-outline</v-icon>
               {{ selectedStatus }}
             </v-chip>
+
+            <v-chip
+              v-if="selectedXenditStatus && selectedXenditStatus !== 'Semua'"
+              closable
+              size="small"
+              color="indigo"
+              variant="tonal"
+              class="filter-chip"
+              @click:close="selectedXenditStatus = null"
+            >
+              <v-icon start size="14">mdi-credit-card-sync-outline</v-icon>
+              Xendit: {{ selectedXenditStatus }}
+            </v-chip>
             
             <v-chip
               v-if="startDate || endDate"
@@ -195,12 +208,30 @@
             <div class="filter-grid-item">
               <label class="filter-label">
                 <v-icon size="16" class="mr-1">mdi-tag-outline</v-icon>
-                Status
+                Status Invoice
               </label>
               <v-select
                 v-model="selectedStatus"
                 :items="statusOptions"
                 placeholder="Semua Status"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                class="filter-input"
+              ></v-select>
+            </div>
+
+            <!-- Filter Status Xendit -->
+            <div class="filter-grid-item">
+              <label class="filter-label">
+                <v-icon size="16" class="mr-1">mdi-credit-card-sync-outline</v-icon>
+                Status Xendit
+              </label>
+              <v-select
+                v-model="selectedXenditStatus"
+                :items="xenditStatusOptions"
+                placeholder="Semua Status Xendit"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -382,27 +413,47 @@
           </template>
 
           <template v-slot:item.status_invoice="{ item }">
-            <div class="d-flex align-center justify-start gap-1">
-              <v-chip
-                :color="getStatusColor(item.payment_link_status || item.status_invoice)"
-                variant="elevated"
-                size="small"
-                class="font-weight-bold status-chip"
-                :prepend-icon="getStatusIcon(item.payment_link_status || item.status_invoice)"
-              >
-                {{ item.payment_link_status || item.status_invoice }}
-              </v-chip>
+            <div class="d-flex flex-column align-start gap-1">
+              <div class="d-flex align-center justify-start gap-1 flex-wrap">
+                <v-chip
+                  :color="getStatusColor(item.payment_link_status || item.status_invoice)"
+                  variant="elevated"
+                  size="small"
+                  class="font-weight-bold status-chip"
+                  :prepend-icon="getStatusIcon(item.payment_link_status || item.status_invoice)"
+                >
+                  {{ item.payment_link_status || item.status_invoice }}
+                </v-chip>
 
-              <!-- Badge untuk Reinvoice -->
-              <v-chip
-                v-if="item.is_reinvoice"
-                color="purple"
-                variant="elevated"
-                size="x-small"
-                class="font-weight-bold"
-              >
-                Reinvoice
-              </v-chip>
+                <!-- Badge untuk Reinvoice -->
+                <v-chip
+                  v-if="item.is_reinvoice"
+                  color="purple"
+                  variant="elevated"
+                  size="x-small"
+                  class="font-weight-bold"
+                >
+                  Reinvoice
+                </v-chip>
+              </div>
+
+              <!-- Badge Gagal Xendit -->
+              <v-tooltip location="bottom" v-if="item.xendit_status === 'failed' || item.xendit_error_message">
+                <template v-slot:activator="{ props }">
+                  <v-chip
+                    v-bind="props"
+                    color="error"
+                    variant="flat"
+                    size="x-small"
+                    class="font-weight-bold cursor-pointer"
+                    @click.stop="openXenditErrorDialog(item)"
+                  >
+                    <v-icon start size="12">mdi-alert-circle</v-icon>
+                    Gagal Xendit (Cek Alasan)
+                  </v-chip>
+                </template>
+                <span>Klik untuk melihat alasan kegagalan dari Xendit & solusi</span>
+              </v-tooltip>
             </div>
           </template>
 
@@ -499,7 +550,7 @@
                   <span>Tandai Lunas</span>
                 </v-tooltip>
 
-                <!-- Button Buat Reinvoice -->
+              <!-- Button Buat Reinvoice -->
             <v-tooltip location="top" v-if="auth.hasPermission('create_invoices')">
               <template v-slot:activator="{ props }">
                 <v-btn
@@ -513,6 +564,23 @@
                 ></v-btn>
               </template>
               <span>Buat Reinvoice</span>
+            </v-tooltip>
+
+            <!-- Button Retry Xendit -->
+            <v-tooltip location="top" v-if="auth.hasPermission('create_invoices')">
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  v-if="item.status_invoice !== 'Lunas'"
+                  icon="mdi-refresh-circle"
+                  v-bind="props"
+                  variant="text"
+                  size="small"
+                  color="indigo"
+                  :loading="retryingXenditId === item.id"
+                  @click="retryXendit(item)"
+                ></v-btn>
+              </template>
+              <span>Terbitkan Ulang Xendit (Retry)</span>
             </v-tooltip>
 
             </div>
@@ -674,6 +742,11 @@
               <v-tooltip text="Buat Reinvoice" v-if="auth.hasPermission('create_invoices') && canCreateReinvoice(item)">
                 <template v-slot:activator="{ props }">
                   <v-btn v-bind="props" icon variant="text" size="small" color="warning" @click="createReinvoice(item)"><v-icon>mdi-refresh</v-icon></v-btn>
+                </template>
+              </v-tooltip>
+              <v-tooltip text="Retry Xendit" v-if="auth.hasPermission('create_invoices') && item.status_invoice !== 'Lunas'">
+                <template v-slot:activator="{ props }">
+                  <v-btn v-bind="props" icon variant="text" size="small" color="indigo" :loading="retryingXenditId === item.id" @click="retryXendit(item)"><v-icon>mdi-refresh-circle</v-icon></v-btn>
                 </template>
               </v-tooltip>
               <v-tooltip text="Hapus" v-if="auth.hasPermission('delete_invoices')">
@@ -1004,6 +1077,88 @@
       </template>
     </v-snackbar>
 
+    <!-- Dialog Diagnostik Kegagalan Xendit -->
+    <v-dialog v-model="dialogXenditError" max-width="600px">
+      <v-card class="rounded-xl overflow-hidden">
+        <div class="pa-6 bg-error text-white d-flex align-center">
+          <v-avatar color="white" size="48" class="elevation-4 me-4">
+            <v-icon color="error" size="28">mdi-alert-circle-outline</v-icon>
+          </v-avatar>
+          <div class="flex-grow-1">
+            <div class="text-h6 font-weight-bold text-white mb-1">Diagnostik Kegagalan Xendit</div>
+            <div class="text-caption text-white" style="opacity: 0.9;">Detail penyebab invoice gagal diterbitkan ke gateway</div>
+          </div>
+          <v-btn icon="mdi-close" variant="text" color="white" size="small" @click="dialogXenditError = false"></v-btn>
+        </div>
+
+        <v-card-text class="pa-6">
+          <!-- Info Invoice -->
+          <v-row dense class="mb-3">
+            <v-col cols="12" sm="6">
+              <div class="text-caption text-medium-emphasis">Nomor Invoice:</div>
+              <div class="text-subtitle-2 font-weight-bold text-primary">{{ selectedFailedInvoice?.invoice_number }}</div>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <div class="text-caption text-medium-emphasis">Pelanggan:</div>
+              <div class="text-subtitle-2 font-weight-bold">{{ getPelangganName(selectedFailedInvoice?.pelanggan_id || 0, selectedFailedInvoice || undefined) }}</div>
+            </v-col>
+            <v-col cols="12" sm="6" v-if="selectedFailedInvoice?.xendit_retry_count">
+              <div class="text-caption text-medium-emphasis">Total Percobaan Ulang:</div>
+              <div class="text-body-2 font-weight-medium">{{ selectedFailedInvoice.xendit_retry_count }} kali</div>
+            </v-col>
+            <v-col cols="12" sm="6" v-if="selectedFailedInvoice?.xendit_last_retry">
+              <div class="text-caption text-medium-emphasis">Waktu Percobaan Terakhir:</div>
+              <div class="text-body-2">{{ formatDate(selectedFailedInvoice.xendit_last_retry) }}</div>
+            </v-col>
+          </v-row>
+
+          <!-- Error Alert -->
+          <v-alert
+            type="error"
+            variant="tonal"
+            class="rounded-xl pa-4 mb-4"
+            icon="mdi-alert-octagon"
+          >
+            <div class="text-caption font-weight-bold mb-1">Pesan Error dari Gateway Xendit:</div>
+            <div class="text-body-2" style="word-break: break-word; font-family: monospace;">
+              {{ selectedFailedInvoice?.xendit_error_message || 'Tidak ada detail pesan error spesifik yang tersimpan.' }}
+            </div>
+          </v-alert>
+
+          <!-- Panduan Solusi -->
+          <div class="pa-3 rounded-lg bg-surface-variant">
+            <div class="text-caption font-weight-bold mb-1 text-primary">
+              <v-icon size="14" color="primary" class="me-1">mdi-lightbulb-on-outline</v-icon>
+              Petunjuk Penyelesaian:
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              1. Pastikan nama pelanggan tidak kosong dan tidak mengandung karakter tidak valid.<br/>
+              2. Pastikan nomor telepon WhatsApp terisi dengan format benar (cth: 0812xxx atau 62812xxx).<br/>
+              3. Klik tombol <strong>"Coba Terbitkan Ulang Sekarang"</strong> di bawah untuk meminta tautan pembayaran baru langsung ke Xendit.
+            </div>
+          </div>
+        </v-card-text>
+
+        <v-divider></v-divider>
+
+        <v-card-actions class="pa-4 bg-grey-lighten-5 d-flex justify-space-between">
+          <v-btn variant="text" @click="dialogXenditError = false" class="text-none">
+            Tutup
+          </v-btn>
+          <v-btn
+            color="indigo"
+            variant="elevated"
+            prepend-icon="mdi-refresh-circle"
+            :loading="retryingXenditId === selectedFailedInvoice?.id"
+            @click="retryXendit(selectedFailedInvoice)"
+            class="text-none font-weight-bold rounded-lg elevation-2"
+          >
+            Coba Terbitkan Ulang Sekarang
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <InvoiceDetailDialog 
       v-model="dialogDetail" 
       :invoice="selectedInvoice"
@@ -1055,6 +1210,8 @@ const markingAsPaid = ref(false);
 const itemToMark = ref<Invoice | null>(null);
 const paymentMethod = ref('Cash');
 const selectedStatus = ref<string | null>(null);
+const selectedXenditStatus = ref<string | null>(null);
+const xenditStatusOptions = ref(['Semua', 'Pending', 'Paid', 'Expired', 'Failed']);
 const startDate = ref<string | null>(null);
 const endDate = ref<string | null>(null);
 const statusOptions = ref(['Lunas', 'Belum Bayar', 'Expired']);
@@ -1071,6 +1228,10 @@ const limitOptions = ref([
 const totalCount = ref(0);
 const showAdvancedFilters = ref(false);
 
+const dialogXenditError = ref(false);
+const selectedFailedInvoice = ref<Invoice | null>(null);
+const retryingXenditId = ref<number | null>(null);
+
 const showLoadingOverlay = computed(() => {
   return generating.value || deleting.value || creatingReinvoice.value || markingAsPaid.value;
 });
@@ -1078,6 +1239,7 @@ const showLoadingOverlay = computed(() => {
 const activeFilterCount = computed(() => {
   let count = 0;
   if (selectedStatus.value) count++;
+  if (selectedXenditStatus.value && selectedXenditStatus.value !== 'Semua') count++;
   if (startDate.value) count++;
   if (endDate.value) count++;
   if (showPaidInvoices.value) count++;
@@ -1354,6 +1516,9 @@ async function fetchInvoices() {
     const params = new URLSearchParams();
     if (searchQuery.value) params.append('search', searchQuery.value);
     if (selectedStatus.value) params.append('status_invoice', selectedStatus.value);
+    if (selectedXenditStatus.value && selectedXenditStatus.value !== 'Semua') {
+      params.append('xendit_status', selectedXenditStatus.value.toLowerCase());
+    }
     if (startDate.value) params.append('start_date', startDate.value);
     if (endDate.value) params.append('end_date', endDate.value);
 
@@ -1462,13 +1627,14 @@ watch(searchQuery, () => {
   applySearchFilter();
 });
 
-watch([selectedStatus, startDate, endDate, showPaidInvoices], () => {
+watch([selectedStatus, selectedXenditStatus, startDate, endDate, showPaidInvoices], () => {
   applyInstantFilter();
 });
 
 function resetFilters() {
   searchQuery.value = '';
   selectedStatus.value = null;
+  selectedXenditStatus.value = null;
   startDate.value = null;
   endDate.value = null;
   showPaidInvoices.value = false;
@@ -1665,6 +1831,39 @@ async function copyPaymentLink(link: string | null | undefined) {
     }
   } catch (err) {
     showSnackbar('Gagal menyalin link', 'error');
+  }
+}
+
+function openXenditErrorDialog(item: Invoice) {
+  selectedFailedInvoice.value = item;
+  dialogXenditError.value = true;
+}
+
+async function retryXendit(item: Invoice | null | undefined) {
+  if (!item) return;
+  retryingXenditId.value = item.id;
+  try {
+    showSnackbar(`Menerbitkan ulang invoice ${item.invoice_number} ke Xendit...`, 'info');
+    const response = await apiClient.post(`/invoices/${item.id}/retry-xendit`);
+    const updatedInvoice = response.data?.data || response.data;
+    
+    // Update local item properties
+    if (updatedInvoice) {
+      item.payment_link = updatedInvoice.payment_link || item.payment_link;
+      item.xendit_status = updatedInvoice.xendit_status || 'pending';
+      item.xendit_error_message = updatedInvoice.xendit_error_message || null;
+      item.xendit_retry_count = updatedInvoice.xendit_retry_count;
+    }
+
+    showSnackbar(`Invoice ${item.invoice_number} berhasil diterbitkan ulang ke Xendit!`, 'success');
+    dialogXenditError.value = false;
+    fetchInvoices();
+  } catch (error: any) {
+    console.error('Error retrying Xendit invoice:', error);
+    const errMsg = error.response?.data?.error || error.response?.data?.detail || 'Gagal menerbitkan ulang invoice ke Xendit.';
+    showSnackbar(errMsg, 'error');
+  } finally {
+    retryingXenditId.value = null;
   }
 }
 
