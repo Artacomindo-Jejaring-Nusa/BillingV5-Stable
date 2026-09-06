@@ -637,6 +637,7 @@ func (u *billingUsecase) RetryXenditInvoice(ctx context.Context, id uint64) (*do
 		if xID != "" {
 			invoice.XenditID = &xID
 		}
+		invoice.StatusInvoice = "Belum Bayar"
 		invoice.XenditStatus = "pending"
 		invoice.XenditErrorMessage = nil
 

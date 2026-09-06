@@ -1850,6 +1850,7 @@ async function retryXendit(item: Invoice | null | undefined) {
     // Update local item properties
     if (updatedInvoice) {
       item.payment_link = updatedInvoice.payment_link || item.payment_link;
+      item.status_invoice = updatedInvoice.status_invoice || 'Belum Bayar';
       item.xendit_status = updatedInvoice.xendit_status || 'pending';
       item.xendit_error_message = updatedInvoice.xendit_error_message || null;
       item.xendit_retry_count = updatedInvoice.xendit_retry_count;
@@ -1857,7 +1858,7 @@ async function retryXendit(item: Invoice | null | undefined) {
 
     showSnackbar(`Invoice ${item.invoice_number} berhasil diterbitkan ulang ke Xendit!`, 'success');
     dialogXenditError.value = false;
-    fetchInvoices();
+    await fetchInvoices();
   } catch (error: any) {
     console.error('Error retrying Xendit invoice:', error);
     const errMsg = error.response?.data?.error || error.response?.data?.detail || 'Gagal menerbitkan ulang invoice ke Xendit.';
