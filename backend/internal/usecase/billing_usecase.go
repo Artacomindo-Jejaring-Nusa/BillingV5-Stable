@@ -2465,12 +2465,17 @@ func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.In
 		return map[string]interface{}{}, errors.New("xendit API key not configured")
 	}
 
+	durationDays := 28
+	if u.cfg != nil && u.cfg.XenditInvoiceDurationDays > 0 {
+		durationDays = u.cfg.XenditInvoiceDurationDays
+	}
+
 	hargaDasar := inv.TotalHarga - tax
 	payload := map[string]interface{}{
 		"external_id":      inv.InvoiceNumber,
 		"amount":           inv.TotalHarga,
 		"description":      fmt.Sprintf("Invoice #: %s", inv.InvoiceNumber),
-		"invoice_duration": 86400 * 10,
+		"invoice_duration": 86400 * durationDays,
 		"customer": map[string]interface{}{
 			"given_names":   p.Nama,
 			"email":         p.Email,

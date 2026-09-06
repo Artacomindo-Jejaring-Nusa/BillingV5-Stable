@@ -22,6 +22,7 @@ type Config struct {
 	XenditApiKeyJakinet             string
 	XenditApiKeyJelantik            string
 	XenditApiUrl                    string
+	XenditInvoiceDurationDays       int
 	EncryptionKey                   string
 	AlibabaCloudApiKey              string
 	WatzapApiKey                    string
@@ -73,6 +74,7 @@ func LoadConfig() *Config {
 		XenditApiKeyJakinet:             getEnv("XENDIT_API_KEY_JAKINET", ""),
 		XenditApiKeyJelantik:            getEnv("XENDIT_API_KEY_JELANTIK", ""),
 		XenditApiUrl:                    getEnv("XENDIT_API_URL", "https://api.xendit.co/v2/invoices"),
+		XenditInvoiceDurationDays:       getEnvAsInt("XENDIT_INVOICE_DURATION_DAYS", 28),
 		EncryptionKey:                   getEnv("ENCRYPTION_KEY", "default_encryption_key_change_in_production"),
 		AlibabaCloudApiKey:              getEnv("ALIBABA_CLOUD_API_KEY", ""),
 		WatzapApiKey:                    getEnv("WATZAP_API_KEY", ""),
