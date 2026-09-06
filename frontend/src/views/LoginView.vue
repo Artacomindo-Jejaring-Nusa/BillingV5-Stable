@@ -160,8 +160,8 @@ function backToLogin() {
                 Alamat Email
               </label>
               <div class="relative form-input input-group">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail class="w-5 h-5 text-gray-400" />
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style="z-index: 6;">
+                  <v-icon size="20" color="grey-darken-1">mdi-email-outline</v-icon>
                 </div>
                 <input
                   type="email"
@@ -170,7 +170,7 @@ function backToLogin() {
                   class="input-field w-full pl-10 pr-10 py-3"
                   :class="{ 'border-[var(--primary-color)]': email.length > 0 }"
                 />
-                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center" style="z-index: 6;">
                   <div
                     class="w-2 h-2 rounded-full bg-green-500 transition-all duration-200"
                     :class="email.length > 0 ? 'opacity-100' : 'opacity-0'"
@@ -189,8 +189,8 @@ function backToLogin() {
                 Kata Sandi
               </label>
               <div class="relative form-input input-group">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Key class="w-5 h-5 text-gray-400" />
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style="z-index: 6;">
+                  <v-icon size="20" color="grey-darken-1">mdi-lock-outline</v-icon>
                 </div>
                 <input
                   :type="showPassword ? 'text' : 'password'"
@@ -199,15 +199,15 @@ function backToLogin() {
                   class="input-field w-full pl-10 pr-12 py-3"
                   :class="{ 'border-[var(--primary-color)]': password.length > 0 }"
                 />
-                <div class="absolute inset-y-0 right-0 flex items-center pr-3 z-20">
+                <div class="absolute inset-y-0 right-0 flex items-center pr-2" style="z-index: 20;">
                   <button
                     type="button"
                     @click="togglePasswordVisibility"
-                    class="p-2 text-gray-600 hover:text-[var(--primary-color)] focus:outline-none transition-colors duration-200"
-                    style="color: #4b5563 !important;"
+                    class="toggle-password-btn"
+                    tabindex="-1"
+                    title="Lihat Kata Sandi"
                   >
-                    <Eye v-if="!showPassword" class="w-5 h-5" />
-                    <EyeOff v-else class="w-5 h-5" />
+                    <v-icon size="22" color="grey-darken-2">{{ showPassword ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
                   </button>
                 </div>
               </div>
@@ -604,6 +604,29 @@ button[type="submit"] * {
 }
 
 /* Remove background from icons in buttons */
+.toggle-password-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  padding: 6px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  color: #6b7280 !important;
+}
+
+.toggle-password-btn:hover {
+  background-color: rgba(13, 38, 145, 0.08) !important;
+  color: var(--primary-color) !important;
+  transform: scale(1.08);
+}
+
+.toggle-password-btn:active {
+  transform: scale(0.95);
+}
+
 button .input-icon,
 button .lucide {
   background: none !important;
