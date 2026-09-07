@@ -62,6 +62,9 @@ type DataTeknisUsecase interface {
 	ImportFromCSV(ctx context.Context, csvContent string) (int, error)
 	Export(ctx context.Context, format string) ([]byte, string, error)
 	AutoSyncProfileForPelanggan(ctx context.Context, pelangganID uint64, paket *PaketLayanan) (string, error)
+	GetLiveONU(ctx context.Context, id uint64) (*ZTEONUDetail, error)
+	SyncLiveOnuPower(ctx context.Context, id uint64, power float64) error
+	GetDetectedONUs(ctx context.Context, oltName string, pon int, board int) ([]ZTEONUInfo, error)
 }
 
 // OLTRepository defines database operations for OLT

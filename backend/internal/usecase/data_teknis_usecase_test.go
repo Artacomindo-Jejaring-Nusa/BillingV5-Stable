@@ -51,7 +51,7 @@ func TestDataTeknisStore(t *testing.T) {
 	pRepo := &mockPelangganRepo{data: map[uint64]*domain.Pelanggan{
 		2: {ID: 2, Nama: "New User"},
 	}}
-	u := NewDataTeknisUsecase(repo, nil, pRepo, nil)
+	u := NewDataTeknisUsecase(repo, nil, pRepo, nil, nil, nil)
 
 	t.Run("Store successful", func(t *testing.T) {
 		dt := &domain.DataTeknis{PelangganID: 2, IDPelanggan: "CUST002"}
@@ -72,7 +72,7 @@ func TestDataTeknisStore(t *testing.T) {
 
 func TestDataTeknisUpdate(t *testing.T) {
 	repo := &mockDataTeknisRepoFull{}
-	u := NewDataTeknisUsecase(repo, nil, nil, nil)
+	u := NewDataTeknisUsecase(repo, nil, nil, nil, nil, nil)
 
 	dt := &domain.DataTeknis{IDPelanggan: "UPDATED"}
 	err := u.Update(context.Background(), 1, dt)
@@ -83,7 +83,7 @@ func TestDataTeknisUpdate(t *testing.T) {
 
 func TestDataTeknisExport(t *testing.T) {
 	repo := &mockDataTeknisRepoFull{}
-	u := NewDataTeknisUsecase(repo, nil, nil, nil)
+	u := NewDataTeknisUsecase(repo, nil, nil, nil, nil, nil)
 
 	// Test CSV
 	_, contentType, err := u.Export(context.Background(), "csv")
@@ -109,7 +109,7 @@ func TestAutoSyncProfileForPelanggan(t *testing.T) {
 	pRepo := &mockPelangganRepo{data: map[uint64]*domain.Pelanggan{
 		1: {ID: 1, Nama: "Pelanggan Test"},
 	}}
-	u := NewDataTeknisUsecase(repo, nil, pRepo, nil)
+	u := NewDataTeknisUsecase(repo, nil, pRepo, nil, nil, nil)
 
 	paket := &domain.PaketLayanan{
 		ID:        1,

@@ -54,6 +54,9 @@ func NewDataTeknisHandler(r *gin.RouterGroup, du domain.DataTeknisUsecase, authM
 		g.POST("/import/csv", handler.ImportFromCSV)
 		g.GET("/template/csv", handler.DownloadCSVTemplate)
 		g.POST("/upload-speedtest", handler.UploadSpeedtest)
+		g.GET("/:id/live-onu", handler.GetLiveONU)
+		g.POST("/:id/sync-onu-power", handler.SyncLiveOnuPower)
+		g.GET("/detected-onus", handler.GetDetectedONUs)
 	}
 }
 
@@ -476,3 +479,74 @@ func (h *DataTeknisHandler) UploadSpeedtest(c *gin.Context) {
 		"size":         size,
 	})
 }
+
+func (h *DataTeknisHandler) GetLiveONU(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	detail, err := h.dataTeknisUsecase.GetLiveONU(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":   200,
+		"status": "success",
+		"data":   detail,
+	})
+}
+
+type SyncOnuPowerRequest struct {
+	OnuPower float64 `json:"onu_power"`
+}
+
+func (h *DataTeknisHandler) SyncLiveOnuPower(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	var req SyncOnuPowerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+		return
+	}
+
+	if err := h.dataTeknisUsecase.SyncLiveOnuPower(c.Request.Context(), id, req.OnuPower); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"status":  "success",
+		"message": "ONU Power berhasil disinkronkan ke database",
+	})
+}
+
+func (h *DataTeknisHandler) GetDetectedONUs(c *gin.Context) {
+	olt := c.Query("olt")
+	ponStr := c.DefaultQuery("pon", "1")
+	boardStr := c.DefaultQuery("board", "1")
+
+	pon, _ := strconv.Atoi(ponStr)
+	board, _ := strconv.Atoi(boardStr)
+
+	onus, err := h.dataTeknisUsecase.GetDetectedONUs(c.Request.Context(), olt, pon, board)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":   200,
+		"status": "success",
+		"data":   onus,
+	})
+}
+

@@ -16,6 +16,7 @@ import (
 	"billing-backend/pkg/database"
 	"billing-backend/pkg/mikrotik"
 	"billing-backend/pkg/utils"
+	"billing-backend/pkg/zteclient"
 
 	"github.com/go-routeros/routeros"
 	"github.com/xuri/excelize/v2"
@@ -26,6 +27,8 @@ type dataTeknisUsecase struct {
 	mikrotikRepo     domain.MikrotikRepository
 	pelangganRepo    domain.PelangganRepository
 	paketLayananRepo domain.PaketLayananRepository
+	oltRepo          domain.OLTRepository
+	zteClient        zteclient.Client
 }
 
 // NewDataTeknisUsecase creates a new instance of DataTeknisUsecase
@@ -34,12 +37,16 @@ func NewDataTeknisUsecase(
 	mikrotikRepo domain.MikrotikRepository,
 	pelangganRepo domain.PelangganRepository,
 	paketLayananRepo domain.PaketLayananRepository,
+	oltRepo domain.OLTRepository,
+	zteClient zteclient.Client,
 ) domain.DataTeknisUsecase {
 	return &dataTeknisUsecase{
 		dataTeknisRepo:   dataTeknisRepo,
 		mikrotikRepo:     mikrotikRepo,
 		pelangganRepo:    pelangganRepo,
 		paketLayananRepo: paketLayananRepo,
+		oltRepo:          oltRepo,
+		zteClient:        zteClient,
 	}
 }
 
@@ -1380,4 +1387,113 @@ func (u *dataTeknisUsecase) AutoSyncProfileForPelanggan(ctx context.Context, pel
 
 	websocket.InvalidateDashboardCache(ctx)
 	return bestProfile, nil
+}
+
+func (u *dataTeknisUsecase) resolveOltKey(oltName string) string {
+	name := strings.ToLower(strings.TrimSpace(oltName))
+	if strings.Contains(name, "tipar") {
+		return "tipar"
+	}
+	if strings.Contains(name, "pulogebang") || strings.Contains(name, "pulo gebang") {
+		return "pulogebang"
+	}
+	if strings.Contains(name, "pinus") {
+		return "pinus"
+	}
+	name = strings.TrimPrefix(name, "olt-")
+	name = strings.TrimPrefix(name, "olt ")
+	name = strings.TrimPrefix(name, "olt_")
+	name = strings.ReplaceAll(name, " ", "-")
+	if name == "" {
+		return "tipar"
+	}
+	return name
+}
+
+func (u *dataTeknisUsecase) GetLiveONU(ctx context.Context, id uint64) (*domain.ZTEONUDetail, error) {
+	if u.zteClient == nil {
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+
+	dt, err := u.dataTeknisRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("data teknis not found: %w", err)
+	}
+
+	if dt.Sn == nil || strings.TrimSpace(*dt.Sn) == "" {
+		return nil, errors.New("Serial number (SN) belum diisi pada Data Teknis pelanggan ini")
+	}
+
+	targetSN := strings.ToUpper(strings.TrimSpace(*dt.Sn))
+	oltName := ""
+	if dt.Olt != nil {
+		oltName = *dt.Olt
+	}
+	oltKey := u.resolveOltKey(oltName)
+
+	targetPon := 0
+	if dt.Pon != nil {
+		targetPon = *dt.Pon
+	}
+
+	// Boards on ZTE C320 (GPON line cards are on slot 1 and slot 2)
+	boards := []int{1, 2}
+
+	// 1. Check specified PON first if available
+	if targetPon > 0 {
+		for _, b := range boards {
+			onus, err := u.zteClient.GetONUs(ctx, oltKey, b, targetPon)
+			if err == nil {
+				for _, onu := range onus {
+					if strings.EqualFold(strings.TrimSpace(onu.SerialNumber), targetSN) {
+						return u.zteClient.GetONUDetail(ctx, oltKey, b, targetPon, onu.ONUID)
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Fallback scan across common PON ports on board 1 and 2
+	for _, b := range boards {
+		for p := 1; p <= 16; p++ {
+			if targetPon > 0 && p == targetPon {
+				continue
+			}
+			onus, err := u.zteClient.GetONUs(ctx, oltKey, b, p)
+			if err == nil {
+				for _, onu := range onus {
+					if strings.EqualFold(strings.TrimSpace(onu.SerialNumber), targetSN) {
+						return u.zteClient.GetONUDetail(ctx, oltKey, b, p, onu.ONUID)
+					}
+				}
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("ONU dengan SN %s tidak ditemukan pada OLT %s", targetSN, oltKey)
+}
+
+func (u *dataTeknisUsecase) SyncLiveOnuPower(ctx context.Context, id uint64, power float64) error {
+	dt, err := u.dataTeknisRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("data teknis not found: %w", err)
+	}
+
+	rxInt := int(math.Round(power))
+	dt.OnuPower = &rxInt
+
+	return u.dataTeknisRepo.Update(ctx, dt)
+}
+
+func (u *dataTeknisUsecase) GetDetectedONUs(ctx context.Context, oltName string, pon int, board int) ([]domain.ZTEONUInfo, error) {
+	if u.zteClient == nil {
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+
+	if board <= 0 {
+		board = 1
+	}
+	oltKey := u.resolveOltKey(oltName)
+
+	return u.zteClient.GetONUs(ctx, oltKey, board, pon)
 }

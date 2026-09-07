@@ -359,12 +359,75 @@
             </div>
           </template>
           <template v-slot:item.onu_power="{ item }">
-            <div class="text-center">
-              <v-chip :color="getOnuPowerColor(item.onu_power)" size="small" variant="flat" class="font-weight-bold px-3" :style="{ minWidth: '80px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }">
-                <v-icon :icon="getOnuPowerIcon(item.onu_power)" start size="16"></v-icon>
-                {{ item.onu_power }} dBm
-              </v-chip>
-              <div class="text-caption mt-1 text-medium-emphasis">{{ getOnuPowerStatus(item.onu_power) }}</div>
+            <div class="d-flex flex-column align-center justify-center py-1">
+              <!-- If Live Telemetry is loaded -->
+              <div v-if="liveTelemetryMap[item.id]?.data" class="d-flex flex-column align-center">
+                <v-tooltip location="top">
+                  <template v-slot:activator="{ props }">
+                    <v-chip 
+                      v-bind="props"
+                      :color="getLiveSignalColor(liveTelemetryMap[item.id]?.data?.rx_power)"
+                      size="small"
+                      variant="flat"
+                      class="font-weight-bold px-2 cursor-pointer elevation-1"
+                      @click="openLiveDetailModal(item)"
+                    >
+                      <v-icon start size="14">mdi-broadcast</v-icon>
+                      {{ liveTelemetryMap[item.id]?.data?.rx_power ? liveTelemetryMap[item.id]?.data?.rx_power + ' dBm' : '-' }}
+                    </v-chip>
+                  </template>
+                  <span>
+                    Status: <strong>{{ liveTelemetryMap[item.id]?.data?.status }}</strong><br>
+                    Tx Power: {{ liveTelemetryMap[item.id]?.data?.tx_power }} dBm<br>
+                    Jarak Optik: {{ liveTelemetryMap[item.id]?.data?.gpon_optical_distance || '0' }} meter<br>
+                    Klik untuk detail lengkap
+                  </span>
+                </v-tooltip>
+                
+                <div class="d-flex align-center gap-1 mt-1">
+                  <v-chip size="x-small" :color="getLiveStatusColor(liveTelemetryMap[item.id]?.data?.status)" variant="tonal" class="font-weight-medium">
+                    {{ liveTelemetryMap[item.id]?.data?.status || 'Live' }}
+                  </v-chip>
+                  <v-btn
+                    icon="mdi-content-save"
+                    size="x-small"
+                    variant="text"
+                    color="primary"
+                    :loading="liveTelemetryMap[item.id]?.syncing"
+                    @click.stop="syncOnuPowerToDb(item, liveTelemetryMap[item.id]?.data?.rx_power)"
+                    title="Simpan Redaman ke Database"
+                  ></v-btn>
+                </div>
+              </div>
+
+              <!-- Static DB View + Cek Live Button -->
+              <div v-else class="d-flex align-center gap-1">
+                <div class="text-center">
+                  <v-chip :color="getOnuPowerColor(item.onu_power)" size="small" variant="flat" class="font-weight-bold px-3" :style="{ minWidth: '75px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }">
+                    <v-icon :icon="getOnuPowerIcon(item.onu_power)" start size="14"></v-icon>
+                    {{ item.onu_power ? item.onu_power + ' dBm' : '0 dBm' }}
+                  </v-chip>
+                  <div class="text-caption mt-1 text-medium-emphasis" style="font-size: 11px;">{{ getOnuPowerStatus(item.onu_power) }}</div>
+                </div>
+
+                <v-btn 
+                  icon
+                  size="x-small"
+                  variant="tonal"
+                  color="cyan-darken-2"
+                  class="ms-1"
+                  :loading="liveTelemetryMap[item.id]?.loading"
+                  @click.stop="checkLiveTelemetry(item)"
+                  title="Cek Sinyal Live dari OLT"
+                >
+                  <v-icon size="16">mdi-broadcast</v-icon>
+                  <v-tooltip activator="parent" location="top">Cek Sinyal Live OLT</v-tooltip>
+                </v-btn>
+              </div>
+
+              <div v-if="liveTelemetryMap[item.id]?.error" class="text-caption text-error mt-1" style="font-size: 10px; max-width: 140px; text-align: center;">
+                {{ liveTelemetryMap[item.id]?.error }}
+              </div>
             </div>
           </template>
           <template v-slot:item.actions="{ item }">
@@ -396,17 +459,32 @@
           <template v-slot:expanded-row="{ columns, item }">
             <tr>
               <td :colspan="columns.length">
-                <v-card flat class="pa-4 my-2" color="rgba(0, 172, 193, 0.05)">
+                <v-card flat class="pa-4 my-2" color="rgba(0, 172, 193, 0.05)" rounded="xl">
                   <div class="d-flex justify-space-between align-center mb-4">
-                    <h4 class="text-h6 font-weight-bold text-cyan-darken-2">Detail Lengkap</h4>
-                    <v-chip size="small" variant="tonal" color="cyan-darken-2">
-                      ID: {{ item.id_pelanggan }}
-                    </v-chip>
+                    <div class="d-flex align-center gap-2">
+                      <v-icon color="cyan-darken-2">mdi-information-outline</v-icon>
+                      <h4 class="text-h6 font-weight-bold text-cyan-darken-2 mb-0">Detail Infrastruktur & Telemetri Live</h4>
+                    </div>
+                    <div class="d-flex align-center gap-2">
+                      <v-btn
+                        size="small"
+                        color="cyan-darken-2"
+                        variant="flat"
+                        prepend-icon="mdi-broadcast"
+                        :loading="liveTelemetryMap[item.id]?.loading"
+                        @click="checkLiveTelemetry(item)"
+                      >
+                        {{ liveTelemetryMap[item.id]?.data ? 'Refresh Sinyal Live' : 'Cek Sinyal Live OLT' }}
+                      </v-btn>
+                      <v-chip size="small" variant="tonal" color="cyan-darken-2">
+                        ID: {{ item.id_pelanggan }}
+                      </v-chip>
+                    </div>
                   </div>
                   <v-row>
-                    <v-col cols="12" md="4">
-                      <v-list-item-title class="font-weight-bold mb-2">Info Jaringan</v-list-item-title>
-                      <v-list density="compact">
+                    <v-col cols="12" sm="6" md="3">
+                      <v-list-item-title class="font-weight-bold mb-2 text-primary">Info Jaringan</v-list-item-title>
+                      <v-list density="compact" class="bg-transparent">
                         <v-list-item prepend-icon="mdi-key-variant">
                           <v-list-item-title>Password: {{ item.password_pppoe }}</v-list-item-title>
                         </v-list-item>
@@ -418,28 +496,79 @@
                         </v-list-item>
                       </v-list>
                     </v-col>
-                    <v-col cols="12" md="4">
-                      <v-list-item-title class="font-weight-bold mb-2">Info Infrastruktur</v-list-item-title>
-                      <v-list density="compact">
+                    <v-col cols="12" sm="6" md="3">
+                      <v-list-item-title class="font-weight-bold mb-2 text-primary">Info Infrastruktur</v-list-item-title>
+                      <v-list density="compact" class="bg-transparent">
+                        <v-list-item prepend-icon="mdi-router-network">
+                          <v-list-item-title>OLT: {{ item.olt || 'N/A' }}</v-list-item-title>
+                        </v-list-item>
                         <v-list-item prepend-icon="mdi-timeline">
-                          <v-list-item-title>PON: {{ item.pon }}</v-list-item-title>
-                        </v-list-item>
-                        <v-list-item prepend-icon="mdi-cable-data">
-                          <v-list-item-title>OTB: {{ item.otb }}</v-list-item-title>
-                        </v-list-item>
-                        <v-list-item prepend-icon="mdi-access-point-network">
-                          <v-list-item-title>ODC: {{ item.odc }}</v-list-item-title>
+                          <v-list-item-title>PON: {{ item.pon }} | OTB: {{ item.otb }} | ODC: {{ item.odc }}</v-list-item-title>
                         </v-list-item>
                         <v-list-item prepend-icon="mdi-distribution-point">
-                          <v-list-item-title>ODP ID: {{ item.odp_id || 'N/A' }}</v-list-item-title>
+                          <v-list-item-title>ODP: {{ item.odp_id ? 'ID #' + item.odp_id : 'N/A' }} (Port: {{ item.port_odp || '-' }})</v-list-item-title>
                         </v-list-item>
                         <v-list-item prepend-icon="mdi-barcode-scan">
-                            <v-list-item-title>SN: {{ item.sn || 'N/A' }}</v-list-item-title>
+                          <v-list-item-title>SN: <strong>{{ item.sn || 'N/A' }}</strong></v-list-item-title>
                         </v-list-item>
                       </v-list>
                     </v-col>
-                    <v-col cols="12" md="4">
-                      <v-list-item-title class="font-weight-bold mb-2">Bukti Speedtest</v-list-item-title>
+                    <v-col cols="12" sm="6" md="3">
+                      <v-list-item-title class="font-weight-bold mb-2 text-primary">Diagnosa OLT Real-Time</v-list-item-title>
+                      <div v-if="liveTelemetryMap[item.id]?.data" class="pa-3 bg-white rounded-lg elevation-1">
+                        <div class="d-flex justify-space-between align-center mb-2">
+                          <span class="text-caption font-weight-bold">Status:</span>
+                          <v-chip size="x-small" :color="getLiveStatusColor(liveTelemetryMap[item.id]?.data?.status)" variant="flat" class="font-weight-bold">
+                            {{ liveTelemetryMap[item.id]?.data?.status }}
+                          </v-chip>
+                        </div>
+                        <div class="d-flex justify-space-between align-center mb-1">
+                          <span class="text-caption text-grey-darken-1">Redaman Rx:</span>
+                          <span class="text-caption font-weight-bold" :class="getLiveSignalColor(liveTelemetryMap[item.id]?.data?.rx_power) === 'success' ? 'text-success' : 'text-error'">
+                            {{ liveTelemetryMap[item.id]?.data?.rx_power }} dBm
+                          </span>
+                        </div>
+                        <div class="d-flex justify-space-between align-center mb-1">
+                          <span class="text-caption text-grey-darken-1">Power Tx:</span>
+                          <span class="text-caption font-weight-medium">{{ liveTelemetryMap[item.id]?.data?.tx_power }} dBm</span>
+                        </div>
+                        <div class="d-flex justify-space-between align-center mb-1">
+                          <span class="text-caption text-grey-darken-1">Jarak Kabel:</span>
+                          <span class="text-caption font-weight-bold text-primary">{{ liveTelemetryMap[item.id]?.data?.gpon_optical_distance || '0' }} Meter</span>
+                        </div>
+                        <div class="d-flex justify-space-between align-center mb-2">
+                          <span class="text-caption text-grey-darken-1">Tipe Modem:</span>
+                          <span class="text-caption">{{ liveTelemetryMap[item.id]?.data?.onu_type || '-' }}</span>
+                        </div>
+                        <v-btn
+                          block
+                          size="x-small"
+                          color="primary"
+                          variant="tonal"
+                          prepend-icon="mdi-content-save"
+                          :loading="liveTelemetryMap[item.id]?.syncing"
+                          @click="syncOnuPowerToDb(item, liveTelemetryMap[item.id]?.data?.rx_power)"
+                        >
+                          Simpan Redaman ke Database
+                        </v-btn>
+                      </div>
+                      <div v-else-if="liveTelemetryMap[item.id]?.loading" class="text-center pa-4 bg-white rounded-lg">
+                        <v-progress-circular indeterminate size="24" color="primary" class="mb-2"></v-progress-circular>
+                        <div class="text-caption text-medium-emphasis">Membaca SNMP OLT...</div>
+                      </div>
+                      <div v-else-if="liveTelemetryMap[item.id]?.error" class="pa-3 bg-red-lighten-5 rounded-lg text-caption text-error">
+                        <v-icon start size="16" color="error">mdi-alert-circle</v-icon>
+                        {{ liveTelemetryMap[item.id]?.error }}
+                      </div>
+                      <div v-else class="pa-3 bg-white rounded-lg text-center border-dashed">
+                        <p class="text-caption text-medium-emphasis mb-2">Belum ada data telemetri live</p>
+                        <v-btn size="x-small" color="primary" variant="outlined" prepend-icon="mdi-broadcast" @click="checkLiveTelemetry(item)">
+                          Cek Sekarang
+                        </v-btn>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" sm="6" md="3">
+                      <v-list-item-title class="font-weight-bold mb-2 text-primary">Bukti Speedtest</v-list-item-title>
                       <v-img v-if="item.speedtest_proof" :src="`${apiClient.defaults.baseURL}${item.speedtest_proof}`" height="150" class="rounded-lg elevation-2" cover>
                         <template v-slot:placeholder>
                           <div class="d-flex align-center justify-center fill-height">
@@ -576,13 +705,36 @@
                 </v-list-item>
                 <v-list-item class="px-0">
                   <template v-slot:prepend>
-                    <v-icon class="me-4" :color="getOnuPowerColor(item.onu_power)">mdi-signal</v-icon>
+                    <v-icon class="me-4" :color="liveTelemetryMap[item.id]?.data ? getLiveSignalColor(liveTelemetryMap[item.id]?.data?.rx_power) : getOnuPowerColor(item.onu_power)">mdi-signal</v-icon>
                   </template>
                   <v-list-item-title>ONU Power</v-list-item-title>
                    <template v-slot:append>
-                     <v-chip :color="getOnuPowerColor(item.onu_power)" size="small" variant="flat" label class="font-weight-bold">
-                       {{ item.onu_power }} dBm
-                     </v-chip>
+                     <div class="d-flex align-center gap-1">
+                       <v-chip 
+                         v-if="liveTelemetryMap[item.id]?.data"
+                         :color="getLiveSignalColor(liveTelemetryMap[item.id]?.data?.rx_power)" 
+                         size="small" 
+                         variant="flat" 
+                         class="font-weight-bold"
+                         @click="openLiveDetailModal(item)"
+                       >
+                         {{ liveTelemetryMap[item.id]?.data?.rx_power }} dBm ({{ liveTelemetryMap[item.id]?.data?.status }})
+                       </v-chip>
+                       <v-chip v-else :color="getOnuPowerColor(item.onu_power)" size="small" variant="flat" label class="font-weight-bold">
+                         {{ item.onu_power ? item.onu_power + ' dBm' : '0 dBm' }}
+                       </v-chip>
+                       <v-btn
+                         icon
+                         size="x-small"
+                         variant="tonal"
+                         color="cyan-darken-2"
+                         :loading="liveTelemetryMap[item.id]?.loading"
+                         @click.stop="checkLiveTelemetry(item)"
+                         title="Cek Sinyal Live OLT"
+                       >
+                         <v-icon size="14">mdi-broadcast</v-icon>
+                       </v-btn>
+                     </div>
                    </template>
                 </v-list-item>
             </v-list>
@@ -592,7 +744,19 @@
                 <div v-if="expanded.includes(item.id)">
                   <v-divider></v-divider>
                   <div class="pa-4" style="background-color: rgba(0,0,0,0.02);">
-                     <h4 class="text-subtitle-1 font-weight-bold mb-2">Detail Lengkap</h4>
+                     <div class="d-flex justify-space-between align-center mb-2">
+                       <h4 class="text-subtitle-1 font-weight-bold mb-0">Detail Lengkap</h4>
+                       <v-btn
+                         size="x-small"
+                         color="cyan-darken-2"
+                         variant="tonal"
+                         prepend-icon="mdi-broadcast"
+                         :loading="liveTelemetryMap[item.id]?.loading"
+                         @click="checkLiveTelemetry(item)"
+                       >
+                         Cek Sinyal Live
+                       </v-btn>
+                     </div>
                       <v-list density="compact" class="bg-transparent">
                         <v-list-item prepend-icon="mdi-key-variant">Password: {{ item.password_pppoe }}</v-list-item>
                         <v-list-item prepend-icon="mdi-account-details">Profile: {{ item.profile_pppoe }}</v-list-item>
@@ -600,6 +764,34 @@
                         <v-list-item prepend-icon="mdi-timeline">PON: {{ item.pon }}</v-list-item>
                         <v-list-item prepend-icon="mdi-barcode-scan">SN: {{ item.sn || 'N/A' }}</v-list-item>
                       </v-list>
+
+                      <!-- Telemetri Live Card di Mobile -->
+                      <div v-if="liveTelemetryMap[item.id]?.data" class="pa-3 mt-2 bg-white rounded-lg border">
+                        <div class="d-flex justify-space-between align-center mb-1">
+                          <span class="text-caption font-weight-bold">Status OLT:</span>
+                          <v-chip size="x-small" :color="getLiveStatusColor(liveTelemetryMap[item.id]?.data?.status)">{{ liveTelemetryMap[item.id]?.data?.status }}</v-chip>
+                        </div>
+                        <div class="d-flex justify-space-between text-caption mb-1">
+                          <span>Redaman Rx:</span>
+                          <strong :class="getLiveSignalColor(liveTelemetryMap[item.id]?.data?.rx_power) === 'success' ? 'text-success' : 'text-error'">{{ liveTelemetryMap[item.id]?.data?.rx_power }} dBm</strong>
+                        </div>
+                        <div class="d-flex justify-space-between text-caption mb-1">
+                          <span>Jarak Kabel:</span>
+                          <span>{{ liveTelemetryMap[item.id]?.data?.gpon_optical_distance || '0' }} m</span>
+                        </div>
+                        <v-btn
+                          block
+                          size="x-small"
+                          color="primary"
+                          variant="tonal"
+                          class="mt-2"
+                          prepend-icon="mdi-content-save"
+                          :loading="liveTelemetryMap[item.id]?.syncing"
+                          @click="syncOnuPowerToDb(item, liveTelemetryMap[item.id]?.data?.rx_power)"
+                        >
+                          Simpan Redaman ke Database
+                        </v-btn>
+                      </div>
                   </div>
                 </div>
               </v-expand-transition>
@@ -929,11 +1121,25 @@
                       ></v-text-field>
                     </v-col>
                     <v-col cols="12" sm="6">
+                      <div class="d-flex align-center justify-space-between mb-1">
+                        <label class="text-caption font-weight-medium">Serial Number (SN) ONU</label>
+                        <v-btn
+                          size="x-small"
+                          variant="tonal"
+                          color="primary"
+                          prepend-icon="mdi-radar"
+                          :loading="loadingDetectedOnus"
+                          @click="fetchDetectedONUs"
+                        >
+                          Pilih dari OLT
+                        </v-btn>
+                      </div>
                       <v-text-field 
                         v-model="editedItem.sn" 
-                        label="Serial Number (SN) ONU" 
+                        placeholder="Contoh: RTEGC69E3F18" 
                         variant="outlined"
                         prepend-inner-icon="mdi-barcode-scan"
+                        hide-details="auto"
                       ></v-text-field>
                     </v-col>
                     <v-col cols="12">
@@ -1222,6 +1428,201 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Dialog Diagnosa & Telemetri Live Pelanggan -->
+    <v-dialog v-model="dialogLiveDetail" max-width="600px">
+      <v-card rounded="xl" elevation="16" class="overflow-hidden">
+        <div class="pa-5 bg-gradient-primary text-white d-flex align-center justify-space-between" style="background: linear-gradient(135deg, #00838F 0%, #00acc1 100%);">
+          <div class="d-flex align-center gap-3">
+            <v-avatar color="white" size="42">
+              <v-icon color="cyan-darken-3">mdi-broadcast</v-icon>
+            </v-avatar>
+            <div>
+              <h3 class="text-h6 font-weight-bold text-white mb-0">Telemetri Live OLT</h3>
+              <p class="text-caption text-white opacity-80 mb-0">{{ selectedLiveDT?.pelanggan?.nama || selectedLiveDT?.id_pelanggan }} ({{ selectedLiveDT?.olt }})</p>
+            </div>
+          </div>
+          <v-btn icon="mdi-close" variant="text" color="white" size="small" @click="dialogLiveDetail = false"></v-btn>
+        </div>
+
+        <v-card-text class="pa-6">
+          <div v-if="liveTelemetryMap[selectedLiveDT?.id]?.loading" class="text-center pa-8">
+            <v-progress-circular indeterminate color="primary" size="48" width="4" class="mb-3"></v-progress-circular>
+            <p class="text-body-2 text-medium-emphasis">Membaca data SNMP dari ZTE OLT...</p>
+          </div>
+
+          <div v-else-if="liveTelemetryMap[selectedLiveDT?.id]?.error" class="pa-4 bg-red-lighten-5 rounded-lg text-error">
+            <div class="d-flex align-center gap-2 mb-2">
+              <v-icon color="error">mdi-alert-circle</v-icon>
+              <strong>Gagal Membaca Telemetri</strong>
+            </div>
+            <p class="text-body-2 mb-3">{{ liveTelemetryMap[selectedLiveDT?.id]?.error }}</p>
+            <v-btn size="small" color="error" variant="tonal" prepend-icon="mdi-refresh" @click="checkLiveTelemetry(selectedLiveDT)">
+              Coba Lagi
+            </v-btn>
+          </div>
+
+          <div v-else-if="selectedLiveDetail || liveTelemetryMap[selectedLiveDT?.id]?.data">
+            <v-row dense class="mb-4">
+              <v-col cols="6">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey-darken-1">Status Koneksi</div>
+                  <v-chip size="small" :color="getLiveStatusColor(liveTelemetryMap[selectedLiveDT?.id]?.data?.status)" variant="flat" class="font-weight-bold mt-1">
+                    {{ liveTelemetryMap[selectedLiveDT?.id]?.data?.status }}
+                  </v-chip>
+                </div>
+              </v-col>
+              <v-col cols="6">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey-darken-1">Rx Optical Power (Redaman)</div>
+                  <div class="text-h6 font-weight-bold mt-1" :class="getLiveSignalColor(liveTelemetryMap[selectedLiveDT?.id]?.data?.rx_power) === 'success' ? 'text-success' : 'text-error'">
+                    {{ liveTelemetryMap[selectedLiveDT?.id]?.data?.rx_power }} dBm
+                  </div>
+                </div>
+              </v-col>
+              <v-col cols="6">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey-darken-1">Tx Optical Power</div>
+                  <div class="text-body-1 font-weight-bold mt-1">{{ liveTelemetryMap[selectedLiveDT?.id]?.data?.tx_power }} dBm</div>
+                </div>
+              </v-col>
+              <v-col cols="6">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey-darken-1">Jarak Kabel Optik (Distance)</div>
+                  <div class="text-body-1 font-weight-bold text-primary mt-1">{{ liveTelemetryMap[selectedLiveDT?.id]?.data?.gpon_optical_distance || '0' }} Meter</div>
+                </div>
+              </v-col>
+              <v-col cols="6">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey-darken-1">Tipe Modem / ONU</div>
+                  <div class="text-body-2 font-weight-bold mt-1">{{ liveTelemetryMap[selectedLiveDT?.id]?.data?.onu_type || '-' }}</div>
+                </div>
+              </v-col>
+              <v-col cols="6">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey-darken-1">Serial Number (SN)</div>
+                  <div class="text-body-2 font-mono font-weight-bold mt-1">{{ liveTelemetryMap[selectedLiveDT?.id]?.data?.serial_number || '-' }}</div>
+                </div>
+              </v-col>
+              <v-col cols="12" v-if="liveTelemetryMap[selectedLiveDT?.id]?.data?.uptime">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey-darken-1">Durasi Online (Uptime)</div>
+                  <div class="text-body-2 font-weight-bold mt-1">{{ liveTelemetryMap[selectedLiveDT?.id]?.data?.uptime }}</div>
+                </div>
+              </v-col>
+            </v-row>
+          </div>
+        </v-card-text>
+
+        <v-card-actions class="pa-4 bg-grey-lighten-5 d-flex justify-space-between">
+          <v-btn
+            variant="tonal"
+            color="primary"
+            prepend-icon="mdi-refresh"
+            :loading="liveTelemetryMap[selectedLiveDT?.id]?.loading"
+            @click="checkLiveTelemetry(selectedLiveDT)"
+          >
+            Refresh Data
+          </v-btn>
+          <div class="d-flex gap-2">
+            <v-btn variant="outlined" @click="dialogLiveDetail = false">Tutup</v-btn>
+            <v-btn
+              v-if="liveTelemetryMap[selectedLiveDT?.id]?.data?.rx_power"
+              color="success"
+              variant="flat"
+              prepend-icon="mdi-content-save"
+              :loading="liveTelemetryMap[selectedLiveDT?.id]?.syncing"
+              @click="syncOnuPowerToDb(selectedLiveDT, liveTelemetryMap[selectedLiveDT?.id]?.data?.rx_power)"
+            >
+              Simpan Redaman ke DB
+            </v-btn>
+          </div>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog Pilih ONU Terdeteksi di PON -->
+    <v-dialog v-model="dialogPickDetectedOnu" max-width="700px">
+      <v-card rounded="xl" elevation="16">
+        <v-card-title class="pa-5 bg-grey-lighten-4 d-flex align-center justify-space-between">
+          <div class="d-flex align-center gap-2">
+            <v-icon color="primary">mdi-radar</v-icon>
+            <span class="text-h6 font-weight-bold">Pilih ONU Terdeteksi di OLT</span>
+          </div>
+          <v-btn icon="mdi-close" variant="text" size="small" @click="dialogPickDetectedOnu = false"></v-btn>
+        </v-card-title>
+
+        <v-card-text class="pa-5">
+          <div class="d-flex align-center gap-3 mb-4">
+            <v-text-field
+              v-model="searchDetectedOnu"
+              placeholder="Cari Serial Number atau Nama..."
+              prepend-inner-icon="mdi-magnify"
+              variant="outlined"
+              density="compact"
+              hide-details
+              class="flex-grow-1"
+            ></v-text-field>
+            <v-btn
+              variant="tonal"
+              color="primary"
+              prepend-icon="mdi-refresh"
+              :loading="loadingDetectedOnus"
+              @click="fetchDetectedONUs"
+            >
+              Scan Ulang
+            </v-btn>
+          </div>
+
+          <div v-if="loadingDetectedOnus" class="text-center pa-8">
+            <v-progress-circular indeterminate color="primary" size="40" class="mb-2"></v-progress-circular>
+            <div class="text-body-2 text-medium-emphasis">Mendeteksi ONU di PON {{ editedItem.pon || 1 }}...</div>
+          </div>
+
+          <div v-else-if="!detectedOnusList.length" class="text-center pa-8 bg-grey-lighten-4 rounded-lg">
+            <v-icon size="48" color="grey">mdi-lan-disconnect</v-icon>
+            <p class="text-body-2 text-medium-emphasis mt-2 mb-0">Tidak ada ONU yang terdeteksi di PON {{ editedItem.pon || 1 }}.</p>
+          </div>
+
+          <div v-else style="max-height: 380px; overflow-y: auto;">
+            <v-table density="compact" class="modern-table">
+              <thead>
+                <tr>
+                  <th>No / ID</th>
+                  <th>Nama</th>
+                  <th>Serial Number</th>
+                  <th>Tipe</th>
+                  <th>Rx Power</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="onu in filteredDetectedOnus" :key="onu.onu_id">
+                  <td>#{{ onu.onu_id }}</td>
+                  <td>{{ onu.name }}</td>
+                  <td><strong class="font-mono">{{ onu.serial_number }}</strong></td>
+                  <td>{{ onu.onu_type || '-' }}</td>
+                  <td>
+                    <v-chip size="x-small" :color="getLiveSignalColor(onu.rx_power)" variant="flat">
+                      {{ onu.rx_power }} dBm
+                    </v-chip>
+                  </td>
+                  <td>
+                    <v-chip size="x-small" :color="getLiveStatusColor(onu.status)">{{ onu.status }}</v-chip>
+                  </td>
+                  <td>
+                    <v-btn size="x-small" color="primary" variant="flat" @click="selectDetectedONU(onu)">
+                      Pilih
+                    </v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -1311,6 +1712,35 @@ const downloadingTemplate = ref(false);
 const snackbar = ref({ show: false, text: '', color: 'success' });
 const importErrors = ref<string[]>([]);
 const showPppoePassword = ref(false);
+
+// --- State for Live ZTE Telemetry ---
+interface LiveTelemetryData {
+  loading: boolean;
+  data?: any;
+  error?: string;
+  syncing?: boolean;
+}
+
+const liveTelemetryMap = ref<Record<number, LiveTelemetryData>>({});
+const dialogLiveDetail = ref(false);
+const selectedLiveDetail = ref<any>(null);
+const selectedLiveDT = ref<any>(null);
+
+// Form helper: Deteksi SN di PON
+const detectedOnusList = ref<any[]>([]);
+const searchDetectedOnu = ref('');
+const loadingDetectedOnus = ref(false);
+const dialogPickDetectedOnu = ref(false);
+
+const filteredDetectedOnus = computed(() => {
+  if (!searchDetectedOnu.value) return detectedOnusList.value;
+  const q = searchDetectedOnu.value.toLowerCase();
+  return detectedOnusList.value.filter((o: any) => 
+    (o.serial_number || '').toLowerCase().includes(q) ||
+    (o.name || '').toLowerCase().includes(q) ||
+    (o.onu_type || '').toLowerCase().includes(q)
+  );
+});
 
 // --- State Baru untuk Paginasi Mobile dan Desktop ---
 const mobilePage = ref(1);
@@ -2280,6 +2710,164 @@ function getOnuPowerStatus(power: number) {
   if (power <= -27) return 'Sinyal Lemah';
   if (power <= -24) return 'Sinyal Sedang';
   return 'Sinyal Baik';
+}
+
+// --- Live ZTE Optical Telemetry Helpers ---
+function getLiveSignalColor(powerStr?: string | number): string {
+  if (powerStr === undefined || powerStr === null || powerStr === '') return 'grey';
+  const val = typeof powerStr === 'number' ? powerStr : parseFloat(String(powerStr));
+  if (isNaN(val) || val === 0) return 'grey';
+  if (val <= -27) return 'error';
+  if (val <= -24) return 'warning';
+  if (val <= -10) return 'success';
+  return 'teal';
+}
+
+function getLiveStatusColor(status?: string): string {
+  if (!status) return 'grey';
+  const s = status.toLowerCase();
+  if (s.includes('online') || s.includes('working') || s.includes('active')) return 'success';
+  if (s.includes('dying') || s.includes('gasp') || s.includes('alarm')) return 'warning';
+  if (s.includes('offline') || s.includes('down') || s.includes('lost')) return 'error';
+  return 'grey';
+}
+
+async function checkLiveTelemetry(item: any) {
+  if (!item || !item.id) return;
+  liveTelemetryMap.value[item.id] = { loading: true };
+  try {
+    const res = await apiClient.get(`/data_teknis/${item.id}/live-onu`);
+    if (res.data?.data) {
+      liveTelemetryMap.value[item.id] = {
+        loading: false,
+        data: res.data.data
+      };
+    } else {
+      liveTelemetryMap.value[item.id] = {
+        loading: false,
+        error: 'Data live tidak ditemukan pada OLT'
+      };
+    }
+  } catch (err: any) {
+    const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Gagal membaca telemetry OLT';
+    liveTelemetryMap.value[item.id] = {
+      loading: false,
+      error: errMsg
+    };
+  }
+}
+
+function openLiveDetailModal(item: any) {
+  selectedLiveDT.value = item;
+  selectedLiveDetail.value = liveTelemetryMap.value[item.id]?.data || null;
+  dialogLiveDetail.value = true;
+}
+
+async function syncOnuPowerToDb(item: any, powerVal?: number | string) {
+  if (!item || !item.id) return;
+  if (!liveTelemetryMap.value[item.id]) {
+    liveTelemetryMap.value[item.id] = { loading: false };
+  }
+  liveTelemetryMap.value[item.id].syncing = true;
+  try {
+    let parsedPower: number | undefined = undefined;
+    if (powerVal !== undefined && powerVal !== null && powerVal !== '') {
+      parsedPower = typeof powerVal === 'number' ? powerVal : parseFloat(String(powerVal));
+    }
+    const payload = parsedPower !== undefined && !isNaN(parsedPower) ? { onu_power: parsedPower } : {};
+    const res = await apiClient.post(`/data_teknis/${item.id}/sync-onu-power`, payload);
+    const updatedVal = res.data?.data?.onu_power ?? parsedPower ?? item.onu_power;
+    item.onu_power = updatedVal;
+    
+    snackbar.value = {
+      show: true,
+      text: `Redaman berhasil disinkronkan ke Database: ${updatedVal} dBm`,
+      color: 'success'
+    };
+  } catch (err: any) {
+    const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Gagal sinkronisasi redaman ke Database';
+    snackbar.value = {
+      show: true,
+      text: errMsg,
+      color: 'error'
+    };
+  } finally {
+    if (liveTelemetryMap.value[item.id]) {
+      liveTelemetryMap.value[item.id].syncing = false;
+    }
+  }
+}
+
+async function fetchDetectedONUs() {
+  if (!editedItem.value.olt) {
+    snackbar.value = {
+      show: true,
+      text: 'Silakan pilih OLT terlebih dahulu',
+      color: 'warning'
+    };
+    return;
+  }
+  if (!editedItem.value.pon) {
+    snackbar.value = {
+      show: true,
+      text: 'Silakan isi No PON terlebih dahulu',
+      color: 'warning'
+    };
+    return;
+  }
+
+  loadingDetectedOnus.value = true;
+  detectedOnusList.value = [];
+  searchDetectedOnu.value = '';
+  dialogPickDetectedOnu.value = true;
+
+  try {
+    const res = await apiClient.get('/data_teknis/detected-onus', {
+      params: {
+        olt: editedItem.value.olt,
+        pon: editedItem.value.pon
+      }
+    });
+    detectedOnusList.value = res.data?.data || [];
+    if (detectedOnusList.value.length === 0) {
+      snackbar.value = {
+        show: true,
+        text: 'Tidak ditemukan ONU pada Port PON tersebut atau OLT tidak merespon.',
+        color: 'info'
+      };
+    }
+  } catch (err: any) {
+    const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Gagal memindai ONU dari OLT';
+    snackbar.value = {
+      show: true,
+      text: errMsg,
+      color: 'error'
+    };
+  } finally {
+    loadingDetectedOnus.value = false;
+  }
+}
+
+function selectDetectedONU(onu: any) {
+  if (!onu) return;
+  if (onu.serial_number) {
+    editedItem.value.sn = onu.serial_number;
+  }
+  if (onu.onu_type) {
+    editedItem.value.tipe_ont = onu.onu_type;
+  }
+  if (onu.rx_power && !isNaN(parseFloat(onu.rx_power))) {
+    editedItem.value.onu_power = parseFloat(onu.rx_power);
+  }
+  if (onu.onu_id) {
+    editedItem.value.onu_id = onu.onu_id;
+  }
+  dialogPickDetectedOnu.value = false;
+  snackbar.value = {
+    show: true,
+    text: `ONU ${onu.serial_number || onu.name} berhasil dipilih. Data telah diisi otomatis!`,
+    color: 'success'
+  };
 }
 
 
