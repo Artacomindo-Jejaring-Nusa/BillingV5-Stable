@@ -1471,26 +1471,66 @@ func (u *dataTeknisUsecase) GetLiveONU(ctx context.Context, id uint64) (*domain.
 		return nil, fmt.Errorf("ONU dengan SN %s tidak ditemukan pada OLT %s", targetSN, oltKey)
 	}
 
-	// 2. If SN is empty, attempt smart auto-match by ID Pelanggan / Username
-	searchKey := strings.TrimSpace(dt.IDPelanggan)
-	if searchKey != "" {
-		for _, b := range boards {
-			for p := 1; p <= 16; p++ {
-				onus, err := u.zteClient.GetONUs(ctx, oltKey, b, p)
-				if err == nil {
-					for _, onu := range onus {
-						if strings.Contains(strings.ToLower(onu.Name), strings.ToLower(searchKey)) ||
-							strings.EqualFold(onu.SerialNumber, searchKey) {
-							// Found matching ONU! Auto-save SN and PON to DB
-							snVal := onu.SerialNumber
-							ponVal := onu.PON
+	// 2. If SN is empty, attempt smart auto-match by IP Pelanggan and ID/Name Pelanggan
+	var targetIP string
+	if dt.IPPelanggan != nil {
+		targetIP = strings.TrimSpace(*dt.IPPelanggan)
+	}
+	searchID := strings.TrimSpace(dt.IDPelanggan)
+	
+	var searchName string
+	cust, _ := u.pelangganRepo.GetByID(ctx, dt.PelangganID)
+	if cust != nil {
+		searchName = strings.TrimSpace(cust.Nama)
+	}
+
+	for _, b := range boards {
+		for p := 1; p <= 16; p++ {
+			// Prioritize configured PON if available
+			if targetPon > 0 && p != targetPon {
+				// We will scan configured PON first, but keep general loop
+			}
+
+			onus, err := u.zteClient.GetONUs(ctx, oltKey, b, p)
+			if err != nil || len(onus) == 0 {
+				continue
+			}
+
+			for _, onu := range onus {
+				onuNameLower := strings.ToLower(onu.Name)
+
+				// Match by ID Pelanggan or Customer Name in ONU Name
+				nameMatched := (searchID != "" && strings.Contains(onuNameLower, strings.ToLower(searchID))) ||
+					(searchName != "" && (strings.Contains(onuNameLower, strings.ToLower(searchName)) || strings.Contains(strings.ToLower(searchName), onuNameLower)))
+
+				// If name matched or we have targetIP to verify
+				if nameMatched {
+					detail, err := u.zteClient.GetONUDetail(ctx, oltKey, b, p, onu.ONUID)
+					if err == nil && detail != nil {
+						snVal := detail.SerialNumber
+						ponVal := p
+						dt.Sn = &snVal
+						if dt.Pon == nil || *dt.Pon == 0 {
+							dt.Pon = &ponVal
+						}
+						_ = u.dataTeknisRepo.Update(ctx, dt)
+						return detail, nil
+					}
+				}
+
+				// Match by IP Address if targetIP is set
+				if targetIP != "" {
+					detail, err := u.zteClient.GetONUDetail(ctx, oltKey, b, p, onu.ONUID)
+					if err == nil && detail != nil {
+						if strings.TrimSpace(detail.IPAddress) == targetIP || strings.Contains(detail.Description, targetIP) || strings.Contains(detail.Name, targetIP) {
+							snVal := detail.SerialNumber
+							ponVal := p
 							dt.Sn = &snVal
 							if dt.Pon == nil || *dt.Pon == 0 {
 								dt.Pon = &ponVal
 							}
 							_ = u.dataTeknisRepo.Update(ctx, dt)
-
-							return u.zteClient.GetONUDetail(ctx, oltKey, b, p, onu.ONUID)
+							return detail, nil
 						}
 					}
 				}
@@ -1498,6 +1538,9 @@ func (u *dataTeknisUsecase) GetLiveONU(ctx context.Context, id uint64) (*domain.
 		}
 	}
 
+	if targetIP != "" {
+		return nil, fmt.Errorf("ONU dengan IP %s belum ditemukan di OLT %s. Pastikan modem online dan terhubung ke PON.", targetIP, oltKey)
+	}
 	return nil, errors.New("Serial number (SN) belum diisi pada Data Teknis pelanggan ini. Silakan klik Edit > Info ONU > 'Pilih dari OLT'.")
 }
 

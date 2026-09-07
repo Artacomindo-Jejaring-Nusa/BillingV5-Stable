@@ -425,8 +425,10 @@
                 </v-btn>
               </div>
 
-              <div v-if="liveTelemetryMap[item.id]?.error" class="text-caption text-error mt-1" style="font-size: 10px; max-width: 140px; text-align: center;">
-                {{ liveTelemetryMap[item.id]?.error }}
+              <div v-if="liveTelemetryMap[item.id]?.error" class="text-caption text-error mt-1 d-flex align-center justify-center gap-1 cursor-pointer mx-auto" style="font-size: 10px; max-width: 150px; text-align: center;">
+                <v-icon size="12" color="error">mdi-alert-circle</v-icon>
+                <span class="text-truncate" style="max-width: 130px;">{{ liveTelemetryMap[item.id]?.error }}</span>
+                <v-tooltip activator="parent" location="bottom" max-width="280">{{ liveTelemetryMap[item.id]?.error }}</v-tooltip>
               </div>
             </div>
           </template>
@@ -2796,6 +2798,12 @@ async function checkLiveTelemetry(item: any) {
         loading: false,
         data: res.data.data
       };
+      if (res.data.data.serial_number && (!item.sn || item.sn === 'N/A')) {
+        item.sn = res.data.data.serial_number;
+      }
+      if (res.data.data.pon && (!item.pon || item.pon === 0)) {
+        item.pon = res.data.data.pon;
+      }
     } else {
       liveTelemetryMap.value[item.id] = {
         loading: false,
