@@ -1420,11 +1420,6 @@ func (u *dataTeknisUsecase) GetLiveONU(ctx context.Context, id uint64) (*domain.
 		return nil, fmt.Errorf("data teknis not found: %w", err)
 	}
 
-	if dt.Sn == nil || strings.TrimSpace(*dt.Sn) == "" {
-		return nil, errors.New("Serial number (SN) belum diisi pada Data Teknis pelanggan ini")
-	}
-
-	targetSN := strings.ToUpper(strings.TrimSpace(*dt.Sn))
 	oltName := ""
 	if dt.Olt != nil {
 		oltName = *dt.Olt
@@ -1436,41 +1431,74 @@ func (u *dataTeknisUsecase) GetLiveONU(ctx context.Context, id uint64) (*domain.
 		targetPon = *dt.Pon
 	}
 
-	// Boards on ZTE C320 (GPON line cards are on slot 1 and slot 2)
 	boards := []int{1, 2}
 
-	// 1. Check specified PON first if available
-	if targetPon > 0 {
+	// 1. If SN is provided, match by Serial Number
+	if dt.Sn != nil && strings.TrimSpace(*dt.Sn) != "" {
+		targetSN := strings.ToUpper(strings.TrimSpace(*dt.Sn))
+
+		// Check specified PON first if available
+		if targetPon > 0 {
+			for _, b := range boards {
+				onus, err := u.zteClient.GetONUs(ctx, oltKey, b, targetPon)
+				if err == nil {
+					for _, onu := range onus {
+						if strings.EqualFold(strings.TrimSpace(onu.SerialNumber), targetSN) {
+							return u.zteClient.GetONUDetail(ctx, oltKey, b, targetPon, onu.ONUID)
+						}
+					}
+				}
+			}
+		}
+
+		// Fallback scan across common PON ports on board 1 and 2
 		for _, b := range boards {
-			onus, err := u.zteClient.GetONUs(ctx, oltKey, b, targetPon)
-			if err == nil {
-				for _, onu := range onus {
-					if strings.EqualFold(strings.TrimSpace(onu.SerialNumber), targetSN) {
-						return u.zteClient.GetONUDetail(ctx, oltKey, b, targetPon, onu.ONUID)
+			for p := 1; p <= 16; p++ {
+				if targetPon > 0 && p == targetPon {
+					continue
+				}
+				onus, err := u.zteClient.GetONUs(ctx, oltKey, b, p)
+				if err == nil {
+					for _, onu := range onus {
+						if strings.EqualFold(strings.TrimSpace(onu.SerialNumber), targetSN) {
+							return u.zteClient.GetONUDetail(ctx, oltKey, b, p, onu.ONUID)
+						}
+					}
+				}
+			}
+		}
+
+		return nil, fmt.Errorf("ONU dengan SN %s tidak ditemukan pada OLT %s", targetSN, oltKey)
+	}
+
+	// 2. If SN is empty, attempt smart auto-match by ID Pelanggan / Username
+	searchKey := strings.TrimSpace(dt.IDPelanggan)
+	if searchKey != "" {
+		for _, b := range boards {
+			for p := 1; p <= 16; p++ {
+				onus, err := u.zteClient.GetONUs(ctx, oltKey, b, p)
+				if err == nil {
+					for _, onu := range onus {
+						if strings.Contains(strings.ToLower(onu.Name), strings.ToLower(searchKey)) ||
+							strings.EqualFold(onu.SerialNumber, searchKey) {
+							// Found matching ONU! Auto-save SN and PON to DB
+							snVal := onu.SerialNumber
+							ponVal := onu.PON
+							dt.Sn = &snVal
+							if dt.Pon == nil || *dt.Pon == 0 {
+								dt.Pon = &ponVal
+							}
+							_ = u.dataTeknisRepo.Update(ctx, dt)
+
+							return u.zteClient.GetONUDetail(ctx, oltKey, b, p, onu.ONUID)
+						}
 					}
 				}
 			}
 		}
 	}
 
-	// 2. Fallback scan across common PON ports on board 1 and 2
-	for _, b := range boards {
-		for p := 1; p <= 16; p++ {
-			if targetPon > 0 && p == targetPon {
-				continue
-			}
-			onus, err := u.zteClient.GetONUs(ctx, oltKey, b, p)
-			if err == nil {
-				for _, onu := range onus {
-					if strings.EqualFold(strings.TrimSpace(onu.SerialNumber), targetSN) {
-						return u.zteClient.GetONUDetail(ctx, oltKey, b, p, onu.ONUID)
-					}
-				}
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("ONU dengan SN %s tidak ditemukan pada OLT %s", targetSN, oltKey)
+	return nil, errors.New("Serial number (SN) belum diisi pada Data Teknis pelanggan ini. Silakan klik Edit > Info ONU > 'Pilih dari OLT'.")
 }
 
 func (u *dataTeknisUsecase) SyncLiveOnuPower(ctx context.Context, id uint64, power float64) error {

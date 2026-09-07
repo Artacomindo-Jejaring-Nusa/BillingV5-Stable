@@ -1129,7 +1129,7 @@
                           color="primary"
                           prepend-icon="mdi-radar"
                           :loading="loadingDetectedOnus"
-                          @click="fetchDetectedONUs"
+                          @click="openDetectedOnuModal"
                         >
                           Pilih dari OLT
                         </v-btn>
@@ -1541,9 +1541,9 @@
       </v-card>
     </v-dialog>
 
-    <!-- Dialog Pilih ONU Terdeteksi di PON -->
-    <v-dialog v-model="dialogPickDetectedOnu" max-width="700px">
-      <v-card rounded="xl" elevation="16">
+    <!-- Dialog Pilih ONU Terdeteksi di OLT / PON -->
+    <v-dialog v-model="dialogPickDetectedOnu" max-width="800px">
+      <v-card rounded="xl" elevation="16" class="overflow-hidden">
         <v-card-title class="pa-5 bg-grey-lighten-4 d-flex align-center justify-space-between">
           <div class="d-flex align-center gap-2">
             <v-icon color="primary">mdi-radar</v-icon>
@@ -1553,55 +1553,101 @@
         </v-card-title>
 
         <v-card-text class="pa-5">
+          <!-- Control Row: OLT, Board, PON -->
+          <v-row dense class="mb-3">
+            <v-col cols="12" sm="5">
+              <v-select
+                v-model="pickOlt"
+                :items="oltPickerOptions"
+                label="Pilih OLT"
+                variant="outlined"
+                density="compact"
+                hide-details
+                prepend-inner-icon="mdi-server-network"
+                @update:model-value="fetchDetectedONUs"
+              ></v-select>
+            </v-col>
+            <v-col cols="6" sm="3">
+              <v-select
+                v-model="pickBoard"
+                :items="[1, 2]"
+                label="Board (Slot)"
+                variant="outlined"
+                density="compact"
+                hide-details
+                @update:model-value="fetchDetectedONUs"
+              ></v-select>
+            </v-col>
+            <v-col cols="6" sm="4">
+              <v-select
+                v-model="pickPon"
+                :items="ponPickerOptions"
+                label="Port PON"
+                variant="outlined"
+                density="compact"
+                hide-details
+                prefix="PON "
+                @update:model-value="fetchDetectedONUs"
+              ></v-select>
+            </v-col>
+          </v-row>
+
+          <!-- Search & Scan Action -->
           <div class="d-flex align-center gap-3 mb-4">
             <v-text-field
               v-model="searchDetectedOnu"
-              placeholder="Cari Serial Number atau Nama..."
+              placeholder="Cari Serial Number, Nama, atau Tipe ONT..."
               prepend-inner-icon="mdi-magnify"
               variant="outlined"
               density="compact"
               hide-details
+              clearable
               class="flex-grow-1"
             ></v-text-field>
             <v-btn
-              variant="tonal"
+              variant="flat"
               color="primary"
               prepend-icon="mdi-refresh"
               :loading="loadingDetectedOnus"
               @click="fetchDetectedONUs"
             >
-              Scan Ulang
+              Scan OLT
             </v-btn>
           </div>
 
+          <!-- Loading State -->
           <div v-if="loadingDetectedOnus" class="text-center pa-8">
-            <v-progress-circular indeterminate color="primary" size="40" class="mb-2"></v-progress-circular>
-            <div class="text-body-2 text-medium-emphasis">Mendeteksi ONU di PON {{ editedItem.pon || 1 }}...</div>
+            <v-progress-circular indeterminate color="primary" size="48" width="4" class="mb-3"></v-progress-circular>
+            <div class="text-body-2 font-weight-medium">Mendeteksi ONU di {{ pickOlt }} - Board {{ pickBoard }} / PON {{ pickPon }}...</div>
+            <div class="text-caption text-medium-emphasis mt-1">Mengambil data telemetri via SNMP</div>
           </div>
 
+          <!-- Empty State -->
           <div v-else-if="!detectedOnusList.length" class="text-center pa-8 bg-grey-lighten-4 rounded-lg">
             <v-icon size="48" color="grey">mdi-lan-disconnect</v-icon>
-            <p class="text-body-2 text-medium-emphasis mt-2 mb-0">Tidak ada ONU yang terdeteksi di PON {{ editedItem.pon || 1 }}.</p>
+            <p class="text-body-2 text-medium-emphasis mt-2 mb-1">Tidak ada ONU yang terdeteksi di <strong>{{ pickOlt }}</strong> (Board {{ pickBoard }} / PON {{ pickPon }}).</p>
+            <p class="text-caption text-medium-emphasis mb-0">Coba ganti Port PON atau OLT pada pilihan di atas, lalu klik <strong>Scan OLT</strong>.</p>
           </div>
 
+          <!-- Table Results -->
           <div v-else style="max-height: 380px; overflow-y: auto;">
             <v-table density="compact" class="modern-table">
               <thead>
                 <tr>
                   <th>No / ID</th>
-                  <th>Nama</th>
-                  <th>Serial Number</th>
-                  <th>Tipe</th>
+                  <th>Nama Pelanggan / ONU</th>
+                  <th>Serial Number (SN)</th>
+                  <th>Tipe ONT</th>
                   <th>Rx Power</th>
                   <th>Status</th>
-                  <th>Aksi</th>
+                  <th class="text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="onu in filteredDetectedOnus" :key="onu.onu_id">
                   <td>#{{ onu.onu_id }}</td>
-                  <td>{{ onu.name }}</td>
-                  <td><strong class="font-mono">{{ onu.serial_number }}</strong></td>
+                  <td><strong>{{ onu.name || '-' }}</strong></td>
+                  <td><code class="font-mono text-primary font-weight-bold">{{ onu.serial_number }}</code></td>
                   <td>{{ onu.onu_type || '-' }}</td>
                   <td>
                     <v-chip size="x-small" :color="getLiveSignalColor(onu.rx_power)" variant="flat">
@@ -1611,8 +1657,8 @@
                   <td>
                     <v-chip size="x-small" :color="getLiveStatusColor(onu.status)">{{ onu.status }}</v-chip>
                   </td>
-                  <td>
-                    <v-btn size="x-small" color="primary" variant="flat" @click="selectDetectedONU(onu)">
+                  <td class="text-center">
+                    <v-btn size="small" color="primary" variant="flat" prepend-icon="mdi-check" @click="selectDetectedONU(onu)">
                       Pilih
                     </v-btn>
                   </td>
@@ -1659,6 +1705,8 @@ interface DataTeknis {
   onu_power: number;
   mikrotik_server_id: number;
   sn?: string | null;
+  tipe_ont?: string | null;
+  onu_id?: number | null;
   pelanggan?: Pelanggan;
 }
 interface Pelanggan {
@@ -1727,6 +1775,12 @@ const selectedLiveDetail = ref<any>(null);
 const selectedLiveDT = ref<any>(null);
 
 // Form helper: Deteksi SN di PON
+const pickOlt = ref('Tipar Cakung');
+const pickPon = ref(1);
+const pickBoard = ref(1);
+const oltPickerOptions = ref(['Tipar Cakung', 'Pulogebang', 'Pinus', 'Tambun', 'Nagrak', 'Parama', 'Waringin', 'Casanova']);
+const ponPickerOptions = ref(Array.from({ length: 16 }, (_, i) => i + 1));
+
 const detectedOnusList = ref<any[]>([]);
 const searchDetectedOnu = ref('');
 const loadingDetectedOnus = ref(false);
@@ -2798,41 +2852,32 @@ async function syncOnuPowerToDb(item: any, powerVal?: number | string) {
   }
 }
 
-async function fetchDetectedONUs() {
-  if (!editedItem.value.olt) {
-    snackbar.value = {
-      show: true,
-      text: 'Silakan pilih OLT terlebih dahulu',
-      color: 'warning'
-    };
-    return;
-  }
-  if (!editedItem.value.pon) {
-    snackbar.value = {
-      show: true,
-      text: 'Silakan isi No PON terlebih dahulu',
-      color: 'warning'
-    };
-    return;
-  }
-
-  loadingDetectedOnus.value = true;
-  detectedOnusList.value = [];
+function openDetectedOnuModal() {
+  pickOlt.value = editedItem.value.olt || 'Tipar Cakung';
+  pickPon.value = (editedItem.value.pon && editedItem.value.pon > 0) ? editedItem.value.pon : 1;
+  pickBoard.value = 1;
   searchDetectedOnu.value = '';
   dialogPickDetectedOnu.value = true;
+  fetchDetectedONUs();
+}
+
+async function fetchDetectedONUs() {
+  loadingDetectedOnus.value = true;
+  detectedOnusList.value = [];
 
   try {
     const res = await apiClient.get('/data_teknis/detected-onus', {
       params: {
-        olt: editedItem.value.olt,
-        pon: editedItem.value.pon
+        olt: pickOlt.value || editedItem.value.olt || 'Tipar Cakung',
+        pon: pickPon.value || 1,
+        board: pickBoard.value || 1
       }
     });
     detectedOnusList.value = res.data?.data || [];
     if (detectedOnusList.value.length === 0) {
       snackbar.value = {
         show: true,
-        text: 'Tidak ditemukan ONU pada Port PON tersebut atau OLT tidak merespon.',
+        text: `Tidak ditemukan ONU pada ${pickOlt.value} (Board ${pickBoard.value} / PON ${pickPon.value}).`,
         color: 'info'
       };
     }
@@ -2862,10 +2907,16 @@ function selectDetectedONU(onu: any) {
   if (onu.onu_id) {
     editedItem.value.onu_id = onu.onu_id;
   }
+  if (pickPon.value) {
+    editedItem.value.pon = pickPon.value;
+  }
+  if (pickOlt.value) {
+    editedItem.value.olt = pickOlt.value;
+  }
   dialogPickDetectedOnu.value = false;
   snackbar.value = {
     show: true,
-    text: `ONU ${onu.serial_number || onu.name} berhasil dipilih. Data telah diisi otomatis!`,
+    text: `ONU ${onu.serial_number || onu.name} (PON ${pickPon.value}) berhasil dipilih. Data telah diisi otomatis!`,
     color: 'success'
   };
 }
