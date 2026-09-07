@@ -2757,30 +2757,21 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 			}
 		} else {
 			if l.TglJatuhTempo != nil {
-				var next time.Time
-				if !inv.TglJatuhTempo.IsZero() {
-					next = inv.TglJatuhTempo.AddDate(0, 1, 0)
-				} else {
-					next = l.TglJatuhTempo.AddDate(0, 1, 0)
-				}
+				next := l.TglJatuhTempo.AddDate(0, 1, 0)
+				l.TglJatuhTempo = &next
+			} else if !inv.TglJatuhTempo.IsZero() {
+				next := inv.TglJatuhTempo.AddDate(0, 1, 0)
 				l.TglJatuhTempo = &next
 			}
 			if l.TglJatuhTempoPembayaran != nil {
-				var nextPay time.Time
-				if !inv.TglJatuhTempo.IsZero() {
-					nextPay = inv.TglJatuhTempo.AddDate(0, 1, 0)
-				} else {
-					nextPay = l.TglJatuhTempoPembayaran.AddDate(0, 1, 0)
-				}
+				nextPay := l.TglJatuhTempoPembayaran.AddDate(0, 1, 0)
+				l.TglJatuhTempoPembayaran = &nextPay
+			} else if l.TglJatuhTempo != nil {
+				nextPay := *l.TglJatuhTempo
 				l.TglJatuhTempoPembayaran = &nextPay
 			}
 			if l.TglMulaiLangganan != nil {
-				var nextMulai time.Time
-				if !inv.TglJatuhTempo.IsZero() {
-					nextMulai = inv.TglJatuhTempo.AddDate(0, 1, 0)
-				} else {
-					nextMulai = l.TglMulaiLangganan.AddDate(0, 1, 0)
-				}
+				nextMulai := l.TglMulaiLangganan.AddDate(0, 1, 0)
 				l.TglMulaiLangganan = &nextMulai
 			}
 		}
