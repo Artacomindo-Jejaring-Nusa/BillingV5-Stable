@@ -35,11 +35,11 @@ func (u *inventoryUsecase) logActivity(ctx context.Context, userID uint64, actio
 }
 
 func (u *inventoryUsecase) FetchItems(ctx context.Context, page, pageSize int, search string, itemTypeID, statusID, pelangganID *uint64) ([]domain.InventoryItem, int64, error) {
+	if pageSize <= 0 {
+		return u.repo.GetItems(ctx, 0, 0, search, itemTypeID, statusID, pelangganID)
+	}
 	if page < 1 {
 		page = 1
-	}
-	if pageSize < 1 {
-		pageSize = 10
 	}
 	offset := (page - 1) * pageSize
 	return u.repo.GetItems(ctx, pageSize, offset, search, itemTypeID, statusID, pelangganID)

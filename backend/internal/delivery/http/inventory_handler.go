@@ -73,8 +73,20 @@ func NewInventoryHandler(r *gin.RouterGroup, iu domain.InventoryUsecase, authMid
 }
 
 func (h *InventoryHandler) GetItems(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	page := 1
+	if p := c.Query("page"); p != "" {
+		if val, err := strconv.Atoi(p); err == nil && val > 0 {
+			page = val
+		}
+	}
+
+	pageSize := -1
+	if ps := c.Query("page_size"); ps != "" {
+		if val, err := strconv.Atoi(ps); err == nil {
+			pageSize = val
+		}
+	}
+
 	search := c.Query("search")
 
 	var itemTypeIDPtr, statusIDPtr, pelangganIDPtr *uint64

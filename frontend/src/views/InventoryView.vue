@@ -2000,7 +2000,7 @@ async function fetchData() {
   loading.value = true;
   try {
     const [itemsRes, typesRes, statusesRes] = await Promise.all([
-      apiClient.get('/inventory'),
+      apiClient.get('/inventory?page_size=-1'),
       apiClient.get('/inventory-types'),
       apiClient.get('/inventory-statuses'),
     ]);

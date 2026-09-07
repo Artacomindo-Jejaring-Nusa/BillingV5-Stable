@@ -51,7 +51,7 @@ func (r *inventoryRepository) GetItems(ctx context.Context, limit, offset int, s
 	if limit > 0 {
 		db = db.Limit(limit)
 	}
-	if offset >= 0 {
+	if offset > 0 {
 		db = db.Offset(offset)
 	}
 
