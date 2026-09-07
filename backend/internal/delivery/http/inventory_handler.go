@@ -564,34 +564,35 @@ func (h *InventoryHandler) BulkImport(c *gin.Context) {
 	serialIdx := findColumnIndex(headers, []string{
 		"serial_number", "serialnumber", "serial_no", "serial no", "no serial", "nomor serial", "sn", "serial number",
 		"Serial_Number", "SerialNumber", "Serial_no", "Serial no", "No Serial", "Nomor Serial", "Serial Number",
+		"no_sn", "no sn", "nomor sn", "serial", "barcode", "s/n", "S/N", "No. Seri", "no. seri", "no seri",
 	})
 	if serialIdx == -1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Kolom wajib tidak ditemukan: Serial Number. Kolom yang ditemukan: %v", headers)})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Kolom wajib tidak ditemukan: Serial Number (SN). Kolom pada file: %v", headers)})
 		return
 	}
 
 	itemTypeIdx := findColumnIndex(headers, []string{
-		"item_type", "itemtype", "item_type_id", "itemtypeid", "jenis_barang", "tipe_barang", "type", "tipe",
+		"item_type", "itemtype", "item_type_id", "itemtypeid", "jenis_barang", "tipe_barang", "tipe_item", "type", "tipe",
 		"Item_Type", "ItemType", "Item_type", "Itemtype", "Jenis_Barang", "Tipe_Barang", "Type", "Tipe",
-		"tipe barang", "tipe_barang",
+		"tipe barang", "tipe_barang", "jenis barang", "jenis_barang", "kategori", "tipe ont", "tipe modem", "model", "jenis",
 	})
-	if itemTypeIdx == -1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Kolom wajib tidak ditemukan: Tipe Barang/Item Type. Kolom yang ditemukan: %v", headers)})
-		return
-	}
 
 	statusIdx := findColumnIndex(headers, []string{
-		"status", "status_id", "statusid", "kondisi", "keadaan", "Status", "Status_id", "Kondisi", "Keadaan", "status id",
+		"status", "status_id", "statusid", "kondisi", "keadaan", "Status", "Status_id", "Kondisi", "Keadaan", "status id", "status barang", "status item",
 	})
-	if statusIdx == -1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Kolom wajib tidak ditemukan: Status. Kolom yang ditemukan: %v", headers)})
-		return
-	}
 
-	macIdx := findColumnIndex(headers, []string{"mac_address", "mac", "macaddress", "alamat_mac", "mac addr"})
-	locationIdx := findColumnIndex(headers, []string{"location", "lokasi", "tempat", "letak"})
-	notesIdx := findColumnIndex(headers, []string{"notes", "catatan", "keterangan", "note"})
-	purchaseDateIdx := findColumnIndex(headers, []string{"purchase_date", "tanggal_pembelian", "tgl_pembelian", "purchasedate"})
+	macIdx := findColumnIndex(headers, []string{
+		"mac_address", "mac", "macaddress", "alamat_mac", "mac addr", "mac_addr", "mac_id", "mac id", "alamat mac", "MAC", "Mac", "MAC Address",
+	})
+	locationIdx := findColumnIndex(headers, []string{
+		"location", "lokasi", "tempat", "letak", "posisi", "gudang", "ruangan", "Location", "Lokasi",
+	})
+	notesIdx := findColumnIndex(headers, []string{
+		"notes", "catatan", "keterangan", "note", "deskripsi", "ket", "keterangan barang", "Notes", "Catatan", "Keterangan", "Ket",
+	})
+	purchaseDateIdx := findColumnIndex(headers, []string{
+		"purchase_date", "tanggal_pembelian", "tgl_pembelian", "purchasedate", "tanggal", "tgl", "tgl masuk", "tanggal masuk", "tgl_masuk", "tanggal_masuk",
+	})
 
 	types, err := h.usecase.FetchItemTypes(c.Request.Context())
 	if err != nil {

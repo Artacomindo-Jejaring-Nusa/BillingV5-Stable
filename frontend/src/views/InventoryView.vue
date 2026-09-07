@@ -1656,36 +1656,36 @@
             :text="bulkImportError"
           ></v-alert>
 
-          <!-- Success Result -->
+          <!-- 100% Success Result -->
           <v-alert
-            v-if="bulkImportResult?.success"
+            v-if="bulkImportResult?.success && (!bulkImportResult?.error_count || bulkImportResult.error_count === 0)"
             type="success"
             variant="tonal"
             class="mb-4"
             density="compact"
-            :text="bulkImportResult?.message"
+            :text="bulkImportResult?.message || 'Import data inventaris berhasil!'"
           >
             <template v-slot:append>
               <div class="text-end">
                 <div class="text-caption opacity-75">Berhasil:</div>
-                <div class="text-body-2 font-weight-medium">{{ bulkImportResult?.success_count }} item</div>
+                <div class="text-body-2 font-weight-bold">{{ bulkImportResult?.success_count }} item</div>
               </div>
             </template>
           </v-alert>
 
-          <!-- Partial Success with Errors -->
+          <!-- Partial or Full Failure Result -->
           <v-alert
-            v-if="bulkImportResult?.success && bulkImportResult?.error_count && bulkImportResult.error_count > 0"
-            type="warning"
+            v-if="bulkImportResult && (!bulkImportResult.success || (bulkImportResult.error_count && bulkImportResult.error_count > 0))"
+            :type="bulkImportResult.success_count > 0 ? 'warning' : 'error'"
             variant="tonal"
             class="mb-4"
             density="compact"
           >
             <template v-slot:title>
-              Import Selesai dengan Beberapa Error
+              {{ bulkImportResult.success_count > 0 ? 'Import Selesai dengan Beberapa Error' : 'Import Gagal Diproses' }}
             </template>
             <template v-slot:text>
-              <div class="mb-2">
+              <div class="mb-2 font-weight-medium">
                 Berhasil: {{ bulkImportResult?.success_count || 0 }} item,
                 Gagal: {{ bulkImportResult?.error_count || 0 }} item
               </div>
@@ -1693,10 +1693,10 @@
                 <v-btn
                   size="small"
                   variant="outlined"
-                  color="warning"
+                  :color="bulkImportResult.success_count > 0 ? 'warning' : 'error'"
                   @click="showImportErrors = !showImportErrors"
                 >
-                  {{ showImportErrors ? 'Sembunyikan' : 'Tampilkan' }} Detail Error
+                  {{ showImportErrors ? 'Sembunyikan' : 'Tampilkan' }} Detail Error ({{ bulkImportResult.errors.length }})
                 </v-btn>
               </div>
             </template>
@@ -1705,19 +1705,16 @@
           <!-- Error Details -->
           <v-expand-transition>
             <div v-show="showImportErrors && bulkImportResult?.errors && bulkImportResult.errors.length > 0">
-              <v-card variant="outlined" class="mt-2" max-height="200">
+              <v-card variant="outlined" class="mt-2" max-height="250" style="overflow-y: auto;">
                 <v-card-text class="pa-3">
                   <div class="text-caption">
                     <div
-                      v-for="(error, index) in (bulkImportResult?.errors || []).slice(0, 10)"
+                      v-for="(error, index) in bulkImportResult?.errors"
                       :key="index"
-                      class="mb-1"
+                      class="mb-1 d-flex align-start"
                     >
-                      <v-icon size="12" color="error" class="me-1">mdi-alert-circle</v-icon>
-                      {{ error }}
-                    </div>
-                    <div v-if="bulkImportResult?.errors && bulkImportResult.errors.length > 10" class="mt-2 font-weight-medium">
-                      ... dan {{ bulkImportResult.errors.length - 10 }} error lainnya
+                      <v-icon size="14" color="error" class="me-1 mt-1">mdi-alert-circle</v-icon>
+                      <span>{{ error }}</span>
                     </div>
                   </div>
                 </v-card-text>
@@ -2324,6 +2321,7 @@ async function handleBulkImport() {
   bulkImportLoading.value = true;
   bulkImportError.value = null;
   bulkImportResult.value = null;
+  showImportErrors.value = false;
 
   try {
     const formData = new FormData();
@@ -2331,23 +2329,31 @@ async function handleBulkImport() {
 
     const response = await apiClient.post('/inventory/bulk-import', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+        'Content-Type': 'multipart/form-data',
+        'X-Skip-Network-Interceptor': 'true'
+      },
+      timeout: 120000
     });
 
     bulkImportResult.value = response.data;
 
     // Refresh data setelah import berhasil
-    await fetchData();
+    if (response.data.success_count > 0) {
+      await fetchData();
+    }
 
-    // Auto tutup dialog setelah 2 detik jika berhasil
-    setTimeout(() => {
-      closeBulkImportDialog();
-    }, 2000);
+    // Hanya auto tutup dialog setelah 2 detik jika 100% berhasil tanpa error
+    if (response.data.success && (!response.data.error_count || response.data.error_count === 0)) {
+      setTimeout(() => {
+        closeBulkImportDialog();
+      }, 2000);
+    } else {
+      showImportErrors.value = true; // Buka list detail error agar user tahu
+    }
 
   } catch (error: any) {
     console.error('Bulk import error:', error);
-    bulkImportError.value = error.response?.data?.detail || 'Gagal mengimport file. Silakan coba lagi.';
+    bulkImportError.value = error.response?.data?.error || error.response?.data?.message || error.response?.data?.detail || error.message || 'Gagal mengimport file. Silakan periksa format file.';
   } finally {
     bulkImportLoading.value = false;
   }
