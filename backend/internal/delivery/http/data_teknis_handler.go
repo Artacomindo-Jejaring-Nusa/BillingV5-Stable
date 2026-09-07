@@ -57,6 +57,7 @@ func NewDataTeknisHandler(r *gin.RouterGroup, du domain.DataTeknisUsecase, authM
 		g.GET("/:id/live-onu", handler.GetLiveONU)
 		g.POST("/:id/sync-onu-power", handler.SyncLiveOnuPower)
 		g.GET("/detected-onus", handler.GetDetectedONUs)
+		g.POST("/bulk-sync-olt", handler.BulkSyncOLT)
 	}
 }
 
@@ -549,4 +550,36 @@ func (h *DataTeknisHandler) GetDetectedONUs(c *gin.Context) {
 		"data":   onus,
 	})
 }
+
+type BulkSyncOLTRequest struct {
+	OLT string `json:"olt"`
+}
+
+func (h *DataTeknisHandler) BulkSyncOLT(c *gin.Context) {
+	var req BulkSyncOLTRequest
+	_ = c.ShouldBindJSON(&req)
+
+	oltName := req.OLT
+	if oltName == "" {
+		oltName = c.Query("olt")
+	}
+	if oltName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Parameter OLT wajib diisi (misal: Pulogebang atau Tipar Cakung)"})
+		return
+	}
+
+	res, err := h.dataTeknisUsecase.BulkSyncOLT(c.Request.Context(), oltName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"status":  "success",
+		"message": fmt.Sprintf("Sinkronisasi massal OLT %s selesai. Total terpindai: %d, Cocok: %d, Diperbarui: %d", oltName, res.TotalScanned, res.TotalMatched, res.UpdatedCount),
+		"data":    res,
+	})
+}
+
 

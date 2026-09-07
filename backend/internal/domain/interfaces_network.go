@@ -65,6 +65,29 @@ type DataTeknisUsecase interface {
 	GetLiveONU(ctx context.Context, id uint64) (*ZTEONUDetail, error)
 	SyncLiveOnuPower(ctx context.Context, id uint64, power float64) error
 	GetDetectedONUs(ctx context.Context, oltName string, pon int, board int) ([]ZTEONUInfo, error)
+	BulkSyncOLT(ctx context.Context, oltName string) (*BulkSyncResult, error)
+}
+
+// BulkSyncResult represents the summary response of bulk OLT synchronization.
+type BulkSyncResult struct {
+	OLTName      string         `json:"olt_name"`
+	TotalScanned int            `json:"total_scanned"`
+	TotalMatched int            `json:"total_matched"`
+	UpdatedCount int            `json:"updated_count"`
+	Details      []BulkSyncItem `json:"details"`
+}
+
+// BulkSyncItem represents a single matched customer ONU during bulk sync.
+type BulkSyncItem struct {
+	IDPelanggan string `json:"id_pelanggan"`
+	Nama        string `json:"nama"`
+	IP          string `json:"ip"`
+	PON         int    `json:"pon"`
+	Board       int    `json:"board"`
+	ONUID       int    `json:"onu_id"`
+	SN          string `json:"sn"`
+	RxPower     string `json:"rx_power"`
+	Status      string `json:"status"`
 }
 
 // OLTRepository defines database operations for OLT

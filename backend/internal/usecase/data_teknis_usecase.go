@@ -10,6 +10,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 
 	"billing-backend/internal/domain"
 	"billing-backend/internal/websocket"
@@ -1567,4 +1568,177 @@ func (u *dataTeknisUsecase) GetDetectedONUs(ctx context.Context, oltName string,
 	oltKey := u.resolveOltKey(oltName)
 
 	return u.zteClient.GetONUs(ctx, oltKey, board, pon)
+}
+
+func (u *dataTeknisUsecase) BulkSyncOLT(ctx context.Context, oltName string) (*domain.BulkSyncResult, error) {
+	if u.zteClient == nil {
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+
+	oltKey := u.resolveOltKey(oltName)
+
+	// Fetch all data teknis records from database
+	dtList, _, err := u.dataTeknisRepo.GetAll(ctx, 0, 10000, "", "", "", "", nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch data teknis: %w", err)
+	}
+
+	// Build lookup maps for fast matching
+	ipMap := make(map[string]*domain.DataTeknis)
+	idMap := make(map[string]*domain.DataTeknis)
+	snMap := make(map[string]*domain.DataTeknis)
+	nameMap := make(map[string]*domain.DataTeknis)
+
+	for i := range dtList {
+		dt := &dtList[i]
+		if dt.Olt != nil && strings.TrimSpace(*dt.Olt) != "" {
+			if u.resolveOltKey(*dt.Olt) != oltKey {
+				continue
+			}
+		}
+
+		if dt.IPPelanggan != nil && strings.TrimSpace(*dt.IPPelanggan) != "" {
+			ipMap[strings.TrimSpace(*dt.IPPelanggan)] = dt
+		}
+		if strings.TrimSpace(dt.IDPelanggan) != "" {
+			idMap[strings.ToLower(strings.TrimSpace(dt.IDPelanggan))] = dt
+		}
+		if dt.Sn != nil && strings.TrimSpace(*dt.Sn) != "" {
+			snMap[strings.ToUpper(strings.TrimSpace(*dt.Sn))] = dt
+		}
+		if dt.Pelanggan != nil && strings.TrimSpace(dt.Pelanggan.Nama) != "" {
+			nameMap[strings.ToLower(strings.TrimSpace(dt.Pelanggan.Nama))] = dt
+		}
+	}
+
+	result := &domain.BulkSyncResult{
+		OLTName: oltName,
+		Details: make([]domain.BulkSyncItem, 0),
+	}
+
+	var mu sync.Mutex
+	type ponJob struct {
+		board int
+		pon   int
+	}
+
+	jobs := make(chan ponJob, 32)
+	for b := 1; b <= 2; b++ {
+		for p := 1; p <= 16; p++ {
+			jobs <- ponJob{board: b, pon: p}
+		}
+	}
+	close(jobs)
+
+	// Concurrent worker pool of 4 workers
+	workerCount := 4
+	var wg sync.WaitGroup
+
+	for w := 0; w < workerCount; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for job := range jobs {
+				onus, err := u.zteClient.GetONUs(ctx, oltKey, job.board, job.pon)
+				if err != nil || len(onus) == 0 {
+					continue
+				}
+
+				mu.Lock()
+				result.TotalScanned += len(onus)
+				mu.Unlock()
+
+				for _, onu := range onus {
+					var matchedDT *domain.DataTeknis
+
+					// 1. Check SN match
+					if dt, ok := snMap[strings.ToUpper(strings.TrimSpace(onu.SerialNumber))]; ok {
+						matchedDT = dt
+					}
+
+					// 2. Check Name / ID match
+					if matchedDT == nil {
+						onuNameLower := strings.ToLower(strings.TrimSpace(onu.Name))
+						if dt, ok := idMap[onuNameLower]; ok {
+							matchedDT = dt
+						} else {
+							for nameKey, dt := range nameMap {
+								if strings.Contains(onuNameLower, nameKey) || strings.Contains(nameKey, onuNameLower) {
+									matchedDT = dt
+									break
+								}
+							}
+						}
+					}
+
+					// 3. Fetch ONU detail to match by IPAddress / verify
+					detail, err := u.zteClient.GetONUDetail(ctx, oltKey, job.board, job.pon, onu.ONUID)
+					if err == nil && detail != nil {
+						if matchedDT == nil && detail.IPAddress != "" {
+							if dt, ok := ipMap[strings.TrimSpace(detail.IPAddress)]; ok {
+								matchedDT = dt
+							}
+						}
+
+						if matchedDT != nil {
+							mu.Lock()
+							result.TotalMatched++
+
+							needsUpdate := false
+							if matchedDT.Sn == nil || *matchedDT.Sn == "" || *matchedDT.Sn != detail.SerialNumber {
+								snVal := detail.SerialNumber
+								matchedDT.Sn = &snVal
+								needsUpdate = true
+							}
+							if matchedDT.Pon == nil || *matchedDT.Pon != job.pon {
+								ponVal := job.pon
+								matchedDT.Pon = &ponVal
+								needsUpdate = true
+							}
+							if detail.RxPower != "" {
+								if rxF, err := strconv.ParseFloat(detail.RxPower, 64); err == nil {
+									rxInt := int(math.Round(rxF))
+									if matchedDT.OnuPower == nil || *matchedDT.OnuPower != rxInt {
+										matchedDT.OnuPower = &rxInt
+										needsUpdate = true
+									}
+								}
+							}
+
+							if needsUpdate {
+								_ = u.dataTeknisRepo.Update(ctx, matchedDT)
+								result.UpdatedCount++
+							}
+
+							custName := ""
+							if matchedDT.Pelanggan != nil {
+								custName = matchedDT.Pelanggan.Nama
+							}
+
+							itemIP := ""
+							if matchedDT.IPPelanggan != nil {
+								itemIP = *matchedDT.IPPelanggan
+							}
+
+							result.Details = append(result.Details, domain.BulkSyncItem{
+								IDPelanggan: matchedDT.IDPelanggan,
+								Nama:        custName,
+								IP:          itemIP,
+								PON:         job.pon,
+								Board:       job.board,
+								ONUID:       onu.ONUID,
+								SN:          detail.SerialNumber,
+								RxPower:     detail.RxPower,
+								Status:      detail.Status,
+							})
+							mu.Unlock()
+						}
+					}
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	return result, nil
 }

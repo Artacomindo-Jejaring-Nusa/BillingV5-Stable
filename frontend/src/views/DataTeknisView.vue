@@ -17,6 +17,18 @@
         <!-- Mobile Action Buttons -->
         <div class="action-buttons-container">
           <v-btn
+            color="amber-darken-3"
+            @click="openBulkSyncDialog"
+            prepend-icon="mdi-flash"
+            :loading="bulkSyncLoading"
+            class="header-action-btn action-btn text-none mobile-btn text-white"
+            size="default"
+            block
+            elevation="2"
+          >
+            Auto-Sync OLT
+          </v-btn>
+          <v-btn
             color="success"
             @click="dialogImport = true"
             prepend-icon="mdi-file-upload-outline"
@@ -1671,6 +1683,157 @@
         </v-card-text>
       </v-card>
     </v-dialog>
+
+    <!-- Dialog Auto-Sync Massal OLT -->
+    <v-dialog v-model="dialogBulkSync" max-width="900px" persistent>
+      <v-card rounded="xl" elevation="16" class="overflow-hidden">
+        <div class="pa-5 bg-gradient-primary text-white d-flex align-center justify-space-between" style="background: linear-gradient(135deg, #f57c00 0%, #ff9800 100%);">
+          <div class="d-flex align-center gap-3">
+            <v-avatar color="white" size="44" class="elevation-2">
+              <v-icon color="orange-darken-3" size="26">mdi-flash</v-icon>
+            </v-avatar>
+            <div>
+              <h3 class="text-h6 font-weight-bold text-white mb-0">Auto-Sync Massal OLT</h3>
+              <p class="text-caption text-white opacity-90 mb-0">Pindai seluruh Port PON (500+ user) & hubungkan PON/SN otomatis</p>
+            </div>
+          </div>
+          <v-btn icon="mdi-close" variant="text" color="white" size="small" :disabled="bulkSyncLoading" @click="closeBulkSyncDialog"></v-btn>
+        </div>
+
+        <v-card-text class="pa-5">
+          <!-- Control Row: Pilih OLT & Trigger -->
+          <v-card variant="outlined" class="pa-4 mb-4 rounded-lg bg-grey-lighten-5">
+            <v-row dense align="center">
+              <v-col cols="12" sm="7">
+                <v-select
+                  v-model="bulkSyncOlt"
+                  :items="oltPickerOptions"
+                  label="Pilih Target OLT"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  :disabled="bulkSyncLoading"
+                  prepend-inner-icon="mdi-server-network"
+                ></v-select>
+              </v-col>
+              <v-col cols="12" sm="5">
+                <v-btn
+                  color="amber-darken-3"
+                  variant="elevated"
+                  block
+                  prepend-icon="mdi-lightning-bolt"
+                  :loading="bulkSyncLoading"
+                  class="text-white font-weight-bold text-none"
+                  @click="runBulkSync"
+                >
+                  Mulai Auto-Sync
+                </v-btn>
+              </v-col>
+            </v-row>
+            <div class="text-caption text-medium-emphasis mt-2">
+              <v-icon size="14" class="me-1">mdi-information-outline</v-icon>
+              Sistem akan memindai seluruh PON 1 s/d 16 pada OLT yang dipilih, mencocokkan IP/Nama pelanggan, dan mengisi PON/SN yang masih kosong secara otomatis.
+            </div>
+          </v-card>
+
+          <!-- Loading State -->
+          <div v-if="bulkSyncLoading" class="text-center pa-8">
+            <v-progress-circular indeterminate color="amber-darken-3" size="56" width="5" class="mb-4"></v-progress-circular>
+            <div class="text-h6 font-weight-bold mb-1">Sedang Memindai Seluruh PON OLT {{ bulkSyncOlt }}...</div>
+            <div class="text-body-2 text-medium-emphasis">Mencocokkan IP dan Serial Number 500+ pelanggan secara paralel...</div>
+          </div>
+
+          <!-- Result Summary & Table -->
+          <div v-else-if="bulkSyncResult">
+            <v-row dense class="mb-4">
+              <v-col cols="4">
+                <v-card class="pa-3 text-center rounded-lg bg-blue-lighten-5" flat>
+                  <div class="text-h5 font-weight-bold text-blue-darken-3">{{ bulkSyncResult.total_scanned }}</div>
+                  <div class="text-caption text-blue-darken-2">Total ONU Terpindai</div>
+                </v-card>
+              </v-col>
+              <v-col cols="4">
+                <v-card class="pa-3 text-center rounded-lg bg-green-lighten-5" flat>
+                  <div class="text-h5 font-weight-bold text-green-darken-3">{{ bulkSyncResult.total_matched }}</div>
+                  <div class="text-caption text-green-darken-2">Pelanggan Cocok</div>
+                </v-card>
+              </v-col>
+              <v-col cols="4">
+                <v-card class="pa-3 text-center rounded-lg bg-amber-lighten-5" flat>
+                  <div class="text-h5 font-weight-bold text-amber-darken-4">{{ bulkSyncResult.updated_count }}</div>
+                  <div class="text-caption text-amber-darken-3">Data Diperbarui</div>
+                </v-card>
+              </v-col>
+            </v-row>
+
+            <!-- Search Filter in Result -->
+            <div class="d-flex align-center gap-2 mb-3">
+              <v-text-field
+                v-model="searchBulkResult"
+                placeholder="Filter hasil (Nama, IP, SN, PON)..."
+                prepend-inner-icon="mdi-magnify"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                class="flex-grow-1"
+              ></v-text-field>
+              <v-chip color="success" size="small" variant="tonal" class="font-weight-medium">
+                {{ filteredBulkDetails.length }} Hasil
+              </v-chip>
+            </div>
+
+            <!-- Table Result -->
+            <div style="max-height: 320px; overflow-y: auto;">
+              <v-table density="compact" class="modern-table">
+                <thead>
+                  <tr>
+                    <th>Pelanggan</th>
+                    <th>IP Pelanggan</th>
+                    <th>Port PON</th>
+                    <th>Serial Number (SN)</th>
+                    <th>Redaman Live</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(item, idx) in filteredBulkDetails" :key="idx">
+                    <td>
+                      <strong>{{ item.nama || item.id_pelanggan }}</strong>
+                      <div class="text-caption text-medium-emphasis">{{ item.id_pelanggan }}</div>
+                    </td>
+                    <td><code class="font-mono">{{ item.ip || '-' }}</code></td>
+                    <td><v-chip size="x-small" color="primary" variant="flat">PON {{ item.pon }}</v-chip></td>
+                    <td><code class="font-mono text-primary font-weight-bold">{{ item.sn }}</code></td>
+                    <td>
+                      <v-chip size="x-small" :color="getLiveSignalColor(item.rx_power)" variant="flat">
+                        {{ item.rx_power ? item.rx_power + ' dBm' : '-' }}
+                      </v-chip>
+                    </td>
+                    <td>
+                      <v-chip size="x-small" :color="getLiveStatusColor(item.status)">{{ item.status }}</v-chip>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </div>
+          </div>
+        </v-card-text>
+
+        <v-card-actions class="pa-4 bg-grey-lighten-5 d-flex justify-space-between">
+          <v-btn variant="text" :disabled="bulkSyncLoading" @click="closeBulkSyncDialog">Tutup</v-btn>
+          <v-btn
+            v-if="bulkSyncResult"
+            color="primary"
+            variant="elevated"
+            prepend-icon="mdi-refresh"
+            @click="closeBulkSyncDialog"
+          >
+            Selesai & Muat Ulang Tabel
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -1795,6 +1958,26 @@ const filteredDetectedOnus = computed(() => {
     (o.serial_number || '').toLowerCase().includes(q) ||
     (o.name || '').toLowerCase().includes(q) ||
     (o.onu_type || '').toLowerCase().includes(q)
+  );
+});
+
+// Bulk Auto-Sync OLT State
+const dialogBulkSync = ref(false);
+const bulkSyncOlt = ref('Pulogebang');
+const bulkSyncLoading = ref(false);
+const bulkSyncResult = ref<any>(null);
+const searchBulkResult = ref('');
+
+const filteredBulkDetails = computed(() => {
+  if (!bulkSyncResult.value || !bulkSyncResult.value.details) return [];
+  if (!searchBulkResult.value) return bulkSyncResult.value.details;
+  const q = searchBulkResult.value.toLowerCase();
+  return bulkSyncResult.value.details.filter((d: any) => 
+    (d.nama || '').toLowerCase().includes(q) ||
+    (d.id_pelanggan || '').toLowerCase().includes(q) ||
+    (d.ip || '').toLowerCase().includes(q) ||
+    (d.sn || '').toLowerCase().includes(q) ||
+    String(d.pon).includes(q)
   );
 });
 
@@ -2927,6 +3110,61 @@ function selectDetectedONU(onu: any) {
     text: `ONU ${onu.serial_number || onu.name} (PON ${pickPon.value}) berhasil dipilih. Data telah diisi otomatis!`,
     color: 'success'
   };
+}
+
+// Bulk Auto-Sync OLT Methods
+function openBulkSyncDialog() {
+  if (selectedOlt.value && selectedOlt.value !== 'Semua') {
+    bulkSyncOlt.value = selectedOlt.value;
+  } else {
+    bulkSyncOlt.value = 'Pulogebang';
+  }
+  bulkSyncResult.value = null;
+  searchBulkResult.value = '';
+  dialogBulkSync.value = true;
+}
+
+function closeBulkSyncDialog() {
+  dialogBulkSync.value = false;
+  if (bulkSyncResult.value && bulkSyncResult.value.updated_count > 0) {
+    fetchDataTeknis();
+  }
+}
+
+async function runBulkSync() {
+  if (!bulkSyncOlt.value) {
+    snackbar.value = {
+      show: true,
+      text: 'Silakan pilih target OLT terlebih dahulu',
+      color: 'warning'
+    };
+    return;
+  }
+
+  bulkSyncLoading.value = true;
+  bulkSyncResult.value = null;
+  searchBulkResult.value = '';
+
+  try {
+    const res = await apiClient.post('/data_teknis/bulk-sync-olt', {
+      olt: bulkSyncOlt.value
+    });
+    bulkSyncResult.value = res.data?.data || null;
+    snackbar.value = {
+      show: true,
+      text: res.data?.message || `Sinkronisasi massal OLT ${bulkSyncOlt.value} selesai!`,
+      color: 'success'
+    };
+  } catch (err: any) {
+    const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Gagal menjalankan sinkronisasi massal OLT';
+    snackbar.value = {
+      show: true,
+      text: errMsg,
+      color: 'error'
+    };
+  } finally {
+    bulkSyncLoading.value = false;
+  }
 }
 
 
