@@ -1630,8 +1630,8 @@ func (u *dataTeknisUsecase) BulkSyncOLT(ctx context.Context, oltName string) (*d
 	}
 	close(jobs)
 
-	// Concurrent worker pool of 4 workers
-	workerCount := 4
+	// Concurrent worker pool of 8 workers for fast PON scanning
+	workerCount := 8
 	var wg sync.WaitGroup
 
 	for w := 0; w < workerCount; w++ {
@@ -1650,9 +1650,10 @@ func (u *dataTeknisUsecase) BulkSyncOLT(ctx context.Context, oltName string) (*d
 
 				for _, onu := range onus {
 					var matchedDT *domain.DataTeknis
+					onuSN := strings.ToUpper(strings.TrimSpace(onu.SerialNumber))
 
 					// 1. Check SN match
-					if dt, ok := snMap[strings.ToUpper(strings.TrimSpace(onu.SerialNumber))]; ok {
+					if dt, ok := snMap[onuSN]; ok {
 						matchedDT = dt
 					}
 
@@ -1671,68 +1672,82 @@ func (u *dataTeknisUsecase) BulkSyncOLT(ctx context.Context, oltName string) (*d
 						}
 					}
 
-					// 3. Fetch ONU detail to match by IPAddress / verify
-					detail, err := u.zteClient.GetONUDetail(ctx, oltKey, job.board, job.pon, onu.ONUID)
-					if err == nil && detail != nil {
-						if matchedDT == nil && detail.IPAddress != "" {
-							if dt, ok := ipMap[strings.TrimSpace(detail.IPAddress)]; ok {
-								matchedDT = dt
-							}
-						}
+					// 3. Fallback: Detail lookup if not matched yet
+					snToUse := onu.SerialNumber
+					rxPowerToUse := onu.RxPower
+					statusToUse := onu.Status
 
-						if matchedDT != nil {
-							mu.Lock()
-							result.TotalMatched++
-
-							needsUpdate := false
-							if matchedDT.Sn == nil || *matchedDT.Sn == "" || *matchedDT.Sn != detail.SerialNumber {
-								snVal := detail.SerialNumber
-								matchedDT.Sn = &snVal
-								needsUpdate = true
-							}
-							if matchedDT.Pon == nil || *matchedDT.Pon != job.pon {
-								ponVal := job.pon
-								matchedDT.Pon = &ponVal
-								needsUpdate = true
-							}
-							if detail.RxPower != "" {
-								if rxF, err := strconv.ParseFloat(detail.RxPower, 64); err == nil {
-									rxInt := int(math.Round(rxF))
-									if matchedDT.OnuPower == nil || *matchedDT.OnuPower != rxInt {
-										matchedDT.OnuPower = &rxInt
-										needsUpdate = true
-									}
+					if matchedDT == nil {
+						detail, err := u.zteClient.GetONUDetail(ctx, oltKey, job.board, job.pon, onu.ONUID)
+						if err == nil && detail != nil {
+							if detail.IPAddress != "" {
+								if dt, ok := ipMap[strings.TrimSpace(detail.IPAddress)]; ok {
+									matchedDT = dt
 								}
 							}
-
-							if needsUpdate {
-								_ = u.dataTeknisRepo.Update(ctx, matchedDT)
-								result.UpdatedCount++
+							if detail.SerialNumber != "" {
+								snToUse = detail.SerialNumber
 							}
-
-							custName := ""
-							if matchedDT.Pelanggan != nil {
-								custName = matchedDT.Pelanggan.Nama
+							if detail.RxPower != "" {
+								rxPowerToUse = detail.RxPower
 							}
-
-							itemIP := ""
-							if matchedDT.IPPelanggan != nil {
-								itemIP = *matchedDT.IPPelanggan
+							if detail.Status != "" {
+								statusToUse = detail.Status
 							}
-
-							result.Details = append(result.Details, domain.BulkSyncItem{
-								IDPelanggan: matchedDT.IDPelanggan,
-								Nama:        custName,
-								IP:          itemIP,
-								PON:         job.pon,
-								Board:       job.board,
-								ONUID:       onu.ONUID,
-								SN:          detail.SerialNumber,
-								RxPower:     detail.RxPower,
-								Status:      detail.Status,
-							})
-							mu.Unlock()
 						}
+					}
+
+					if matchedDT != nil {
+						mu.Lock()
+						result.TotalMatched++
+
+						needsUpdate := false
+						if snToUse != "" && (matchedDT.Sn == nil || *matchedDT.Sn == "" || *matchedDT.Sn != snToUse) {
+							matchedDT.Sn = &snToUse
+							needsUpdate = true
+						}
+						if matchedDT.Pon == nil || *matchedDT.Pon != job.pon {
+							ponVal := job.pon
+							matchedDT.Pon = &ponVal
+							needsUpdate = true
+						}
+						if rxPowerToUse != "" {
+							if rxF, err := strconv.ParseFloat(rxPowerToUse, 64); err == nil {
+								rxInt := int(math.Round(rxF))
+								if matchedDT.OnuPower == nil || *matchedDT.OnuPower != rxInt {
+									matchedDT.OnuPower = &rxInt
+									needsUpdate = true
+								}
+							}
+						}
+
+						if needsUpdate {
+							_ = u.dataTeknisRepo.Update(ctx, matchedDT)
+							result.UpdatedCount++
+						}
+
+						custName := ""
+						if matchedDT.Pelanggan != nil {
+							custName = matchedDT.Pelanggan.Nama
+						}
+
+						itemIP := ""
+						if matchedDT.IPPelanggan != nil {
+							itemIP = *matchedDT.IPPelanggan
+						}
+
+						result.Details = append(result.Details, domain.BulkSyncItem{
+							IDPelanggan: matchedDT.IDPelanggan,
+							Nama:        custName,
+							IP:          itemIP,
+							PON:         job.pon,
+							Board:       job.board,
+							ONUID:       onu.ONUID,
+							SN:          snToUse,
+							RxPower:     rxPowerToUse,
+							Status:      statusToUse,
+						})
+						mu.Unlock()
 					}
 				}
 			}

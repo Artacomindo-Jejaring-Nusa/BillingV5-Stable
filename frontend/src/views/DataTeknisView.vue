@@ -3148,6 +3148,9 @@ async function runBulkSync() {
   try {
     const res = await apiClient.post('/data_teknis/bulk-sync-olt', {
       olt: bulkSyncOlt.value
+    }, {
+      timeout: 180000,
+      headers: { 'X-Skip-Network-Interceptor': 'true' }
     });
     bulkSyncResult.value = res.data?.data || null;
     snackbar.value = {
