@@ -67,7 +67,7 @@ func NewSchedulerManager(db *gorm.DB, su domain.SystemUsecase, bu domain.Billing
 		Key:         "suspend_services",
 		Name:        "Suspended Otomatis",
 		Description: "Melakukan isolasi/suspend otomatis ke pelanggan yang menunggak dan sinkronisasi ke Mikrotik.",
-		DefaultCron: "0 0 * * *",
+		DefaultCron: "0 9 * * *",
 		Func:        bu.AutoSuspend,
 	}
 
