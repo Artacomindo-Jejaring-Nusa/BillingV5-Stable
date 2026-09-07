@@ -255,7 +255,8 @@ services:
       - >
         OLTS=[
           {"id":"tipar","name":"OLT Tipar","host":"102.102.1.1","port":161,"community":"public","boards":"1,2"},
-          {"id":"pulogebang","name":"OLT Pulogebang","host":"103.103.1.1","port":161,"community":"public","boards":"1,2"}
+          {"id":"pulogebang","name":"OLT Pulogebang","host":"103.103.1.1","port":161,"community":"public","boards":"1,2"},
+          {"id":"pinus","name":"OLT Pinus","host":"100.100.1.1","port":161,"community":"public","boards":"1,2"}
         ]
     depends_on:
       redis-olt:

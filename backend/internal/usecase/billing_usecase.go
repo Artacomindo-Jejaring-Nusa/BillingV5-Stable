@@ -1617,7 +1617,7 @@ func (u *billingUsecase) GetRevenueReportDetails(ctx context.Context, params *do
 // --- Portability ---
 
 func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]byte, string, error) {
-	headers := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Status", "Kategori User", "Harga Awal", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti", "Metode"}
+	headers := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Status", "Kategori User", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti", "Metode"}
 	limit := 1000
 	offset := 0
 	today := time.Now()
@@ -1676,7 +1676,14 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 				if l.PaketLayanan != nil {
 					pkName = l.PaketLayanan.NamaPaket
 				}
-				sm, tb, al := "", "", ""
+				jt, sm, tb, al := "", "", "", ""
+				effectiveDueDate := l.TglJatuhTempoPembayaran
+				if effectiveDueDate == nil {
+					effectiveDueDate = l.TglJatuhTempo
+				}
+				if effectiveDueDate != nil {
+					jt = effectiveDueDate.Format("2006-01-02")
+				}
 				if l.TglMulaiLangganan != nil {
 					sm = l.TglMulaiLangganan.Format("2006-01-02")
 				}
@@ -1696,7 +1703,7 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 					userCategory = "New User"
 				}
 
-				vals := []interface{}{l.ID, pName, addr, brandName, pkName, l.Status, userCategory, h, sm, tb, al, l.MetodePembayaran}
+				vals := []interface{}{l.ID, pName, addr, brandName, pkName, l.Status, userCategory, h, jt, sm, tb, al, l.MetodePembayaran}
 				for c, v := range vals {
 					cell, _ := excelize.CoordinatesToCellName(c+1, row)
 					f.SetCellValue(s, cell, v)
@@ -1737,7 +1744,14 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 				if l.PaketLayanan != nil {
 					pk = l.PaketLayanan.NamaPaket
 				}
-				sm, tb, al := "", "", ""
+				jt, sm, tb, al := "", "", "", ""
+				effectiveDueDate := l.TglJatuhTempoPembayaran
+				if effectiveDueDate == nil {
+					effectiveDueDate = l.TglJatuhTempo
+				}
+				if effectiveDueDate != nil {
+					jt = effectiveDueDate.Format("2006-01-02")
+				}
 				if l.TglMulaiLangganan != nil {
 					sm = l.TglMulaiLangganan.Format("2006-01-02")
 				}
@@ -1757,7 +1771,7 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 					userCategory = "New User"
 				}
 
-				w.Write([]string{fmt.Sprintf("%d", l.ID), n, addr, brandName, pk, l.Status, userCategory, hStr, sm, tb, al, l.MetodePembayaran})
+				w.Write([]string{fmt.Sprintf("%d", l.ID), n, addr, brandName, pk, l.Status, userCategory, hStr, jt, sm, tb, al, l.MetodePembayaran})
 			}
 
 			offset += limit
@@ -1873,8 +1887,12 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 				pkName = l.PaketLayanan.NamaPaket
 			}
 			jt, sm, tb, al := "", "", "", ""
-			if l.TglJatuhTempo != nil {
-				jt = l.TglJatuhTempo.Format("2006-01-02")
+			effectiveDueDate := l.TglJatuhTempoPembayaran
+			if effectiveDueDate == nil {
+				effectiveDueDate = l.TglJatuhTempo
+			}
+			if effectiveDueDate != nil {
+				jt = effectiveDueDate.Format("2006-01-02")
 			}
 			if l.TglMulaiLangganan != nil {
 				sm = l.TglMulaiLangganan.Format("2006-01-02")
