@@ -2,21 +2,8 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import axios, { type AxiosError } from 'axios';
+import type { AxiosError } from 'axios';
 import apiClient from '@/services/api';
-import { 
-  Mail, 
-  Key, 
-  Eye, 
-  EyeOff, 
-  AlertCircle, 
-  Loader2, 
-  RefreshCw, 
-  ChevronLeft, 
-  Shield, 
-  CheckCircle, 
-  Info 
-} from 'lucide-vue-next';
 
 // Definisikan tipe untuk respons error dari backend
 interface ErrorResponse {
@@ -159,18 +146,18 @@ function backToLogin() {
               <label class="form-label">
                 Alamat Email
               </label>
-              <div class="relative form-input input-group">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style="z-index: 6;">
+              <div class="form-input input-group">
+                <div class="input-icon-left">
                   <v-icon size="20" color="grey-darken-1">mdi-email-outline</v-icon>
                 </div>
                 <input
                   type="email"
                   v-model="email"
                   placeholder="Masukkan alamat email Anda"
-                  class="input-field w-full pl-10 pr-10 py-3"
+                  class="input-field"
                   :class="{ 'border-[var(--primary-color)]': email.length > 0 }"
                 />
-                <div class="absolute inset-y-0 right-0 pr-3 flex items-center" style="z-index: 6;">
+                <div class="input-icon-right pr-2">
                   <div
                     class="w-2 h-2 rounded-full bg-green-500 transition-all duration-200"
                     :class="email.length > 0 ? 'opacity-100' : 'opacity-0'"
@@ -188,18 +175,18 @@ function backToLogin() {
               <label class="form-label">
                 Kata Sandi
               </label>
-              <div class="relative form-input input-group">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" style="z-index: 6;">
+              <div class="form-input input-group">
+                <div class="input-icon-left">
                   <v-icon size="20" color="grey-darken-1">mdi-lock-outline</v-icon>
                 </div>
                 <input
                   :type="showPassword ? 'text' : 'password'"
                   v-model="password"
                   placeholder="Masukkan kata sandi Anda"
-                  class="input-field w-full pl-10 pr-12 py-3"
+                  class="input-field input-field-with-toggle"
                   :class="{ 'border-[var(--primary-color)]': password.length > 0 }"
                 />
-                <div class="absolute inset-y-0 right-0 flex items-center pr-2" style="z-index: 20;">
+                <div class="input-icon-right">
                   <button
                     type="button"
                     @click="togglePasswordVisibility"
@@ -238,7 +225,7 @@ function backToLogin() {
 
             <div v-if="error" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
               <div class="flex items-center">
-                <AlertCircle class="w-5 h-5 mr-2" />
+                <v-icon size="20" color="error" class="mr-2">mdi-alert-circle</v-icon>
                 {{ error }}
               </div>
             </div>
@@ -258,7 +245,7 @@ function backToLogin() {
                 box-shadow: 0 4px 14px rgba(13, 38, 145, 0.3);
               "
             >
-              <Loader2 v-if="loading" class="animate-spin w-5 h-5 mr-2" />
+              <v-progress-circular v-if="loading" indeterminate size="20" width="2" color="white" class="mr-2"></v-progress-circular>
               {{ loading ? 'SABAR LAGI LOGIN...' : 'MASUK' }}
             </button>
           </form>
@@ -271,14 +258,14 @@ function backToLogin() {
                 @click="backToLogin"
                 class="flex items-center text-[var(--text-secondary)] hover:text-[var(--primary-color)] transition-colors text-sm"
               >
-                <ChevronLeft class="w-4 h-4 mr-1" />
+                <v-icon size="18" class="mr-1">mdi-chevron-left</v-icon>
                 Kembali ke login
               </button>
             </div>
 
             <div class="mb-5">
               <div class="flex items-center input-border bg-white rounded px-3 py-2.5 shadow-sm">
-                <Mail class="w-5 h-5 text-gray-400 mr-3" />
+                <v-icon size="20" color="grey-darken-1" class="mr-3">mdi-email-outline</v-icon>
                 <input
                   type="email"
                   v-model="resetEmail"
@@ -292,7 +279,7 @@ function backToLogin() {
 
             <div class="mb-5">
               <div class="flex items-center input-border bg-white rounded px-3 py-2.5 shadow-sm">
-                <Key class="w-5 h-5 text-gray-400 mr-3" />
+                <v-icon size="20" color="grey-darken-1" class="mr-3">mdi-lock-outline</v-icon>
                 <input
                   type="password"
                   v-model="newPassword"
@@ -306,7 +293,7 @@ function backToLogin() {
 
             <div class="mb-5">
               <div class="flex items-center input-border bg-white rounded px-3 py-2.5 shadow-sm">
-                <Shield class="w-5 h-5 text-gray-400 mr-3" />
+                <v-icon size="20" color="grey-darken-1" class="mr-3">mdi-shield-key-outline</v-icon>
                 <input
                   type="text"
                   v-model="resetToken"
@@ -320,14 +307,14 @@ function backToLogin() {
 
             <div v-if="error" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
               <div class="flex items-center">
-                <AlertCircle class="w-5 h-5 mr-2" />
+                <v-icon size="20" color="error" class="mr-2">mdi-alert-circle</v-icon>
                 {{ error }}
               </div>
             </div>
 
             <div v-if="successMessage" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
               <div class="flex items-center">
-                <CheckCircle class="w-5 h-5 mr-2" />
+                <v-icon size="20" color="success" class="mr-2">mdi-check-circle</v-icon>
                 {{ successMessage }}
               </div>
             </div>
@@ -337,8 +324,8 @@ function backToLogin() {
               :disabled="loading"
               class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded font-medium transition-all flex items-center justify-center disabled:opacity-70"
             >
-              <RefreshCw v-if="!loading" class="w-5 h-5 mr-2" />
-              <Loader2 v-else class="animate-spin w-5 h-5 mr-2" />
+              <v-progress-circular v-if="loading" indeterminate size="20" width="2" color="white" class="mr-2"></v-progress-circular>
+              <v-icon v-else size="20" color="white" class="mr-2">mdi-refresh</v-icon>
               <span>{{ loading ? 'Memproses...' : 'Atur Ulang Kata Sandi' }}</span>
             </button>
           </form>
@@ -346,7 +333,7 @@ function backToLogin() {
           <!-- Security Notice for Reset Password -->
           <div v-if="showForgotPassword" class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div class="flex">
-              <Info class="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+              <v-icon size="20" color="primary" class="mr-2 flex-shrink-0 mt-0.5">mdi-information</v-icon>
               <div class="text-sm text-blue-800">
                 <p class="font-medium mb-1">Pemberitahuan Keamanan</p>
                 <p class="text-xs">Ingat kata sandi baru Anda dengan baik, karena tidak ada OTP saat login kembali.</p>
@@ -555,6 +542,7 @@ button[type="submit"] * {
   overflow: hidden;
   display: flex !important;
   align-items: center !important;
+  min-height: 50px;
 }
 
 .input-group:focus-within {
@@ -562,14 +550,42 @@ button[type="submit"] * {
   box-shadow: 0 0 0 4px rgba(13, 38, 145, 0.1);
 }
 
+.input-icon-left {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.input-icon-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
 .input-field {
   background: transparent !important;
   border: none !important;
-  padding: 12px 16px !important;
+  padding: 12px 16px 12px 46px !important;
   font-size: 14px !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   position: relative !important;
   z-index: 5;
+  width: 100% !important;
+}
+
+.input-field-with-toggle {
+  padding-right: 48px !important;
 }
 
 .input-field:focus {
