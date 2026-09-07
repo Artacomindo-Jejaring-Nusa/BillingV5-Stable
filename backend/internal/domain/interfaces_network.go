@@ -81,6 +81,13 @@ type OLTUsecase interface {
 	Update(ctx context.Context, id uint64, olt *OLT) error
 	Delete(ctx context.Context, id uint64) error
 	TestConnection(ctx context.Context, id uint64) (string, error)
+	GetUplinks(ctx context.Context, id uint64) (*ZTEUplinksData, error)
+	GetONUs(ctx context.Context, id uint64, board int, pon int) ([]ZTEONUInfo, error)
+	GetPaginatedONUs(ctx context.Context, id uint64, board int, pon int, page int, limit int) (*ZTEPaginatedONUs, error)
+	GetONUDetail(ctx context.Context, id uint64, board int, pon int, onuID int) (*ZTEONUDetail, error)
+	GetEmptyONUIDs(ctx context.Context, id uint64, board int, pon int) ([]int, error)
+	GetONUSerials(ctx context.Context, id uint64, board int, pon int, noCache bool) ([]ONUSerialInfo, error)
+	ClearCache(ctx context.Context, id uint64, board int, pon int) error
 }
 
 // ODPRepository defines database operations for ODP

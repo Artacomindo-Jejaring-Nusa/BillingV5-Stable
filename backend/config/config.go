@@ -41,6 +41,8 @@ type Config struct {
 	SystemFeatures                  []string
 	DashboardWidgetPermissions      map[string][]string
 	SchedulerEnabled                bool
+	ZteOltApiURL                    string
+	ZteOltApiKey                    string
 }
 
 var GlobalConfig *Config
@@ -89,6 +91,8 @@ func LoadConfig() *Config {
 		QontakTemplateIDInvoiceJelantik: getEnv("QONTAK_TEMPLATE_ID_INVOICE_JELANTIK", ""),
 		QontakBroadcastEnabled:          getEnvAsBool("QONTAK_BROADCAST_ENABLED", false),
 		SchedulerEnabled:                getEnv("SCHEDULER_ENABLED", "true") == "true",
+		ZteOltApiURL:                    getEnv("ZTE_OLT_API_URL", "http://localhost:8081"),
+		ZteOltApiKey:                    getEnv("ZTE_OLT_API_KEY", ""),
 		
 		Menus: []string{
 			"Dashboard", "Pelanggan", "Langganan", "Teknis", "Paket", "Invoices", "Reports",

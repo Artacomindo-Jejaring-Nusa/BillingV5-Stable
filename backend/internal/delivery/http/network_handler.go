@@ -171,6 +171,13 @@ func NewOLTHandler(r *gin.RouterGroup, ou domain.OLTUsecase, authMiddleware gin.
 		oltGroup.PUT("/:id", handler.Update)
 		oltGroup.DELETE("/:id", handler.Delete)
 		oltGroup.POST("/:id/test-connection", handler.TestConnection)
+		oltGroup.GET("/:id/uplinks", handler.GetUplinks)
+		oltGroup.GET("/:id/board/:board/pon/:pon/onus", handler.GetONUs)
+		oltGroup.GET("/:id/board/:board/pon/:pon/paginate", handler.GetPaginatedONUs)
+		oltGroup.GET("/:id/board/:board/pon/:pon/onu/:onu_id", handler.GetONUDetail)
+		oltGroup.GET("/:id/board/:board/pon/:pon/empty-onu-ids", handler.GetEmptyONUIDs)
+		oltGroup.GET("/:id/board/:board/pon/:pon/onu-serials", handler.GetONUSerials)
+		oltGroup.DELETE("/:id/board/:board/pon/:pon/cache", handler.ClearCache)
 	}
 }
 
@@ -255,11 +262,198 @@ func (h *OLTHandler) TestConnection(c *gin.Context) {
 
 	msg, err := h.oltUsecase.TestConnection(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error(), "error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": msg})
+	c.JSON(http.StatusOK, gin.H{"message": msg, "data": gin.H{"status": "connected", "details": msg}})
+}
+
+func (h *OLTHandler) GetUplinks(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	uplinks, err := h.oltUsecase.GetUplinks(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "status": "success", "data": uplinks})
+}
+
+func (h *OLTHandler) GetONUs(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	board, err := strconv.Atoi(c.Param("board"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid board parameter"})
+		return
+	}
+
+	pon, err := strconv.Atoi(c.Param("pon"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pon parameter"})
+		return
+	}
+
+	onus, err := h.oltUsecase.GetONUs(c.Request.Context(), id, board, pon)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "status": "success", "data": onus})
+}
+
+func (h *OLTHandler) GetPaginatedONUs(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	board, err := strconv.Atoi(c.Param("board"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid board parameter"})
+		return
+	}
+
+	pon, err := strconv.Atoi(c.Param("pon"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pon parameter"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	result, err := h.oltUsecase.GetPaginatedONUs(c.Request.Context(), id, board, pon, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "status": "success", "data": result.Data, "meta": result.Meta})
+}
+
+func (h *OLTHandler) GetONUDetail(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	board, err := strconv.Atoi(c.Param("board"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid board parameter"})
+		return
+	}
+
+	pon, err := strconv.Atoi(c.Param("pon"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pon parameter"})
+		return
+	}
+
+	onuID, err := strconv.Atoi(c.Param("onu_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid onu_id parameter"})
+		return
+	}
+
+	detail, err := h.oltUsecase.GetONUDetail(c.Request.Context(), id, board, pon, onuID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "status": "success", "data": detail})
+}
+
+func (h *OLTHandler) GetEmptyONUIDs(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	board, err := strconv.Atoi(c.Param("board"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid board parameter"})
+		return
+	}
+
+	pon, err := strconv.Atoi(c.Param("pon"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pon parameter"})
+		return
+	}
+
+	emptyIDs, err := h.oltUsecase.GetEmptyONUIDs(c.Request.Context(), id, board, pon)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "status": "success", "data": emptyIDs})
+}
+
+func (h *OLTHandler) GetONUSerials(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	board, err := strconv.Atoi(c.Param("board"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid board parameter"})
+		return
+	}
+
+	pon, err := strconv.Atoi(c.Param("pon"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pon parameter"})
+		return
+	}
+
+	noCache := c.DefaultQuery("nocache", "false") == "true"
+
+	serials, err := h.oltUsecase.GetONUSerials(c.Request.Context(), id, board, pon, noCache)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "status": "success", "data": serials})
+}
+
+func (h *OLTHandler) ClearCache(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	board, err := strconv.Atoi(c.Param("board"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid board parameter"})
+		return
+	}
+
+	pon, err := strconv.Atoi(c.Param("pon"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pon parameter"})
+		return
+	}
+
+	if err := h.oltUsecase.ClearCache(c.Request.Context(), id, board, pon); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "status": "success", "message": "Cache cleared successfully"})
 }
 
 type ODPHandler struct {

@@ -164,26 +164,31 @@
             </v-row>
           </v-card-text>
 
-          <v-card-actions class="px-4 pb-4 pt-0">
+          <v-card-actions class="px-4 pb-4 pt-0 gap-2 flex-column flex-sm-row">
             <v-btn
-              block
-              height="44"
+              height="40"
+              rounded="lg"
+              color="primary"
+              variant="flat"
+              class="flex-grow-1 font-weight-bold text-capitalize"
+              elevation="1"
+              @click="openExplorer(item)"
+              prepend-icon="mdi-lan-connect"
+            >
+              PON Explorer
+            </v-btn>
+            <v-btn
+              height="40"
               rounded="lg"
               :loading="testingConnectionId === item.id"
               @click="testConnection(item)"
-              :color="connectionStatus[item.id] ? 'success' : 'primary'"
+              :color="connectionStatus[item.id] ? 'success' : 'grey-darken-1'"
               :variant="connectionStatus[item.id] ? 'flat' : 'tonal'"
               class="font-weight-bold text-capitalize"
               elevation="0"
             >
-              <template v-if="connectionStatus[item.id]">
-                <v-icon start class="me-2">mdi-check-circle</v-icon>
-                Terhubung
-              </template>
-              <template v-else>
-                <v-icon start class="me-2">mdi-connection</v-icon>
-                Test Connection
-              </template>
+              <v-icon :icon="connectionStatus[item.id] ? 'mdi-check-circle' : 'mdi-connection'" class="me-1"></v-icon>
+              {{ connectionStatus[item.id] ? 'Terhubung' : 'Test' }}
             </v-btn>
           </v-card-actions>
         </v-card>
@@ -322,29 +327,415 @@
       </v-card>
     </v-dialog>
 
-    <!-- Dialog Hapus -->
-    <v-dialog v-model="dialogDelete" max-width="400px">
-        <v-card rounded="xl">
-            <div class="d-flex justify-center pt-8 pb-4">
-               <v-avatar color="red-lighten-4" size="80">
-                  <v-icon color="error" size="40">mdi-alert-circle-outline</v-icon>
-               </v-avatar>
+    <!-- Dialog PON Explorer & Telemetry Live -->
+    <v-dialog v-model="dialogExplorer" max-width="1100px" scrollable transition="dialog-bottom-transition">
+      <v-card rounded="xl" class="overflow-hidden">
+        <!-- Header -->
+        <div class="pa-4 pa-md-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white d-flex align-center justify-space-between" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);">
+          <div class="d-flex align-center">
+            <v-avatar color="white" variant="tonal" size="48" class="me-3">
+              <v-icon size="28" color="white">mdi-lan-connect</v-icon>
+            </v-avatar>
+            <div>
+              <div class="d-flex align-center gap-2">
+                <h2 class="text-h6 font-weight-bold text-white mb-0">{{ activeOlt?.nama_olt }}</h2>
+                <v-chip size="x-small" color="white" variant="outlined" class="font-weight-bold">
+                  {{ activeOlt?.tipe_olt }}
+                </v-chip>
+              </div>
+              <p class="text-caption text-white opacity-80 mb-0 font-mono">
+                IP: {{ activeOlt?.ip_address }} | ZTE C320 SNMP Gateway
+              </p>
             </div>
-            <v-card-title class="text-h5 text-center font-weight-bold">Hapus OLT?</v-card-title>
-            <v-card-text class="text-center text-body-1 text-grey-darken-1 px-6">
-                Apakah Anda yakin ingin menghapus data OLT <span class="font-weight-bold text-black">{{ itemToDelete?.nama_olt }}</span>? Tindakan ini tidak dapat dibatalkan.
-            </v-card-text>
-            <v-card-actions class="pa-6">
-                <v-row dense gap="3">
-                   <v-col cols="6">
-                      <v-btn block variant="tonal" color="grey" height="44" @click="closeDeleteDialog">Batal</v-btn>
-                   </v-col>
-                   <v-col cols="6">
-                      <v-btn block color="error" height="44" elevation="2" @click="confirmDelete" :loading="deleting">Ya, Hapus</v-btn>
-                   </v-col>
-                </v-row>
-            </v-card-actions>
-        </v-card>
+          </div>
+          <v-btn icon variant="text" color="white" @click="dialogExplorer = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <v-tabs v-model="explorerTab" color="primary" density="comfortable" class="border-b">
+          <v-tab value="pon" prepend-icon="mdi-access-point-network" class="text-none font-weight-bold">
+            PON & Telemetri ONU
+          </v-tab>
+          <v-tab value="uplinks" prepend-icon="mdi-server-network" class="text-none font-weight-bold">
+            Kartu & Uplink Port
+          </v-tab>
+        </v-tabs>
+
+        <v-card-text class="pa-4 pa-md-6 bg-grey-lighten-5">
+          <!-- TAB 1: PON & ONUs -->
+          <div v-if="explorerTab === 'pon'">
+            <!-- Filter Bar -->
+            <v-card class="mb-4 pa-3 rounded-lg" elevation="0" border>
+              <div class="d-flex align-center flex-wrap gap-3">
+                <div style="min-width: 140px;" class="flex-grow-1 flex-sm-grow-0">
+                  <v-select
+                    v-model="selectedBoard"
+                    :items="[1, 2]"
+                    label="Board / Slot"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    prefix="Board "
+                    @update:model-value="loadPonONUs"
+                  ></v-select>
+                </div>
+                <div style="min-width: 140px;" class="flex-grow-1 flex-sm-grow-0">
+                  <v-select
+                    v-model="selectedPon"
+                    :items="Array.from({ length: 16 }, (_, i) => i + 1)"
+                    label="PON Port"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    prefix="PON "
+                    @update:model-value="loadPonONUs"
+                  ></v-select>
+                </div>
+
+                <v-spacer class="d-none d-md-block"></v-spacer>
+
+                <!-- Action Buttons -->
+                <div class="d-flex align-center gap-2 flex-wrap">
+                  <v-btn
+                    variant="tonal"
+                    color="primary"
+                    density="comfortable"
+                    class="text-none font-weight-bold"
+                    prepend-icon="mdi-numeric-positive-1"
+                    @click="openEmptyIdsDialog"
+                    :loading="loadingEmptyIds"
+                  >
+                    Cek Slot Kosong
+                  </v-btn>
+                  <v-btn
+                    variant="tonal"
+                    color="grey-darken-2"
+                    density="comfortable"
+                    class="text-none font-weight-bold"
+                    prepend-icon="mdi-refresh"
+                    @click="refreshPonData"
+                    :loading="loadingPonData"
+                  >
+                    Refresh
+                  </v-btn>
+                </div>
+              </div>
+            </v-card>
+
+            <!-- Loading Indicator -->
+            <v-progress-linear
+              v-if="loadingPonData"
+              indeterminate
+              color="primary"
+              class="mb-4 rounded-pill"
+            ></v-progress-linear>
+
+            <!-- Summary Chips -->
+            <div class="d-flex align-center flex-wrap gap-2 mb-3">
+              <v-chip size="small" variant="flat" color="blue-lighten-5" class="text-primary font-weight-bold">
+                Total ONU: {{ onusList.length }}
+              </v-chip>
+              <v-chip size="small" variant="flat" color="green-lighten-5" class="text-success font-weight-bold">
+                Online: {{ countOnline }}
+              </v-chip>
+              <v-chip size="small" variant="flat" color="red-lighten-5" class="text-error font-weight-bold">
+                Offline: {{ countOffline }}
+              </v-chip>
+            </div>
+
+            <!-- ONUs Data Table -->
+            <v-card rounded="lg" elevation="0" border class="overflow-hidden">
+              <v-table density="comfortable" hover>
+                <thead>
+                  <tr class="bg-grey-lighten-4">
+                    <th class="font-weight-bold text-caption">ONU ID</th>
+                    <th class="font-weight-bold text-caption">NAMA / DESKRIPSI</th>
+                    <th class="font-weight-bold text-caption">TIPE MODEM</th>
+                    <th class="font-weight-bold text-caption">SERIAL NUMBER</th>
+                    <th class="font-weight-bold text-caption text-center">RX POWER (SIGNAL)</th>
+                    <th class="font-weight-bold text-caption text-center">STATUS</th>
+                    <th class="font-weight-bold text-caption text-center">DETAIL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!loadingPonData && onusList.length === 0">
+                    <td colspan="7" class="text-center py-8 text-grey">
+                      <v-icon size="40" color="grey-lighten-1" class="mb-2">mdi-router-wireless-off</v-icon>
+                      <div class="text-body-2">Tidak ada ONU terdaftar pada Board {{ selectedBoard }} PON {{ selectedPon }}</div>
+                    </td>
+                  </tr>
+                  <tr v-for="onu in onusList" :key="onu.onu_id">
+                    <td>
+                      <v-chip size="x-small" variant="flat" color="grey-lighten-3" class="font-mono font-weight-bold">
+                        #{{ onu.onu_id }}
+                      </v-chip>
+                    </td>
+                    <td>
+                      <div class="font-weight-medium text-body-2">{{ onu.name || '-' }}</div>
+                    </td>
+                    <td>
+                      <v-chip v-if="onu.onu_type" size="x-small" variant="tonal" color="indigo" class="font-weight-bold">
+                        {{ onu.onu_type }}
+                      </v-chip>
+                      <span v-else class="text-caption text-grey">-</span>
+                    </td>
+                    <td>
+                      <div class="d-flex align-center font-mono text-caption">
+                        <span class="font-weight-bold text-grey-darken-3 me-1">{{ onu.serial_number }}</span>
+                        <v-btn
+                          icon
+                          size="x-small"
+                          variant="text"
+                          density="compact"
+                          color="grey"
+                          @click="copyText(onu.serial_number)"
+                          title="Salin Serial Number"
+                        >
+                          <v-icon size="14">mdi-content-copy</v-icon>
+                        </v-btn>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <v-chip
+                        v-if="onu.rx_power"
+                        size="small"
+                        :color="getRxColor(onu.rx_power)"
+                        variant="flat"
+                        class="font-weight-bold font-mono"
+                      >
+                        {{ onu.rx_power }} dBm
+                      </v-chip>
+                      <span v-else class="text-caption text-grey">-</span>
+                    </td>
+                    <td class="text-center">
+                      <v-chip
+                        size="x-small"
+                        :color="onu.status?.toLowerCase() === 'online' ? 'success' : 'error'"
+                        variant="flat"
+                        class="font-weight-bold"
+                      >
+                        <v-icon start size="10">mdi-circle</v-icon>
+                        {{ onu.status || 'Offline' }}
+                      </v-chip>
+                    </td>
+                    <td class="text-center">
+                      <v-btn
+                        size="small"
+                        variant="text"
+                        color="primary"
+                        density="comfortable"
+                        prepend-icon="mdi-information-outline"
+                        class="text-none font-weight-bold"
+                        @click="openOnuDetail(onu)"
+                      >
+                        Diagnosa
+                      </v-btn>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </v-card>
+          </div>
+
+          <!-- TAB 2: UPLINKS & CARDS -->
+          <div v-else-if="explorerTab === 'uplinks'">
+            <v-progress-linear v-if="loadingUplinks" indeterminate color="primary" class="mb-4 rounded-pill"></v-progress-linear>
+
+            <v-row v-if="uplinksData">
+              <!-- Line Cards -->
+              <v-col cols="12" md="5">
+                <v-card rounded="lg" elevation="0" border class="pa-4 h-100">
+                  <div class="d-flex align-center mb-3">
+                    <v-icon color="primary" class="me-2">mdi-credit-card-chip-outline</v-icon>
+                    <h3 class="text-subtitle-1 font-weight-bold text-grey-darken-3 mb-0">Kartu Terpasang (Line Cards)</h3>
+                  </div>
+                  <v-list density="compact" class="pa-0">
+                    <v-list-item
+                      v-for="(card, i) in uplinksData.cards"
+                      :key="i"
+                      class="px-0 py-2 border-b"
+                    >
+                      <template v-slot:prepend>
+                        <v-chip size="x-small" color="primary" variant="flat" class="font-weight-bold me-2">
+                          Slot {{ card.slot }}
+                        </v-chip>
+                      </template>
+                      <v-list-item-title class="font-weight-medium text-body-2">{{ card.type }}</v-list-item-title>
+                      <v-list-item-subtitle class="text-caption">Role: {{ card.role }}</v-list-item-subtitle>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </v-col>
+
+              <!-- Uplink Ports -->
+              <v-col cols="12" md="7">
+                <v-card rounded="lg" elevation="0" border class="pa-4 h-100">
+                  <div class="d-flex align-center mb-3">
+                    <v-icon color="primary" class="me-2">mdi-ethernet</v-icon>
+                    <h3 class="text-subtitle-1 font-weight-bold text-grey-darken-3 mb-0">Port Uplink Ethernet</h3>
+                  </div>
+                  <v-table density="compact">
+                    <thead>
+                      <tr class="bg-grey-lighten-4">
+                        <th class="text-caption font-weight-bold">PORT</th>
+                        <th class="text-caption font-weight-bold">KIND</th>
+                        <th class="text-caption font-weight-bold text-center">ADMIN</th>
+                        <th class="text-caption font-weight-bold text-center">LINK STATUS</th>
+                        <th class="text-caption font-weight-bold text-right">SPEED</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(port, i) in uplinksData.ports" :key="i">
+                        <td class="font-mono font-weight-bold text-caption text-primary">{{ port.name }}</td>
+                        <td><v-chip size="x-small" variant="tonal" color="indigo">{{ port.kind }}</v-chip></td>
+                        <td class="text-center">
+                          <v-chip size="x-small" :color="port.admin_status === 'up' ? 'success' : 'grey'" variant="flat">
+                            {{ port.admin_status }}
+                          </v-chip>
+                        </td>
+                        <td class="text-center">
+                          <v-chip size="x-small" :color="port.oper_status === 'up' ? 'success' : 'error'" variant="flat" class="font-weight-bold">
+                            {{ port.oper_status }}
+                          </v-chip>
+                        </td>
+                        <td class="text-right font-mono text-caption">{{ port.speed_mbps }} Mbps</td>
+                      </tr>
+                    </tbody>
+                  </v-table>
+                </v-card>
+              </v-col>
+            </v-row>
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog Detail Telemetri ONU -->
+    <v-dialog v-model="dialogOnuDetail" max-width="560px" transition="dialog-bottom-transition">
+      <v-card rounded="xl" class="overflow-hidden">
+        <div class="pa-4 bg-primary text-white d-flex align-center justify-space-between">
+          <div class="d-flex align-center">
+            <v-avatar color="white" variant="tonal" size="40" class="me-3">
+              <v-icon size="24" color="white">mdi-router-wireless</v-icon>
+            </v-avatar>
+            <div>
+              <h3 class="text-subtitle-1 font-weight-bold mb-0 text-white">{{ selectedOnuDetail?.name || 'Detail Telemetri ONU' }}</h3>
+              <p class="text-caption text-white opacity-80 mb-0 font-mono">SN: {{ selectedOnuDetail?.serial_number }}</p>
+            </div>
+          </div>
+          <v-btn icon size="small" variant="text" color="white" @click="dialogOnuDetail = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+
+        <v-card-text class="pa-5">
+          <div v-if="loadingOnuDetail" class="text-center py-8">
+            <v-progress-circular indeterminate color="primary" size="48"></v-progress-circular>
+            <p class="text-caption text-grey mt-2">Mengambil data telemetri real-time dari OLT...</p>
+          </div>
+
+          <div v-else-if="selectedOnuDetail">
+            <!-- Signal Highlight Banner -->
+            <div class="pa-4 rounded-lg mb-4 text-center" :class="getRxBgClass(selectedOnuDetail.rx_power)">
+              <div class="text-caption text-grey-darken-2 font-weight-bold text-uppercase mb-1">Optical Rx Signal</div>
+              <div class="text-h4 font-weight-bold font-mono" :class="getRxTextClass(selectedOnuDetail.rx_power)">
+                {{ selectedOnuDetail.rx_power || '-' }} dBm
+              </div>
+              <div class="text-caption mt-1 font-weight-medium text-grey-darken-1">
+                Tx Power: {{ selectedOnuDetail.tx_power ? selectedOnuDetail.tx_power + ' dBm' : '-' }}
+              </div>
+            </div>
+
+            <!-- Detail Grid -->
+            <v-row dense class="g-2">
+              <v-col cols="6">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey">Jarak Kabel Optik (FO)</div>
+                  <div class="text-subtitle-2 font-weight-bold font-mono text-grey-darken-3">
+                    {{ selectedOnuDetail.gpon_optical_distance ? selectedOnuDetail.gpon_optical_distance + ' Meter' : '-' }}
+                  </div>
+                </div>
+              </v-col>
+              <v-col cols="6">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey">Status Modem</div>
+                  <div class="text-subtitle-2 font-weight-bold" :class="selectedOnuDetail.status?.toLowerCase() === 'online' ? 'text-success' : 'text-error'">
+                    {{ selectedOnuDetail.status || '-' }}
+                  </div>
+                </div>
+              </v-col>
+              <v-col cols="6">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey">Tipe Perangkat</div>
+                  <div class="text-subtitle-2 font-weight-bold text-grey-darken-3">
+                    {{ selectedOnuDetail.onu_type || '-' }}
+                  </div>
+                </div>
+              </v-col>
+              <v-col cols="6">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey">IP Management ONU</div>
+                  <div class="text-subtitle-2 font-weight-bold font-mono text-grey-darken-3">
+                    {{ selectedOnuDetail.ip_address || '-' }}
+                  </div>
+                </div>
+              </v-col>
+              <v-col cols="12">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey">Uptime Terakhir</div>
+                  <div class="text-body-2 font-weight-medium text-grey-darken-3 font-mono">
+                    {{ selectedOnuDetail.uptime || '-' }}
+                  </div>
+                </div>
+              </v-col>
+              <v-col cols="12">
+                <div class="pa-3 bg-grey-lighten-4 rounded-lg">
+                  <div class="text-caption text-grey">Alasan Offline / Diagnosa</div>
+                  <div class="text-body-2 font-weight-bold" :class="selectedOnuDetail.offline_reason?.toLowerCase().includes('power') ? 'text-warning' : 'text-grey-darken-3'">
+                    {{ selectedOnuDetail.offline_reason || 'Normal / Tidak Ada Error' }}
+                  </div>
+                </div>
+              </v-col>
+            </v-row>
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog Slot Kosong -->
+    <v-dialog v-model="dialogEmptyIds" max-width="450px">
+      <v-card rounded="xl" class="pa-4">
+        <v-card-title class="text-h6 font-weight-bold d-flex align-center">
+          <v-icon color="primary" class="me-2">mdi-numeric-positive-1</v-icon>
+          ONU ID Kosong (Bebas)
+        </v-card-title>
+        <v-card-text class="pt-2">
+          <p class="text-body-2 text-grey-darken-1 mb-3">
+            Daftar nomor ONU ID yang belum terpakai di <strong>Board {{ selectedBoard }} PON {{ selectedPon }}</strong>:
+          </p>
+          <div v-if="emptyOnuIds.length > 0" class="d-flex flex-wrap gap-2 max-h-48 overflow-y-auto pa-2 bg-grey-lighten-4 rounded-lg">
+            <v-chip
+              v-for="id in emptyOnuIds"
+              :key="id"
+              size="small"
+              color="primary"
+              variant="flat"
+              class="font-weight-bold font-mono"
+            >
+              #{{ id }}
+            </v-chip>
+          </div>
+          <div v-else class="text-center py-4 text-grey">
+            Semua slot ONU ID di port ini sudah penuh.
+          </div>
+        </v-card-text>
+        <v-card-actions class="pt-0">
+          <v-spacer></v-spacer>
+          <v-btn color="primary" variant="flat" rounded="lg" @click="dialogEmptyIds = false">Tutup</v-btn>
+        </v-card-actions>
+      </v-card>
     </v-dialog>
 
     <v-snackbar
@@ -387,6 +778,59 @@ interface MikrotikSelectItem {
   name: string;
 }
 
+interface ZTEONUInfo {
+  board: number;
+  pon: number;
+  onu_id: number;
+  name: string;
+  onu_type: string;
+  serial_number: string;
+  rx_power: string;
+  status: string;
+}
+
+interface ZTEONUDetail {
+  board: number;
+  pon: number;
+  onu_id: number;
+  name: string;
+  description: string;
+  onu_type: string;
+  serial_number: string;
+  rx_power: string;
+  tx_power: string;
+  status: string;
+  ip_address: string;
+  last_online: string;
+  last_offline: string;
+  uptime: string;
+  last_down_time_duration: string;
+  offline_reason: string;
+  gpon_optical_distance: string;
+}
+
+interface ZTECardInfo {
+  slot: number;
+  type: string;
+  role: string;
+}
+
+interface ZTEPortInfo {
+  name: string;
+  shelf: number;
+  slot: number;
+  port: number;
+  kind: string;
+  admin_status: string;
+  oper_status: string;
+  speed_mbps: number;
+}
+
+interface ZTEUplinksData {
+  cards: ZTECardInfo[];
+  ports: ZTEPortInfo[];
+}
+
 // --- STATE MANAGEMENT ---
 const olts = ref<OLT[]>([]);
 const mikrotikList = ref<MikrotikSelectItem[]>([]);
@@ -404,9 +848,30 @@ const editedItem = ref<Partial<OLT> & { password?: string }>({});
 const itemToDelete = ref<OLT | null>(null);
 const snackbar = ref({ show: false, text: '', color: 'success' });
 
+// --- PON EXPLORER STATE ---
+const dialogExplorer = ref(false);
+const activeOlt = ref<OLT | null>(null);
+const explorerTab = ref<'pon' | 'uplinks'>('pon');
+const selectedBoard = ref(1);
+const selectedPon = ref(1);
+const onusList = ref<ZTEONUInfo[]>([]);
+const uplinksData = ref<ZTEUplinksData | null>(null);
+const loadingPonData = ref(false);
+const loadingUplinks = ref(false);
+
+const emptyOnuIds = ref<number[]>([]);
+const dialogEmptyIds = ref(false);
+const loadingEmptyIds = ref(false);
+
+const selectedOnuDetail = ref<ZTEONUDetail | null>(null);
+const dialogOnuDetail = ref(false);
+const loadingOnuDetail = ref(false);
+
 // --- COMPUTED PROPERTIES ---
 const isEditMode = computed(() => !!editedItem.value.id);
 const formTitle = computed(() => isEditMode.value ? 'Edit OLT' : 'Tambah OLT Baru');
+const countOnline = computed(() => onusList.value.filter(o => o.status?.toLowerCase() === 'online').length);
+const countOffline = computed(() => onusList.value.filter(o => o.status?.toLowerCase() !== 'online').length);
 
 // --- DATA & CONFIGURATION ---
 const oltTypes = ['HSGQ', 'ZTE', 'Huawei', 'Fiberhome', 'Lainnya'];
@@ -427,6 +892,126 @@ function getMikrotikName(id: number | null | undefined): string {
   if (!id) return '-';
   const server = mikrotikList.value.find(m => m.id === id);
   return server ? server.name : 'Unknown';
+}
+
+function getRxColor(powerStr: string): string {
+  if (!powerStr) return 'grey';
+  const p = parseFloat(powerStr);
+  if (isNaN(p)) return 'grey';
+  if (p >= -22.5 && p <= -10) return 'success';
+  if (p < -22.5 && p >= -26.5) return 'warning';
+  if (p < -26.5 || p > -8) return 'error';
+  return 'info';
+}
+
+function getRxBgClass(powerStr: string): string {
+  if (!powerStr) return 'bg-grey-lighten-4';
+  const p = parseFloat(powerStr);
+  if (isNaN(p)) return 'bg-grey-lighten-4';
+  if (p >= -22.5 && p <= -10) return 'bg-green-50 border border-green-200';
+  if (p < -22.5 && p >= -26.5) return 'bg-amber-50 border border-amber-200';
+  if (p < -26.5 || p > -8) return 'bg-red-50 border border-red-200';
+  return 'bg-blue-50 border border-blue-200';
+}
+
+function getRxTextClass(powerStr: string): string {
+  if (!powerStr) return 'text-grey-darken-3';
+  const p = parseFloat(powerStr);
+  if (isNaN(p)) return 'text-grey-darken-3';
+  if (p >= -22.5 && p <= -10) return 'text-green-700';
+  if (p < -22.5 && p >= -26.5) return 'text-amber-700';
+  if (p < -26.5 || p > -8) return 'text-red-700';
+  return 'text-blue-700';
+}
+
+function copyText(text: string) {
+  if (!text) return;
+  navigator.clipboard.writeText(text);
+  showSnackbar('Serial Number disalin: ' + text, 'success');
+}
+
+// --- PON EXPLORER FUNCTIONS ---
+async function openExplorer(olt: OLT) {
+  activeOlt.value = olt;
+  dialogExplorer.value = true;
+  explorerTab.value = 'pon';
+  selectedBoard.value = 1;
+  selectedPon.value = 1;
+  await loadPonONUs();
+  loadUplinks();
+}
+
+async function loadPonONUs() {
+  if (!activeOlt.value) return;
+  loadingPonData.value = true;
+  try {
+    const response = await apiClient.get(`/olt/${activeOlt.value.id}/board/${selectedBoard.value}/pon/${selectedPon.value}/onus`);
+    onusList.value = response.data?.data || [];
+  } catch (error: any) {
+    const errorMsg = error.response?.data?.message || "Gagal memuat data ONU dari OLT";
+    showSnackbar(errorMsg, 'error');
+    onusList.value = [];
+  } finally {
+    loadingPonData.value = false;
+  }
+}
+
+async function loadUplinks() {
+  if (!activeOlt.value) return;
+  loadingUplinks.value = true;
+  try {
+    const response = await apiClient.get(`/olt/${activeOlt.value.id}/uplinks`);
+    uplinksData.value = response.data?.data || null;
+  } catch (error: any) {
+    console.error("Failed to load OLT uplinks", error);
+    uplinksData.value = null;
+  } finally {
+    loadingUplinks.value = false;
+  }
+}
+
+async function refreshPonData() {
+  if (!activeOlt.value) return;
+  loadingPonData.value = true;
+  try {
+    await apiClient.delete(`/olt/${activeOlt.value.id}/board/${selectedBoard.value}/pon/${selectedPon.value}/cache`);
+    await loadPonONUs();
+    showSnackbar('Cache dibersihkan & data PON diperbarui dari OLT', 'success');
+  } catch (error: any) {
+    showSnackbar(error.response?.data?.message || 'Gagal merefresh data PON', 'error');
+  } finally {
+    loadingPonData.value = false;
+  }
+}
+
+async function openEmptyIdsDialog() {
+  if (!activeOlt.value) return;
+  loadingEmptyIds.value = true;
+  try {
+    const response = await apiClient.get(`/olt/${activeOlt.value.id}/board/${selectedBoard.value}/pon/${selectedPon.value}/empty-onu-ids`);
+    emptyOnuIds.value = response.data?.data || [];
+    dialogEmptyIds.value = true;
+  } catch (error: any) {
+    showSnackbar(error.response?.data?.message || 'Gagal mengambil daftar slot kosong', 'error');
+  } finally {
+    loadingEmptyIds.value = false;
+  }
+}
+
+async function openOnuDetail(onu: ZTEONUInfo) {
+  if (!activeOlt.value) return;
+  selectedOnuDetail.value = null;
+  dialogOnuDetail.value = true;
+  loadingOnuDetail.value = true;
+  try {
+    const response = await apiClient.get(`/olt/${activeOlt.value.id}/board/${selectedBoard.value}/pon/${selectedPon.value}/onu/${onu.onu_id}`);
+    selectedOnuDetail.value = response.data?.data || null;
+  } catch (error: any) {
+    showSnackbar(error.response?.data?.message || 'Gagal mengambil detail telemetri ONU', 'error');
+    dialogOnuDetail.value = false;
+  } finally {
+    loadingOnuDetail.value = false;
+  }
 }
 
 // --- API FUNCTIONS ---
@@ -455,7 +1040,7 @@ async function fetchMikrotiks() {
 }
 
 function openDialog(item?: OLT) {
-  editedItem.value = item ? { ...item, password: '' } : { tipe_olt: 'HSGQ' };
+  editedItem.value = item ? { ...item, password: '' } : { tipe_olt: 'ZTE' };
   dialog.value = true;
 }
 

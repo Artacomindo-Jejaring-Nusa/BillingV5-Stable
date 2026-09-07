@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"billing-backend/internal/domain"
 	"billing-backend/internal/websocket"
 	"billing-backend/pkg/mikrotik"
 	"billing-backend/pkg/utils"
+	"billing-backend/pkg/zteclient"
 )
 
 type mikrotikUsecase struct {
@@ -137,13 +139,39 @@ func (u *mikrotikUsecase) TestConnection(ctx context.Context, id uint64) (map[st
 }
 
 type oltUsecase struct {
-	oltRepo domain.OLTRepository
+	oltRepo   domain.OLTRepository
+	zteClient zteclient.Client
 }
 
-func NewOLTUsecase(repo domain.OLTRepository) domain.OLTUsecase {
+func NewOLTUsecase(repo domain.OLTRepository, zteClient zteclient.Client) domain.OLTUsecase {
 	return &oltUsecase{
-		oltRepo: repo,
+		oltRepo:   repo,
+		zteClient: zteClient,
 	}
+}
+
+func (u *oltUsecase) getZTEOltID(olt *domain.OLT) string {
+	if olt == nil {
+		return "pinus"
+	}
+	id := strings.ToLower(strings.TrimSpace(olt.NamaOlt))
+	id = strings.TrimPrefix(id, "olt-")
+	id = strings.TrimPrefix(id, "olt ")
+	id = strings.TrimPrefix(id, "olt_")
+	id = strings.ReplaceAll(id, " ", "-")
+	return id
+}
+
+func (u *oltUsecase) isZTE(olt *domain.OLT) bool {
+	if olt == nil {
+		return false
+	}
+	tipe := strings.ToUpper(strings.TrimSpace(olt.TipeOlt))
+	if strings.Contains(tipe, "ZTE") || strings.Contains(tipe, "C320") || strings.Contains(tipe, "C300") {
+		return true
+	}
+	name := strings.ToLower(olt.NamaOlt)
+	return strings.Contains(name, "pinus") || strings.Contains(name, "pulogebang") || strings.Contains(name, "tipar")
 }
 
 func (u *oltUsecase) FetchAll(ctx context.Context) ([]domain.OLT, error) {
@@ -193,7 +221,94 @@ func (u *oltUsecase) TestConnection(ctx context.Context, id uint64) (string, err
 	if err != nil {
 		return "", err
 	}
+
+	if u.zteClient != nil && u.isZTE(olt) {
+		oltID := u.getZTEOltID(olt)
+		uplinks, err := u.zteClient.GetUplinks(ctx, oltID)
+		if err != nil {
+			return "", fmt.Errorf("gagal terhubung ke SNMP ZTE OLT %s (%s): %w", olt.NamaOlt, olt.IPAddress, err)
+		}
+		return fmt.Sprintf("Berhasil terhubung ke ZTE OLT %s (%s). Terdeteksi %d kartu dan %d port uplink", olt.NamaOlt, olt.IPAddress, len(uplinks.Cards), len(uplinks.Ports)), nil
+	}
+
 	return fmt.Sprintf("Successfully connected to OLT %s at %s", olt.NamaOlt, olt.IPAddress), nil
+}
+
+func (u *oltUsecase) GetUplinks(ctx context.Context, id uint64) (*domain.ZTEUplinksData, error) {
+	olt, err := u.oltRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if u.zteClient == nil {
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+	return u.zteClient.GetUplinks(ctx, u.getZTEOltID(olt))
+}
+
+func (u *oltUsecase) GetONUs(ctx context.Context, id uint64, board int, pon int) ([]domain.ZTEONUInfo, error) {
+	olt, err := u.oltRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if u.zteClient == nil {
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+	return u.zteClient.GetONUs(ctx, u.getZTEOltID(olt), board, pon)
+}
+
+func (u *oltUsecase) GetPaginatedONUs(ctx context.Context, id uint64, board int, pon int, page int, limit int) (*domain.ZTEPaginatedONUs, error) {
+	olt, err := u.oltRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if u.zteClient == nil {
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+	return u.zteClient.GetPaginatedONUs(ctx, u.getZTEOltID(olt), board, pon, page, limit)
+}
+
+func (u *oltUsecase) GetONUDetail(ctx context.Context, id uint64, board int, pon int, onuID int) (*domain.ZTEONUDetail, error) {
+	olt, err := u.oltRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if u.zteClient == nil {
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+	return u.zteClient.GetONUDetail(ctx, u.getZTEOltID(olt), board, pon, onuID)
+}
+
+func (u *oltUsecase) GetEmptyONUIDs(ctx context.Context, id uint64, board int, pon int) ([]int, error) {
+	olt, err := u.oltRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if u.zteClient == nil {
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+	return u.zteClient.GetEmptyONUIDs(ctx, u.getZTEOltID(olt), board, pon)
+}
+
+func (u *oltUsecase) GetONUSerials(ctx context.Context, id uint64, board int, pon int, noCache bool) ([]domain.ONUSerialInfo, error) {
+	olt, err := u.oltRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if u.zteClient == nil {
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+	return u.zteClient.GetONUSerials(ctx, u.getZTEOltID(olt), board, pon, noCache)
+}
+
+func (u *oltUsecase) ClearCache(ctx context.Context, id uint64, board int, pon int) error {
+	olt, err := u.oltRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if u.zteClient == nil {
+		return errors.New("ZTE OLT client service is not initialized")
+	}
+	return u.zteClient.ClearCache(ctx, u.getZTEOltID(olt), board, pon)
 }
 
 type odpUsecase struct {

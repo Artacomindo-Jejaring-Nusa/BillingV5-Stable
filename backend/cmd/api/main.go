@@ -22,6 +22,7 @@ import (
 	"billing-backend/pkg/logger"
 	"billing-backend/pkg/telemetry"
 	"billing-backend/pkg/utils"
+	"billing-backend/pkg/zteclient"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -312,8 +313,9 @@ func main() {
 	httpDelivery.NewMikrotikHandler(api, mikrotikUsecase, authMw)
 
 	// OLT
+	zteClient := zteclient.NewClient(cfg.ZteOltApiURL, cfg.ZteOltApiKey)
 	oltRepo := repository.NewOLTRepository(db)
-	oltUsecase := usecase.NewOLTUsecase(oltRepo)
+	oltUsecase := usecase.NewOLTUsecase(oltRepo, zteClient)
 	httpDelivery.NewOLTHandler(api, oltUsecase, authMw)
 
 	// ODP
