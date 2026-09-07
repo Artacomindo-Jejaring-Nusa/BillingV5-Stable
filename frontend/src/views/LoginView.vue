@@ -146,18 +146,17 @@ function backToLogin() {
               <label class="form-label">
                 Alamat Email
               </label>
-              <div class="form-input input-group">
-                <div class="input-icon-left">
+              <div class="input-box-wrapper">
+                <div class="input-prefix-icon">
                   <v-icon size="20" color="grey-darken-1">mdi-email-outline</v-icon>
                 </div>
                 <input
                   type="email"
                   v-model="email"
                   placeholder="Masukkan alamat email Anda"
-                  class="input-field"
-                  :class="{ 'border-[var(--primary-color)]': email.length > 0 }"
+                  class="custom-text-input"
                 />
-                <div class="input-icon-right pr-2">
+                <div class="input-suffix-icon pr-1">
                   <div
                     class="w-2 h-2 rounded-full bg-green-500 transition-all duration-200"
                     :class="email.length > 0 ? 'opacity-100' : 'opacity-0'"
@@ -175,18 +174,17 @@ function backToLogin() {
               <label class="form-label">
                 Kata Sandi
               </label>
-              <div class="form-input input-group">
-                <div class="input-icon-left">
+              <div class="input-box-wrapper">
+                <div class="input-prefix-icon">
                   <v-icon size="20" color="grey-darken-1">mdi-lock-outline</v-icon>
                 </div>
                 <input
                   :type="showPassword ? 'text' : 'password'"
                   v-model="password"
                   placeholder="Masukkan kata sandi Anda"
-                  class="input-field input-field-with-toggle"
-                  :class="{ 'border-[var(--primary-color)]': password.length > 0 }"
+                  class="custom-text-input"
                 />
-                <div class="input-icon-right">
+                <div class="input-suffix-icon">
                   <button
                     type="button"
                     @click="togglePasswordVisibility"
@@ -533,63 +531,69 @@ button[type="submit"] * {
     inset 0 1px 2px rgba(255, 255, 255, 0.9);
 }
 
-.input-group {
+.input-box-wrapper {
   position: relative;
   background: #ffffff;
   border-radius: 12px;
   border: 2px solid #e5e7eb;
-  transition: all 0.3s ease;
-  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex !important;
   align-items: center !important;
-  min-height: 50px;
+  min-height: 52px;
+  padding: 0 14px;
+  gap: 12px;
+  width: 100%;
 }
 
-.input-group:focus-within {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 4px rgba(13, 38, 145, 0.1);
+.input-box-wrapper:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.input-icon-left {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 6;
+.input-box-wrapper:focus-within {
+  border-color: var(--primary-color, #0d2691) !important;
+  box-shadow: 0 0 0 4px rgba(13, 38, 145, 0.12) !important;
+  background: #ffffff !important;
 }
 
-.input-icon-right {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
+.input-prefix-icon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
 }
 
-.input-field {
+.custom-text-input {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
   background: transparent !important;
   border: none !important;
-  padding: 12px 16px 12px 46px !important;
-  font-size: 14px !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  position: relative !important;
-  z-index: 5;
-  width: 100% !important;
-}
-
-.input-field-with-toggle {
-  padding-right: 48px !important;
-}
-
-.input-field:focus {
   outline: none !important;
+  padding: 14px 0 !important;
+  font-size: 14px !important;
+  color: #1f2937 !important;
+  line-height: 1.5 !important;
+}
+
+.custom-text-input:focus {
+  outline: none !important;
+  border: none !important;
+}
+
+.custom-text-input::placeholder {
+  color: #9ca3af !important;
+  font-size: 14px !important;
+  opacity: 1 !important;
+}
+
+.input-suffix-icon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0;
 }
 
 .input-icon {
@@ -741,14 +745,7 @@ button:hover .lucide {
   display: block !important;
 }
 
-/* Input field styling fix */
-input[type="text"],
-input[type="password"],
-input[type="email"] {
-  background-color: white !important;
-  border: 2px solid #e5e7eb !important;
-  outline: none !important;
-}
+
 
 /* Tailwind-like utilities for compatibility */
 .min-h-screen {
