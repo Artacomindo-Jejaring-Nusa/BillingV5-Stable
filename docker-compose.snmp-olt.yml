@@ -34,7 +34,8 @@ services:
       # Konfigurasi Multi-OLT ZTE C320 (Ganti IP Host dan Community sesuai OLT Anda)
       - >
         OLTS=[
-          {"id":"tipar","name":"OLT Tipar","host":"102.102.1.1","port":161,"community":"public","boards":"1,2"}
+          {"id":"tipar","name":"OLT Tipar","host":"102.102.1.1","port":161,"community":"public","boards":"1,2"},
+          {"id":"pulogebang","name":"OLT Pulogebang","host":"103.103.1.1","port":161,"community":"public","boards":"1,2"}
         ]
     depends_on:
       redis-olt:
