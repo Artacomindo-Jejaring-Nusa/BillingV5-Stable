@@ -495,6 +495,99 @@ func cleanMacAddress(mac string) string {
 	return mac
 }
 
+func parseFlexibleDate(raw string) *time.Time {
+	val := strings.TrimSpace(raw)
+	if val == "" || val == "-" || val == "--" || val == "0" || val == "0000-00-00" ||
+		strings.EqualFold(val, "n/a") || strings.EqualFold(val, "null") || strings.EqualFold(val, "none") {
+		return nil
+	}
+
+	// 1. Try Excel numeric serial date (e.g. 45542 or 45542.5)
+	if floatVal, err := strconv.ParseFloat(val, 64); err == nil && floatVal > 0 && floatVal < 200000 {
+		// Excel base date: 1899-12-30 (due to 1900 leap year bug in Excel)
+		excelEpoch := time.Date(1899, 12, 30, 0, 0, 0, 0, time.UTC)
+		durationDays := time.Duration(floatVal * 24 * float64(time.Hour))
+		parsed := excelEpoch.Add(durationDays)
+		return &parsed
+	}
+
+	// 2. Normalize Indonesian month names to English
+	monthReplacer := strings.NewReplacer(
+		"Januari", "Jan", "Jan", "Jan",
+		"Februari", "Feb", "Feb", "Feb",
+		"Maret", "Mar", "Mar", "Mar",
+		"April", "Apr", "Apr", "Apr",
+		"Mei", "May", "May", "May",
+		"Juni", "Jun", "Jun", "Jun",
+		"Juli", "Jul", "Jul", "Jul",
+		"Agustus", "Aug", "Agu", "Aug", "Ags", "Aug", "Aug", "Aug",
+		"September", "Sep", "Sep", "Sep",
+		"Oktober", "Oct", "Okt", "Oct", "Oct", "Oct",
+		"November", "Nov", "Nov", "Nov",
+		"Desember", "Dec", "Des", "Dec", "Dec", "Dec",
+	)
+	normalizedVal := monthReplacer.Replace(val)
+
+	formats := []string{
+		"2006-01-02",
+		"2006/01/02",
+		"2006.01.02",
+		"2006-01-02 15:04:05",
+		"2006/01/02 15:04:05",
+		"2006-01-02 15:04",
+		"2006/01/02 15:04",
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02T15:04:05Z",
+		"2006-01-02T15:04:05",
+		"02/01/2006",
+		"02-01-2006",
+		"02.01.2006",
+		"02/01/2006 15:04:05",
+		"02-01-2006 15:04:05",
+		"02/01/2006 15:04",
+		"02-01-2006 15:04",
+		"02/01/06",
+		"02-01-06",
+		"02.01.06",
+		"2/1/2006",
+		"2-1-2006",
+		"2.1.2006",
+		"2/1/06",
+		"2-1-06",
+		"01/02/2006",
+		"01-02-2006",
+		"01/02/06",
+		"01-02-06",
+		"1/2/2006",
+		"1-2-2006",
+		"1/2/06",
+		"02 Jan 2006",
+		"2 Jan 2006",
+		"02-Jan-2006",
+		"2-Jan-2006",
+		"02 Jan 06",
+		"2 Jan 06",
+		"02 January 2006",
+		"2 January 2006",
+		"Jan 02, 2006",
+		"Jan 2, 2006",
+		"January 02, 2006",
+		"January 2, 2006",
+	}
+
+	for _, f := range formats {
+		if t, err := time.Parse(f, normalizedVal); err == nil {
+			return &t
+		}
+		if t, err := time.Parse(f, val); err == nil {
+			return &t
+		}
+	}
+
+	// Graceful fallback: return nil instead of blocking entire bulk import
+	return nil
+}
+
 func (h *InventoryHandler) BulkImport(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
@@ -718,20 +811,7 @@ func (h *InventoryHandler) BulkImport(c *gin.Context) {
 		if purchaseDateIdx >= 0 && purchaseDateIdx < len(row) {
 			pDateVal := strings.TrimSpace(row[purchaseDateIdx])
 			if pDateVal != "" {
-				var parsedDate time.Time
-				var pErr error
-				formats := []string{"2006-01-02", "02/01/2006", "02-01-2006"}
-				for _, f := range formats {
-					parsedDate, pErr = time.Parse(f, pDateVal)
-					if pErr == nil {
-						break
-					}
-				}
-				if pErr != nil {
-					preValidationErrors = append(preValidationErrors, fmt.Sprintf("Baris %d: Format tanggal pembelian tidak valid (gunakan YYYY-MM-DD)", i+1))
-					continue
-				}
-				purchaseDate = &parsedDate
+				purchaseDate = parseFlexibleDate(pDateVal)
 			}
 		}
 
