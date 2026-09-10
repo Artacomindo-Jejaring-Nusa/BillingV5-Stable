@@ -182,6 +182,38 @@ func (c *Config) XENDIT_CALLBACK_TOKENS() map[string]string {
 	}
 }
 
+func (c *Config) GetXenditApiKey(keyName, idBrand, brandName string) string {
+	k := strings.ToUpper(strings.TrimSpace(keyName))
+	b := strings.ToUpper(strings.TrimSpace(brandName))
+	id := strings.ToLower(strings.TrimSpace(idBrand))
+
+	// 1. Explicitly Jelantik only if it is NOT Nagrak
+	if (k == "JELANTIK" || id == "ajn-02" || b == "JELANTIK") && !strings.Contains(b, "NAGRAK") && !strings.Contains(k, "NAGRAK") {
+		return c.XenditApiKeyJelantik
+	}
+
+	// 2. Artacomindo / Jakinet / Jelantik Nagrak / ajn-01 / ajn-03 / AJN
+	if strings.Contains(k, "JAKINET") || strings.Contains(k, "ARTACOMINDO") || strings.Contains(k, "AJN") ||
+		strings.Contains(b, "JAKINET") || strings.Contains(b, "ARTACOMINDO") || strings.Contains(b, "NAGRAK") ||
+		id == "ajn-01" || id == "ajn-03" {
+		return c.XenditApiKeyJakinet
+	}
+
+	// 3. Check XENDIT_API_KEYS map
+	if key, ok := c.XENDIT_API_KEYS()[k]; ok && key != "" {
+		return key
+	}
+	if key, ok := c.XENDIT_API_KEYS()[id]; ok && key != "" {
+		return key
+	}
+
+	// Fallback: if brand contains JELANTIK without NAGRAK -> Jelantik, otherwise Jakinet (Artacomindo)
+	if strings.Contains(b, "JELANTIK") && !strings.Contains(b, "NAGRAK") {
+		return c.XenditApiKeyJelantik
+	}
+	return c.XenditApiKeyJakinet
+}
+
 func (c *Config) GetQontakIntegrationID(brandOrKey string) string {
 	brand := strings.ToUpper(strings.TrimSpace(brandOrKey))
 	if strings.Contains(brand, "JAKINET") {

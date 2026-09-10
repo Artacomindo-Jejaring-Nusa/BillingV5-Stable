@@ -1487,10 +1487,17 @@ func (u *billingUsecase) getXenditInvoice(ctx context.Context, xenditID string, 
 	if u.cfg == nil {
 		return nil, errors.New("xendit config is nil (unit testing)")
 	}
-	xenditApiKey := u.cfg.XenditApiKeyJelantik
-	if pelanggan != nil && pelanggan.HargaLayanan != nil && strings.ToUpper(pelanggan.HargaLayanan.XenditKeyName) == "JAKINET" {
-		xenditApiKey = u.cfg.XenditApiKeyJakinet
+	var keyName, idBrand, brandName string
+	if pelanggan != nil {
+		if pelanggan.IDBrand != nil {
+			idBrand = *pelanggan.IDBrand
+		}
+		if pelanggan.HargaLayanan != nil {
+			keyName = pelanggan.HargaLayanan.XenditKeyName
+			brandName = pelanggan.HargaLayanan.Brand
+		}
 	}
+	xenditApiKey := u.cfg.GetXenditApiKey(keyName, idBrand, brandName)
 
 	if xenditApiKey == "" {
 		return nil, errors.New("xendit API key not configured")
@@ -2488,10 +2495,24 @@ func (u *billingUsecase) executeRouterOS(ctx context.Context, serverID uint64, o
 }
 
 func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.Invoice, p *domain.Pelanggan, pkt *domain.PaketLayanan, desc string, tax float64, phone string) (map[string]interface{}, error) {
-	xenditApiKey := u.cfg.XenditApiKeyJelantik
-	if p.HargaLayanan != nil && strings.ToUpper(p.HargaLayanan.XenditKeyName) == "JAKINET" {
-		xenditApiKey = u.cfg.XenditApiKeyJakinet
+	if u.cfg == nil {
+		return nil, errors.New("xendit config is nil (unit testing)")
 	}
+	var keyName, idBrand, brandName string
+	if p != nil {
+		if p.IDBrand != nil {
+			idBrand = *p.IDBrand
+		}
+		if p.HargaLayanan != nil {
+			keyName = p.HargaLayanan.XenditKeyName
+			brandName = p.HargaLayanan.Brand
+		}
+	}
+	if brandName == "" && inv != nil {
+		brandName = inv.Brand
+	}
+
+	xenditApiKey := u.cfg.GetXenditApiKey(keyName, idBrand, brandName)
 
 	if xenditApiKey == "" {
 		return map[string]interface{}{}, errors.New("xendit API key not configured")
