@@ -1617,7 +1617,7 @@ func (u *billingUsecase) GetRevenueReportDetails(ctx context.Context, params *do
 // --- Portability ---
 
 func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]byte, string, error) {
-	headers := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Status", "Kategori User", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti", "Metode"}
+	headers := []string{"ID", "Nama Pelanggan", "No. Telepon", "Alamat", "Brand", "Paket", "Status", "Kategori User", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti", "Metode"}
 	limit := 1000
 	offset := 0
 	today := time.Now()
@@ -1667,9 +1667,10 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 			}
 
 			for _, l := range chunk {
-				pName, addr, pkName, brandName := "", "", "", ""
+				pName, pPhone, addr, pkName, brandName := "", "", "", "", ""
 				if l.Pelanggan != nil {
 					pName = l.Pelanggan.Nama
+					pPhone = l.Pelanggan.NoTelp
 					addr = l.Pelanggan.Alamat
 					brandName = getBrandName(l.Pelanggan.IDBrand)
 				}
@@ -1703,7 +1704,7 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 					userCategory = "New User"
 				}
 
-				vals := []interface{}{l.ID, pName, addr, brandName, pkName, l.Status, userCategory, h, jt, sm, tb, al, l.MetodePembayaran}
+				vals := []interface{}{l.ID, pName, pPhone, addr, brandName, pkName, l.Status, userCategory, h, jt, sm, tb, al, l.MetodePembayaran}
 				for c, v := range vals {
 					cell, _ := excelize.CoordinatesToCellName(c+1, row)
 					f.SetCellValue(s, cell, v)
@@ -1735,9 +1736,10 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 			}
 
 			for _, l := range chunk {
-				n, addr, pk, brandName := "", "", "", ""
+				n, pPhone, addr, pk, brandName := "", "", "", "", ""
 				if l.Pelanggan != nil {
 					n = l.Pelanggan.Nama
+					pPhone = l.Pelanggan.NoTelp
 					addr = l.Pelanggan.Alamat
 					brandName = getBrandName(l.Pelanggan.IDBrand)
 				}
@@ -1771,7 +1773,7 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 					userCategory = "New User"
 				}
 
-				w.Write([]string{fmt.Sprintf("%d", l.ID), n, addr, brandName, pk, l.Status, userCategory, hStr, jt, sm, tb, al, l.MetodePembayaran})
+				w.Write([]string{fmt.Sprintf("%d", l.ID), n, pPhone, addr, brandName, pk, l.Status, userCategory, hStr, jt, sm, tb, al, l.MetodePembayaran})
 			}
 
 			offset += limit
@@ -1817,7 +1819,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	// 1. DAFTAR LANGGANAN
 	s1 := "Daftar Langganan"
 	f.SetSheetName("Sheet1", s1)
-	headers1 := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Status", "Kategori User", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti", "Metode"}
+	headers1 := []string{"ID", "Nama Pelanggan", "No. Telepon", "Alamat", "Brand", "Paket", "Status", "Kategori User", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti", "Metode"}
 	for i, h := range headers1 {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(s1, cell, h)
@@ -1826,6 +1828,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	type StoppedUser struct {
 		ID             uint64
 		Nama           string
+		NoTelp         string
 		Alamat         string
 		Brand          string
 		Paket          string
@@ -1837,6 +1840,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	type NewUserInfo struct {
 		ID             uint64
 		Nama           string
+		NoTelp         string
 		Alamat         string
 		Brand          string
 		Paket          string
@@ -1876,9 +1880,10 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 				totalBerhenti++
 			}
 
-			pName, addr, brandName := "", "", ""
+			pName, pPhone, addr, brandName := "", "", "", ""
 			if l.Pelanggan != nil {
 				pName = l.Pelanggan.Nama
+				pPhone = l.Pelanggan.NoTelp
 				addr = l.Pelanggan.Alamat
 				brandName = getBrandName(l.Pelanggan.IDBrand)
 			}
@@ -1930,6 +1935,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 				newUsers = append(newUsers, NewUserInfo{
 					ID:             l.ID,
 					Nama:           pName,
+					NoTelp:         pPhone,
 					Alamat:         addr,
 					Brand:          brandName,
 					Paket:          pkName,
@@ -1948,6 +1954,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 				stoppedUsers = append(stoppedUsers, StoppedUser{
 					ID:             l.ID,
 					Nama:           pName,
+					NoTelp:         pPhone,
 					Alamat:         addr,
 					Brand:          brandName,
 					Paket:          pkName,
@@ -1957,7 +1964,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 				})
 			}
 
-			vals := []interface{}{l.ID, pName, addr, brandName, pkName, l.Status, userCategory, h, jt, sm, tb, al, l.MetodePembayaran}
+			vals := []interface{}{l.ID, pName, pPhone, addr, brandName, pkName, l.Status, userCategory, h, jt, sm, tb, al, l.MetodePembayaran}
 			for c, v := range vals {
 				cell, _ := excelize.CoordinatesToCellName(c+1, row1)
 				f.SetCellValue(s1, cell, v)
@@ -1974,13 +1981,13 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	// 2. USER BARU (NEW USER) SHEET
 	sNew := "User Baru (New User)"
 	f.NewSheet(sNew)
-	headersNew := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Status", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Metode"}
+	headersNew := []string{"ID", "Nama Pelanggan", "No. Telepon", "Alamat", "Brand", "Paket", "Status", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Metode"}
 	for i, h := range headersNew {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sNew, cell, h)
 	}
 	for i, uNew := range newUsers {
-		vals := []interface{}{uNew.ID, uNew.Nama, uNew.Alamat, uNew.Brand, uNew.Paket, uNew.Status, uNew.Harga, uNew.JatuhTempo, uNew.MulaiLangganan, uNew.Metode}
+		vals := []interface{}{uNew.ID, uNew.Nama, uNew.NoTelp, uNew.Alamat, uNew.Brand, uNew.Paket, uNew.Status, uNew.Harga, uNew.JatuhTempo, uNew.MulaiLangganan, uNew.Metode}
 		for c, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(c+1, i+2)
 			f.SetCellValue(sNew, cell, v)
@@ -1990,13 +1997,13 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	// 3. USER BERHENTI SHEET
 	sStopped := "User Berhenti"
 	f.NewSheet(sStopped)
-	headersStopped := []string{"ID", "Nama Pelanggan", "Alamat", "Brand", "Paket", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti"}
+	headersStopped := []string{"ID", "Nama Pelanggan", "No. Telepon", "Alamat", "Brand", "Paket", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti"}
 	for i, h := range headersStopped {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sStopped, cell, h)
 	}
 	for i, uStop := range stoppedUsers {
-		vals := []interface{}{uStop.ID, uStop.Nama, uStop.Alamat, uStop.Brand, uStop.Paket, uStop.MulaiLangganan, uStop.TglBerhenti, uStop.AlasanBerhenti}
+		vals := []interface{}{uStop.ID, uStop.Nama, uStop.NoTelp, uStop.Alamat, uStop.Brand, uStop.Paket, uStop.MulaiLangganan, uStop.TglBerhenti, uStop.AlasanBerhenti}
 		for c, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(c+1, i+2)
 			f.SetCellValue(sStopped, cell, v)
@@ -2222,7 +2229,7 @@ func (u *billingUsecase) ImportLanggananFromCSV(ctx context.Context, content str
 }
 
 func (u *billingUsecase) ExportInvoices(ctx context.Context, format string) ([]byte, string, error) {
-	headers := []string{"ID", "Invoice Number", "Pelanggan", "Total", "Status", "Tgl Invoice", "Tgl Lunas"}
+	headers := []string{"ID", "Invoice Number", "Pelanggan", "No. Telepon", "Alamat", "Total", "Status", "Tgl Invoice", "Tgl Lunas"}
 	limit := 1000
 	offset := 0
 
@@ -2246,9 +2253,11 @@ func (u *billingUsecase) ExportInvoices(ctx context.Context, format string) ([]b
 			}
 
 			for _, inv := range invoices {
-				pName := ""
+				pName, pPhone, addr := "", "", ""
 				if inv.Pelanggan != nil {
 					pName = inv.Pelanggan.Nama
+					pPhone = inv.Pelanggan.NoTelp
+					addr = inv.Pelanggan.Alamat
 				}
 				tglInv := inv.TglInvoice.Format("2006-01-02")
 				tglLunas := ""
@@ -2256,7 +2265,7 @@ func (u *billingUsecase) ExportInvoices(ctx context.Context, format string) ([]b
 					tglLunas = inv.PaidAt.Format("2006-01-02")
 				}
 
-				vals := []interface{}{inv.ID, inv.InvoiceNumber, pName, inv.TotalHarga, inv.StatusInvoice, tglInv, tglLunas}
+				vals := []interface{}{inv.ID, inv.InvoiceNumber, pName, pPhone, addr, inv.TotalHarga, inv.StatusInvoice, tglInv, tglLunas}
 				for c, v := range vals {
 					cell, _ := excelize.CoordinatesToCellName(c+1, row)
 					f.SetCellValue(sheet, cell, v)
@@ -2288,9 +2297,11 @@ func (u *billingUsecase) ExportInvoices(ctx context.Context, format string) ([]b
 			}
 
 			for _, inv := range invoices {
-				pName := ""
+				pName, pPhone, addr := "", "", ""
 				if inv.Pelanggan != nil {
 					pName = inv.Pelanggan.Nama
+					pPhone = inv.Pelanggan.NoTelp
+					addr = inv.Pelanggan.Alamat
 				}
 				tglInv := inv.TglInvoice.Format("2006-01-02")
 				tglLunas := ""
@@ -2302,6 +2313,8 @@ func (u *billingUsecase) ExportInvoices(ctx context.Context, format string) ([]b
 					fmt.Sprintf("%d", inv.ID),
 					inv.InvoiceNumber,
 					pName,
+					pPhone,
+					addr,
 					fmt.Sprintf("%.0f", inv.TotalHarga),
 					inv.StatusInvoice,
 					tglInv,

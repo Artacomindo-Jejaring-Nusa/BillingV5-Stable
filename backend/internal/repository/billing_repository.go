@@ -480,7 +480,7 @@ func (r *invoiceRepository) ExportPaymentLinksExcel(ctx context.Context, filters
 	sheet := "Payment Links"
 	f.SetSheetName("Sheet1", sheet)
 
-	headers := []string{"No", "Pelanggan", "Invoice Number", "Alamat", "Total", "Status", "Link Pembayaran"}
+	headers := []string{"No", "Pelanggan", "No. Telepon", "Invoice Number", "Alamat", "Total", "Status", "Link Pembayaran"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
@@ -489,10 +489,11 @@ func (r *invoiceRepository) ExportPaymentLinksExcel(ctx context.Context, filters
 	for r, inv := range invoices {
 		row := r + 2
 		pName := ""; if inv.Pelanggan != nil { pName = inv.Pelanggan.Nama }
+		pPhone := ""; if inv.Pelanggan != nil { pPhone = inv.Pelanggan.NoTelp }
 		addr := ""; if inv.Pelanggan != nil { addr = inv.Pelanggan.Alamat }
 		link := ""; if inv.PaymentLink != nil { link = *inv.PaymentLink }
 
-		vals := []interface{}{r + 1, pName, inv.InvoiceNumber, addr, inv.TotalHarga, inv.StatusInvoice, link}
+		vals := []interface{}{r + 1, pName, pPhone, inv.InvoiceNumber, addr, inv.TotalHarga, inv.StatusInvoice, link}
 		for c, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(c+1, row)
 			f.SetCellValue(sheet, cell, v)
