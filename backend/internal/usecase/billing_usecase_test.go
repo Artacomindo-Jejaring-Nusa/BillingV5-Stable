@@ -531,9 +531,9 @@ func TestAutoSuspend(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify that the invoice status was updated to Expired
-	if invRepo.invoices["INV001"].StatusInvoice != "Expired" {
-		t.Errorf("expected invoice status to be Expired, got %q", invRepo.invoices["INV001"].StatusInvoice)
+	// Verify that the invoice status remains Belum Bayar so payment link is still valid for payment
+	if invRepo.invoices["INV001"].StatusInvoice != "Belum Bayar" {
+		t.Errorf("expected invoice status to remain Belum Bayar, got %q", invRepo.invoices["INV001"].StatusInvoice)
 	}
 
 	// Verify that the langganan status was updated to Suspended

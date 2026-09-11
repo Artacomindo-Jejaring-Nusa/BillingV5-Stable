@@ -1405,11 +1405,6 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 							u.logSystem(ctx, "INFO", fmt.Sprintf("AutoSuspend: Berhasil isolir Mikrotik untuk user %s", pppoeID))
 						}
 					}
-					// Update invoice status to Expired
-					inv.StatusInvoice = "Expired"
-					if err := u.invoiceRepo.Update(ctx, &inv); err != nil {
-						u.logSystem(ctx, "ERROR", fmt.Sprintf("AutoSuspend: Gagal update invoice status ke Expired untuk %s: %v", inv.InvoiceNumber, err))
-					}
 				}
 			}
 
@@ -1470,9 +1465,6 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 						if l.Pelanggan != nil && l.Pelanggan.DataTeknis != nil {
 							_ = u.triggerMikrotikUpdate(ctx, l.Pelanggan.DataTeknis.IDPelanggan, l.Pelanggan.DataTeknis, "Suspended")
 						}
-						// Update invoice status to Expired
-						inv.StatusInvoice = "Expired"
-						_ = u.invoiceRepo.Update(ctx, &inv)
 					}
 				}
 			}
@@ -2798,38 +2790,29 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 		l.Status = "Aktif"
 		if l.MetodePembayaran == "Prorate" {
 			l.MetodePembayaran = "Otomatis"
+			refDate := time.Now()
 			if l.TglJatuhTempo != nil {
-				// TglJatuhTempo for Prorate is the last day of the coverage month (e.g., 2026-08-31)
-				// The day after is the 1st day of the next cycle month (e.g., 2026-09-01)
-				next := l.TglJatuhTempo.AddDate(0, 0, 1)
-				l.TglJatuhTempo = &next
-				
-				// Make sure payment due date and start date are also aligned to the 1st of the next cycle month
-				nextPay := next
-				l.TglJatuhTempoPembayaran = &nextPay
-				
-				nextMulai := next
-				l.TglMulaiLangganan = &nextMulai
-			}
-		} else {
-			if l.TglJatuhTempo != nil {
-				next := l.TglJatuhTempo.AddDate(0, 1, 0)
-				l.TglJatuhTempo = &next
+				refDate = *l.TglJatuhTempo
 			} else if !inv.TglJatuhTempo.IsZero() {
-				next := inv.TglJatuhTempo.AddDate(0, 1, 0)
-				l.TglJatuhTempo = &next
+				refDate = inv.TglJatuhTempo
 			}
-			if l.TglJatuhTempoPembayaran != nil {
-				nextPay := l.TglJatuhTempoPembayaran.AddDate(0, 1, 0)
-				l.TglJatuhTempoPembayaran = &nextPay
+			// For Prorate, align to the 1st day of the next cycle month
+			next := time.Date(refDate.Year(), refDate.Month()+1, 1, 0, 0, 0, 0, refDate.Location())
+			l.TglJatuhTempo = &next
+			l.TglJatuhTempoPembayaran = &next
+			l.TglMulaiLangganan = &next
+		} else {
+			// Otomatis (Flat bulanan): Selalu kunci jatuh tempo siklus berikutnya ke Tanggal 1 bulan depan
+			refDate := time.Now()
+			if !inv.TglJatuhTempo.IsZero() {
+				refDate = inv.TglJatuhTempo
 			} else if l.TglJatuhTempo != nil {
-				nextPay := *l.TglJatuhTempo
-				l.TglJatuhTempoPembayaran = &nextPay
+				refDate = *l.TglJatuhTempo
 			}
-			if l.TglMulaiLangganan != nil {
-				nextMulai := l.TglMulaiLangganan.AddDate(0, 1, 0)
-				l.TglMulaiLangganan = &nextMulai
-			}
+			next := time.Date(refDate.Year(), refDate.Month()+1, 1, 0, 0, 0, 0, refDate.Location())
+			l.TglJatuhTempo = &next
+			l.TglJatuhTempoPembayaran = &next
+			l.TglMulaiLangganan = &next
 		}
 		_ = u.langgananRepo.Update(ctx, l)
 		if inv.Pelanggan.DataTeknis != nil {
