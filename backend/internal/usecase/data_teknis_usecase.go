@@ -75,6 +75,21 @@ func (u *dataTeknisUsecase) executeRouterOS(ctx context.Context, serverID uint64
 	return op(client)
 }
 
+func resolveSubscriptionStatus(pelanggan *domain.Pelanggan) string {
+	if pelanggan == nil || len(pelanggan.Langganan) == 0 {
+		return "Aktif"
+	}
+	for _, l := range pelanggan.Langganan {
+		if l.Status == "Suspended" || l.Status == "Berhenti" {
+			return l.Status
+		}
+		if l.Status == "Aktif" {
+			return "Aktif"
+		}
+	}
+	return pelanggan.Langganan[0].Status
+}
+
 func (u *dataTeknisUsecase) triggerMikrotikCreate(ctx context.Context, data *domain.DataTeknis) error {
 	if data.MikrotikServerID == nil {
 		return errors.New("mikrotik_server_id is nil")
@@ -94,7 +109,11 @@ func (u *dataTeknisUsecase) triggerMikrotikCreate(ctx context.Context, data *dom
 
 func (u *dataTeknisUsecase) triggerMikrotikUpdate(ctx context.Context, oldName string, data *domain.DataTeknis, newStatus string) error {
 	if data.MikrotikServerID == nil {
-		return errors.New("mikrotik_server_id is nil")
+		if data.Pelanggan != nil && data.Pelanggan.MikrotikServerID != nil {
+			data.MikrotikServerID = data.Pelanggan.MikrotikServerID
+		} else {
+			return errors.New("mikrotik_server_id is nil")
+		}
 	}
 	return u.executeRouterOS(ctx, *data.MikrotikServerID, func(client *routeros.Client) error {
 		profile := ""
@@ -104,7 +123,7 @@ func (u *dataTeknisUsecase) triggerMikrotikUpdate(ctx context.Context, oldName s
 				profile = *data.ProfilePppoe
 			}
 			disabled = "no"
-		} else if newStatus == "Suspended" {
+		} else if newStatus == "Suspended" || newStatus == "Berhenti" {
 			profile = "SUSPENDED"
 			disabled = "yes"
 		} else {
@@ -123,7 +142,7 @@ func (u *dataTeknisUsecase) triggerMikrotikUpdate(ctx context.Context, oldName s
 			return err
 		}
 
-		if newStatus == "Suspended" {
+		if newStatus == "Suspended" || newStatus == "Berhenti" {
 			_ = mikrotik.RemoveActiveConnection(client, data.IDPelanggan)
 		}
 		return nil
@@ -309,10 +328,7 @@ func (u *dataTeknisUsecase) Update(ctx context.Context, id uint64, data *domain.
 
 	// Sync with Mikrotik
 	if existing.MikrotikServerID != nil {
-		status := "Aktif"
-		if existing.Pelanggan != nil && len(existing.Pelanggan.Langganan) > 0 {
-			status = existing.Pelanggan.Langganan[0].Status
-		}
+		status := resolveSubscriptionStatus(existing.Pelanggan)
 		syncErr := u.triggerMikrotikUpdate(ctx, oldIDPelanggan, existing, status)
 		if syncErr != nil {
 			existing.MikrotikSyncPending = true
@@ -1372,10 +1388,7 @@ func (u *dataTeknisUsecase) AutoSyncProfileForPelanggan(ctx context.Context, pel
 
 	// 4. Sinkronisasi perubahan profile langsung ke Mikrotik PPP Secret
 	if serverID != 0 && dt.IDPelanggan != "" {
-		status := "Aktif"
-		if dt.Pelanggan != nil && len(dt.Pelanggan.Langganan) > 0 {
-			status = dt.Pelanggan.Langganan[0].Status
-		}
+		status := resolveSubscriptionStatus(dt.Pelanggan)
 		syncErr := u.triggerMikrotikUpdate(ctx, dt.IDPelanggan, dt, status)
 		if syncErr != nil {
 			dt.MikrotikSyncPending = true

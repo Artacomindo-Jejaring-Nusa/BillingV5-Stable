@@ -28,6 +28,7 @@ func (r *dataTeknisRepository) GetAll(ctx context.Context, skip, limit int, sear
 	dbFind := r.db.WithContext(ctx).
 		Select("data_teknis.*").
 		Preload("Pelanggan").
+		Preload("Pelanggan.Langganan").
 		Preload("MikrotikServer").
 		Preload("Odp").
 		Joins("LEFT JOIN pelanggan ON pelanggan.id = data_teknis.pelanggan_id AND pelanggan.deleted_at IS NULL")
@@ -97,6 +98,7 @@ func (r *dataTeknisRepository) GetByID(ctx context.Context, id uint64) (*domain.
 	var data domain.DataTeknis
 	err := r.db.WithContext(ctx).
 		Preload("Pelanggan").
+		Preload("Pelanggan.Langganan").
 		Preload("MikrotikServer").
 		Preload("Odp").
 		First(&data, id).Error
@@ -113,6 +115,7 @@ func (r *dataTeknisRepository) GetByPelangganID(ctx context.Context, pelangganID
 	var data domain.DataTeknis
 	err := r.db.WithContext(ctx).
 		Preload("Pelanggan").
+		Preload("Pelanggan.Langganan").
 		Preload("MikrotikServer").
 		Preload("Odp").
 		Where("pelanggan_id = ?", pelangganID).

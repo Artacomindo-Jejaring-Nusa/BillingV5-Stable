@@ -2443,7 +2443,11 @@ func (u *billingUsecase) ArchiveOldInvoices(ctx context.Context) error {
 
 func (u *billingUsecase) triggerMikrotikUpdate(ctx context.Context, name string, dt *domain.DataTeknis, status string) error {
 	if dt.MikrotikServerID == nil {
-		return nil
+		if dt.Pelanggan != nil && dt.Pelanggan.MikrotikServerID != nil {
+			dt.MikrotikServerID = dt.Pelanggan.MikrotikServerID
+		} else {
+			return nil
+		}
 	}
 	err := u.executeRouterOS(ctx, *dt.MikrotikServerID, func(c *routeros.Client) error {
 		profile, disabled := "default", "no"
@@ -2876,7 +2880,15 @@ func (u *billingUsecase) RetryFailedMikrotikSync(ctx context.Context) error {
 		dt := &pendingList[i]
 		status := "Aktif"
 		if dt.Pelanggan != nil && len(dt.Pelanggan.Langganan) > 0 {
-			status = dt.Pelanggan.Langganan[0].Status
+			for _, l := range dt.Pelanggan.Langganan {
+				if l.Status == "Suspended" || l.Status == "Berhenti" {
+					status = l.Status
+					break
+				}
+				if l.Status == "Aktif" {
+					status = "Aktif"
+				}
+			}
 		}
 		err := u.triggerMikrotikUpdate(ctx, dt.IDPelanggan, dt, status)
 		if err == nil {

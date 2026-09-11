@@ -3,6 +3,7 @@ package mikrotik
 import (
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/go-routeros/routeros"
@@ -61,13 +62,22 @@ func GetIPPools(client *routeros.Client) ([]map[string]string, error) {
 	return pools, nil
 }
 
-// CreatePPPoESecret creates a new PPP secret in the router
-func CreatePPPoESecret(client *routeros.Client, name, password, profile, ipAddress string) error {
+// CreatePPPoESecretWithDisabled creates a new PPP secret in the router with explicit disabled parameter
+func CreatePPPoESecretWithDisabled(client *routeros.Client, name, password, profile, ipAddress, disabled string) error {
+	name = strings.TrimSpace(name)
+	profile = strings.TrimSpace(profile)
+	ipAddress = strings.TrimSpace(ipAddress)
+	disabled = strings.TrimSpace(disabled)
+	if disabled == "" {
+		disabled = "no"
+	}
+
 	args := []string{
 		"/ppp/secret/add",
 		"=name=" + name,
 		"=password=" + password,
 		"=profile=" + profile,
+		"=disabled=" + disabled,
 		"=service=pppoe",
 	}
 	if ipAddress != "" {
@@ -77,15 +87,29 @@ func CreatePPPoESecret(client *routeros.Client, name, password, profile, ipAddre
 	return err
 }
 
+// CreatePPPoESecret creates a new PPP secret in the router
+func CreatePPPoESecret(client *routeros.Client, name, password, profile, ipAddress string) error {
+	return CreatePPPoESecretWithDisabled(client, name, password, profile, ipAddress, "no")
+}
+
 // UpdatePPPoESecret updates a PPP secret in the router. Finds the secret by oldName first.
 func UpdatePPPoESecret(client *routeros.Client, oldName, newName, password, profile, ipAddress, disabled string) error {
+	oldName = strings.TrimSpace(oldName)
+	newName = strings.TrimSpace(newName)
+	profile = strings.TrimSpace(profile)
+	ipAddress = strings.TrimSpace(ipAddress)
+	disabled = strings.TrimSpace(disabled)
+	if disabled == "" {
+		disabled = "no"
+	}
+
 	reply, err := client.Run("/ppp/secret/print", "?name="+oldName)
 	if err != nil {
 		return err
 	}
 	if len(reply.Re) == 0 {
-		// Fallback to create if not found
-		return CreatePPPoESecret(client, newName, password, profile, ipAddress)
+		// Fallback to create if not found, preserving requested disabled status
+		return CreatePPPoESecretWithDisabled(client, newName, password, profile, ipAddress, disabled)
 	}
 
 	secretID := reply.Re[0].Map[".id"]
