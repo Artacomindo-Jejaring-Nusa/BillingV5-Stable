@@ -104,10 +104,10 @@ type BillingUsecase interface {
 	GetRevenueReportDetails(ctx context.Context, params *RevenueReportParams) ([]InvoiceReportItem, error)
 
 	// Portability
-	ExportLangganan(ctx context.Context, format string) ([]byte, string, error)
+	ExportLangganan(ctx context.Context, format string, filters LanggananFilterParams) ([]byte, string, error)
 	ExportLanggananMultiSheet(ctx context.Context) ([]byte, string, error)
 	ImportLanggananFromCSV(ctx context.Context, csvContent string) (int, error)
-	ExportInvoices(ctx context.Context, format string) ([]byte, string, error)
+	ExportInvoices(ctx context.Context, format string, search, status string, pelangganID *uint64) ([]byte, string, error)
 	ExportPaymentLinksExcel(ctx context.Context, filters map[string]string) ([]byte, error)
 	ArchiveOldInvoices(ctx context.Context) error
 	RetryFailedMikrotikSync(ctx context.Context) error

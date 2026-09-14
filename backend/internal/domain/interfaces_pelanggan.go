@@ -37,7 +37,7 @@ type PelangganUsecase interface {
 	Update(ctx context.Context, id uint64, pelanggan *Pelanggan) error
 	Delete(ctx context.Context, id uint64) error
 	GetUniqueLocations(ctx context.Context) ([]string, error)
-	Export(ctx context.Context, format string) ([]byte, string, error)
+	Export(ctx context.Context, format string, filters PelangganFilterParams) ([]byte, string, error)
 	ImportFromCSV(ctx context.Context, csvContent string) (int, error)
 	BackfillCustomerIDs(ctx context.Context) error
 }

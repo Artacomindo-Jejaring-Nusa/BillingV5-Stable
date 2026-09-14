@@ -419,7 +419,7 @@ func TestExportLangganan(t *testing.T) {
 	u := NewBillingUsecase(nil, langRepo, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	// Test CSV
-	data, contentType, err := u.ExportLangganan(context.Background(), "csv")
+	data, contentType, err := u.ExportLangganan(context.Background(), "csv", domain.LanggananFilterParams{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -429,7 +429,7 @@ func TestExportLangganan(t *testing.T) {
 	if len(data) == 0 { t.Error("empty data") }
 
 	// Test Excel
-	data, contentType, err = u.ExportLangganan(context.Background(), "excel")
+	data, contentType, err = u.ExportLangganan(context.Background(), "excel", domain.LanggananFilterParams{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -471,11 +471,11 @@ func TestExportInvoices(t *testing.T) {
 	u := NewBillingUsecase(invRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	// Test CSV
-	_, _, err := u.ExportInvoices(context.Background(), "csv")
+	_, _, err := u.ExportInvoices(context.Background(), "csv", "", "", nil)
 	if err != nil { t.Fatalf("unexpected error: %v", err) }
 
 	// Test Excel
-	_, _, err = u.ExportInvoices(context.Background(), "excel")
+	_, _, err = u.ExportInvoices(context.Background(), "excel", "", "", nil)
 	if err != nil { t.Fatalf("unexpected error: %v", err) }
 }
 

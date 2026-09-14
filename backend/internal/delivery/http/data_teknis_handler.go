@@ -87,7 +87,30 @@ func (h *DataTeknisHandler) GetPelangganDetail(c *gin.Context) {
 
 func (h *DataTeknisHandler) Export(c *gin.Context) {
 	format := c.DefaultQuery("format", "csv")
-	data, contentType, err := h.dataTeknisUsecase.Export(c.Request.Context(), format)
+	var onuPowerMin *int
+	if minStr := c.Query("onu_power_min"); minStr != "" {
+		if val, err := strconv.Atoi(minStr); err == nil {
+			onuPowerMin = &val
+		}
+	}
+
+	var onuPowerMax *int
+	if maxStr := c.Query("onu_power_max"); maxStr != "" {
+		if val, err := strconv.Atoi(maxStr); err == nil {
+			onuPowerMax = &val
+		}
+	}
+
+	filters := domain.DataTeknisFilterParams{
+		Search:      c.Query("search"),
+		Olt:         c.Query("olt"),
+		Profile:     c.Query("profile"),
+		Vlan:        c.Query("vlan"),
+		OnuPowerMin: onuPowerMin,
+		OnuPowerMax: onuPowerMax,
+	}
+
+	data, contentType, err := h.dataTeknisUsecase.Export(c.Request.Context(), format, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

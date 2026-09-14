@@ -1615,7 +1615,7 @@ func (u *billingUsecase) GetRevenueReportDetails(ctx context.Context, params *do
 
 // --- Portability ---
 
-func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]byte, string, error) {
+func (u *billingUsecase) ExportLangganan(ctx context.Context, format string, filters domain.LanggananFilterParams) ([]byte, string, error) {
 	headers := []string{"ID", "Nama Pelanggan", "No. Telepon", "Alamat", "Brand", "Paket", "Status", "Kategori User", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti", "Metode"}
 	limit := 1000
 	offset := 0
@@ -1657,7 +1657,7 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 
 		row := 2
 		for {
-			chunk, _, err := u.langgananRepo.GetAll(ctx, limit, offset, domain.LanggananFilterParams{})
+			chunk, _, err := u.langgananRepo.GetAll(ctx, limit, offset, filters)
 			if err != nil {
 				return nil, "", err
 			}
@@ -1726,7 +1726,7 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string) ([]
 		w.Write(headers)
 
 		for {
-			chunk, _, err := u.langgananRepo.GetAll(ctx, limit, offset, domain.LanggananFilterParams{})
+			chunk, _, err := u.langgananRepo.GetAll(ctx, limit, offset, filters)
 			if err != nil {
 				return nil, "", err
 			}
@@ -2227,7 +2227,7 @@ func (u *billingUsecase) ImportLanggananFromCSV(ctx context.Context, content str
 	return successCount, nil
 }
 
-func (u *billingUsecase) ExportInvoices(ctx context.Context, format string) ([]byte, string, error) {
+func (u *billingUsecase) ExportInvoices(ctx context.Context, format string, search, status string, pelangganID *uint64) ([]byte, string, error) {
 	headers := []string{"ID", "Invoice Number", "Pelanggan", "No. Telepon", "Alamat", "Total", "Status", "Tgl Invoice", "Tgl Lunas"}
 	limit := 1000
 	offset := 0
@@ -2243,7 +2243,7 @@ func (u *billingUsecase) ExportInvoices(ctx context.Context, format string) ([]b
 
 		row := 2
 		for {
-			invoices, _, err := u.invoiceRepo.GetAll(ctx, limit, offset, "", "", nil)
+			invoices, _, err := u.invoiceRepo.GetAll(ctx, limit, offset, search, status, pelangganID)
 			if err != nil {
 				return nil, "", err
 			}
@@ -2287,7 +2287,7 @@ func (u *billingUsecase) ExportInvoices(ctx context.Context, format string) ([]b
 		w.Write(headers)
 
 		for {
-			invoices, _, err := u.invoiceRepo.GetAll(ctx, limit, offset, "", "", nil)
+			invoices, _, err := u.invoiceRepo.GetAll(ctx, limit, offset, search, status, pelangganID)
 			if err != nil {
 				return nil, "", err
 			}

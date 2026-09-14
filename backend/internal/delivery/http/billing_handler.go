@@ -580,7 +580,22 @@ func (h *BillingHandler) GetRevenueReportDetails(c *gin.Context) {
 
 func (h *BillingHandler) ExportLangganan(c *gin.Context) {
 	format := c.DefaultQuery("format", "csv")
-	data, contentType, err := h.billingUsecase.ExportLangganan(c.Request.Context(), format)
+	filters := domain.LanggananFilterParams{
+		Search:              c.Query("search"),
+		Status:              c.Query("status"),
+		Alamat:              c.Query("alamat"),
+		Blok:                c.Query("blok"),
+		IDBrand:             c.Query("id_brand"),
+		PaketLayananID:      c.Query("paket_layanan_id"),
+		JatuhTempoStart:     c.Query("jatuh_tempo_start"),
+		JatuhTempoEnd:       c.Query("jatuh_tempo_end"),
+		CreatedAtStart:      c.Query("created_at_start"),
+		CreatedAtEnd:        c.Query("created_at_end"),
+		ForInvoiceSelection: c.Query("for_invoice_selection") == "true",
+		SortBy:              c.Query("sort_by"),
+		SortOrder:           c.Query("sort_order"),
+	}
+	data, contentType, err := h.billingUsecase.ExportLangganan(c.Request.Context(), format, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -624,7 +639,17 @@ func (h *BillingHandler) DownloadLanggananTemplate(c *gin.Context) {
 
 func (h *BillingHandler) ExportInvoices(c *gin.Context) {
 	format := c.DefaultQuery("format", "csv")
-	data, contentType, err := h.billingUsecase.ExportInvoices(c.Request.Context(), format)
+	search := c.Query("search")
+	status := c.Query("status_invoice")
+
+	var pelangganID *uint64
+	if pidStr := c.Query("pelanggan_id"); pidStr != "" {
+		if pid, err := strconv.ParseUint(pidStr, 10, 64); err == nil && pid > 0 {
+			pelangganID = &pid
+		}
+	}
+
+	data, contentType, err := h.billingUsecase.ExportInvoices(c.Request.Context(), format, search, status, pelangganID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

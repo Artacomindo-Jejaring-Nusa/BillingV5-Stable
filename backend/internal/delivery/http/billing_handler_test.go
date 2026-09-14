@@ -18,7 +18,7 @@ func (m *mockBillingUsecase) FetchLangganan(ctx context.Context, page, pageSize 
 	return []domain.Langganan{}, 0, nil
 }
 
-func (m *mockBillingUsecase) ExportLangganan(ctx context.Context, format string) ([]byte, string, error) {
+func (m *mockBillingUsecase) ExportLangganan(ctx context.Context, format string, filters domain.LanggananFilterParams) ([]byte, string, error) {
 	return []byte("csv data"), "text/csv", nil
 }
 
@@ -30,7 +30,7 @@ func (m *mockBillingUsecase) GetInvoiceSummary(ctx context.Context) (*domain.Inv
 	return &domain.InvoiceSummaryStats{}, nil
 }
 
-func (m *mockBillingUsecase) ExportInvoices(ctx context.Context, format string) ([]byte, string, error) {
+func (m *mockBillingUsecase) ExportInvoices(ctx context.Context, format string, search, status string, pelangganID *uint64) ([]byte, string, error) {
 	return []byte("csv data"), "text/csv", nil
 }
 

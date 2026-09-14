@@ -38,13 +38,13 @@ func TestPelangganExport(t *testing.T) {
 	u := NewPelangganUsecase(repo)
 
 	// Test CSV Export
-	_, _, err := u.Export(context.Background(), "csv")
+	_, _, err := u.Export(context.Background(), "csv", domain.PelangganFilterParams{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Test Excel Export
-	_, _, err = u.Export(context.Background(), "excel")
+	_, _, err = u.Export(context.Background(), "excel", domain.PelangganFilterParams{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

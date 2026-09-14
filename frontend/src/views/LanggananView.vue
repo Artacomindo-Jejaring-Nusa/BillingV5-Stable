@@ -3422,15 +3422,15 @@ async function exportLangganan(format = 'csv') {
       params.append('blok', selectedBlok.value);
     }
     if (selectedPaket.value) {
-      params.append('paket_layanan_name', String(selectedPaket.value));
+      params.append('paket_layanan_id', String(selectedPaket.value));
     }
     if (selectedStatus.value) {
       params.append('status', selectedStatus.value);
     }
     if (selectedExportBrand.value && selectedExportBrand.value.trim() !== '') {
-      params.append('brand', selectedExportBrand.value.trim());
+      params.append('id_brand', selectedExportBrand.value.trim());
     }
-        if (selectedJatuhTempoStart.value) {
+    if (selectedJatuhTempoStart.value) {
       params.append('jatuh_tempo_start', toISODateString(selectedJatuhTempoStart.value));
     }
     if (selectedJatuhTempoEnd.value) {
@@ -3477,14 +3477,17 @@ async function exportMultiSheet() {
     if (selectedAlamat.value && selectedAlamat.value.trim() !== '') {
       params.append('alamat', selectedAlamat.value.trim());
     }
+    if (selectedBlok.value) {
+      params.append('blok', selectedBlok.value);
+    }
     if (selectedPaket.value) {
-      params.append('paket_layanan_name', String(selectedPaket.value));
+      params.append('paket_layanan_id', String(selectedPaket.value));
     }
     if (selectedStatus.value) {
       params.append('status', selectedStatus.value);
     }
     if (selectedExportBrand.value && selectedExportBrand.value.trim() !== '') {
-      params.append('brand', selectedExportBrand.value.trim());
+      params.append('id_brand', selectedExportBrand.value.trim());
     }
     if (selectedJatuhTempoStart.value) {
       params.append('jatuh_tempo_start', toISODateString(selectedJatuhTempoStart.value));

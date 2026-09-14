@@ -366,7 +366,7 @@ func (u *pelangganUsecase) ImportFromCSV(ctx context.Context, csvContent string)
 	return successCount, nil
 }
 
-func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, string, error) {
+func (u *pelangganUsecase) Export(ctx context.Context, format string, filters domain.PelangganFilterParams) ([]byte, string, error) {
 	headers := []string{"ID", "No KTP", "Nama", "Alamat", "Alamat Tambahan", "Blok", "Unit", "No Telp", "Email", "Layanan", "Brand", "Tgl Instalasi"}
 	limit := 1000
 	offset := 0
@@ -406,7 +406,7 @@ func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, s
 
 		row := 2
 		for {
-			pelanggans, _, err := u.pelangganRepo.GetAll(ctx, limit, offset, domain.PelangganFilterParams{})
+			pelanggans, _, err := u.pelangganRepo.GetAll(ctx, limit, offset, filters)
 			if err != nil {
 				return nil, "", err
 			}
@@ -450,7 +450,7 @@ func (u *pelangganUsecase) Export(ctx context.Context, format string) ([]byte, s
 		w.Write(headers)
 
 		for {
-			pelanggans, _, err := u.pelangganRepo.GetAll(ctx, limit, offset, domain.PelangganFilterParams{})
+			pelanggans, _, err := u.pelangganRepo.GetAll(ctx, limit, offset, filters)
 			if err != nil {
 				return nil, "", err
 			}

@@ -42,6 +42,16 @@ type DataTeknisRepository interface {
 	GetUnconfiguredPelanggan(ctx context.Context, search string) ([]Pelanggan, error)
 }
 
+// DataTeknisFilterParams holds filter parameters for Data Teknis export
+type DataTeknisFilterParams struct {
+	Search      string
+	Olt         string
+	Profile     string
+	Vlan        string
+	OnuPowerMin *int
+	OnuPowerMax *int
+}
+
 // DataTeknisUsecase defines business logic for DataTeknis
 type DataTeknisUsecase interface {
 	FetchAll(ctx context.Context, skip, limit int, search string, olt string, profile string, vlan string, onuPowerMin, onuPowerMax *int) ([]DataTeknis, int64, error)
@@ -60,7 +70,7 @@ type DataTeknisUsecase interface {
 	GetUnconfiguredPelanggan(ctx context.Context, search string) ([]map[string]interface{}, error)
 	GetPelangganDetail(ctx context.Context, pelangganID uint64) (map[string]interface{}, error)
 	ImportFromCSV(ctx context.Context, csvContent string) (int, error)
-	Export(ctx context.Context, format string) ([]byte, string, error)
+	Export(ctx context.Context, format string, filters DataTeknisFilterParams) ([]byte, string, error)
 	AutoSyncProfileForPelanggan(ctx context.Context, pelangganID uint64, paket *PaketLayanan) (string, error)
 	GetLiveONU(ctx context.Context, id uint64) (*ZTEONUDetail, error)
 	SyncLiveOnuPower(ctx context.Context, id uint64, power float64) error

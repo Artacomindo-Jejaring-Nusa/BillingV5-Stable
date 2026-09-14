@@ -1065,7 +1065,7 @@ func (u *dataTeknisUsecase) ImportFromCSV(ctx context.Context, csvContent string
 	return successCount, nil
 }
 
-func (u *dataTeknisUsecase) Export(ctx context.Context, format string) ([]byte, string, error) {
+func (u *dataTeknisUsecase) Export(ctx context.Context, format string, filters domain.DataTeknisFilterParams) ([]byte, string, error) {
 	headers := []string{
 		"ID", "ID Pelanggan", "Password PPPoE", "Profile PPPoE", "IP Address", 
 		"VLAN", "OLT", "OLT Custom", "PON", "OTB", "ODC", "ODP ID", "ODP Code", "Port ODP", "SN", "ONU Power",
@@ -1084,7 +1084,7 @@ func (u *dataTeknisUsecase) Export(ctx context.Context, format string) ([]byte, 
 
 		row := 2
 		for {
-			data, _, err := u.dataTeknisRepo.GetAll(ctx, offset, limit, "", "", "", "", nil, nil)
+			data, _, err := u.dataTeknisRepo.GetAll(ctx, offset, limit, filters.Search, filters.Olt, filters.Profile, filters.Vlan, filters.OnuPowerMin, filters.OnuPowerMax)
 			if err != nil {
 				return nil, "", err
 			}
@@ -1172,7 +1172,7 @@ func (u *dataTeknisUsecase) Export(ctx context.Context, format string) ([]byte, 
 		w.Write(headers)
 
 		for {
-			data, _, err := u.dataTeknisRepo.GetAll(ctx, offset, limit, "", "", "", "", nil, nil)
+			data, _, err := u.dataTeknisRepo.GetAll(ctx, offset, limit, filters.Search, filters.Olt, filters.Profile, filters.Vlan, filters.OnuPowerMin, filters.OnuPowerMax)
 			if err != nil {
 				return nil, "", err
 			}

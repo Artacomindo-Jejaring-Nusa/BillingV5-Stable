@@ -40,7 +40,16 @@ func NewPelangganHandler(r *gin.RouterGroup, pu domain.PelangganUsecase, authMid
 
 func (h *PelangganHandler) Export(c *gin.Context) {
 	format := c.DefaultQuery("format", "csv")
-	data, contentType, err := h.pelangganUsecase.Export(c.Request.Context(), format)
+	filters := domain.PelangganFilterParams{
+		Search:           c.Query("search"),
+		ConnectionStatus: c.Query("connection_status"),
+		Alamat:           c.Query("alamat"),
+		IDBrand:          c.Query("id_brand"),
+		Layanan:          c.Query("layanan"),
+		TglInstalasiFrom: c.Query("tgl_instalasi_from"),
+		TglInstalasiTo:   c.Query("tgl_instalasi_to"),
+	}
+	data, contentType, err := h.pelangganUsecase.Export(c.Request.Context(), format, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

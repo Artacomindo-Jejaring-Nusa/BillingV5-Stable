@@ -86,7 +86,7 @@ func TestDataTeknisExport(t *testing.T) {
 	u := NewDataTeknisUsecase(repo, nil, nil, nil, nil, nil)
 
 	// Test CSV
-	_, contentType, err := u.Export(context.Background(), "csv")
+	_, contentType, err := u.Export(context.Background(), "csv", domain.DataTeknisFilterParams{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestDataTeknisExport(t *testing.T) {
 	}
 
 	// Test Excel
-	_, contentType, err = u.Export(context.Background(), "excel")
+	_, contentType, err = u.Export(context.Background(), "excel", domain.DataTeknisFilterParams{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
