@@ -27,7 +27,8 @@ func NewPelangganHandler(r *gin.RouterGroup, pu domain.PelangganUsecase, authMid
 	pelangganGroup.Use(authMiddleware)
 	{
 		pelangganGroup.GET("", middleware.PermissionMiddleware("view_pelanggan"), handler.FetchAll)
-		pelangganGroup.GET("/lokasi/unik", middleware.PermissionMiddleware("view_pelanggan"), handler.GetUniqueLocations)
+		pelangganGroup.GET("/lokasi/unik", handler.GetUniqueLocations)
+		pelangganGroup.GET("/locations", handler.GetUniqueLocations)
 		pelangganGroup.GET("/export", middleware.PermissionMiddleware("view_pelanggan"), handler.Export)
 		pelangganGroup.POST("/import", middleware.PermissionMiddleware("create_pelanggan"), handler.Import)
 		pelangganGroup.GET("/template/csv", middleware.PermissionMiddleware("create_pelanggan"), handler.DownloadCSVTemplate)

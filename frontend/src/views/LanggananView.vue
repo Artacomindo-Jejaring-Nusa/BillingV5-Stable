@@ -2936,22 +2936,40 @@ async function confirmBulkDelete() {
   }
 }
 
-const alamatOptions = ref<string[]>([]);
+const defaultAlamatList = [
+  'Tambun',
+  'Rusun Pinus Elok',
+  'Luar Pinus Elok',
+  'Rusun Pulogebang',
+  'Rusun Cakung KM2',
+  'Rusun Tipar Cakung',
+  'Rusun Albo',
+  'Rusun Nagrak',
+  'Waringin',
+  'Parama',
+  'Casanova'
+];
+
+const alamatOptions = ref<string[]>([...defaultAlamatList]);
 
 // Fungsi untuk mengambil semua alamat unik dari database
 async function fetchAlamatOptions() {
   try {
-    const response = await apiClient.get<string[]>('/pelanggan/locations');
+    const response = await apiClient.get<string[]>('/pelanggan/lokasi/unik');
     const pelangganData = response.data;
     
-    if (Array.isArray(pelangganData)) {
-      alamatOptions.value = pelangganData.filter((alamat: string) => typeof alamat === 'string' && alamat.trim() !== '').sort();
-    } else {
-      alamatOptions.value = [];
+    if (Array.isArray(pelangganData) && pelangganData.length > 0) {
+      const filtered = pelangganData.filter((alamat: string) => typeof alamat === 'string' && alamat.trim() !== '').sort();
+      if (filtered.length > 0) {
+        alamatOptions.value = filtered;
+        return;
+      }
     }
   } catch (error) {
     console.warn("Gagal mengambil alamat dari pelanggan:", error);
-    alamatOptions.value = [];
+  }
+  if (alamatOptions.value.length === 0) {
+    alamatOptions.value = [...defaultAlamatList];
   }
 }
 
