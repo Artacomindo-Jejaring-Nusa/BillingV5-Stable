@@ -1052,9 +1052,13 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 			// Jika jatuh tempo berada pada atau sebelum targetDate (H-5)
 			if isBefore {
 				// Check if invoice already exists for this cycle (same month/year as due date)
+				refDate := l.TglJatuhTempo
+				if refDate == nil {
+					refDate = targetDue
+				}
 				existing, err := u.invoiceRepo.GetInvoiceByPelangganAndDueDateRange(ctx, l.PelangganID,
-					time.Date(l.TglJatuhTempo.Year(), l.TglJatuhTempo.Month(), 1, 0, 0, 0, 0, l.TglJatuhTempo.Location()),
-					time.Date(l.TglJatuhTempo.Year(), l.TglJatuhTempo.Month()+1, 0, 23, 59, 59, 0, l.TglJatuhTempo.Location()))
+					time.Date(refDate.Year(), refDate.Month(), 1, 0, 0, 0, 0, refDate.Location()),
+					time.Date(refDate.Year(), refDate.Month()+1, 0, 23, 59, 59, 0, refDate.Location()))
 				if err != nil {
 					u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateInvoices: Gagal mengecek invoice existing untuk pelanggan %d: %v", l.PelangganID, err))
 					continue
@@ -1100,6 +1104,9 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 					alamatSingkat := utils.GenerateAlamatSingkat(pelanggan.Alamat, pelanggan.Blok, pelanggan.Unit, 10)
 
 					namingDate := l.TglJatuhTempo
+					if namingDate == nil {
+						namingDate = targetDue
+					}
 					if l.MetodePembayaran == "Prorate" && namingDate.Day() == 1 {
 						d := namingDate.AddDate(0, 0, -1)
 						namingDate = &d

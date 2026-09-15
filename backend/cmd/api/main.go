@@ -257,8 +257,8 @@ func main() {
 	})
 	router.GET("/ws/notifications", httpDelivery.HandleWebSocket)
 
-	// 6. Setup Health Check
-	router.GET("/health", func(c *gin.Context) {
+	// 6. Setup Health Check (with aliases for root, frontend NetworkErrorView /api/health, and api client /api/v1/health)
+	healthHandler := func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		if err := database.HealthCheck(ctx); err != nil {
@@ -266,11 +266,14 @@ func main() {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "environment": cfg.Environment, "timestamp": time.Now()})
-	})
+	}
+	router.GET("/health", healthHandler)
+	router.GET("/api/health", healthHandler)
 
 	// 7. Setup Clean Architecture Layers
 	api := router.Group("/api/v1")
 	api.Use(middleware.NoCache())
+	api.GET("/health", healthHandler)
 	authMw := middleware.AuthMiddleware(cfg)
 
 	systemRepo := repository.NewSystemRepository(db)

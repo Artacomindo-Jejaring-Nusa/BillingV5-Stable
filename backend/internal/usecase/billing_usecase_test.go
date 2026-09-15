@@ -893,3 +893,79 @@ func TestGenerateInvoices(t *testing.T) {
 	}
 }
 
+func TestGenerateInvoices_NilTglJatuhTempo(t *testing.T) {
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		loc = time.FixedZone("WIB", 7*3600)
+	}
+
+	today := time.Now().In(loc)
+	dueDatePembayaran := today.AddDate(0, 0, 3) // payment due date (within H-5)
+
+	brandID := "ajn-01"
+	brand := &domain.HargaLayanan{
+		IDBrand: brandID,
+		Brand:   "Jakinet",
+		Pajak:   11.0,
+	}
+
+	paket := &domain.PaketLayanan{
+		ID:        1,
+		NamaPaket: "10Mbps",
+		Harga:     300000.0,
+		Kecepatan: 10,
+	}
+
+	pelanggan := &domain.Pelanggan{
+		ID:      1,
+		Nama:    "Budi Santoso",
+		IDBrand: &brandID,
+		Alamat:  "Jl. Melati No. 1",
+		NoTelp:  "081234567891",
+		Email:   "budi@gmail.com",
+	}
+
+	// TglJatuhTempo is nil! Only TglJatuhTempoPembayaran is set.
+	langganan := domain.Langganan{
+		ID:                      1,
+		PelangganID:             1,
+		PaketLayananID:          1,
+		Status:                  "Aktif",
+		TglJatuhTempo:           nil, // nil pointer test
+		TglJatuhTempoPembayaran: &dueDatePembayaran,
+		HargaAwal:               &paket.Harga,
+		MetodePembayaran:        "Otomatis",
+	}
+
+	langRepo := &mockLanggananRepoForGenerate{data: []domain.Langganan{langganan}}
+	invRepo := &mockInvoiceRepoForGenerate{}
+	pelRepo := &mockPelangganRepo{data: map[uint64]*domain.Pelanggan{1: pelanggan}}
+	bRepo := &mockBrandRepo{data: map[string]*domain.HargaLayanan{brandID: brand}}
+	dtRepo := &mockDataTeknisRepoForGenerate{data: &domain.DataTeknis{ID: 1, IDPelanggan: "JKT-002"}}
+	pkRepo := &mockPaketRepo{data: map[uint64]*domain.PaketLayanan{1: paket}}
+	diskRepo := &mockDiskonRepoForGenerate{}
+	sysRepo := &mockSystemRepo{}
+
+	cfg := &config.Config{
+		XenditApiUrl: "https://api.xendit.co/v2/invoices",
+	}
+
+	u := NewBillingUsecase(invRepo, langRepo, pelRepo, pkRepo, bRepo, dtRepo, nil, diskRepo, sysRepo, cfg).(*billingUsecase)
+
+	// Must NOT panic
+	err = u.GenerateInvoices(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(invRepo.created) != 1 {
+		t.Fatalf("expected 1 invoice to be created, got %d", len(invRepo.created))
+	}
+
+	inv := invRepo.created[0]
+	if inv.PelangganID != 1 {
+		t.Errorf("expected PelangganID 1, got %d", inv.PelangganID)
+	}
+}
+
+
