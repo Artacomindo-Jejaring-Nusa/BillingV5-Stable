@@ -25,6 +25,26 @@ const resetToken = ref(''); // Untuk menyimpan token dari forgot password
 const rememberMe = ref(false); // Untuk checkbox remember me
 const showPassword = ref(false); // Untuk toggle password visibility
 
+// State Animasi Aur-Auran / Mencar 3D
+const isExploding = ref(false);
+const isRewinding = ref(false);
+const scatterCountdown = ref(5);
+const explosionParticles = ref<Array<{ id: number; x: number; y: number; rot: number; size: number; color: string; delay: number; duration: number }>>([]);
+let countdownInterval: any = null;
+
+function triggerRewind(errMsg: string) {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+  isRewinding.value = true;
+  setTimeout(() => {
+    isExploding.value = false;
+    isRewinding.value = false;
+    error.value = errMsg;
+  }, 750);
+}
+
 // Load remembered email on component mount
 onMounted(() => {
   const rememberedEmail = localStorage.getItem('remember_email');
@@ -54,8 +74,43 @@ async function handleLogin() {
   error.value = '';
   loading.value = true;
 
+  // Aktifkan animasi ledakan mencar aur-auran!
+  isExploding.value = true;
+  isRewinding.value = false;
+  scatterCountdown.value = 5;
+
+  // Hasilkan 35 partikel serpihan warna-warni yang berhamburan ke segala arah
+  explosionParticles.value = Array.from({ length: 35 }, (_, i) => ({
+    id: i,
+    x: (Math.random() - 0.5) * 1400,
+    y: (Math.random() - 0.5) * 1100,
+    rot: Math.floor(Math.random() * 720) - 360,
+    size: Math.random() * 12 + 6,
+    color: ['#3b82f6', '#1d4ed8', '#60a5fa', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#ec4899'][Math.floor(Math.random() * 8)],
+    delay: Math.random() * 0.4,
+    duration: 3 + Math.random() * 2,
+  }));
+
+  // Countdown timer 5 detik
+  if (countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(() => {
+    if (scatterCountdown.value > 1) {
+      scatterCountdown.value--;
+    } else {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+    }
+  }, 1000);
+
   try {
-    const success = await authStore.login(email.value, password.value);
+    const loginPromise = authStore.login(email.value, password.value);
+
+    // Tunggu full 4.8 - 5 detik durasi animasi mencar agar terasa epic
+    const [success] = await Promise.all([
+      loginPromise,
+      new Promise((resolve) => setTimeout(resolve, 4800)),
+    ]);
+
     if (success) {
       // Store remember me preference if checked
       if (rememberMe.value) {
@@ -65,12 +120,12 @@ async function handleLogin() {
       }
       router.push('/dashboard');
     } else {
-      error.value = 'Email atau password salah!';
+      triggerRewind('Email atau password salah!');
     }
   } catch (err) {
     const errorResponse = err as AxiosError<ErrorResponse>;
     console.error('Login error:', errorResponse.response?.data || errorResponse.message);
-    error.value = errorResponse.response?.data?.detail || errorResponse.response?.data?.message || 'Terjadi kesalahan saat login';
+    triggerRewind(errorResponse.response?.data?.detail || errorResponse.response?.data?.message || 'Terjadi kesalahan saat login');
   } finally {
     loading.value = false;
   }
@@ -117,16 +172,20 @@ function backToLogin() {
 <template>
   <div class="min-h-screen gradient-bg flex flex-col items-center justify-center p-6 md:p-12 relative pb-20">
     <!-- Main Login Card -->
-    <div class="w-full max-w-7xl flex overflow-hidden login-card-enhanced relative z-10 mx-auto" style="width: 95vw; max-width: 1200px; border-radius: 1.5rem 1.5rem 0 0; position: relative; overflow: visible;">
+    <div
+      class="w-full max-w-7xl flex overflow-hidden login-card-enhanced relative z-10 mx-auto"
+      :class="{ 'chaos-active': isExploding, 'chaos-rewind': isRewinding }"
+      style="width: 95vw; max-width: 1200px; border-radius: 1.5rem 1.5rem 0 0; position: relative; overflow: visible;"
+    >
 
       <!-- Login Form - Left Side (LoginForm.js) -->
-      <div class="w-full lg:w-[60%] glass-effect px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8 flex flex-col">
+      <div class="w-full lg:w-[60%] glass-effect px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8 flex flex-col chaos-card-left">
         <div class="w-full max-w-md mx-auto">
           <div class="logo-header mb-4">
-            <h2 class="text-lg font-semibold text-black pb-1 border-b-2 border-gray-300 inline-block">
+            <h2 class="text-lg font-semibold text-black pb-1 border-b-2 border-gray-300 inline-block chaos-title">
               {{ showForgotPassword ? 'Atur Ulang Kata Sandi' : 'Silakan Login' }}
             </h2>
-            <div v-if="!showForgotPassword" class="logo-container">
+            <div v-if="!showForgotPassword" class="logo-container chaos-logo-left">
               <img
                 src="/src/assets/icon_dark.ico"
                 alt="Jelantik Logo"
@@ -142,7 +201,7 @@ function backToLogin() {
           <!-- Login Form -->
           <form v-if="!showForgotPassword" @submit.prevent="handleLogin" class="mt-10">
             <!-- Email Input -->
-            <div class="mb-6">
+            <div class="mb-6 chaos-email">
               <label class="form-label">
                 Alamat Email
               </label>
@@ -170,7 +229,7 @@ function backToLogin() {
             </div>
 
             <!-- Password Input -->
-            <div class="mb-4">
+            <div class="mb-4 chaos-password">
               <label class="form-label">
                 Kata Sandi
               </label>
@@ -208,7 +267,7 @@ function backToLogin() {
               </div>
             </div>
 
-            <div class="flex items-center mb-6">
+            <div class="flex items-center mb-6 chaos-remember">
               <input
                 type="checkbox"
                 v-model="rememberMe"
@@ -231,7 +290,7 @@ function backToLogin() {
             <button
               type="submit"
               :disabled="loading"
-              class="w-full rounded font-medium flex items-center justify-center hover:opacity-90 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
+              class="w-full rounded font-medium flex items-center justify-center hover:opacity-90 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed chaos-btn"
               style="
                 background: #0d2691;
                 color: white;
@@ -343,7 +402,7 @@ function backToLogin() {
 
       
       <!-- Welcome Panel - Right Side (WelcomePanel.js) -->
-      <div class="hidden lg:flex lg:w-[40%] blue-gradient-bg relative overflow-hidden items-center justify-center">
+      <div class="hidden lg:flex lg:w-[40%] blue-gradient-bg relative overflow-hidden items-center justify-center chaos-card-right">
         <div class="absolute inset-0">
           <div class="absolute -top-32 -right-32 w-[400px] h-[400px] bg-blue-400 rounded-full opacity-30 blur-3xl"></div>
           <div class="absolute top-20 right-20 w-[350px] h-[350px] bg-blue-500 rounded-full opacity-25 blur-3xl"></div>
@@ -352,7 +411,7 @@ function backToLogin() {
         </div>
 
         <!-- Floating Logo in Welcome Panel -->
-        <div class="welcome-panel-logo">
+        <div class="welcome-panel-logo chaos-logo-right">
           <img
             src="/src/assets/icon_light.ico"
             alt="Jelantik Logo"
@@ -361,8 +420,8 @@ function backToLogin() {
         </div>
 
         <div class="relative z-10 text-center text-white px-12">
-          <h1 class="text-5xl font-bold mb-2 tracking-wide">WELCOME!</h1>
-          <p class="text-base opacity-90 max-w-sm mx-auto leading-relaxed">
+          <h1 class="text-5xl font-bold mb-2 tracking-wide chaos-welcome-text">WELCOME!</h1>
+          <p class="text-base opacity-90 max-w-sm mx-auto leading-relaxed chaos-subtitle">
             PORTAL FTTH & BILLING AJNUSA V5.0
           </p>
         </div>
@@ -371,7 +430,11 @@ function backToLogin() {
     </div>
 
     <!-- Credit dan Copyright Section - Menyatu dengan Login Card -->
-    <div class="w-full max-w-7xl login-card-enhanced relative z-10 mx-auto" style="width: 95vw; max-width: 1200px; margin-top: -1px; position: relative;">
+    <div
+      class="w-full max-w-7xl login-card-enhanced relative z-10 mx-auto chaos-footer"
+      :class="{ 'chaos-active': isExploding, 'chaos-rewind': isRewinding }"
+      style="width: 95vw; max-width: 1200px; margin-top: -1px; position: relative;"
+    >
       <div class="copyright-section-merged bg-white/95 backdrop-blur-xl border border-gray-200/50 shadow-2xl relative" style="border-radius: 0 0 1.5rem 1.5rem; box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12), 0 -2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);">
 
         <!-- Corner fixes to remove sharp edges -->
@@ -420,6 +483,32 @@ function backToLogin() {
         </div>
       </div>
     </div>
+
+    <!-- Chaos Explosion Shockwave & Floating Particles Overlay -->
+    <div v-if="isExploding" class="chaos-overlay pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden">
+      <div class="chaos-shockwave"></div>
+      <div
+        v-for="p in explosionParticles"
+        :key="p.id"
+        class="chaos-particle"
+        :style="{
+          '--tx': `${p.x}px`,
+          '--ty': `${p.y}px`,
+          '--rot': `${p.rot}deg`,
+          '--size': `${p.size}px`,
+          '--bg': p.color,
+          '--dur': `${p.duration}s`,
+          '--del': `${p.delay}s`
+        }"
+      ></div>
+      <div class="chaos-badge">
+        <span class="chaos-emoji">🚀</span>
+        <div class="chaos-badge-content">
+          <span class="chaos-badge-title">AUR-AURAN MELUNCUR!</span>
+          <span class="chaos-badge-sub">Mempersiapkan Dashboard ({{ scatterCountdown }}s)...</span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -440,6 +529,236 @@ function backToLogin() {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  perspective: 1400px;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ==========================================================================
+   CHAOS 3D EXPLOSION / SCATTER ANIMATION ("AUR-AURAN")
+   ========================================================================== */
+.chaos-title,
+.chaos-logo-left,
+.chaos-email,
+.chaos-password,
+.chaos-remember,
+.chaos-btn,
+.chaos-card-left,
+.chaos-card-right,
+.chaos-logo-right,
+.chaos-welcome-text,
+.chaos-subtitle,
+.chaos-footer {
+  transform-origin: center center;
+  will-change: transform, opacity, filter;
+  transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s ease, filter 0.5s ease;
+}
+
+/* EXPLOSION ACTIVE STATE (5 Seconds physics simulation) */
+.chaos-active .chaos-title {
+  transform: translate3d(-750px, -450px, 350px) rotate(-720deg) scale(0.3);
+  opacity: 0;
+  filter: blur(8px);
+  transition: transform 5s cubic-bezier(0.12, 0.8, 0.2, 1), opacity 4.5s ease, filter 4.5s ease;
+}
+
+.chaos-active .chaos-logo-left {
+  transform: translate3d(-350px, -700px, 600px) rotate(1080deg) scale(2.2);
+  opacity: 0;
+  filter: blur(12px);
+  transition: transform 5s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 4.5s ease, filter 4.5s ease;
+}
+
+.chaos-active .chaos-email {
+  transform: translate3d(-950px, 180px, 200px) rotate(-240deg) scale(0.4);
+  opacity: 0;
+  filter: blur(10px);
+  transition: transform 5s cubic-bezier(0.15, 0.85, 0.2, 1), opacity 4.2s ease, filter 4.2s ease;
+}
+
+.chaos-active .chaos-password {
+  transform: translate3d(-850px, 500px, -250px) rotate3d(1, 1, 0.5, 450deg) scale(0.3);
+  opacity: 0;
+  filter: blur(10px);
+  transition: transform 5s cubic-bezier(0.18, 0.82, 0.2, 1), opacity 4.4s ease, filter 4.4s ease;
+}
+
+.chaos-active .chaos-remember {
+  transform: translate3d(-400px, 850px, 120px) rotate(-400deg) scale(0.15);
+  opacity: 0;
+  transition: transform 4.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 4s ease;
+}
+
+.chaos-active .chaos-btn {
+  transform: translate3d(250px, 950px, 900px) rotate(600deg) scale(2.2);
+  opacity: 0;
+  filter: blur(16px);
+  box-shadow: 0 0 50px rgba(59, 130, 246, 0.8);
+  transition: transform 5s cubic-bezier(0.08, 0.92, 0.15, 1), opacity 4.5s ease, filter 4.5s ease;
+}
+
+.chaos-active .chaos-card-left {
+  transform: translate3d(-400px, 80px, -600px) rotate(-22deg) scale(0.7);
+  opacity: 0.15;
+  filter: blur(6px);
+  transition: transform 5s cubic-bezier(0.15, 0.85, 0.2, 1), opacity 4.8s ease, filter 4.8s ease;
+}
+
+.chaos-active .chaos-card-right {
+  transform: translate3d(500px, -70px, -600px) rotate(25deg) scale(0.7);
+  opacity: 0.15;
+  filter: blur(6px);
+  transition: transform 5s cubic-bezier(0.15, 0.85, 0.2, 1), opacity 4.8s ease, filter 4.8s ease;
+}
+
+.chaos-active .chaos-logo-right {
+  transform: translate3d(350px, -950px, 500px) rotate(1440deg) scale(0.15);
+  opacity: 0;
+  filter: blur(14px);
+  transition: transform 5s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 4.5s ease, filter 4.5s ease;
+}
+
+.chaos-active .chaos-welcome-text {
+  transform: translate3d(950px, -400px, 700px) rotate(400deg) scale(3);
+  opacity: 0;
+  filter: blur(18px);
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.9);
+  transition: transform 5s cubic-bezier(0.08, 0.92, 0.15, 1), opacity 4.2s ease, filter 4.2s ease;
+}
+
+.chaos-active .chaos-subtitle {
+  transform: translate3d(900px, 700px, -350px) rotate(-600deg) scale(0.2);
+  opacity: 0;
+  filter: blur(12px);
+  transition: transform 5s cubic-bezier(0.16, 0.84, 0.2, 1), opacity 4.4s ease, filter 4.4s ease;
+}
+
+.chaos-active .chaos-footer {
+  transform: translate3d(0, 650px, -300px) rotate(12deg) scale(0.5);
+  opacity: 0;
+  filter: blur(8px);
+  transition: transform 4.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 4.2s ease, filter 4.2s ease;
+}
+
+/* REWIND STATE (Magnetic Spring Snap Back when login fails) */
+.chaos-rewind .chaos-title,
+.chaos-rewind .chaos-logo-left,
+.chaos-rewind .chaos-email,
+.chaos-rewind .chaos-password,
+.chaos-rewind .chaos-remember,
+.chaos-rewind .chaos-btn,
+.chaos-rewind .chaos-card-left,
+.chaos-rewind .chaos-card-right,
+.chaos-rewind .chaos-logo-right,
+.chaos-rewind .chaos-welcome-text,
+.chaos-rewind .chaos-subtitle,
+.chaos-rewind .chaos-footer {
+  transform: translate3d(0, 0, 0) rotate(0deg) scale(1) !important;
+  opacity: 1 !important;
+  filter: none !important;
+  transition: transform 0.75s cubic-bezier(0.175, 0.885, 0.32, 1.35), opacity 0.5s ease, filter 0.5s ease !important;
+}
+
+/* CHAOS OVERLAY & PARTICLES */
+.chaos-overlay {
+  background: radial-gradient(circle at center, rgba(13, 38, 145, 0.25) 0%, rgba(2, 6, 23, 0.55) 100%);
+  animation: chaosFadeIn 0.4s ease forwards;
+}
+
+.chaos-shockwave {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 4px solid rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 60px rgba(59, 130, 246, 0.9), inset 0 0 40px rgba(255, 255, 255, 0.8);
+  animation: shockwaveExpand 1.5s cubic-bezier(0.1, 0.9, 0.2, 1) infinite;
+}
+
+@keyframes shockwaveExpand {
+  0% { transform: scale(0.2); opacity: 1; }
+  100% { transform: scale(16); opacity: 0; }
+}
+
+@keyframes chaosFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.chaos-particle {
+  position: absolute;
+  width: var(--size);
+  height: var(--size);
+  background: var(--bg);
+  border-radius: 4px;
+  box-shadow: 0 0 12px var(--bg);
+  opacity: 0;
+  animation: particleFly var(--dur) cubic-bezier(0.1, 0.9, 0.2, 1) var(--del) forwards;
+}
+
+@keyframes particleFly {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate3d(var(--tx), var(--ty), 400px) rotate(var(--rot)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+.chaos-badge {
+  position: relative;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 28px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(59, 130, 246, 0.5);
+  animation: badgePop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes badgePop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.chaos-emoji {
+  font-size: 32px;
+  animation: rocketWiggle 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes rocketWiggle {
+  from { transform: rotate(-10deg) scale(1); }
+  to { transform: rotate(15deg) scale(1.2); }
+}
+
+.chaos-badge-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.chaos-badge-title {
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 50%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.chaos-badge-sub {
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 /* Template Base Styles */
