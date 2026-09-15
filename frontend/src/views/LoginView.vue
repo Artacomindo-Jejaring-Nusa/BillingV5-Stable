@@ -28,15 +28,9 @@ const showPassword = ref(false); // Untuk toggle password visibility
 // State Animasi Aur-Auran / Mencar 3D
 const isExploding = ref(false);
 const isRewinding = ref(false);
-const scatterCountdown = ref(5);
 const explosionParticles = ref<Array<{ id: number; x: number; y: number; rot: number; size: number; color: string; delay: number; duration: number }>>([]);
-let countdownInterval: any = null;
 
 function triggerRewind(errMsg: string) {
-  if (countdownInterval) {
-    clearInterval(countdownInterval);
-    countdownInterval = null;
-  }
   isRewinding.value = true;
   setTimeout(() => {
     isExploding.value = false;
@@ -77,7 +71,6 @@ async function handleLogin() {
   // Aktifkan animasi ledakan mencar aur-auran!
   isExploding.value = true;
   isRewinding.value = false;
-  scatterCountdown.value = 5;
 
   // Hasilkan 35 partikel serpihan warna-warni yang berhamburan ke segala arah
   explosionParticles.value = Array.from({ length: 35 }, (_, i) => ({
@@ -90,17 +83,6 @@ async function handleLogin() {
     delay: Math.random() * 0.4,
     duration: 3 + Math.random() * 2,
   }));
-
-  // Countdown timer 5 detik
-  if (countdownInterval) clearInterval(countdownInterval);
-  countdownInterval = setInterval(() => {
-    if (scatterCountdown.value > 1) {
-      scatterCountdown.value--;
-    } else {
-      clearInterval(countdownInterval);
-      countdownInterval = null;
-    }
-  }, 1000);
 
   try {
     const loginPromise = authStore.login(email.value, password.value);
@@ -501,13 +483,6 @@ function backToLogin() {
           '--del': `${p.delay}s`
         }"
       ></div>
-      <div class="chaos-badge">
-        <span class="chaos-emoji">🚀</span>
-        <div class="chaos-badge-content">
-          <span class="chaos-badge-title">AUR-AURAN MELUNCUR!</span>
-          <span class="chaos-badge-sub">Mempersiapkan Dashboard ({{ scatterCountdown }}s)...</span>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -708,57 +683,6 @@ function backToLogin() {
     transform: translate3d(var(--tx), var(--ty), 400px) rotate(var(--rot)) scale(0.2);
     opacity: 0;
   }
-}
-
-.chaos-badge {
-  position: relative;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 28px;
-  border-radius: 9999px;
-  background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(59, 130, 246, 0.4);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(59, 130, 246, 0.5);
-  animation: badgePop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-
-@keyframes badgePop {
-  0% { transform: scale(0.5); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.chaos-emoji {
-  font-size: 32px;
-  animation: rocketWiggle 0.6s ease-in-out infinite alternate;
-}
-
-@keyframes rocketWiggle {
-  from { transform: rotate(-10deg) scale(1); }
-  to { transform: rotate(15deg) scale(1.2); }
-}
-
-.chaos-badge-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.chaos-badge-title {
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: 0.05em;
-  background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 50%, #ffffff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.chaos-badge-sub {
-  color: #94a3b8;
-  font-size: 13px;
-  font-weight: 500;
 }
 
 /* Template Base Styles */
