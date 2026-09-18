@@ -14,7 +14,18 @@ var redisClient *redis.Client
 var redisPubSub *redis.PubSub
 var redisCtx = context.Background()
 
-const redisChannel = "ws:notifications"
+const (
+	redisChannel     = "ws:notifications"
+	redisChatChannel = "ws:chat"
+)
+
+type RedisChatPayload struct {
+	Source         string          `json:"_source"`
+	RoomID         uint64          `json:"room_id"`
+	Event          string          `json:"event"`
+	Data           json.RawMessage `json:"data"`
+	ExceptClientID string          `json:"except_client_id,omitempty"`
+}
 
 func InitRedis() {
 	redisURL := os.Getenv("REDIS_URL")
@@ -36,11 +47,11 @@ func InitRedis() {
 		return
 	}
 
-	redisPubSub = redisClient.Subscribe(redisCtx, redisChannel)
+	redisPubSub = redisClient.Subscribe(redisCtx, redisChannel, redisChatChannel)
 
 	go listenRedisMessages()
 
-	log.Println("[WebSocket Redis] Connected and subscribed to notification channel")
+	log.Println("[WebSocket Redis] Connected and subscribed to notifications and chat channels")
 }
 
 func PublishToRedis(payload map[string]interface{}) {
@@ -57,28 +68,80 @@ func PublishToRedis(payload map[string]interface{}) {
 	}
 }
 
+// PublishChatToRedis menyinkronkan event chat ke seluruh instance backend server
+func PublishChatToRedis(roomID uint64, event string, data interface{}, exceptClientID ...string) {
+	if redisClient == nil {
+		return
+	}
+	var excID string
+	if len(exceptClientID) > 0 {
+		excID = exceptClientID[0]
+	}
+
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("[WebSocket Redis Chat] Failed to marshal data: %v", err)
+		return
+	}
+
+	payload := RedisChatPayload{
+		Source:         instanceID,
+		RoomID:         roomID,
+		Event:          event,
+		Data:           dataBytes,
+		ExceptClientID: excID,
+	}
+
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("[WebSocket Redis Chat] Failed to marshal payload: %v", err)
+		return
+	}
+
+	if err := redisClient.Publish(redisCtx, redisChatChannel, bytes).Err(); err != nil {
+		log.Printf("[WebSocket Redis Chat] Failed to publish chat event: %v", err)
+	}
+}
+
 func listenRedisMessages() {
 	if redisPubSub == nil {
 		return
 	}
 	ch := redisPubSub.Channel()
 	for msg := range ch {
-		if GlobalHub == nil {
-			continue
+		switch msg.Channel {
+		case redisChannel:
+			if GlobalHub == nil {
+				continue
+			}
+			var payload map[string]interface{}
+			if err := json.Unmarshal([]byte(msg.Payload), &payload); err != nil {
+				log.Printf("[WebSocket Redis] Failed to unmarshal message: %v", err)
+				continue
+			}
+			if source, ok := payload["_source"].(string); ok && source == instanceID {
+				continue
+			}
+			bytes, err := json.Marshal(payload)
+			if err != nil {
+				continue
+			}
+			GlobalHub.Broadcast <- bytes
+
+		case redisChatChannel:
+			if GlobalChatHub == nil {
+				continue
+			}
+			var chatPayload RedisChatPayload
+			if err := json.Unmarshal([]byte(msg.Payload), &chatPayload); err != nil {
+				log.Printf("[WebSocket Redis Chat] Failed to unmarshal chat payload: %v", err)
+				continue
+			}
+			if chatPayload.Source == instanceID {
+				continue
+			}
+			GlobalChatHub.BroadcastLocal(chatPayload.RoomID, chatPayload.Event, chatPayload.Data, chatPayload.ExceptClientID)
 		}
-		var payload map[string]interface{}
-		if err := json.Unmarshal([]byte(msg.Payload), &payload); err != nil {
-			log.Printf("[WebSocket Redis] Failed to unmarshal message: %v", err)
-			continue
-		}
-		if source, ok := payload["_source"].(string); ok && source == instanceID {
-			continue
-		}
-		bytes, err := json.Marshal(payload)
-		if err != nil {
-			continue
-		}
-		GlobalHub.Broadcast <- bytes
 	}
 }
 

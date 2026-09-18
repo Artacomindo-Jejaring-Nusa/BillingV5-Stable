@@ -575,6 +575,7 @@ let ws: WebSocket | null = null;
 let heartbeatTimer: any = null;
 let typingClearTimer: any = null;
 let searchDebounceTimer: any = null;
+let pollingTimer: any = null;
 
 // Snackbar notification
 const snackbar = ref({
@@ -665,8 +666,8 @@ function onSearchDebounced() {
 }
 
 // REST: Fetch Rooms
-async function fetchRooms() {
-  isLoadingRooms.value = true;
+async function fetchRooms(silent = false) {
+  if (!silent) isLoadingRooms.value = true;
   try {
     const res = await apiClient.get('/chat/rooms', {
       params: {
@@ -680,8 +681,42 @@ async function fetchRooms() {
   } catch (e: any) {
     console.error('Fetch chat rooms error:', e);
   } finally {
-    isLoadingRooms.value = false;
+    if (!silent) isLoadingRooms.value = false;
   }
+}
+
+// Silent polling for active room and room list to guarantee zero-refresh experience
+async function pollActiveRoomSilent() {
+  if (document.hidden) return;
+  if (activeRoom.value && !isLoadingMessages.value) {
+    try {
+      const res = await apiClient.get(`/chat/messages/${activeRoom.value.id}?limit=50`);
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        const latest = res.data.data;
+        let hasNew = false;
+        for (const item of latest) {
+          const idx = activeMessages.value.findIndex(
+            (m) => m.id === item.id || (m.temp_id && m.temp_id === item.temp_id)
+          );
+          if (idx === -1) {
+            activeMessages.value.push(item);
+            hasNew = true;
+          } else {
+            if (activeMessages.value[idx].status !== item.status) {
+              activeMessages.value[idx].status = item.status;
+            }
+            if (!activeMessages.value[idx].id && item.id) {
+              activeMessages.value[idx].id = item.id;
+            }
+          }
+        }
+        if (hasNew) {
+          scrollToBottom();
+        }
+      }
+    } catch (_) {}
+  }
+  fetchRooms(true);
 }
 
 // Select Room
@@ -733,6 +768,15 @@ function sendAdminMessage() {
   activeMessages.value.push(localMsg);
   activeRoom.value.last_message_text = text;
   activeRoom.value.last_message_at = new Date().toISOString();
+
+  // Move active room to top of list
+  const currentRoomId = activeRoom.value.id;
+  const roomIdx = rooms.value.findIndex((r) => r.id === currentRoomId);
+  if (roomIdx > 0) {
+    const [moved] = rooms.value.splice(roomIdx, 1);
+    rooms.value.unshift(moved);
+  }
+
   inputMessage.value = '';
 
   scrollToBottom();
@@ -794,8 +838,8 @@ function initWebSocket() {
     ws.onclose = () => {
       isWsConnected.value = false;
       stopHeartbeat();
-      // Reconnect after 5 seconds
-      setTimeout(initWebSocket, 5000);
+      // Reconnect after 3 seconds
+      setTimeout(initWebSocket, 3000);
     };
 
     ws.onerror = () => {
@@ -826,8 +870,12 @@ function handleWsIncoming(payload: any) {
     case 'new_message': {
       const roomIdx = rooms.value.findIndex((r) => r.id === data.room_id);
       if (roomIdx !== -1) {
-        rooms.value[roomIdx].last_message_text = data.message;
-        rooms.value[roomIdx].last_message_at = data.created_at;
+        const [updatedRoom] = rooms.value.splice(roomIdx, 1);
+        updatedRoom.last_message_text = data.message;
+        updatedRoom.last_message_at = data.created_at;
+        rooms.value.unshift(updatedRoom);
+      } else {
+        fetchRooms(true);
       }
 
       if (activeRoom.value && activeRoom.value.id === data.room_id) {
@@ -845,7 +893,7 @@ function handleWsIncoming(payload: any) {
       } else {
         // Message is in another room -> increase unread count
         if (roomIdx !== -1) {
-          rooms.value[roomIdx].unread_count_admin = (rooms.value[roomIdx].unread_count_admin || 0) + 1;
+          rooms.value[0].unread_count_admin = (rooms.value[0].unread_count_admin || 0) + 1;
         }
         showSnackbar(`Pesan baru dari ${data.sender_name || 'Pelanggan'}`, 'info');
       }
@@ -991,14 +1039,28 @@ function showSnackbar(text: string, color = 'success') {
   snackbar.value = { show: true, text, color };
 }
 
+function onVisibilityChange() {
+  if (!document.hidden) {
+    pollActiveRoomSilent();
+  }
+}
+
 // Lifecycle hooks
 onMounted(() => {
   fetchRooms();
   initWebSocket();
+  // Background polling every 4s for zero-refresh guarantees
+  pollingTimer = setInterval(pollActiveRoomSilent, 4000);
+  document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
 onUnmounted(() => {
   stopHeartbeat();
+  if (pollingTimer) {
+    clearInterval(pollingTimer);
+    pollingTimer = null;
+  }
+  document.removeEventListener('visibilitychange', onVisibilityChange);
   clearTimeout(typingClearTimer);
   clearTimeout(searchDebounceTimer);
   if (ws) {

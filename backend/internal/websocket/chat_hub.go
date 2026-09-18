@@ -20,6 +20,7 @@ const (
 )
 
 type ChatClient struct {
+	ID          string // Unique client session ID for deduplication
 	Hub         *ChatHub
 	Conn        *websocket.Conn
 	Send        chan []byte
@@ -105,8 +106,28 @@ func (h *ChatHub) UnregisterClient(client *ChatClient) {
 	h.unregister <- client
 }
 
-// BroadcastToRoom mengirim pesan ke seluruh peserta di dalam room tertentu
+// BroadcastToRoom mengirim pesan ke seluruh peserta di dalam room tertentu dan publish ke Redis
 func (h *ChatHub) BroadcastToRoom(roomID uint64, event string, data interface{}) {
+	h.broadcastLocalInternal(roomID, event, data, "")
+	PublishChatToRedis(roomID, event, data, "")
+}
+
+// BroadcastToRoomExcept mengirim pesan ke seluruh peserta di room kecuali pengirim dan publish ke Redis
+func (h *ChatHub) BroadcastToRoomExcept(roomID uint64, except *ChatClient, event string, data interface{}) {
+	var excID string
+	if except != nil {
+		excID = except.ID
+	}
+	h.broadcastLocalInternal(roomID, event, data, excID)
+	PublishChatToRedis(roomID, event, data, excID)
+}
+
+// BroadcastLocal menyiarkan pesan ke klien lokal di node ini (digunakan saat menerima event dari Redis Pub/Sub)
+func (h *ChatHub) BroadcastLocal(roomID uint64, event string, data interface{}, exceptClientID string) {
+	h.broadcastLocalInternal(roomID, event, data, exceptClientID)
+}
+
+func (h *ChatHub) broadcastLocalInternal(roomID uint64, event string, data interface{}, exceptClientID string) {
 	payload, err := json.Marshal(domain.ChatEvent{
 		Event: event,
 		Data:  data,
@@ -119,52 +140,23 @@ func (h *ChatHub) BroadcastToRoom(roomID uint64, event string, data interface{})
 	defer h.mu.RUnlock()
 
 	// Kirim ke peserta di dalam room
-	if clients, ok := h.rooms[roomID]; ok {
-		for c := range clients {
-			select {
-			case c.Send <- payload:
-			default:
-				// Buffer penuh
+	if roomID > 0 {
+		if clients, ok := h.rooms[roomID]; ok {
+			for c := range clients {
+				if exceptClientID != "" && c.ID == exceptClientID {
+					continue
+				}
+				select {
+				case c.Send <- payload:
+				default:
+				}
 			}
 		}
 	}
 
 	// Kirim juga ke admin listener global
 	for admin := range h.adminListeners {
-		select {
-		case admin.Send <- payload:
-		default:
-		}
-	}
-}
-
-// BroadcastToRoomExcept mengirim pesan ke seluruh peserta di room kecuali pengirim
-func (h *ChatHub) BroadcastToRoomExcept(roomID uint64, except *ChatClient, event string, data interface{}) {
-	payload, err := json.Marshal(domain.ChatEvent{
-		Event: event,
-		Data:  data,
-	})
-	if err != nil {
-		return
-	}
-
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
-	if clients, ok := h.rooms[roomID]; ok {
-		for c := range clients {
-			if c == except {
-				continue
-			}
-			select {
-			case c.Send <- payload:
-			default:
-			}
-		}
-	}
-
-	for admin := range h.adminListeners {
-		if admin == except {
+		if exceptClientID != "" && admin.ID == exceptClientID {
 			continue
 		}
 		select {

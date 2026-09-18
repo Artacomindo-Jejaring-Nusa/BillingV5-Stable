@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -95,7 +96,9 @@ func (h *ChatHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
+	clientID := fmt.Sprintf("%s_%d_%d", role, senderID, time.Now().UnixNano())
 	client := &websocket.ChatClient{
+		ID:          clientID,
 		Hub:         websocket.GlobalChatHub,
 		Conn:        conn,
 		Send:        make(chan []byte, 256),
