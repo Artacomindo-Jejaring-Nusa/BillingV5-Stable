@@ -220,6 +220,14 @@ func (c *ChatClient) ReadPump() {
 		switch event {
 		case "send_message":
 			// Pelanggan atau Admin mengirim pesan
+			targetRoomID := c.RoomID
+			if rID, ok := data["room_id"].(float64); ok && rID > 0 {
+				targetRoomID = uint64(rID)
+			}
+			if targetRoomID == 0 {
+				continue
+			}
+
 			msgText, _ := data["message"].(string)
 			tempID, _ := data["temp_id"].(string)
 			msgType, _ := data["message_type"].(string)
@@ -236,7 +244,7 @@ func (c *ChatClient) ReadPump() {
 			}
 
 			chatMsg := &domain.ChatMessage{
-				RoomID:        c.RoomID,
+				RoomID:        targetRoomID,
 				SenderType:    c.Role,
 				SenderID:      c.SenderID,
 				SenderName:    c.SenderName,
@@ -270,7 +278,7 @@ func (c *ChatClient) ReadPump() {
 			// 2. Cek apakah lawan bicara sedang online di dalam room
 			hasActivePeer := false
 			c.Hub.mu.RLock()
-			if clients, ok := c.Hub.rooms[c.RoomID]; ok {
+			if clients, ok := c.Hub.rooms[targetRoomID]; ok {
 				for peer := range clients {
 					if peer != c {
 						hasActivePeer = true
@@ -283,7 +291,7 @@ func (c *ChatClient) ReadPump() {
 			// Jika ada lawan bicara online, status otomatis naik ke 'delivered'
 			if hasActivePeer {
 				ctxDelivered, cancelDelivered := context.WithTimeout(context.Background(), 2*time.Second)
-				_ = c.Hub.chatUsecase.MarkDelivered(ctxDelivered, c.RoomID, c.Role)
+				_ = c.Hub.chatUsecase.MarkDelivered(ctxDelivered, targetRoomID, c.Role)
 				cancelDelivered()
 
 				savedMsg.Status = domain.ChatStatusDelivered
@@ -300,18 +308,22 @@ func (c *ChatClient) ReadPump() {
 			}
 
 			// 3. Broadcast ke lawan bicara: NEW MESSAGE
-			c.Hub.BroadcastToRoomExcept(c.RoomID, c, "new_message", savedMsg)
+			c.Hub.BroadcastToRoomExcept(targetRoomID, c, "new_message", savedMsg)
 
 		case "ack_delivered":
 			// Device lawan bicara mengonfirmasi telah menerima pesan (Ceklis 2 Abu-abu)
+			targetRoomID := c.RoomID
+			if rID, ok := data["room_id"].(float64); ok && rID > 0 {
+				targetRoomID = uint64(rID)
+			}
 			msgIDFloat, ok := data["message_id"].(float64)
-			if ok {
+			if ok && targetRoomID > 0 {
 				msgID := uint64(msgIDFloat)
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-				_ = c.Hub.chatUsecase.MarkDelivered(ctx, c.RoomID, c.Role)
+				_ = c.Hub.chatUsecase.MarkDelivered(ctx, targetRoomID, c.Role)
 				cancel()
 
-				c.Hub.BroadcastToRoom(c.RoomID, "message_status_update", map[string]interface{}{
+				c.Hub.BroadcastToRoom(targetRoomID, "message_status_update", map[string]interface{}{
 					"id":           msgID,
 					"status":       domain.ChatStatusDelivered,
 					"delivered_at": time.Now(),
@@ -320,25 +332,37 @@ func (c *ChatClient) ReadPump() {
 
 		case "read_room":
 			// Pengguna sedang aktif membuka layar chatroom (Ceklis 2 Biru)
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			_ = c.Hub.chatUsecase.MarkRead(ctx, c.RoomID, c.Role)
-			cancel()
+			targetRoomID := c.RoomID
+			if rID, ok := data["room_id"].(float64); ok && rID > 0 {
+				targetRoomID = uint64(rID)
+			}
+			if targetRoomID > 0 {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				_ = c.Hub.chatUsecase.MarkRead(ctx, targetRoomID, c.Role)
+				cancel()
 
-			// Beritahu seluruh peserta bahwa semua pesan di room ini sudah DIBACA
-			c.Hub.BroadcastToRoom(c.RoomID, "room_read", map[string]interface{}{
-				"room_id": c.RoomID,
-				"read_by": c.Role,
-				"read_at": time.Now(),
-			})
+				// Beritahu seluruh peserta bahwa semua pesan di room ini sudah DIBACA
+				c.Hub.BroadcastToRoom(targetRoomID, "room_read", map[string]interface{}{
+					"room_id": targetRoomID,
+					"read_by": c.Role,
+					"read_at": time.Now(),
+				})
+			}
 
 		case "typing":
 			// Live typing indicator
-			isTyping, _ := data["is_typing"].(bool)
-			c.Hub.BroadcastToRoomExcept(c.RoomID, c, "typing_indicator", map[string]interface{}{
-				"room_id":   c.RoomID,
-				"sender":    c.SenderName,
-				"is_typing": isTyping,
-			})
+			targetRoomID := c.RoomID
+			if rID, ok := data["room_id"].(float64); ok && rID > 0 {
+				targetRoomID = uint64(rID)
+			}
+			if targetRoomID > 0 {
+				isTyping, _ := data["is_typing"].(bool)
+				c.Hub.BroadcastToRoomExcept(targetRoomID, c, "typing_indicator", map[string]interface{}{
+					"room_id":   targetRoomID,
+					"sender":    c.SenderName,
+					"is_typing": isTyping,
+				})
+			}
 		}
 	}
 }
