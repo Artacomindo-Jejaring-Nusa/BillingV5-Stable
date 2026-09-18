@@ -788,9 +788,12 @@ async function fetchRooms(silent = false) {
   }
 }
 
-// Silent polling for active room and room list to guarantee zero-refresh experience
+// Silent polling for active room and room list as fallback if WebSocket is offline
 async function pollActiveRoomSilent() {
   if (document.hidden) return;
+  // Jika WebSocket sedang online, tidak perlu polling HTTP untuk menghemat resource
+  if (isWsConnected.value) return;
+
   if (activeRoom.value && !isLoadingMessages.value) {
     try {
       const res = await apiClient.get(`/chat/messages/${activeRoom.value.id}?limit=50`);
@@ -1152,8 +1155,8 @@ function onVisibilityChange() {
 onMounted(() => {
   fetchRooms();
   initWebSocket();
-  // Background polling every 4s for zero-refresh guarantees
-  pollingTimer = setInterval(pollActiveRoomSilent, 4000);
+  // Fallback background polling (20 detik) hanya jika WebSocket offline
+  pollingTimer = setInterval(pollActiveRoomSilent, 20000);
   document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
