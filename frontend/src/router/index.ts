@@ -214,6 +214,14 @@ const router = createRouter({
             permissions: ['view_trouble_tickets']
           },
         },
+        {
+          path: '/customer-chat',
+          name: 'CustomerChat',
+          component: () => import('@/views/CustomerChatView.vue'),
+          meta: {
+            requiresAuth: true
+          },
+        },
       ],
     },
     

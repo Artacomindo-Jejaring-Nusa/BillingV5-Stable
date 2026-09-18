@@ -686,6 +686,7 @@ const currentPageTitle = computed(() => {
     '/roles': 'Roles',
     '/permissions': 'Permissions',
     '/activity-logs': 'Activity Log',
+    '/customer-chat': 'Live Chat Pelanggan',
     '/management/sk': 'Kelola S&K',
     '/management/settings': 'Pengaturan',
   };
@@ -949,6 +950,14 @@ const menuGroups = ref([
         description: 'Layanan dukungan pelanggan',
         permission: null,
         children: [
+          { 
+            title: 'Live Chat Pelanggan', 
+            icon: 'mdi-forum-outline', 
+            value: 'customer-chat', 
+            to: '/customer-chat', 
+            permission: null,
+            description: 'Chat realtime dengan pelanggan'
+          },
           { 
             title: 'Trouble Tickets', 
             icon: 'mdi-lifebuoy', 
