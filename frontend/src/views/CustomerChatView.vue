@@ -1,57 +1,63 @@
 <template>
-  <v-container fluid class="customer-chat-container pa-2 pa-md-4">
-    <!-- Header Banner -->
-    <v-card class="chat-header-banner mb-3 elevation-1 rounded-lg" color="surface">
-      <div class="d-flex align-center justify-space-between px-4 py-3">
-        <div class="d-flex align-center">
-          <v-avatar color="primary" variant="tonal" size="44" class="me-3">
-            <v-icon size="24" color="primary">mdi-forum-outline</v-icon>
+  <v-container fluid class="customer-chat-container pa-2 pa-md-3">
+    <!-- Header Banner / Toolbar -->
+    <v-card class="chat-header-banner mb-2 elevation-0 border rounded-lg" color="surface">
+      <div class="d-flex align-center justify-space-between px-3 py-2">
+        <div class="d-flex align-center gap-3">
+          <v-avatar color="primary" variant="tonal" size="38">
+            <v-icon size="20" color="primary">mdi-forum-outline</v-icon>
           </v-avatar>
           <div>
             <div class="d-flex align-center gap-2">
-              <h2 class="text-h6 font-weight-bold mb-0">Live Chat Pelanggan</h2>
+              <span class="text-subtitle-1 font-weight-bold text-high-emphasis">Live Chat Pelanggan</span>
               <v-chip
                 :color="isWsConnected ? 'success' : 'grey'"
                 size="x-small"
-                variant="flat"
+                variant="tonal"
                 class="font-weight-bold px-2"
               >
-                <v-icon start size="10" :class="{ 'animate-pulse': isWsConnected }">mdi-circle</v-icon>
-                {{ isWsConnected ? 'WebSocket Online' : 'Connecting...' }}
+                <v-icon start size="8" :class="{ 'animate-pulse': isWsConnected }">mdi-circle</v-icon>
+                {{ isWsConnected ? 'WebSocket Online' : 'Menghubungkan...' }}
               </v-chip>
             </div>
-            <p class="text-caption text-medium-emphasis mb-0">
+            <div class="text-caption text-medium-emphasis" style="font-size: 0.72rem;">
               Pusat interaksi real-time pelanggan Jakinet, Jelantik, & Jelantik Nagrak
-            </p>
+            </div>
           </div>
         </div>
 
-        <!-- Quick Summary Badges -->
-        <div class="d-none d-sm-flex align-center gap-2">
+        <!-- Quick Summary Badges & Action -->
+        <div class="d-flex align-center gap-2">
           <v-chip
             v-if="totalUnreadCount > 0"
             color="error"
             size="small"
-            variant="elevated"
+            variant="flat"
             class="font-weight-bold"
           >
-            <v-icon start size="14">mdi-bell-ring</v-icon>
+            <v-icon start size="14">mdi-bell-ring-outline</v-icon>
             {{ totalUnreadCount }} Pesan Baru
           </v-chip>
-          <v-btn
-            icon="mdi-refresh"
-            variant="text"
-            size="small"
-            :loading="isLoadingRooms"
-            @click="fetchRooms"
-            title="Muat Ulang Room"
-          ></v-btn>
+
+          <v-tooltip location="bottom" text="Muat Ulang Room">
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                icon="mdi-refresh"
+                variant="tonal"
+                size="small"
+                density="comfortable"
+                :loading="isLoadingRooms"
+                @click="fetchRooms()"
+              ></v-btn>
+            </template>
+          </v-tooltip>
         </div>
       </div>
     </v-card>
 
-    <!-- Main Workspace (3-Panel WhatsApp Web Style) -->
-    <v-card class="chat-workspace elevation-2 rounded-lg" color="surface">
+    <!-- Main Workspace (3-Panel Chat Workspace) -->
+    <v-card class="chat-workspace elevation-0 border rounded-lg" color="surface">
       <v-row no-gutters class="fill-height">
         <!-- ================= PANEL 1: ROOMS LIST ================= -->
         <v-col
@@ -83,9 +89,10 @@
               v-for="filter in brandFilters"
               :key="filter.value"
               :color="selectedBrand === filter.value ? filter.color : undefined"
-              :variant="selectedBrand === filter.value ? 'flat' : 'outlined'"
-              size="x-small"
-              class="font-weight-bold cursor-pointer"
+              :variant="selectedBrand === filter.value ? 'flat' : 'tonal'"
+              size="small"
+              class="font-weight-medium cursor-pointer filter-chip"
+              :prepend-icon="filter.icon"
               @click="setBrandFilter(filter.value)"
             >
               {{ filter.label }}
@@ -97,14 +104,14 @@
           <!-- Rooms List -->
           <div class="rooms-list-scroll flex-grow-1 overflow-y-auto">
             <div v-if="isLoadingRooms" class="pa-6 text-center">
-              <v-progress-circular indeterminate color="primary" size="32"></v-progress-circular>
-              <div class="text-caption text-medium-emphasis mt-2">Memuat daftar chat...</div>
+              <v-progress-circular indeterminate color="primary" size="28"></v-progress-circular>
+              <div class="text-caption text-medium-emphasis mt-2">Memuat daftar obrolan...</div>
             </div>
 
             <div v-else-if="filteredRooms.length === 0" class="pa-8 text-center text-medium-emphasis">
-              <v-icon size="48" color="grey-lighten-1" class="mb-2">mdi-message-text-outline</v-icon>
+              <v-icon size="40" color="grey-lighten-1" class="mb-2">mdi-message-text-outline</v-icon>
               <div class="text-body-2 font-weight-medium">Tidak ada percakapan</div>
-              <div class="text-caption">Belum ada pesan yang cocok dengan filter</div>
+              <div class="text-caption">Belum ada obrolan yang cocok dengan filter</div>
             </div>
 
             <v-list v-else lines="two" class="pa-0">
@@ -113,11 +120,12 @@
                 :key="room.id"
                 :active="activeRoom?.id === room.id"
                 class="room-item px-3 py-2 border-b"
+                :class="{ 'room-item--active': activeRoom?.id === room.id }"
                 @click="selectRoom(room)"
               >
                 <!-- Customer Avatar with Brand Color -->
                 <template v-slot:prepend>
-                  <v-avatar :color="getBrandColor(room.brand)" size="42" class="elevation-1">
+                  <v-avatar :color="getBrandColor(room.brand)" size="40" class="elevation-1 me-2 rounded-lg">
                     <span class="text-subtitle-2 font-weight-bold text-white">
                       {{ getInitials(room.pelanggan?.nama || 'Pelanggan') }}
                     </span>
@@ -147,15 +155,16 @@
                       {{ normalizeBrandName(room.brand) }}
                     </v-chip>
 
-                    <span v-if="room.pelanggan?.no_telp" class="text-caption text-medium-emphasis">
-                      📞 {{ room.pelanggan.no_telp }}
+                    <span v-if="room.pelanggan?.no_telp" class="text-caption text-medium-emphasis d-flex align-center">
+                      <v-icon size="12" class="me-1">mdi-phone-outline</v-icon>
+                      {{ room.pelanggan.no_telp }}
                     </span>
                   </div>
 
                   <!-- Last message snippet & unread badge -->
                   <div class="d-flex align-center justify-space-between mt-1">
                     <span class="text-caption text-truncate text-medium-emphasis flex-grow-1">
-                      {{ room.last_message_text || 'Mulai percakapan...' }}
+                      {{ room.last_message_text || 'Mulai obrolan...' }}
                     </span>
                     <v-badge
                       v-if="room.unread_count_admin > 0"
@@ -181,19 +190,19 @@
         >
           <!-- Empty State When No Room is Selected -->
           <div v-if="!activeRoom" class="d-flex flex-column align-center justify-center fill-height pa-8 text-center">
-            <div class="empty-chat-icon-wrap mb-4">
-              <v-icon size="80" color="primary" class="opacity-40">mdi-chat-processing-outline</v-icon>
+            <div class="empty-chat-icon-wrap mb-3 pa-4 rounded-circle bg-primary-lighten-5">
+              <v-icon size="64" color="primary">mdi-chat-processing-outline</v-icon>
             </div>
             <h3 class="text-h6 font-weight-bold text-high-emphasis">Pusat Layanan Chat Pelanggan</h3>
-            <p class="text-body-2 text-medium-emphasis max-w-sm mt-2">
-              Pilih salah satu percakapan di sebelah kiri untuk mulai membaca dan membalas pesan pelanggan secara langsung.
+            <p class="text-body-2 text-medium-emphasis max-w-sm mt-1">
+              Pilih salah satu percakapan di sebelah kiri untuk membaca dan membalas pesan pelanggan secara langsung.
             </p>
           </div>
 
           <!-- Active Room View -->
           <template v-else>
             <!-- Chat Room Header -->
-            <div class="chat-room-header pa-3 border-b bg-surface d-flex align-center justify-space-between elevation-1">
+            <div class="chat-room-header pa-3 border-b bg-surface d-flex align-center justify-space-between">
               <div class="d-flex align-center gap-3">
                 <!-- Back button on mobile -->
                 <v-btn
@@ -206,7 +215,7 @@
                 ></v-btn>
 
                 <!-- Avatar -->
-                <v-avatar :color="getBrandColor(activeRoom.brand)" size="42" class="elevation-1">
+                <v-avatar :color="getBrandColor(activeRoom.brand)" size="42" class="elevation-1 rounded-lg">
                   <span class="text-subtitle-2 font-weight-bold text-white">
                     {{ getInitials(activeRoom.pelanggan?.nama || 'Pelanggan') }}
                   </span>
@@ -233,25 +242,10 @@
 
                   <!-- Phone Number with Click-To-WhatsApp & Copy -->
                   <div class="d-flex align-center gap-2 mt-1">
-                    <span class="text-caption font-weight-medium text-medium-emphasis">
-                      <v-icon size="14" color="medium-emphasis" class="me-1">mdi-phone</v-icon>
+                    <span class="text-caption font-weight-medium text-medium-emphasis d-flex align-center">
+                      <v-icon size="14" color="medium-emphasis" class="me-1">mdi-phone-outline</v-icon>
                       {{ activeRoom.pelanggan?.no_telp || '-' }}
                     </span>
-
-                    <v-tooltip location="bottom" text="Kirim pesan WhatsApp resmi">
-                      <template v-slot:activator="{ props }">
-                        <v-btn
-                          v-bind="props"
-                          v-if="activeRoom.pelanggan?.no_telp"
-                          icon="mdi-whatsapp"
-                          variant="text"
-                          color="success"
-                          density="compact"
-                          size="small"
-                          @click="openWhatsApp(activeRoom.pelanggan.no_telp)"
-                        ></v-btn>
-                      </template>
-                    </v-tooltip>
 
                     <v-tooltip location="bottom" text="Salin nomor telepon">
                       <template v-slot:activator="{ props }">
@@ -267,36 +261,64 @@
                       </template>
                     </v-tooltip>
 
-                    <span v-if="isCustomerTyping" class="text-caption text-primary font-italic animate-pulse">
-                      • sedang mengetik...
+                    <span v-if="isCustomerTyping" class="text-caption text-primary font-weight-medium d-flex align-center gap-1 animate-pulse">
+                      <v-icon size="12">mdi-pencil-outline</v-icon>
+                      sedang mengetik...
                     </span>
                   </div>
                 </div>
               </div>
 
               <!-- Header Action Buttons -->
-              <div class="d-flex align-center gap-1">
+              <div class="d-flex align-center gap-2">
                 <v-btn
-                  icon="mdi-information-outline"
-                  variant="text"
-                  :color="showInfoPanel ? 'primary' : 'medium-emphasis'"
-                  @click="showInfoPanel = !showInfoPanel"
-                  title="Lihat Detail Profil Pelanggan 360"
-                ></v-btn>
+                  v-if="activeRoom.pelanggan?.no_telp"
+                  variant="tonal"
+                  color="success"
+                  size="small"
+                  prepend-icon="mdi-whatsapp"
+                  class="text-none font-weight-medium d-none d-sm-inline-flex"
+                  @click="openWhatsApp(activeRoom.pelanggan.no_telp)"
+                >
+                  WhatsApp
+                </v-btn>
+
+                <v-btn
+                  variant="outlined"
+                  size="small"
+                  prepend-icon="mdi-account-search-outline"
+                  class="text-none d-none d-md-inline-flex"
+                  @click="navigateToCustomer(activeRoom.pelanggan_id)"
+                >
+                  Detail
+                </v-btn>
+
+                <v-tooltip location="bottom" :text="showInfoPanel ? 'Sembunyikan Profil' : 'Tampilkan Profil Pelanggan 360'">
+                  <template v-slot:activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      :icon="showInfoPanel ? 'mdi-dock-right' : 'mdi-information-outline'"
+                      variant="text"
+                      size="small"
+                      :color="showInfoPanel ? 'primary' : 'medium-emphasis'"
+                      @click="showInfoPanel = !showInfoPanel"
+                    ></v-btn>
+                  </template>
+                </v-tooltip>
               </div>
             </div>
 
             <!-- Messages Stream Area -->
-            <div ref="messagesScrollContainer" class="messages-container flex-grow-1 pa-4 overflow-y-auto">
+            <div ref="messagesScrollContainer" class="messages-container flex-grow-1 pa-3 pa-md-4 overflow-y-auto">
               <div v-if="isLoadingMessages" class="text-center pa-8">
-                <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                <v-progress-circular indeterminate color="primary" size="32"></v-progress-circular>
                 <div class="text-caption text-medium-emphasis mt-2">Memuat riwayat obrolan...</div>
               </div>
 
               <div v-else-if="activeMessages.length === 0" class="text-center pa-8 text-medium-emphasis">
                 <v-icon size="48" color="grey-lighten-2" class="mb-2">mdi-chat-plus-outline</v-icon>
-                <div class="text-body-2">Belum ada pesan dalam room ini</div>
-                <div class="text-caption">Ketik pesan di bawah untuk memulai obrolan dengan pelanggan</div>
+                <div class="text-body-2 font-weight-medium">Belum ada pesan dalam obrolan ini</div>
+                <div class="text-caption">Ketik balasan di bawah untuk memulai percakapan dengan pelanggan</div>
               </div>
 
               <!-- Messages List -->
@@ -304,36 +326,44 @@
                 <template v-for="(msg, idx) in activeMessages" :key="msg.id || msg.temp_id || idx">
                   <!-- Date Pill Separator -->
                   <div v-if="shouldShowDateHeader(idx)" class="text-center my-3">
-                    <span class="date-pill px-3 py-1 rounded-pill text-caption font-weight-medium bg-grey-lighten-3 text-grey-darken-2">
+                    <span class="date-pill px-3 py-1 rounded-pill text-caption font-weight-medium">
+                      <v-icon size="12" class="me-1 opacity-70">mdi-calendar-blank-outline</v-icon>
                       {{ formatDateHeader(msg.created_at) }}
                     </span>
                   </div>
 
-                  <!-- Message Bubble -->
+                  <!-- Message Bubble Row -->
                   <div
                     class="message-row d-flex"
                     :class="msg.sender_type === 'admin' ? 'justify-end' : 'justify-start'"
                   >
                     <div
-                      class="message-bubble rounded-lg pa-3 elevation-1"
-                      :class="msg.sender_type === 'admin' ? 'bubble-admin bg-primary text-white' : 'bubble-customer bg-white border text-grey-darken-4'"
+                      class="message-bubble pa-3"
+                      :class="msg.sender_type === 'admin' ? 'bubble-admin' : 'bubble-customer'"
                     >
                       <!-- Sender Header -->
                       <div class="d-flex align-center justify-space-between gap-2 mb-1">
                         <span
-                          class="sender-name font-weight-bold text-caption"
-                          :class="msg.sender_type === 'admin' ? 'text-blue-lighten-4' : 'text-primary'"
+                          class="sender-name font-weight-bold text-caption d-flex align-center gap-1"
+                          :class="msg.sender_type === 'admin' ? 'text-white' : 'text-primary'"
                         >
-                          {{ msg.sender_type === 'admin' ? 'CS Artacom' : (activeRoom.pelanggan?.nama || 'Pelanggan') }}
+                          <v-icon size="12" :color="msg.sender_type === 'admin' ? 'white' : 'primary'">
+                            {{ msg.sender_type === 'admin' ? 'mdi-shield-account' : 'mdi-account' }}
+                          </v-icon>
+                          {{ msg.sender_type === 'admin' ? (msg.sender_name || 'CS Artacom') : (activeRoom.pelanggan?.nama || 'Pelanggan') }}
                         </span>
                       </div>
 
                       <!-- Text Message Body -->
-                      <div class="message-text text-body-2" style="white-space: pre-wrap; word-break: break-word;">
+                      <div
+                        class="message-text text-body-2"
+                        :class="msg.sender_type === 'admin' ? 'text-white' : 'text-high-emphasis'"
+                        style="white-space: pre-wrap; word-break: break-word; line-height: 1.45;"
+                      >
                         {{ msg.message }}
                       </div>
 
-                      <!-- Footer: Timestamp & WhatsApp Checkmarks -->
+                      <!-- Footer: Timestamp & Delivery Status Icons -->
                       <div class="message-footer d-flex align-center justify-end gap-1 mt-1">
                         <span
                           class="timestamp text-caption"
@@ -343,33 +373,33 @@
                           {{ formatTime(msg.created_at) }}
                         </span>
 
-                        <!-- Checkmark Status (Khusus Pesan CS) -->
+                        <!-- Status Icons for CS Messages -->
                         <template v-if="msg.sender_type === 'admin'">
-                          <!-- 🕒 Pending -->
+                          <!-- Pending -->
                           <v-icon
                             v-if="msg.status === 'pending'"
                             size="12"
-                            color="blue-lighten-3"
+                            color="blue-lighten-4"
                             title="Sedang dikirim..."
                           >mdi-clock-outline</v-icon>
 
-                          <!-- ✔️ Sent (Ceklis 1) -->
+                          <!-- Sent (Ceklis 1) -->
                           <v-icon
                             v-else-if="msg.status === 'sent'"
                             size="14"
-                            color="blue-lighten-3"
-                            title="Terkirim ke server (Ceklis 1)"
+                            color="blue-lighten-4"
+                            title="Tersimpan di server (Ceklis 1)"
                           >mdi-check</v-icon>
 
-                          <!-- ✔️✔️ Delivered (Ceklis 2 Abu-abu) -->
+                          <!-- Delivered (Ceklis 2 Abu-abu) -->
                           <v-icon
                             v-else-if="msg.status === 'delivered'"
                             size="15"
-                            color="blue-lighten-3"
+                            color="blue-lighten-4"
                             title="Terkirim ke perangkat pelanggan (Ceklis 2 Abu-abu)"
                           >mdi-check-all</v-icon>
 
-                          <!-- ✔️✔️ Read (Ceklis 2 Biru WhatsApp) -->
+                          <!-- Read (Ceklis 2 Biru WhatsApp) -->
                           <v-icon
                             v-else-if="msg.status === 'read'"
                             size="15"
@@ -385,15 +415,19 @@
             </div>
 
             <!-- Quick Template Replies Bar -->
-            <div class="quick-replies-bar px-3 py-1 bg-surface border-t d-flex align-center gap-1 overflow-x-auto">
-              <span class="text-caption text-medium-emphasis font-weight-bold me-1">Cepat:</span>
+            <div class="quick-replies-bar px-3 py-2 bg-surface border-t d-flex align-center gap-2 overflow-x-auto">
+              <div class="d-flex align-center gap-1 text-caption font-weight-bold text-medium-emphasis flex-shrink-0">
+                <v-icon size="14" color="primary">mdi-lightning-bolt-outline</v-icon>
+                <span>Templat Cepat:</span>
+              </div>
               <v-chip
                 v-for="(tpl, tIdx) in quickTemplates"
                 :key="tIdx"
-                size="x-small"
-                variant="outlined"
+                size="small"
+                variant="tonal"
                 color="primary"
-                class="cursor-pointer"
+                class="cursor-pointer font-weight-medium flex-shrink-0 quick-chip"
+                :prepend-icon="tpl.icon"
                 @click="useTemplate(tpl)"
               >
                 {{ tpl.label }}
@@ -410,16 +444,18 @@
                 density="compact"
                 variant="outlined"
                 rounded="lg"
-                placeholder="Ketik balasan CS... (Tekan Enter untuk kirim)"
+                placeholder="Ketik balasan CS... (Tekan Enter untuk kirim, Shift+Enter untuk baris baru)"
                 hide-details
+                class="chat-input-textarea"
                 @keydown.enter.exact.prevent="sendAdminMessage"
                 @input="notifyAdminTyping"
               ></v-textarea>
 
               <v-btn
                 color="primary"
-                icon="mdi-send"
-                elevation="2"
+                icon="mdi-send-variant"
+                elevation="1"
+                size="default"
                 :disabled="!inputMessage.trim()"
                 @click="sendAdminMessage"
                 title="Kirim Pesan"
@@ -434,69 +470,107 @@
           cols="12"
           md="3"
           lg="3"
-          class="customer-info-panel border-s pa-4 bg-surface overflow-y-auto fill-height"
+          class="customer-info-panel border-s pa-3 pa-lg-4 bg-surface overflow-y-auto fill-height"
         >
-          <div class="d-flex align-center justify-space-between mb-3">
-            <h4 class="text-subtitle-2 font-weight-bold text-high-emphasis">Profil Pelanggan 360</h4>
+          <div class="d-flex align-center justify-space-between pb-3 mb-3 border-b">
+            <div class="d-flex align-center gap-2">
+              <v-icon size="18" color="primary">mdi-card-account-details-outline</v-icon>
+              <h4 class="text-subtitle-2 font-weight-bold text-high-emphasis">Profil Pelanggan 360</h4>
+            </div>
             <v-btn
               icon="mdi-close"
               variant="text"
               size="x-small"
+              density="compact"
               @click="showInfoPanel = false"
             ></v-btn>
           </div>
 
           <!-- Customer Identity Card -->
-          <v-card variant="outlined" class="pa-3 rounded-lg mb-3">
-            <div class="text-caption text-medium-emphasis">Nama Lengkap</div>
-            <div class="font-weight-bold text-body-2 mb-2">
-              {{ activeRoom.pelanggan?.nama || '-' }}
+          <v-card variant="outlined" class="pa-3 rounded-lg mb-3 info-card">
+            <div class="d-flex align-center gap-2 mb-3">
+              <v-avatar :color="getBrandColor(activeRoom.brand)" size="36" class="rounded-lg">
+                <span class="text-caption font-weight-bold text-white">
+                  {{ getInitials(activeRoom.pelanggan?.nama || 'Pelanggan') }}
+                </span>
+              </v-avatar>
+              <div>
+                <div class="font-weight-bold text-body-2 text-high-emphasis">
+                  {{ activeRoom.pelanggan?.nama || '-' }}
+                </div>
+                <div class="text-caption text-medium-emphasis">
+                  ID: {{ activeRoom.pelanggan?.customer_id || ('#' + activeRoom.pelanggan_id) }}
+                </div>
+              </div>
             </div>
 
-            <div class="text-caption text-medium-emphasis">Customer ID</div>
-            <div class="font-weight-bold text-body-2 mb-2">
-              {{ activeRoom.pelanggan?.customer_id || 'ID #' + activeRoom.pelanggan_id }}
-            </div>
+            <v-divider class="my-2"></v-divider>
 
-            <div class="text-caption text-medium-emphasis">Brand Layanan</div>
-            <div class="mb-2">
-              <v-chip :color="getBrandColor(activeRoom.brand)" size="small" variant="flat" class="font-weight-bold text-white">
+            <div class="info-row mb-2">
+              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
+                <v-icon size="14">mdi-shield-check-outline</v-icon>
+                <span>Brand Layanan</span>
+              </div>
+              <v-chip :color="getBrandColor(activeRoom.brand)" size="x-small" variant="flat" class="font-weight-bold text-white">
                 {{ normalizeBrandName(activeRoom.brand) }}
               </v-chip>
             </div>
 
-            <div class="text-caption text-medium-emphasis">Nomor Telepon</div>
-            <div class="font-weight-bold text-body-2 mb-2 d-flex align-center gap-1">
-              <span>{{ activeRoom.pelanggan?.no_telp || '-' }}</span>
-              <v-btn
-                v-if="activeRoom.pelanggan?.no_telp"
-                icon="mdi-content-copy"
-                size="x-small"
-                variant="text"
-                @click="copyToClipboard(activeRoom.pelanggan.no_telp)"
-              ></v-btn>
+            <div class="info-row mb-2">
+              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
+                <v-icon size="14">mdi-phone-outline</v-icon>
+                <span>Nomor Telepon</span>
+              </div>
+              <div class="d-flex align-center justify-space-between">
+                <span class="text-body-2 font-weight-medium">{{ activeRoom.pelanggan?.no_telp || '-' }}</span>
+                <v-btn
+                  v-if="activeRoom.pelanggan?.no_telp"
+                  icon="mdi-content-copy"
+                  size="x-small"
+                  variant="text"
+                  density="compact"
+                  title="Salin Nomor"
+                  @click="copyToClipboard(activeRoom.pelanggan.no_telp)"
+                ></v-btn>
+              </div>
             </div>
 
-            <div class="text-caption text-medium-emphasis">Alamat / Lokasi</div>
-            <div class="text-body-2">
-              {{ activeRoom.pelanggan?.alamat || '-' }}
-              <span v-if="activeRoom.pelanggan?.blok || activeRoom.pelanggan?.unit">
-                (Blok {{ activeRoom.pelanggan?.blok || '-' }} / Unit {{ activeRoom.pelanggan?.unit || '-' }})
-              </span>
+            <div class="info-row">
+              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
+                <v-icon size="14">mdi-map-marker-outline</v-icon>
+                <span>Alamat / Lokasi</span>
+              </div>
+              <div class="text-caption text-high-emphasis">
+                {{ activeRoom.pelanggan?.alamat || '-' }}
+                <span v-if="activeRoom.pelanggan?.blok || activeRoom.pelanggan?.unit">
+                  (Blok {{ activeRoom.pelanggan?.blok || '-' }} / Unit {{ activeRoom.pelanggan?.unit || '-' }})
+                </span>
+              </div>
             </div>
           </v-card>
 
           <!-- Subscription & Technical Info -->
-          <v-card variant="outlined" class="pa-3 rounded-lg mb-3">
-            <div class="text-subtitle-2 font-weight-bold mb-2">Status Layanan FTTH</div>
-
-            <div class="text-caption text-medium-emphasis">Paket Layanan</div>
-            <div class="font-weight-bold text-body-2 mb-2 text-primary">
-              {{ getCustomerPackage(activeRoom.pelanggan) }}
+          <v-card variant="outlined" class="pa-3 rounded-lg mb-3 info-card">
+            <div class="d-flex align-center gap-2 mb-2">
+              <v-icon size="16" color="primary">mdi-wifi</v-icon>
+              <span class="text-subtitle-2 font-weight-bold">Status Layanan FTTH</span>
             </div>
 
-            <div class="text-caption text-medium-emphasis">Status Langganan</div>
-            <div class="mb-2">
+            <div class="info-row mb-2">
+              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
+                <v-icon size="14">mdi-speedometer</v-icon>
+                <span>Paket Layanan</span>
+              </div>
+              <div class="font-weight-bold text-body-2 text-primary">
+                {{ getCustomerPackage(activeRoom.pelanggan) }}
+              </div>
+            </div>
+
+            <div class="info-row mb-2">
+              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
+                <v-icon size="14">mdi-check-circle-outline</v-icon>
+                <span>Status Langganan</span>
+              </div>
               <v-chip
                 :color="getCustomerStatus(activeRoom.pelanggan) === 'Aktif' ? 'success' : 'error'"
                 size="x-small"
@@ -507,31 +581,39 @@
               </v-chip>
             </div>
 
-            <div v-if="activeRoom.pelanggan?.data_teknis?.id_pelanggan" class="text-caption text-medium-emphasis">Username PPPoE</div>
-            <div v-if="activeRoom.pelanggan?.data_teknis?.id_pelanggan" class="font-weight-bold text-body-2 mb-2 font-mono">
-              {{ activeRoom.pelanggan.data_teknis.id_pelanggan }}
+            <div v-if="activeRoom.pelanggan?.data_teknis?.id_pelanggan" class="info-row">
+              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
+                <v-icon size="14">mdi-account-key-outline</v-icon>
+                <span>Username PPPoE</span>
+              </div>
+              <div class="font-weight-bold text-caption font-mono bg-grey-lighten-4 pa-1 px-2 rounded">
+                {{ activeRoom.pelanggan.data_teknis.id_pelanggan }}
+              </div>
             </div>
           </v-card>
 
-          <!-- Actions -->
-          <v-btn
-            block
-            color="success"
-            prepend-icon="mdi-whatsapp"
-            class="text-none mb-2 font-weight-bold"
-            @click="openWhatsApp(activeRoom.pelanggan?.no_telp)"
-          >
-            Hubungi via WhatsApp Web
-          </v-btn>
-          <v-btn
-            block
-            variant="outlined"
-            prepend-icon="mdi-account-search"
-            class="text-none"
-            @click="navigateToCustomer(activeRoom.pelanggan_id)"
-          >
-            Buka di Data Pelanggan
-          </v-btn>
+          <!-- Action Buttons -->
+          <div class="d-flex flex-column gap-2">
+            <v-btn
+              block
+              color="success"
+              prepend-icon="mdi-whatsapp"
+              variant="flat"
+              class="text-none font-weight-bold"
+              @click="openWhatsApp(activeRoom.pelanggan?.no_telp)"
+            >
+              Hubungi via WhatsApp Web
+            </v-btn>
+            <v-btn
+              block
+              variant="outlined"
+              prepend-icon="mdi-account-search-outline"
+              class="text-none font-weight-medium"
+              @click="navigateToCustomer(activeRoom.pelanggan_id)"
+            >
+              Buka di Data Pelanggan
+            </v-btn>
+          </div>
         </v-col>
       </v-row>
     </v-card>
@@ -586,18 +668,39 @@ const snackbar = ref({
 
 // Brand filter options
 const brandFilters = [
-  { label: 'Semua', value: 'ALL', color: 'primary' },
-  { label: 'JAKINET', value: 'JAKINET', color: 'error' },
-  { label: 'JELANTIK', value: 'JELANTIK', color: 'primary' },
-  { label: 'JELANTIK NAGRAK', value: 'JELANTIK NAGRAK', color: 'success' },
+  { label: 'Semua', value: 'ALL', color: 'primary', icon: 'mdi-layers-outline' },
+  { label: 'JAKINET', value: 'JAKINET', color: 'error', icon: 'mdi-network' },
+  { label: 'JELANTIK', value: 'JELANTIK', color: 'primary', icon: 'mdi-web' },
+  { label: 'JELANTIK NAGRAK', value: 'JELANTIK NAGRAK', color: 'success', icon: 'mdi-shield-home-outline' },
 ];
 
 // Quick templates
 const quickTemplates = [
-  { label: '👋 Salam', text: 'Halo, selamat datang di layanan Customer Care Artacom. Ada yang bisa kami bantu?' },
-  { label: '⏳ Cek Teknis', text: 'Baik pak/bu, mohon ditunggu sebentar ya. Sedang kami lakukan pengecekan ke tim teknis lapangan.' },
-  { label: '✅ Lunas/Aktif', text: 'Terima kasih atas konfirmasinya. Tagihan Anda telah terverifikasi dan layanan internet sudah aktif normal kembali.' },
-  { label: '📸 Foto Modem', text: 'Bisa tolong difotokan lampu indikator (PON / LOS / Internet) yang menyala pada perangkat modem router Anda?' },
+  {
+    label: 'Salam',
+    icon: 'mdi-hand-wave-outline',
+    text: 'Halo, selamat datang di layanan Customer Care Artacom. Ada yang bisa kami bantu?'
+  },
+  {
+    label: 'Cek Teknis',
+    icon: 'mdi-wrench-clock-outline',
+    text: 'Baik pak/bu, mohon ditunggu sebentar ya. Sedang kami lakukan pengecekan ke tim teknis lapangan.'
+  },
+  {
+    label: 'Lunas & Aktif',
+    icon: 'mdi-check-decagram-outline',
+    text: 'Terima kasih atas konfirmasinya. Tagihan Anda telah terverifikasi dan layanan internet sudah aktif normal kembali.'
+  },
+  {
+    label: 'Foto Modem',
+    icon: 'mdi-camera-outline',
+    text: 'Bisa tolong difotokan lampu indikator (PON / LOS / Internet) yang menyala pada perangkat modem router Anda?'
+  },
+  {
+    label: 'Restart Modem',
+    icon: 'mdi-restart',
+    text: 'Bisa dicoba untuk mematikan modem router selama 1-2 menit, lalu hidupkan kembali dan periksa koneksinya?'
+  }
 ];
 
 // Computed unread total
@@ -1072,7 +1175,7 @@ onUnmounted(() => {
 
 <style scoped>
 .customer-chat-container {
-  height: calc(100vh - 90px);
+  height: calc(100vh - 84px);
   display: flex;
   flex-direction: column;
 }
@@ -1087,42 +1190,92 @@ onUnmounted(() => {
   background-color: rgb(var(--v-theme-surface));
 }
 
-.filter-chips-scroll::-webkit-scrollbar {
+.filter-chips-scroll::-webkit-scrollbar,
+.quick-replies-bar::-webkit-scrollbar {
   display: none;
 }
 
 .room-item {
-  transition: background-color 0.15s ease;
+  transition: all 0.15s ease;
   cursor: pointer;
+  border-left: 3px solid transparent;
 }
 
 .room-item:hover {
   background-color: rgba(var(--v-theme-primary), 0.04);
 }
 
+.room-item--active {
+  background-color: rgba(var(--v-theme-primary), 0.08) !important;
+  border-left-color: rgb(var(--v-theme-primary)) !important;
+}
+
 .messages-container {
-  background-color: #f1f5f9;
+  background-color: #f8fafc;
 }
 
 .v-theme--dark .messages-container {
-  background-color: #0f172a;
+  background-color: #0b1120;
 }
 
 .message-bubble {
-  max-width: 75%;
+  max-width: 72%;
   min-width: 140px;
+  position: relative;
+  word-wrap: break-word;
 }
 
 .bubble-customer {
-  border-bottom-left-radius: 2px !important;
+  background-color: #ffffff;
+  color: #1e293b;
+  border-radius: 16px 16px 16px 4px !important;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.v-theme--dark .bubble-customer {
+  background-color: #1e293b;
+  color: #f8fafc;
+  border-color: rgba(51, 65, 85, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .bubble-admin {
-  border-bottom-right-radius: 2px !important;
+  background: linear-gradient(135deg, #1e40af, #2563eb);
+  color: #ffffff;
+  border-radius: 16px 16px 4px 16px !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
-.quick-replies-bar::-webkit-scrollbar {
-  display: none;
+.date-pill {
+  background-color: rgba(226, 232, 240, 0.85);
+  color: #475569;
+  border: 1px solid rgba(203, 213, 225, 0.6);
+  font-size: 0.72rem;
+  letter-spacing: 0.2px;
+}
+
+.v-theme--dark .date-pill {
+  background-color: #1e293b;
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+.quick-chip {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.quick-chip:hover {
+  transform: translateY(-1px);
+}
+
+.info-card {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  background-color: rgba(var(--v-theme-surface), 0.6);
+}
+
+.v-theme--dark .info-card {
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .animate-pulse {
@@ -1132,5 +1285,25 @@ onUnmounted(() => {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
+}
+
+/* Modern thin scrollbar */
+.rooms-list-scroll::-webkit-scrollbar,
+.messages-container::-webkit-scrollbar,
+.customer-info-panel::-webkit-scrollbar {
+  width: 5px;
+}
+
+.rooms-list-scroll::-webkit-scrollbar-thumb,
+.messages-container::-webkit-scrollbar-thumb,
+.customer-info-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+}
+
+.v-theme--dark .rooms-list-scroll::-webkit-scrollbar-thumb,
+.v-theme--dark .messages-container::-webkit-scrollbar-thumb,
+.v-theme--dark .customer-info-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
 }
 </style>
