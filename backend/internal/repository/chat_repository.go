@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"billing-backend/internal/domain"
@@ -18,19 +19,59 @@ func NewChatRepository(db *gorm.DB) domain.ChatRepository {
 	return &chatRepository{db: db}
 }
 
+func detectExactBrand(brandHint string, p *domain.Pelanggan) string {
+	combined := strings.ToUpper(brandHint)
+	if p != nil {
+		if p.HargaLayanan != nil && p.HargaLayanan.Brand != "" {
+			combined += " " + strings.ToUpper(p.HargaLayanan.Brand)
+		}
+		if p.BrandDefault != nil && *p.BrandDefault != "" {
+			combined += " " + strings.ToUpper(*p.BrandDefault)
+		}
+		if p.IDBrand != nil && *p.IDBrand != "" {
+			combined += " " + strings.ToUpper(*p.IDBrand)
+		}
+		combined += " " + strings.ToUpper(p.Alamat)
+	}
+
+	if strings.Contains(combined, "NAGRAK") {
+		return "JELANTIK NAGRAK"
+	}
+	if strings.Contains(combined, "JELANTIK") || strings.Contains(combined, "AJN-02") {
+		return "JELANTIK"
+	}
+	return "JAKINET"
+}
+
 func (r *chatRepository) GetOrCreateRoomByPelangganID(ctx context.Context, pelangganID uint64, brand string) (*domain.ChatRoom, error) {
 	var room domain.ChatRoom
 	err := r.db.WithContext(ctx).
 		Preload("Pelanggan").
+		Preload("Pelanggan.HargaLayanan").
+		Preload("Pelanggan.Langganan").
 		Where("pelanggan_id = ? AND status = ?", pelangganID, "open").
 		First(&room).Error
 
 	if err == nil {
+		// Update brand jika ada identifikasi brand lebih akurat
+		exact := detectExactBrand(room.Brand, room.Pelanggan)
+		if room.Brand != exact {
+			room.Brand = exact
+			_ = r.db.WithContext(ctx).Model(&room).Update("brand", exact).Error
+		}
 		return &room, nil
 	}
 
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
+	}
+
+	// Deteksi brand presisi dari data pelanggan
+	var p domain.Pelanggan
+	if err := r.db.WithContext(ctx).Preload("HargaLayanan").First(&p, pelangganID).Error; err == nil {
+		brand = detectExactBrand(brand, &p)
+	} else {
+		brand = detectExactBrand(brand, nil)
 	}
 
 	// Buat room baru jika belum ada
@@ -48,7 +89,11 @@ func (r *chatRepository) GetOrCreateRoomByPelangganID(ctx context.Context, pelan
 	}
 
 	// Reload with relations
-	_ = r.db.WithContext(ctx).Preload("Pelanggan").First(&newRoom, newRoom.ID)
+	_ = r.db.WithContext(ctx).
+		Preload("Pelanggan").
+		Preload("Pelanggan.HargaLayanan").
+		Preload("Pelanggan.Langganan").
+		First(&newRoom, newRoom.ID)
 	return &newRoom, nil
 }
 
@@ -56,6 +101,8 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID uint64) (*domai
 	var room domain.ChatRoom
 	err := r.db.WithContext(ctx).
 		Preload("Pelanggan").
+		Preload("Pelanggan.HargaLayanan").
+		Preload("Pelanggan.Langganan").
 		Preload("AssignedAdmin").
 		First(&room, roomID).Error
 	if err != nil {
@@ -100,6 +147,8 @@ func (r *chatRepository) ListRooms(ctx context.Context, filter domain.ChatRoomFi
 
 	err := query.
 		Preload("Pelanggan").
+		Preload("Pelanggan.HargaLayanan").
+		Preload("Pelanggan.Langganan").
 		Preload("AssignedAdmin").
 		Order("chat_rooms.last_message_at DESC").
 		Limit(filter.PageSize).
