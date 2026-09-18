@@ -1,169 +1,150 @@
 <template>
-  <v-container fluid class="customer-chat-container pa-2 pa-md-3">
-    <!-- Header Banner / Toolbar -->
-    <v-card class="chat-header-banner mb-2 elevation-0 border rounded-lg" color="surface">
-      <div class="d-flex align-center justify-space-between px-3 py-2">
-        <div class="d-flex align-center gap-3">
-          <v-avatar color="primary" variant="tonal" size="38">
-            <v-icon size="20" color="primary">mdi-forum-outline</v-icon>
-          </v-avatar>
-          <div>
-            <div class="d-flex align-center gap-2">
-              <span class="text-subtitle-1 font-weight-bold text-high-emphasis">Live Chat Pelanggan</span>
-              <v-chip
-                :color="isWsConnected ? 'success' : 'grey'"
-                size="x-small"
-                variant="tonal"
-                class="font-weight-bold px-2"
-              >
-                <v-icon start size="8" :class="{ 'animate-pulse': isWsConnected }">mdi-circle</v-icon>
-                {{ isWsConnected ? 'WebSocket Online' : 'Menghubungkan...' }}
-              </v-chip>
+  <div class="customer-chat-wrapper pa-3">
+    <!-- Main Workspace Container -->
+    <v-card class="chat-workspace elevation-1 border rounded-xl" color="surface">
+      <!-- ================= PANEL 1: ROOMS SIDEBAR ================= -->
+      <aside
+        class="rooms-sidebar border-e"
+        :class="{ 'd-none d-md-flex': activeRoom && isMobile }"
+      >
+        <!-- Sidebar Header: Title, Online Status & Refresh -->
+        <div class="sidebar-header px-4 py-3 border-b d-flex align-center justify-space-between bg-surface">
+          <div class="d-flex align-center gap-2">
+            <v-avatar color="primary" variant="tonal" size="34" class="rounded-lg">
+              <v-icon size="18" color="primary">mdi-forum-outline</v-icon>
+            </v-avatar>
+            <div>
+              <span class="text-subtitle-2 font-weight-bold text-high-emphasis">Chat Pelanggan</span>
+              <div class="d-flex align-center gap-1">
+                <v-icon size="8" :color="isWsConnected ? 'success' : 'grey'" :class="{ 'animate-pulse': isWsConnected }">
+                  mdi-circle
+                </v-icon>
+                <span class="text-caption text-medium-emphasis" style="font-size: 0.7rem;">
+                  {{ isWsConnected ? 'Online' : 'Menghubungkan...' }}
+                </span>
+              </div>
             </div>
-            <div class="text-caption text-medium-emphasis" style="font-size: 0.72rem;">
-              Pusat interaksi real-time pelanggan Jakinet, Jelantik, & Jelantik Nagrak
-            </div>
+          </div>
+
+          <div class="d-flex align-center gap-1">
+            <v-badge
+              v-if="totalUnreadCount > 0"
+              :content="totalUnreadCount"
+              color="error"
+              inline
+              class="me-1"
+            ></v-badge>
+
+            <v-tooltip location="bottom" text="Muat Ulang">
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  icon="mdi-refresh"
+                  variant="text"
+                  size="small"
+                  density="compact"
+                  :loading="isLoadingRooms"
+                  @click="fetchRooms()"
+                ></v-btn>
+              </template>
+            </v-tooltip>
           </div>
         </div>
 
-        <!-- Quick Summary Badges & Action -->
-        <div class="d-flex align-center gap-2">
+        <!-- Search Box -->
+        <div class="px-3 pt-3 pb-2">
+          <v-text-field
+            v-model="searchQuery"
+            placeholder="Cari nama, no telp, brand..."
+            prepend-inner-icon="mdi-magnify"
+            variant="outlined"
+            density="compact"
+            hide-details
+            clearable
+            rounded="lg"
+            class="search-input"
+            @update:model-value="onSearchDebounced"
+          ></v-text-field>
+        </div>
+
+        <!-- Brand Filter Chips (Compact & Clean) -->
+        <div class="px-3 pb-2 brand-filter-bar d-flex gap-1.5 overflow-x-auto">
           <v-chip
-            v-if="totalUnreadCount > 0"
-            color="error"
+            v-for="filter in brandFilters"
+            :key="filter.value"
+            :color="selectedBrand === filter.value ? filter.color : undefined"
+            :variant="selectedBrand === filter.value ? 'flat' : 'tonal'"
             size="small"
-            variant="flat"
-            class="font-weight-bold"
+            class="font-weight-medium cursor-pointer brand-filter-chip flex-shrink-0"
+            @click="setBrandFilter(filter.value)"
           >
-            <v-icon start size="14">mdi-bell-ring-outline</v-icon>
-            {{ totalUnreadCount }} Pesan Baru
+            {{ filter.label }}
           </v-chip>
-
-          <v-tooltip location="bottom" text="Muat Ulang Room">
-            <template v-slot:activator="{ props }">
-              <v-btn
-                v-bind="props"
-                icon="mdi-refresh"
-                variant="tonal"
-                size="small"
-                density="comfortable"
-                :loading="isLoadingRooms"
-                @click="fetchRooms()"
-              ></v-btn>
-            </template>
-          </v-tooltip>
         </div>
-      </div>
-    </v-card>
 
-    <!-- Main Workspace (3-Panel Chat Workspace) -->
-    <v-card class="chat-workspace elevation-0 border rounded-lg" color="surface">
-      <v-row no-gutters class="fill-height">
-        <!-- ================= PANEL 1: ROOMS LIST ================= -->
-        <v-col
-          cols="12"
-          md="4"
-          lg="3"
-          class="rooms-sidebar border-e d-flex flex-column fill-height"
-          :class="{ 'd-none d-md-flex': activeRoom && isMobile }"
-        >
-          <!-- Search Box -->
-          <div class="pa-3 pb-2">
-            <v-text-field
-              v-model="searchQuery"
-              placeholder="Cari nama, no telp, brand..."
-              prepend-inner-icon="mdi-magnify"
-              variant="outlined"
-              density="compact"
-              hide-details
-              clearable
-              rounded="lg"
-              class="search-input"
-              @update:model-value="onSearchDebounced"
-            ></v-text-field>
+        <v-divider></v-divider>
+
+        <!-- Rooms List -->
+        <div class="rooms-list-scroll flex-grow-1 overflow-y-auto pa-1">
+          <div v-if="isLoadingRooms" class="pa-8 text-center">
+            <v-progress-circular indeterminate color="primary" size="26"></v-progress-circular>
+            <div class="text-caption text-medium-emphasis mt-2">Memuat percakapan...</div>
           </div>
 
-          <!-- Brand Filter Chips -->
-          <div class="px-3 pb-2 filter-chips-scroll d-flex gap-1 overflow-x-auto">
-            <v-chip
-              v-for="filter in brandFilters"
-              :key="filter.value"
-              :color="selectedBrand === filter.value ? filter.color : undefined"
-              :variant="selectedBrand === filter.value ? 'flat' : 'tonal'"
-              size="small"
-              class="font-weight-medium cursor-pointer filter-chip"
-              :prepend-icon="filter.icon"
-              @click="setBrandFilter(filter.value)"
+          <div v-else-if="filteredRooms.length === 0" class="pa-8 text-center text-medium-emphasis">
+            <v-icon size="36" color="grey-lighten-1" class="mb-2">mdi-message-text-outline</v-icon>
+            <div class="text-body-2 font-weight-medium">Tidak ada percakapan</div>
+            <div class="text-caption">Belum ada obrolan yang cocok</div>
+          </div>
+
+          <div v-else class="d-flex flex-column gap-1">
+            <div
+              v-for="room in filteredRooms"
+              :key="room.id"
+              class="room-card px-3 py-2.5 rounded-lg cursor-pointer"
+              :class="{ 'room-card--active': activeRoom?.id === room.id }"
+              @click="selectRoom(room)"
             >
-              {{ filter.label }}
-            </v-chip>
-          </div>
-
-          <v-divider></v-divider>
-
-          <!-- Rooms List -->
-          <div class="rooms-list-scroll flex-grow-1 overflow-y-auto">
-            <div v-if="isLoadingRooms" class="pa-6 text-center">
-              <v-progress-circular indeterminate color="primary" size="28"></v-progress-circular>
-              <div class="text-caption text-medium-emphasis mt-2">Memuat daftar obrolan...</div>
-            </div>
-
-            <div v-else-if="filteredRooms.length === 0" class="pa-8 text-center text-medium-emphasis">
-              <v-icon size="40" color="grey-lighten-1" class="mb-2">mdi-message-text-outline</v-icon>
-              <div class="text-body-2 font-weight-medium">Tidak ada percakapan</div>
-              <div class="text-caption">Belum ada obrolan yang cocok dengan filter</div>
-            </div>
-
-            <v-list v-else lines="two" class="pa-0">
-              <v-list-item
-                v-for="room in filteredRooms"
-                :key="room.id"
-                :active="activeRoom?.id === room.id"
-                class="room-item px-3 py-2 border-b"
-                :class="{ 'room-item--active': activeRoom?.id === room.id }"
-                @click="selectRoom(room)"
-              >
+              <div class="d-flex align-start gap-3">
                 <!-- Customer Avatar with Brand Color -->
-                <template v-slot:prepend>
-                  <v-avatar :color="getBrandColor(room.brand)" size="40" class="elevation-1 me-2 rounded-lg">
-                    <span class="text-subtitle-2 font-weight-bold text-white">
-                      {{ getInitials(room.pelanggan?.nama || 'Pelanggan') }}
+                <v-avatar :color="getBrandColor(room.brand)" size="38" class="elevation-1 rounded-circle flex-shrink-0 mt-0.5">
+                  <span class="text-caption font-weight-bold text-white">
+                    {{ getInitials(room.pelanggan?.nama || 'Pelanggan') }}
+                  </span>
+                </v-avatar>
+
+                <!-- Details -->
+                <div class="flex-grow-1 min-w-0">
+                  <div class="d-flex align-center justify-space-between mb-0.5">
+                    <span class="font-weight-bold text-truncate text-body-2 text-high-emphasis">
+                      {{ room.pelanggan?.nama || 'Pelanggan #' + room.pelanggan_id }}
                     </span>
-                  </v-avatar>
-                </template>
+                    <span class="text-caption text-medium-emphasis flex-shrink-0 ms-2" style="font-size: 0.7rem;">
+                      {{ formatTimestamp(room.last_message_at) }}
+                    </span>
+                  </div>
 
-                <!-- Room Info -->
-                <v-list-item-title class="d-flex align-center justify-space-between mb-1">
-                  <span class="font-weight-bold text-truncate text-body-2 text-high-emphasis">
-                    {{ room.pelanggan?.nama || 'Pelanggan #' + room.pelanggan_id }}
-                  </span>
-                  <span class="text-caption text-medium-emphasis" style="font-size: 0.72rem;">
-                    {{ formatTimestamp(room.last_message_at) }}
-                  </span>
-                </v-list-item-title>
-
-                <v-list-item-subtitle class="d-flex flex-column gap-1">
-                  <!-- Brand Badge & Phone -->
-                  <div class="d-flex align-center gap-1">
+                  <!-- Brand Pill & Phone -->
+                  <div class="d-flex align-center gap-1.5 mb-1">
                     <v-chip
                       :color="getBrandColor(room.brand)"
                       size="x-small"
                       variant="flat"
-                      class="px-1 font-weight-bold text-white"
-                      style="font-size: 0.65rem; height: 18px;"
+                      class="px-1.5 font-weight-bold text-white"
+                      style="font-size: 0.62rem; height: 17px;"
                     >
                       {{ normalizeBrandName(room.brand) }}
                     </v-chip>
 
-                    <span v-if="room.pelanggan?.no_telp" class="text-caption text-medium-emphasis d-flex align-center">
-                      <v-icon size="12" class="me-1">mdi-phone-outline</v-icon>
+                    <span v-if="room.pelanggan?.no_telp" class="text-caption text-medium-emphasis d-flex align-center" style="font-size: 0.72rem;">
+                      <v-icon size="11" class="me-0.5">mdi-phone-outline</v-icon>
                       {{ room.pelanggan.no_telp }}
                     </span>
                   </div>
 
                   <!-- Last message snippet & unread badge -->
-                  <div class="d-flex align-center justify-space-between mt-1">
-                    <span class="text-caption text-truncate text-medium-emphasis flex-grow-1">
+                  <div class="d-flex align-center justify-space-between">
+                    <span class="text-caption text-truncate text-medium-emphasis flex-grow-1" style="font-size: 0.75rem;">
                       {{ room.last_message_text || 'Mulai obrolan...' }}
                     </span>
                     <v-badge
@@ -174,355 +155,334 @@
                       class="ms-2"
                     ></v-badge>
                   </div>
-                </v-list-item-subtitle>
-              </v-list-item>
-            </v-list>
-          </div>
-        </v-col>
-
-        <!-- ================= PANEL 2: ACTIVE CHAT CONVERSATION ================= -->
-        <v-col
-          cols="12"
-          :md="showInfoPanel ? 5 : 8"
-          :lg="showInfoPanel ? 6 : 9"
-          class="chat-conversation-panel d-flex flex-column fill-height"
-          :class="{ 'd-none d-md-flex': !activeRoom && isMobile }"
-        >
-          <!-- Empty State When No Room is Selected -->
-          <div v-if="!activeRoom" class="d-flex flex-column align-center justify-center fill-height pa-8 text-center">
-            <div class="empty-chat-icon-wrap mb-3 pa-4 rounded-circle bg-primary-lighten-5">
-              <v-icon size="64" color="primary">mdi-chat-processing-outline</v-icon>
-            </div>
-            <h3 class="text-h6 font-weight-bold text-high-emphasis">Pusat Layanan Chat Pelanggan</h3>
-            <p class="text-body-2 text-medium-emphasis max-w-sm mt-1">
-              Pilih salah satu percakapan di sebelah kiri untuk membaca dan membalas pesan pelanggan secara langsung.
-            </p>
-          </div>
-
-          <!-- Active Room View -->
-          <template v-else>
-            <!-- Chat Room Header -->
-            <div class="chat-room-header pa-3 border-b bg-surface d-flex align-center justify-space-between">
-              <div class="d-flex align-center gap-3">
-                <!-- Back button on mobile -->
-                <v-btn
-                  v-if="isMobile"
-                  icon="mdi-arrow-left"
-                  variant="text"
-                  size="small"
-                  @click="activeRoom = null"
-                  class="me-1"
-                ></v-btn>
-
-                <!-- Avatar -->
-                <v-avatar :color="getBrandColor(activeRoom.brand)" size="42" class="elevation-1 rounded-lg">
-                  <span class="text-subtitle-2 font-weight-bold text-white">
-                    {{ getInitials(activeRoom.pelanggan?.nama || 'Pelanggan') }}
-                  </span>
-                </v-avatar>
-
-                <!-- Customer Details Header -->
-                <div>
-                  <div class="d-flex align-center gap-2">
-                    <h3 class="text-subtitle-1 font-weight-bold mb-0 text-high-emphasis">
-                      {{ activeRoom.pelanggan?.nama || 'Pelanggan #' + activeRoom.pelanggan_id }}
-                    </h3>
-
-                    <!-- BRAND BADGE (JAKINET / JELANTIK / JELANTIK NAGRAK) -->
-                    <v-chip
-                      :color="getBrandColor(activeRoom.brand)"
-                      size="small"
-                      variant="flat"
-                      class="font-weight-bold text-white px-2"
-                    >
-                      <v-icon start size="12">mdi-shield-check</v-icon>
-                      {{ normalizeBrandName(activeRoom.brand) }}
-                    </v-chip>
-                  </div>
-
-                  <!-- Phone Number with Click-To-WhatsApp & Copy -->
-                  <div class="d-flex align-center gap-2 mt-1">
-                    <span class="text-caption font-weight-medium text-medium-emphasis d-flex align-center">
-                      <v-icon size="14" color="medium-emphasis" class="me-1">mdi-phone-outline</v-icon>
-                      {{ activeRoom.pelanggan?.no_telp || '-' }}
-                    </span>
-
-                    <v-tooltip location="bottom" text="Salin nomor telepon">
-                      <template v-slot:activator="{ props }">
-                        <v-btn
-                          v-bind="props"
-                          v-if="activeRoom.pelanggan?.no_telp"
-                          icon="mdi-content-copy"
-                          variant="text"
-                          density="compact"
-                          size="small"
-                          @click="copyToClipboard(activeRoom.pelanggan.no_telp)"
-                        ></v-btn>
-                      </template>
-                    </v-tooltip>
-
-                    <span v-if="isCustomerTyping" class="text-caption text-primary font-weight-medium d-flex align-center gap-1 animate-pulse">
-                      <v-icon size="12">mdi-pencil-outline</v-icon>
-                      sedang mengetik...
-                    </span>
-                  </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </aside>
 
-              <!-- Header Action Buttons -->
-              <div class="d-flex align-center gap-2">
-                <v-btn
-                  v-if="activeRoom.pelanggan?.no_telp"
-                  variant="tonal"
-                  color="success"
-                  size="small"
-                  prepend-icon="mdi-whatsapp"
-                  class="text-none font-weight-medium d-none d-sm-inline-flex"
-                  @click="openWhatsApp(activeRoom.pelanggan.no_telp)"
-                >
-                  WhatsApp
-                </v-btn>
+      <!-- ================= PANEL 2: ACTIVE CHAT CONVERSATION ================= -->
+      <main
+        class="chat-conversation-panel"
+        :class="{ 'd-none d-md-flex': !activeRoom && isMobile }"
+      >
+        <!-- Empty State When No Room is Selected -->
+        <div v-if="!activeRoom" class="d-flex flex-column align-center justify-center fill-height pa-8 text-center bg-surface">
+          <div class="empty-chat-icon-wrap mb-4 pa-5 rounded-circle bg-primary-lighten-5">
+            <v-icon size="56" color="primary">mdi-chat-processing-outline</v-icon>
+          </div>
+          <h3 class="text-h6 font-weight-bold text-high-emphasis">Pusat Layanan Chat Pelanggan</h3>
+          <p class="text-body-2 text-medium-emphasis max-w-sm mt-1">
+            Pilih salah satu percakapan di sebelah kiri untuk membaca dan membalas pesan pelanggan secara langsung.
+          </p>
+        </div>
 
-                <v-btn
-                  variant="outlined"
-                  size="small"
-                  prepend-icon="mdi-account-search-outline"
-                  class="text-none d-none d-md-inline-flex"
-                  @click="navigateToCustomer(activeRoom.pelanggan_id)"
-                >
-                  Detail
-                </v-btn>
+        <!-- Active Room View -->
+        <template v-else>
+          <!-- Chat Room Header -->
+          <header class="chat-room-header px-4 py-2.5 border-b bg-surface d-flex align-center justify-space-between">
+            <div class="d-flex align-center gap-3 min-w-0">
+              <!-- Back button on mobile -->
+              <v-btn
+                v-if="isMobile"
+                icon="mdi-arrow-left"
+                variant="text"
+                size="small"
+                @click="activeRoom = null"
+                class="me-1"
+              ></v-btn>
 
-                <v-tooltip location="bottom" :text="showInfoPanel ? 'Sembunyikan Profil' : 'Tampilkan Profil Pelanggan 360'">
-                  <template v-slot:activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      :icon="showInfoPanel ? 'mdi-dock-right' : 'mdi-information-outline'"
-                      variant="text"
-                      size="small"
-                      :color="showInfoPanel ? 'primary' : 'medium-emphasis'"
-                      @click="showInfoPanel = !showInfoPanel"
-                    ></v-btn>
-                  </template>
-                </v-tooltip>
+              <!-- Avatar -->
+              <v-avatar :color="getBrandColor(activeRoom.brand)" size="42" class="elevation-1 rounded-circle flex-shrink-0">
+                <span class="text-subtitle-2 font-weight-bold text-white">
+                  {{ getInitials(activeRoom.pelanggan?.nama || 'Pelanggan') }}
+                </span>
+              </v-avatar>
+
+              <!-- Customer Details Header -->
+              <div class="min-w-0">
+                <div class="d-flex align-center gap-2 flex-wrap">
+                  <h3 class="text-subtitle-1 font-weight-bold mb-0 text-truncate text-high-emphasis">
+                    {{ activeRoom.pelanggan?.nama || 'Pelanggan #' + activeRoom.pelanggan_id }}
+                  </h3>
+
+                  <!-- Brand Badge -->
+                  <v-chip
+                    :color="getBrandColor(activeRoom.brand)"
+                    size="x-small"
+                    variant="flat"
+                    class="font-weight-bold text-white px-2"
+                  >
+                    {{ normalizeBrandName(activeRoom.brand) }}
+                  </v-chip>
+                </div>
+
+                <!-- Phone Number & Typing Indicator -->
+                <div class="d-flex align-center gap-2 mt-0.5">
+                  <span class="text-caption text-medium-emphasis d-flex align-center">
+                    <v-icon size="13" color="medium-emphasis" class="me-1">mdi-phone-outline</v-icon>
+                    {{ activeRoom.pelanggan?.no_telp || '-' }}
+                  </span>
+
+                  <v-tooltip location="bottom" text="Salin nomor telepon">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        v-if="activeRoom.pelanggan?.no_telp"
+                        icon="mdi-content-copy"
+                        variant="text"
+                        density="compact"
+                        size="x-small"
+                        color="medium-emphasis"
+                        @click="copyToClipboard(activeRoom.pelanggan.no_telp)"
+                      ></v-btn>
+                    </template>
+                  </v-tooltip>
+
+                  <span v-if="isCustomerTyping" class="text-caption text-primary font-weight-medium d-flex align-center gap-1 animate-pulse ms-2">
+                    <v-icon size="12">mdi-pencil-outline</v-icon>
+                    sedang mengetik...
+                  </span>
+                </div>
               </div>
             </div>
 
-            <!-- Messages Stream Area -->
-            <div ref="messagesScrollContainer" class="messages-container flex-grow-1 pa-3 pa-md-4 overflow-y-auto">
-              <div v-if="isLoadingMessages" class="text-center pa-8">
-                <v-progress-circular indeterminate color="primary" size="32"></v-progress-circular>
-                <div class="text-caption text-medium-emphasis mt-2">Memuat riwayat obrolan...</div>
-              </div>
+            <!-- Header Action Buttons -->
+            <div class="d-flex align-center gap-2 flex-shrink-0 ms-3">
+              <v-btn
+                v-if="activeRoom.pelanggan?.no_telp"
+                variant="tonal"
+                color="success"
+                size="small"
+                prepend-icon="mdi-whatsapp"
+                class="text-none font-weight-bold rounded-pill d-none d-sm-inline-flex"
+                @click="openWhatsApp(activeRoom.pelanggan.no_telp)"
+              >
+                WhatsApp
+              </v-btn>
 
-              <div v-else-if="activeMessages.length === 0" class="text-center pa-8 text-medium-emphasis">
-                <v-icon size="48" color="grey-lighten-2" class="mb-2">mdi-chat-plus-outline</v-icon>
-                <div class="text-body-2 font-weight-medium">Belum ada pesan dalam obrolan ini</div>
-                <div class="text-caption">Ketik balasan di bawah untuk memulai percakapan dengan pelanggan</div>
-              </div>
+              <v-btn
+                variant="tonal"
+                size="small"
+                prepend-icon="mdi-account-details-outline"
+                class="text-none font-weight-medium rounded-pill d-none d-md-inline-flex"
+                @click="navigateToCustomer(activeRoom.pelanggan_id)"
+              >
+                Detail Pelanggan
+              </v-btn>
 
-              <!-- Messages List -->
-              <div v-else class="d-flex flex-column gap-2">
-                <template v-for="(msg, idx) in activeMessages" :key="msg.id || msg.temp_id || idx">
-                  <!-- Date Pill Separator -->
-                  <div v-if="shouldShowDateHeader(idx)" class="text-center my-3">
-                    <span class="date-pill px-3 py-1 rounded-pill text-caption font-weight-medium">
-                      <v-icon size="12" class="me-1 opacity-70">mdi-calendar-blank-outline</v-icon>
-                      {{ formatDateHeader(msg.created_at) }}
-                    </span>
-                  </div>
+              <v-tooltip location="bottom" :text="showInfoPanel ? 'Tutup Panel Profil' : 'Lihat Profil Pelanggan 360'">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    :icon="showInfoPanel ? 'mdi-close' : 'mdi-information-outline'"
+                    variant="tonal"
+                    size="small"
+                    :color="showInfoPanel ? 'primary' : 'default'"
+                    @click="showInfoPanel = !showInfoPanel"
+                  ></v-btn>
+                </template>
+              </v-tooltip>
+            </div>
+          </header>
 
-                  <!-- Message Bubble Row -->
+          <!-- Messages Stream Area -->
+          <div ref="messagesScrollContainer" class="messages-container flex-grow-1 pa-4 overflow-y-auto">
+            <div v-if="isLoadingMessages" class="text-center pa-8">
+              <v-progress-circular indeterminate color="primary" size="30"></v-progress-circular>
+              <div class="text-caption text-medium-emphasis mt-2">Memuat riwayat obrolan...</div>
+            </div>
+
+            <div v-else-if="activeMessages.length === 0" class="text-center pa-8 text-medium-emphasis">
+              <v-icon size="44" color="grey-lighten-2" class="mb-2">mdi-chat-plus-outline</v-icon>
+              <div class="text-body-2 font-weight-medium">Belum ada pesan dalam obrolan ini</div>
+              <div class="text-caption">Ketik balasan di bawah untuk memulai percakapan</div>
+            </div>
+
+            <!-- Messages List -->
+            <div v-else class="d-flex flex-column">
+              <template v-for="(msg, idx) in activeMessages" :key="msg.id || msg.temp_id || idx">
+                <!-- Date Pill Separator -->
+                <div v-if="shouldShowDateHeader(idx)" class="text-center my-3">
+                  <span class="date-pill px-3 py-1 rounded-pill text-caption font-weight-medium">
+                    {{ formatDateHeader(msg.created_at) }}
+                  </span>
+                </div>
+
+                <!-- Message Bubble Row -->
+                <div
+                  class="message-row d-flex mb-2"
+                  :class="msg.sender_type === 'admin' ? 'justify-end' : 'justify-start'"
+                >
                   <div
-                    class="message-row d-flex"
-                    :class="msg.sender_type === 'admin' ? 'justify-end' : 'justify-start'"
+                    class="message-bubble py-2.5 px-3.5"
+                    :class="msg.sender_type === 'admin' ? 'bubble-admin' : 'bubble-customer'"
                   >
+                    <!-- Text Message Body (Clean, without redundant sender name on 1-on-1 chat) -->
                     <div
-                      class="message-bubble pa-3"
-                      :class="msg.sender_type === 'admin' ? 'bubble-admin' : 'bubble-customer'"
+                      class="message-text"
+                      :class="msg.sender_type === 'admin' ? 'text-white' : 'text-high-emphasis'"
+                      style="white-space: pre-wrap; word-break: break-word; line-height: 1.5; font-size: 0.9rem;"
                     >
-                      <!-- Sender Header -->
-                      <div class="d-flex align-center justify-space-between gap-2 mb-1">
-                        <span
-                          class="sender-name font-weight-bold text-caption d-flex align-center gap-1"
-                          :class="msg.sender_type === 'admin' ? 'text-white' : 'text-primary'"
-                        >
-                          <v-icon size="12" :color="msg.sender_type === 'admin' ? 'white' : 'primary'">
-                            {{ msg.sender_type === 'admin' ? 'mdi-shield-account' : 'mdi-account' }}
-                          </v-icon>
-                          {{ msg.sender_type === 'admin' ? (msg.sender_name || 'CS Artacom') : (activeRoom.pelanggan?.nama || 'Pelanggan') }}
-                        </span>
-                      </div>
+                      {{ msg.message }}
+                    </div>
 
-                      <!-- Text Message Body -->
-                      <div
-                        class="message-text text-body-2"
-                        :class="msg.sender_type === 'admin' ? 'text-white' : 'text-high-emphasis'"
-                        style="white-space: pre-wrap; word-break: break-word; line-height: 1.45;"
+                    <!-- Footer: Timestamp & Delivery Status Icons -->
+                    <div class="message-footer d-flex align-center justify-end gap-1 mt-1">
+                      <span
+                        class="timestamp"
+                        :class="msg.sender_type === 'admin' ? 'text-blue-lighten-4' : 'text-medium-emphasis'"
+                        style="font-size: 0.68rem;"
                       >
-                        {{ msg.message }}
-                      </div>
+                        {{ formatTime(msg.created_at) }}
+                      </span>
 
-                      <!-- Footer: Timestamp & Delivery Status Icons -->
-                      <div class="message-footer d-flex align-center justify-end gap-1 mt-1">
-                        <span
-                          class="timestamp text-caption"
-                          :class="msg.sender_type === 'admin' ? 'text-blue-lighten-4' : 'text-medium-emphasis'"
-                          style="font-size: 0.68rem;"
-                        >
-                          {{ formatTime(msg.created_at) }}
-                        </span>
+                      <!-- Status Icons for CS Messages -->
+                      <template v-if="msg.sender_type === 'admin'">
+                        <!-- Pending -->
+                        <v-icon
+                          v-if="msg.status === 'pending'"
+                          size="12"
+                          color="blue-lighten-4"
+                          title="Sedang dikirim..."
+                        >mdi-clock-outline</v-icon>
 
-                        <!-- Status Icons for CS Messages -->
-                        <template v-if="msg.sender_type === 'admin'">
-                          <!-- Pending -->
-                          <v-icon
-                            v-if="msg.status === 'pending'"
-                            size="12"
-                            color="blue-lighten-4"
-                            title="Sedang dikirim..."
-                          >mdi-clock-outline</v-icon>
+                        <!-- Sent (Ceklis 1) -->
+                        <v-icon
+                          v-else-if="msg.status === 'sent'"
+                          size="14"
+                          color="blue-lighten-4"
+                          title="Tersimpan di server (Ceklis 1)"
+                        >mdi-check</v-icon>
 
-                          <!-- Sent (Ceklis 1) -->
-                          <v-icon
-                            v-else-if="msg.status === 'sent'"
-                            size="14"
-                            color="blue-lighten-4"
-                            title="Tersimpan di server (Ceklis 1)"
-                          >mdi-check</v-icon>
+                        <!-- Delivered (Ceklis 2 Abu-abu) -->
+                        <v-icon
+                          v-else-if="msg.status === 'delivered'"
+                          size="15"
+                          color="blue-lighten-4"
+                          title="Terkirim ke perangkat (Ceklis 2 Abu-abu)"
+                        >mdi-check-all</v-icon>
 
-                          <!-- Delivered (Ceklis 2 Abu-abu) -->
-                          <v-icon
-                            v-else-if="msg.status === 'delivered'"
-                            size="15"
-                            color="blue-lighten-4"
-                            title="Terkirim ke perangkat pelanggan (Ceklis 2 Abu-abu)"
-                          >mdi-check-all</v-icon>
-
-                          <!-- Read (Ceklis 2 Biru WhatsApp) -->
-                          <v-icon
-                            v-else-if="msg.status === 'read'"
-                            size="15"
-                            color="cyan-accent-2"
-                            title="Telah dibaca oleh pelanggan (Ceklis 2 Biru)"
-                          >mdi-check-all</v-icon>
-                        </template>
-                      </div>
+                        <!-- Read (Ceklis 2 Biru WhatsApp) -->
+                        <v-icon
+                          v-else-if="msg.status === 'read'"
+                          size="15"
+                          color="cyan-accent-2"
+                          title="Telah dibaca (Ceklis 2 Biru)"
+                        >mdi-check-all</v-icon>
+                      </template>
                     </div>
                   </div>
-                </template>
-              </div>
+                </div>
+              </template>
             </div>
+          </div>
 
-            <!-- Quick Template Replies Bar -->
-            <div class="quick-replies-bar px-3 py-2 bg-surface border-t d-flex align-center gap-2 overflow-x-auto">
-              <div class="d-flex align-center gap-1 text-caption font-weight-bold text-medium-emphasis flex-shrink-0">
-                <v-icon size="14" color="primary">mdi-lightning-bolt-outline</v-icon>
-                <span>Templat Cepat:</span>
-              </div>
+          <!-- Quick Template Replies Bar (Sleek & Scrollable) -->
+          <div class="quick-replies-bar px-4 py-2 bg-surface border-t d-flex align-center gap-2 overflow-x-auto">
+            <v-icon size="14" color="amber-darken-2" class="flex-shrink-0">mdi-lightning-bolt</v-icon>
+            <span class="text-caption font-weight-bold text-medium-emphasis flex-shrink-0">Templat:</span>
+            <div class="d-flex align-center gap-1.5 flex-nowrap overflow-x-auto py-0.5">
               <v-chip
                 v-for="(tpl, tIdx) in quickTemplates"
                 :key="tIdx"
                 size="small"
                 variant="tonal"
                 color="primary"
-                class="cursor-pointer font-weight-medium flex-shrink-0 quick-chip"
+                class="cursor-pointer font-weight-medium flex-shrink-0 quick-chip px-3"
                 :prepend-icon="tpl.icon"
                 @click="useTemplate(tpl)"
               >
                 {{ tpl.label }}
               </v-chip>
             </div>
-
-            <!-- Bottom Chat Input Bar -->
-            <div class="chat-input-bar pa-3 bg-surface border-t d-flex align-center gap-2">
-              <v-textarea
-                v-model="inputMessage"
-                rows="1"
-                auto-grow
-                max-rows="4"
-                density="compact"
-                variant="outlined"
-                rounded="lg"
-                placeholder="Ketik balasan CS... (Tekan Enter untuk kirim, Shift+Enter untuk baris baru)"
-                hide-details
-                class="chat-input-textarea"
-                @keydown.enter.exact.prevent="sendAdminMessage"
-                @input="notifyAdminTyping"
-              ></v-textarea>
-
-              <v-btn
-                color="primary"
-                icon="mdi-send-variant"
-                elevation="1"
-                size="default"
-                :disabled="!inputMessage.trim()"
-                @click="sendAdminMessage"
-                title="Kirim Pesan"
-              ></v-btn>
-            </div>
-          </template>
-        </v-col>
-
-        <!-- ================= PANEL 3: CONTACT 360 (CUSTOMER PROFILE) ================= -->
-        <v-col
-          v-if="showInfoPanel && activeRoom"
-          cols="12"
-          md="3"
-          lg="3"
-          class="customer-info-panel border-s pa-3 pa-lg-4 bg-surface overflow-y-auto fill-height"
-        >
-          <div class="d-flex align-center justify-space-between pb-3 mb-3 border-b">
-            <div class="d-flex align-center gap-2">
-              <v-icon size="18" color="primary">mdi-card-account-details-outline</v-icon>
-              <h4 class="text-subtitle-2 font-weight-bold text-high-emphasis">Profil Pelanggan 360</h4>
-            </div>
-            <v-btn
-              icon="mdi-close"
-              variant="text"
-              size="x-small"
-              density="compact"
-              @click="showInfoPanel = false"
-            ></v-btn>
           </div>
 
-          <!-- Customer Identity Card -->
-          <v-card variant="outlined" class="pa-3 rounded-lg mb-3 info-card">
-            <div class="d-flex align-center gap-2 mb-3">
-              <v-avatar :color="getBrandColor(activeRoom.brand)" size="36" class="rounded-lg">
-                <span class="text-caption font-weight-bold text-white">
-                  {{ getInitials(activeRoom.pelanggan?.nama || 'Pelanggan') }}
-                </span>
-              </v-avatar>
-              <div>
-                <div class="font-weight-bold text-body-2 text-high-emphasis">
-                  {{ activeRoom.pelanggan?.nama || '-' }}
-                </div>
-                <div class="text-caption text-medium-emphasis">
-                  ID: {{ activeRoom.pelanggan?.customer_id || ('#' + activeRoom.pelanggan_id) }}
-                </div>
-              </div>
+          <!-- Bottom Chat Input Bar -->
+          <footer class="chat-input-bar px-4 py-3 bg-surface border-t d-flex align-center gap-3">
+            <v-textarea
+              v-model="inputMessage"
+              rows="1"
+              auto-grow
+              max-rows="4"
+              density="compact"
+              variant="outlined"
+              rounded="xl"
+              placeholder="Ketik balasan CS... (Enter untuk kirim, Shift+Enter untuk baris baru)"
+              hide-details
+              class="chat-input-textarea"
+              @keydown.enter.exact.prevent="sendAdminMessage"
+              @input="notifyAdminTyping"
+            ></v-textarea>
+
+            <v-btn
+              color="primary"
+              icon="mdi-send"
+              elevation="1"
+              size="default"
+              class="flex-shrink-0"
+              :disabled="!inputMessage.trim()"
+              @click="sendAdminMessage"
+              title="Kirim Pesan"
+            ></v-btn>
+          </footer>
+        </template>
+      </main>
+
+      <!-- ================= PANEL 3: CONTACT 360 (CUSTOMER PROFILE) ================= -->
+      <aside
+        v-if="showInfoPanel && activeRoom"
+        class="customer-info-panel border-s d-flex flex-column bg-surface overflow-y-auto"
+      >
+        <!-- Panel Header -->
+        <div class="px-4 py-3 border-b d-flex align-center justify-space-between flex-shrink-0">
+          <div class="d-flex align-center gap-2">
+            <v-icon size="18" color="primary">mdi-card-account-details-outline</v-icon>
+            <h4 class="text-subtitle-2 font-weight-bold text-high-emphasis">Profil Pelanggan</h4>
+          </div>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            size="small"
+            density="compact"
+            @click="showInfoPanel = false"
+          ></v-btn>
+        </div>
+
+        <div class="pa-4 d-flex flex-column gap-4">
+          <!-- Profile Hero -->
+          <div class="text-center pb-1">
+            <v-avatar :color="getBrandColor(activeRoom.brand)" size="56" class="elevation-2 mb-2">
+              <span class="text-h6 font-weight-bold text-white">
+                {{ getInitials(activeRoom.pelanggan?.nama || 'Pelanggan') }}
+              </span>
+            </v-avatar>
+            <h3 class="text-subtitle-1 font-weight-bold text-high-emphasis mb-0">
+              {{ activeRoom.pelanggan?.nama || '-' }}
+            </h3>
+            <div class="text-caption text-medium-emphasis">
+              ID: <strong>{{ activeRoom.pelanggan?.customer_id || ('#' + activeRoom.pelanggan_id) }}</strong>
             </div>
-
-            <v-divider class="my-2"></v-divider>
-
-            <div class="info-row mb-2">
-              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
-                <v-icon size="14">mdi-shield-check-outline</v-icon>
-                <span>Brand Layanan</span>
-              </div>
-              <v-chip :color="getBrandColor(activeRoom.brand)" size="x-small" variant="flat" class="font-weight-bold text-white">
+            <div class="mt-2">
+              <v-chip :color="getBrandColor(activeRoom.brand)" size="x-small" variant="flat" class="font-weight-bold text-white px-2">
                 {{ normalizeBrandName(activeRoom.brand) }}
               </v-chip>
             </div>
+          </div>
 
-            <div class="info-row mb-2">
-              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
-                <v-icon size="14">mdi-phone-outline</v-icon>
-                <span>Nomor Telepon</span>
-              </div>
+          <v-divider></v-divider>
+
+          <!-- Section: Kontak & Lokasi -->
+          <div>
+            <div class="text-overline text-medium-emphasis mb-2 font-weight-bold">Kontak & Lokasi</div>
+            <v-card variant="tonal" class="pa-3 rounded-lg d-flex flex-column gap-2.5">
+              <!-- Phone -->
               <div class="d-flex align-center justify-space-between">
-                <span class="text-body-2 font-weight-medium">{{ activeRoom.pelanggan?.no_telp || '-' }}</span>
+                <div class="d-flex align-center gap-2 text-body-2">
+                  <v-icon size="16" color="primary">mdi-phone-outline</v-icon>
+                  <span class="font-weight-medium">{{ activeRoom.pelanggan?.no_telp || '-' }}</span>
+                </div>
                 <v-btn
                   v-if="activeRoom.pelanggan?.no_telp"
                   icon="mdi-content-copy"
@@ -533,96 +493,102 @@
                   @click="copyToClipboard(activeRoom.pelanggan.no_telp)"
                 ></v-btn>
               </div>
-            </div>
 
-            <div class="info-row">
-              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
-                <v-icon size="14">mdi-map-marker-outline</v-icon>
-                <span>Alamat / Lokasi</span>
+              <v-divider></v-divider>
+
+              <!-- Alamat -->
+              <div>
+                <div class="d-flex align-center gap-2 text-caption text-medium-emphasis mb-1">
+                  <v-icon size="14">mdi-map-marker-outline</v-icon>
+                  <span>Alamat Pemasangan:</span>
+                </div>
+                <div class="text-caption text-high-emphasis font-weight-medium ps-5">
+                  {{ activeRoom.pelanggan?.alamat || '-' }}
+                  <span v-if="activeRoom.pelanggan?.blok || activeRoom.pelanggan?.unit" class="text-primary font-weight-bold d-block mt-0.5">
+                    Blok {{ activeRoom.pelanggan?.blok || '-' }} / Unit {{ activeRoom.pelanggan?.unit || '-' }}
+                  </span>
+                </div>
               </div>
-              <div class="text-caption text-high-emphasis">
-                {{ activeRoom.pelanggan?.alamat || '-' }}
-                <span v-if="activeRoom.pelanggan?.blok || activeRoom.pelanggan?.unit">
-                  (Blok {{ activeRoom.pelanggan?.blok || '-' }} / Unit {{ activeRoom.pelanggan?.unit || '-' }})
+            </v-card>
+          </div>
+
+          <!-- Section: Layanan FTTH -->
+          <div>
+            <div class="text-overline text-medium-emphasis mb-2 font-weight-bold">Layanan FTTH</div>
+            <v-card variant="tonal" class="pa-3 rounded-lg d-flex flex-column gap-2.5">
+              <div class="d-flex align-center justify-space-between">
+                <div class="d-flex align-center gap-2 text-caption text-medium-emphasis">
+                  <v-icon size="16" color="primary">mdi-speedometer</v-icon>
+                  <span>Paket:</span>
+                </div>
+                <span class="text-caption font-weight-bold text-primary">
+                  {{ getCustomerPackage(activeRoom.pelanggan) }}
                 </span>
               </div>
-            </div>
-          </v-card>
 
-          <!-- Subscription & Technical Info -->
-          <v-card variant="outlined" class="pa-3 rounded-lg mb-3 info-card">
-            <div class="d-flex align-center gap-2 mb-2">
-              <v-icon size="16" color="primary">mdi-wifi</v-icon>
-              <span class="text-subtitle-2 font-weight-bold">Status Layanan FTTH</span>
-            </div>
+              <v-divider></v-divider>
 
-            <div class="info-row mb-2">
-              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
-                <v-icon size="14">mdi-speedometer</v-icon>
-                <span>Paket Layanan</span>
+              <div class="d-flex align-center justify-space-between">
+                <div class="d-flex align-center gap-2 text-caption text-medium-emphasis">
+                  <v-icon size="16" color="primary">mdi-shield-check-outline</v-icon>
+                  <span>Status:</span>
+                </div>
+                <v-chip
+                  :color="getCustomerStatus(activeRoom.pelanggan) === 'Aktif' ? 'success' : 'error'"
+                  size="x-small"
+                  variant="flat"
+                  class="font-weight-bold"
+                >
+                  {{ getCustomerStatus(activeRoom.pelanggan) }}
+                </v-chip>
               </div>
-              <div class="font-weight-bold text-body-2 text-primary">
-                {{ getCustomerPackage(activeRoom.pelanggan) }}
-              </div>
-            </div>
 
-            <div class="info-row mb-2">
-              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
-                <v-icon size="14">mdi-check-circle-outline</v-icon>
-                <span>Status Langganan</span>
-              </div>
-              <v-chip
-                :color="getCustomerStatus(activeRoom.pelanggan) === 'Aktif' ? 'success' : 'error'"
-                size="x-small"
-                variant="flat"
-                class="font-weight-bold"
-              >
-                {{ getCustomerStatus(activeRoom.pelanggan) }}
-              </v-chip>
-            </div>
-
-            <div v-if="activeRoom.pelanggan?.data_teknis?.id_pelanggan" class="info-row">
-              <div class="text-caption text-medium-emphasis d-flex align-center gap-1 mb-1">
-                <v-icon size="14">mdi-account-key-outline</v-icon>
-                <span>Username PPPoE</span>
-              </div>
-              <div class="font-weight-bold text-caption font-mono bg-grey-lighten-4 pa-1 px-2 rounded">
-                {{ activeRoom.pelanggan.data_teknis.id_pelanggan }}
-              </div>
-            </div>
-          </v-card>
+              <template v-if="activeRoom.pelanggan?.data_teknis?.id_pelanggan">
+                <v-divider></v-divider>
+                <div class="d-flex align-center justify-space-between">
+                  <div class="d-flex align-center gap-2 text-caption text-medium-emphasis">
+                    <v-icon size="16" color="primary">mdi-account-key-outline</v-icon>
+                    <span>PPPoE:</span>
+                  </div>
+                  <code class="text-caption font-weight-bold px-1.5 py-0.5 rounded bg-surface">
+                    {{ activeRoom.pelanggan.data_teknis.id_pelanggan }}
+                  </code>
+                </div>
+              </template>
+            </v-card>
+          </div>
 
           <!-- Action Buttons -->
-          <div class="d-flex flex-column gap-2">
+          <div class="d-flex flex-column gap-2 pt-1">
             <v-btn
               block
               color="success"
               prepend-icon="mdi-whatsapp"
               variant="flat"
-              class="text-none font-weight-bold"
+              class="text-none font-weight-bold rounded-lg"
               @click="openWhatsApp(activeRoom.pelanggan?.no_telp)"
             >
-              Hubungi via WhatsApp Web
+              Chat via WhatsApp Web
             </v-btn>
             <v-btn
               block
-              variant="outlined"
+              variant="tonal"
               prepend-icon="mdi-account-search-outline"
-              class="text-none font-weight-medium"
+              class="text-none font-weight-medium rounded-lg"
               @click="navigateToCustomer(activeRoom.pelanggan_id)"
             >
-              Buka di Data Pelanggan
+              Buka Data Pelanggan
             </v-btn>
           </div>
-        </v-col>
-      </v-row>
+        </div>
+      </aside>
     </v-card>
 
     <!-- Global Snackbar -->
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3000" location="top right">
       {{ snackbar.text }}
     </v-snackbar>
-  </v-container>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -646,7 +612,8 @@ const isLoadingRooms = ref(false);
 const isLoadingMessages = ref(false);
 const searchQuery = ref('');
 const selectedBrand = ref('ALL');
-const showInfoPanel = ref(true);
+// Default false so chat has full spacious width when opened!
+const showInfoPanel = ref(false);
 const inputMessage = ref('');
 const isCustomerTyping = ref(false);
 const isWsConnected = ref(false);
@@ -666,12 +633,12 @@ const snackbar = ref({
   color: 'success',
 });
 
-// Brand filter options
+// Brand filter options with clean compact labels that never truncate
 const brandFilters = [
-  { label: 'Semua', value: 'ALL', color: 'primary', icon: 'mdi-layers-outline' },
-  { label: 'JAKINET', value: 'JAKINET', color: 'error', icon: 'mdi-network' },
-  { label: 'JELANTIK', value: 'JELANTIK', color: 'primary', icon: 'mdi-web' },
-  { label: 'JELANTIK NAGRAK', value: 'JELANTIK NAGRAK', color: 'success', icon: 'mdi-shield-home-outline' },
+  { label: 'Semua', value: 'ALL', color: 'primary' },
+  { label: 'Jakinet', value: 'JAKINET', color: 'error' },
+  { label: 'Jelantik', value: 'JELANTIK', color: 'primary' },
+  { label: 'Nagrak', value: 'JELANTIK NAGRAK', color: 'success' },
 ];
 
 // Quick templates
@@ -788,7 +755,7 @@ async function fetchRooms(silent = false) {
   }
 }
 
-// Silent polling for active room and room list as fallback if WebSocket is offline
+// Silent polling as fallback only if WebSocket is offline
 async function pollActiveRoomSilent() {
   if (document.hidden) return;
   // Jika WebSocket sedang online, tidak perlu polling HTTP untuk menghemat resource
@@ -884,7 +851,6 @@ function sendAdminMessage() {
   }
 
   inputMessage.value = '';
-
   scrollToBottom();
 
   // Send via WebSocket
@@ -930,6 +896,11 @@ function initWebSocket() {
     ws.onopen = () => {
       isWsConnected.value = true;
       startHeartbeat();
+      // Catch up on missed messages/rooms after reconnect
+      fetchRooms(true);
+      if (activeRoom.value) {
+        pollActiveRoomSilent();
+      }
     };
 
     ws.onmessage = (event) => {
@@ -951,24 +922,25 @@ function initWebSocket() {
     ws.onerror = () => {
       isWsConnected.value = false;
     };
-  } catch (e) {
-    console.error('WS Connection error:', e);
+  } catch (err) {
+    console.error('Failed to init WebSocket:', err);
+    isWsConnected.value = false;
   }
 }
 
 function handleWsIncoming(payload: any) {
-  const event = payload.event;
-  const data = payload.data;
+  const { event, data } = payload;
+  if (!event || !data) return;
 
   switch (event) {
-    case 'ack_sent': {
-      // Ceklis 1 Abu-abu
+    case 'ack_message': {
+      // Sent (Ceklis 1)
       const index = activeMessages.value.findIndex(
-        (m) => m.temp_id === data.temp_id || m.id === data.id
+        (m) => m.temp_id === data.temp_id || (data.id && m.id === data.id)
       );
       if (index !== -1) {
         activeMessages.value[index].id = data.id;
-        activeMessages.value[index].status = 'sent';
+        activeMessages.value[index].status = data.status || 'sent';
       }
       break;
     }
@@ -976,28 +948,30 @@ function handleWsIncoming(payload: any) {
     case 'new_message': {
       const roomIdx = rooms.value.findIndex((r) => r.id === data.room_id);
       if (roomIdx !== -1) {
-        const [updatedRoom] = rooms.value.splice(roomIdx, 1);
-        updatedRoom.last_message_text = data.message;
-        updatedRoom.last_message_at = data.created_at;
-        rooms.value.unshift(updatedRoom);
+        rooms.value[roomIdx].last_message_text = data.message;
+        rooms.value[roomIdx].last_message_at = data.created_at;
+        if (roomIdx > 0) {
+          const [moved] = rooms.value.splice(roomIdx, 1);
+          rooms.value.unshift(moved);
+        }
       } else {
         fetchRooms(true);
       }
 
       if (activeRoom.value && activeRoom.value.id === data.room_id) {
-        // Message is in the open room
         const exists = activeMessages.value.some(
           (m) => (data.id && m.id === data.id) || (data.temp_id && m.temp_id === data.temp_id)
         );
         if (!exists) {
           activeMessages.value.push(data);
           scrollToBottom();
-          // Mark as read immediately
-          sendWsEvent('read_room', { room_id: data.room_id });
+        }
+
+        if (data.sender_type === 'customer') {
           apiClient.post(`/chat/messages/${data.room_id}/read?reader_type=admin`).catch(() => {});
+          sendWsEvent('read_room', { room_id: data.room_id });
         }
       } else {
-        // Message is in another room -> increase unread count
         if (roomIdx !== -1) {
           rooms.value[0].unread_count_admin = (rooms.value[0].unread_count_admin || 0) + 1;
         }
@@ -1007,7 +981,7 @@ function handleWsIncoming(payload: any) {
     }
 
     case 'message_status_update': {
-      // Delivered (Ceklis 2 Abu-abu) or Read (Ceklis 2 Biru)
+      // Delivered or Read
       const index = activeMessages.value.findIndex(
         (m) => m.id === data.id || (data.temp_id && m.temp_id === data.temp_id)
       );
@@ -1018,7 +992,6 @@ function handleWsIncoming(payload: any) {
     }
 
     case 'room_read': {
-      // All messages in room read by customer -> turn all CS messages into 'read' (Ceklis 2 Biru)
       if (activeRoom.value && activeRoom.value.id === data.room_id) {
         activeMessages.value.forEach((m) => {
           if (m.sender_type === 'admin') {
@@ -1177,53 +1150,78 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.customer-chat-container {
-  height: calc(100vh - 84px);
-  display: flex;
-  flex-direction: column;
+.customer-chat-wrapper {
+  height: calc(100vh - 150px);
+  max-height: calc(100vh - 150px);
+  box-sizing: border-box;
 }
 
 .chat-workspace {
-  flex: 1;
-  min-height: 0;
+  display: flex;
+  height: 100%;
+  width: 100%;
   overflow: hidden;
+  position: relative;
 }
 
+/* ================= PANEL 1: SIDEBAR ================= */
 .rooms-sidebar {
+  width: 320px;
+  min-width: 300px;
+  max-width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   background-color: rgb(var(--v-theme-surface));
 }
 
-.filter-chips-scroll::-webkit-scrollbar,
+.brand-filter-bar::-webkit-scrollbar,
 .quick-replies-bar::-webkit-scrollbar {
   display: none;
 }
 
-.room-item {
-  transition: all 0.15s ease;
-  cursor: pointer;
-  border-left: 3px solid transparent;
+.brand-filter-chip {
+  height: 26px;
+  font-size: 0.72rem;
+  letter-spacing: 0.2px;
 }
 
-.room-item:hover {
-  background-color: rgba(var(--v-theme-primary), 0.04);
+.room-card {
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  border: 1px solid transparent;
 }
 
-.room-item--active {
-  background-color: rgba(var(--v-theme-primary), 0.08) !important;
-  border-left-color: rgb(var(--v-theme-primary)) !important;
+.room-card:hover {
+  background-color: rgba(var(--v-theme-primary), 0.05);
 }
 
-.messages-container {
+.room-card--active {
+  background-color: rgba(var(--v-theme-primary), 0.09) !important;
+  border-color: rgba(var(--v-theme-primary), 0.25) !important;
+}
+
+/* ================= PANEL 2: CONVERSATION ================= */
+.chat-conversation-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   background-color: #f8fafc;
 }
 
-.v-theme--dark .messages-container {
+.v-theme--dark .chat-conversation-panel {
   background-color: #0b1120;
 }
 
+.messages-container {
+  background-color: transparent;
+}
+
 .message-bubble {
-  max-width: 72%;
-  min-width: 140px;
+  max-width: 65%;
+  min-width: 120px;
   position: relative;
   word-wrap: break-word;
 }
@@ -1231,9 +1229,9 @@ onUnmounted(() => {
 .bubble-customer {
   background-color: #ffffff;
   color: #1e293b;
-  border-radius: 16px 16px 16px 4px !important;
+  border-radius: 18px 18px 18px 4px !important;
   border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .v-theme--dark .bubble-customer {
@@ -1244,17 +1242,17 @@ onUnmounted(() => {
 }
 
 .bubble-admin {
-  background: linear-gradient(135deg, #1e40af, #2563eb);
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
   color: #ffffff;
-  border-radius: 16px 16px 4px 16px !important;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  border-radius: 18px 18px 4px 18px !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
 }
 
 .date-pill {
-  background-color: rgba(226, 232, 240, 0.85);
+  background-color: rgba(226, 232, 240, 0.9);
   color: #475569;
-  border: 1px solid rgba(203, 213, 225, 0.6);
-  font-size: 0.72rem;
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  font-size: 0.7rem;
   letter-spacing: 0.2px;
 }
 
@@ -1265,20 +1263,21 @@ onUnmounted(() => {
 }
 
 .quick-chip {
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition: transform 0.1s ease;
 }
 
 .quick-chip:hover {
   transform: translateY(-1px);
 }
 
-.info-card {
-  border-color: rgba(0, 0, 0, 0.08) !important;
-  background-color: rgba(var(--v-theme-surface), 0.6);
-}
-
-.v-theme--dark .info-card {
-  border-color: rgba(255, 255, 255, 0.08) !important;
+/* ================= PANEL 3: CONTACT 360 ================= */
+.customer-info-panel {
+  width: 320px;
+  min-width: 300px;
+  max-width: 340px;
+  flex-shrink: 0;
+  height: 100%;
+  background-color: rgb(var(--v-theme-surface));
 }
 
 .animate-pulse {
@@ -1290,7 +1289,7 @@ onUnmounted(() => {
   50% { opacity: 0.3; }
 }
 
-/* Modern thin scrollbar */
+/* Slim modern scrollbars */
 .rooms-list-scroll::-webkit-scrollbar,
 .messages-container::-webkit-scrollbar,
 .customer-info-panel::-webkit-scrollbar {
