@@ -163,6 +163,8 @@ func main() {
 		&domain.WhatsAppOutbox{},
 		&domain.APIKey{},
 		&domain.UserFcmToken{},
+		&domain.ChatRoom{},
+		&domain.ChatMessage{},
 	}
 	var migrationErrors []error
 	for _, model := range modelsToMigrate {
@@ -372,6 +374,13 @@ func main() {
 
 	// Notifications
 	httpDelivery.NewNotificationHandler(api, authMw)
+
+	// In-App Real-Time Customer Support Chat (WebSocket)
+	chatRepo := repository.NewChatRepository(db)
+	chatUsecase := usecase.NewChatUsecase(chatRepo)
+	websocket.GlobalChatHub = websocket.NewChatHub(chatUsecase)
+	go websocket.GlobalChatHub.Run()
+	httpDelivery.NewChatHandler(api, chatUsecase, authMw)
 
 	// Portal Pelanggan High-Performance Lookup
 	portalHandler := httpDelivery.NewPortalHandler(db)
