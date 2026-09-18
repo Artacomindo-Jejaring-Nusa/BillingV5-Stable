@@ -721,7 +721,7 @@ function sendAdminMessage() {
     id: null,
     room_id: activeRoom.value.id,
     sender_type: 'admin',
-    sender_name: authStore.user?.nama || 'Admin CS',
+    sender_name: authStore.user?.name || 'Admin CS',
     message: text,
     message_type: 'text',
     status: 'pending', // 🕒 Pending
@@ -762,7 +762,7 @@ function notifyAdminTyping() {
 function initWebSocket() {
   const user = authStore.user;
   const userId = user?.id || 1;
-  const userName = encodeURIComponent(user?.nama || 'Admin CS');
+  const userName = encodeURIComponent(user?.name || 'Admin CS');
 
   // Build WebSocket URL
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

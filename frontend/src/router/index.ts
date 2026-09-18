@@ -6,7 +6,7 @@ import DashboardView from '../views/DashboardView.vue';
 import { getEncryptedToken } from '@/utils/crypto';
 
 // Gunakan Hash History untuk Electron (file:// protocol) dan Web History untuk Web
-const historyMode = (window as any).electronAPI 
+const historyMode = typeof window !== 'undefined' && 'electronAPI' in window 
   ? createWebHashHistory() 
   : createWebHistory(import.meta.env.BASE_URL);
 
