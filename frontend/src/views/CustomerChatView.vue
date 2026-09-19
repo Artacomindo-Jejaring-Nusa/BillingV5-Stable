@@ -312,7 +312,7 @@
                 prepend-icon="mdi-check-circle-outline"
                 class="text-none font-weight-bold rounded-pill"
                 :loading="isUpdatingStatus"
-                @click="closeActiveRoom"
+                @click="openCloseRoomDialog"
               >
                 Tutup Percakapan
               </v-btn>
@@ -873,6 +873,66 @@
       </v-card>
     </v-dialog>
 
+    <!-- Dialog: Selesaikan Percakapan & Kirim Pesan Penutup -->
+    <v-dialog v-model="closeRoomDialog" max-width="520">
+      <v-card class="rounded-xl overflow-hidden" elevation="8">
+        <v-card-title class="d-flex align-center justify-space-between px-5 py-4 border-b">
+          <div class="d-flex align-center gap-2">
+            <v-avatar color="success" size="32" variant="tonal">
+              <v-icon size="18" color="success">mdi-check-circle-outline</v-icon>
+            </v-avatar>
+            <span class="text-subtitle-1 font-weight-bold">Selesaikan Percakapan</span>
+          </div>
+          <v-btn icon="mdi-close" variant="text" size="small" @click="closeRoomDialog = false"></v-btn>
+        </v-card-title>
+        <v-card-text class="pa-5">
+          <p class="text-body-2 text-medium-emphasis mb-3">
+            Tandai sesi percakapan dengan <strong class="text-high-emphasis">{{ activeRoom?.pelanggan?.nama || 'Pelanggan' }}</strong> sebagai selesai.
+          </p>
+
+          <v-checkbox
+            v-model="sendClosingMessage"
+            label="Kirim pesan penutup otomatis ke pelanggan"
+            color="primary"
+            density="compact"
+            hide-details
+            class="mb-3 font-weight-medium"
+          ></v-checkbox>
+
+          <div v-if="sendClosingMessage" class="mt-1">
+            <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block">
+              Pesan Penutup (dapat diedit):
+            </label>
+            <v-textarea
+              v-model="closingMessageText"
+              rows="3"
+              variant="outlined"
+              density="compact"
+              rounded="lg"
+              auto-grow
+              hide-details
+              placeholder="Tulis pesan penutup..."
+            ></v-textarea>
+          </div>
+        </v-card-text>
+        <v-card-actions class="px-5 pb-5 pt-0 d-flex justify-end gap-2">
+          <v-btn variant="text" rounded="pill" :disabled="isUpdatingStatus" @click="closeRoomDialog = false">
+            Batal
+          </v-btn>
+          <v-btn
+            color="success"
+            variant="flat"
+            rounded="pill"
+            prepend-icon="mdi-check-circle"
+            :loading="isUpdatingStatus"
+            @click="confirmCloseRoom"
+          >
+            Selesaikan & Tutup
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Global Snackbar -->
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3000" location="top right">
       {{ snackbar.text }}
@@ -928,6 +988,11 @@ const imageCaption = ref('');
 // Lightbox state
 const previewImageDialog = ref(false);
 const lightboxImageUrl = ref('');
+
+// Close conversation dialog state
+const closeRoomDialog = ref(false);
+const sendClosingMessage = ref(true);
+const closingMessageText = ref('');
 
 // Audio notification instance (preloaded)
 let notificationAudio: HTMLAudioElement | null = null;
@@ -1205,12 +1270,67 @@ function sendAdminMessage() {
 }
 
 // Close & Reopen Room Actions
-async function closeActiveRoom() {
+function openCloseRoomDialog() {
+  if (!activeRoom.value) return;
+  const brand = (activeRoom.value.brand || '').toUpperCase();
+  let brandName = 'Artacom';
+  if (brand.includes('JELANTIK')) {
+    brandName = 'Jelantik';
+  } else if (brand.includes('JAKINET')) {
+    brandName = 'Jakinet';
+  }
+
+  closingMessageText.value = `Terima kasih telah menghubungi Customer Care ${brandName}. Senang dapat membantu Anda. Percakapan ini kami tandai selesai. Jika Anda membutuhkan bantuan kembali di kemudian hari, silakan kirimkan pesan kepada kami. Semoga hari Anda menyenangkan! 🙏`;
+  sendClosingMessage.value = true;
+  closeRoomDialog.value = true;
+}
+
+async function confirmCloseRoom() {
   if (!activeRoom.value) return;
   const roomId = activeRoom.value.id;
   const custName = activeRoom.value.pelanggan?.nama || 'Pelanggan';
   isUpdatingStatus.value = true;
+
   try {
+    // 1. Kirim pesan penutup otomatis jika dipilih
+    if (sendClosingMessage.value && closingMessageText.value.trim()) {
+      const msgText = closingMessageText.value.trim();
+      const tempId = `admin_close_${Date.now()}`;
+
+      const localMsg = {
+        id: null,
+        room_id: roomId,
+        sender_type: 'admin',
+        sender_name: authStore.user?.name || 'Admin CS',
+        message: msgText,
+        message_type: 'text',
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        temp_id: tempId,
+      };
+
+      activeMessages.value.push(localMsg);
+      activeRoom.value.last_message_text = msgText;
+      activeRoom.value.last_message_at = new Date().toISOString();
+
+      // Pindahkan room ke paling atas
+      const roomIdx = rooms.value.findIndex((r) => r.id === roomId);
+      if (roomIdx > 0) {
+        const [moved] = rooms.value.splice(roomIdx, 1);
+        rooms.value.unshift(moved);
+      }
+
+      sendWsEvent('send_message', {
+        room_id: roomId,
+        message: msgText,
+        message_type: 'text',
+        temp_id: tempId,
+      });
+
+      scrollToBottom();
+    }
+
+    // 2. Tutup room via API & WebSocket
     await apiClient.post(`/chat/rooms/${roomId}/close`);
     activeRoom.value.status = 'closed';
     const roomIdx = rooms.value.findIndex((r) => r.id === roomId);
@@ -1218,6 +1338,8 @@ async function closeActiveRoom() {
       rooms.value[roomIdx].status = 'closed';
     }
     sendWsEvent('close_room', { room_id: roomId });
+
+    closeRoomDialog.value = false;
     showSnackbar(`Percakapan dengan ${custName} telah diselesaikan.`, 'success');
   } catch (err: any) {
     showSnackbar('Gagal menutup percakapan: ' + (err.response?.data?.error || err.message), 'error');
@@ -1765,6 +1887,10 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     if (previewImageDialog.value) {
       previewImageDialog.value = false;
+      return;
+    }
+    if (closeRoomDialog.value) {
+      closeRoomDialog.value = false;
       return;
     }
     if (imageUploadDialog.value) {
