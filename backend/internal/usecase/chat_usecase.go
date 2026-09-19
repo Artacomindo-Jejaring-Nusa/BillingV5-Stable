@@ -38,7 +38,7 @@ func (u *chatUsecase) ListActiveRooms(ctx context.Context, filter domain.ChatRoo
 }
 
 func (u *chatUsecase) SendMessage(ctx context.Context, msg *domain.ChatMessage) (*domain.ChatMessage, error) {
-	if msg == nil || msg.RoomID == 0 || msg.Message == "" {
+	if msg == nil || msg.RoomID == 0 || (msg.Message == "" && msg.AttachmentURL == nil) {
 		return nil, errors.New("pesan tidak boleh kosong")
 	}
 
@@ -59,6 +59,11 @@ func (u *chatUsecase) SendMessage(ctx context.Context, msg *domain.ChatMessage) 
 	}
 
 	preview := msg.Message
+	if preview == "" && (msg.MessageType == "image" || msg.AttachmentURL != nil) {
+		preview = "[Gambar]"
+	} else if preview == "" {
+		preview = "[Lampiran]"
+	}
 	if len(preview) > 100 {
 		preview = preview[:100] + "..."
 	}

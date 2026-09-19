@@ -1336,14 +1336,26 @@ function handleWsIncoming(payload: any) {
   if (!event || !data) return;
 
   switch (event) {
+    case 'ack_sent':
     case 'ack_message': {
       // Sent (Ceklis 1)
       const index = activeMessages.value.findIndex(
-        (m) => m.temp_id === data.temp_id || (data.id && m.id === data.id)
+        (m) => (data.temp_id && m.temp_id === data.temp_id) || (data.id && m.id === data.id)
       );
       if (index !== -1) {
         activeMessages.value[index].id = data.id;
         activeMessages.value[index].status = data.status || 'sent';
+      }
+      break;
+    }
+
+    case 'message_error': {
+      showSnackbar('Gagal mengirim pesan: ' + (data.error || 'Terjadi kesalahan'), 'error');
+      const index = activeMessages.value.findIndex(
+        (m) => data.temp_id && m.temp_id === data.temp_id
+      );
+      if (index !== -1) {
+        activeMessages.value[index].status = 'error';
       }
       break;
     }
@@ -1565,19 +1577,82 @@ function triggerImageSelect() {
   }
 }
 
+// Helper: Compress large image using HTML5 Canvas before uploading
+async function compressImage(file: File, maxDimension = 1920, quality = 0.82): Promise<File> {
+  // If not an image or is a GIF (preserve animation) or already small (< 400KB), return as is
+  if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.size < 400 * 1024) {
+    return file;
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        // Calculate aspect ratio downscaling if larger than maxDimension
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob || blob.size >= file.size) {
+              resolve(file);
+            } else {
+              const newName = file.name.replace(/\.[^/.]+$/, '') + '.jpg';
+              const compressedFile = new File([blob], newName, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
 function onImageSelected(e: Event) {
   const target = e.target as HTMLInputElement;
   if (!target.files || target.files.length === 0) return;
 
   const file = target.files[0];
   if (!file.type.startsWith('image/')) {
-    showSnackbar('Hanya file gambar yang didukung (JPG, PNG, WEBP)', 'error');
+    showSnackbar('Hanya file gambar yang didukung (JPG, PNG, WEBP, GIF)', 'error');
     return;
   }
 
-  // Max 10MB
-  if (file.size > 10 * 1024 * 1024) {
-    showSnackbar('Ukuran gambar maksimal 10MB', 'error');
+  // Max 25MB
+  if (file.size > 25 * 1024 * 1024) {
+    showSnackbar('Ukuran gambar maksimal 25MB', 'error');
     return;
   }
 
@@ -1602,8 +1677,11 @@ async function sendImageMessage() {
 
   isUploadingImage.value = true;
   try {
+    // Automatically compress large image before upload for ultra-fast, lightweight transfer
+    const fileToUpload = await compressImage(selectedImageFile.value);
+
     const formData = new FormData();
-    formData.append('file', selectedImageFile.value);
+    formData.append('file', fileToUpload);
 
     const uploadRes = await apiClient.post('/uploads/chat', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
