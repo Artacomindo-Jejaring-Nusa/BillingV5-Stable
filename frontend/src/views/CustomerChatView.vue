@@ -250,6 +250,20 @@
 
             <!-- Header Action Buttons -->
             <div class="d-flex align-center gap-2 flex-shrink-0 ms-3">
+              <!-- Sound Toggle -->
+              <v-tooltip location="bottom" :text="isSoundEnabled ? 'Nonaktifkan Notifikasi Suara' : 'Aktifkan Notifikasi Suara'">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    :icon="isSoundEnabled ? 'mdi-volume-high' : 'mdi-volume-off'"
+                    variant="text"
+                    size="small"
+                    :color="isSoundEnabled ? 'primary' : 'medium-emphasis'"
+                    @click="isSoundEnabled = !isSoundEnabled"
+                  ></v-btn>
+                </template>
+              </v-tooltip>
+
               <v-btn
                 v-if="activeRoom.pelanggan?.no_telp"
                 variant="tonal"
@@ -400,32 +414,65 @@
           </div>
 
           <!-- Bottom Chat Input Bar -->
-          <footer class="chat-input-bar px-4 py-3 bg-surface border-t d-flex align-center gap-3">
-            <v-textarea
-              v-model="inputMessage"
-              rows="1"
-              auto-grow
-              max-rows="4"
-              density="compact"
-              variant="outlined"
-              rounded="xl"
-              placeholder="Ketik balasan CS... (Enter untuk kirim, Shift+Enter untuk baris baru)"
-              hide-details
-              class="chat-input-textarea"
-              @keydown.enter.exact.prevent="sendAdminMessage"
-              @input="notifyAdminTyping"
-            ></v-textarea>
+          <footer class="chat-input-bar px-4 py-3 bg-surface border-t">
+            <div class="d-flex align-end gap-2" style="position: relative;">
+              <!-- Emoji Picker Toggle -->
+              <div style="position: relative;">
+                <v-tooltip location="top" text="Pilih Emoji">
+                  <template v-slot:activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      icon="mdi-emoticon-happy-outline"
+                      variant="text"
+                      size="small"
+                      color="medium-emphasis"
+                      class="flex-shrink-0 mb-1"
+                      @click="showEmojiPicker = !showEmojiPicker"
+                    ></v-btn>
+                  </template>
+                </v-tooltip>
 
-            <v-btn
-              color="primary"
-              icon="mdi-send"
-              elevation="1"
-              size="default"
-              class="flex-shrink-0"
-              :disabled="!inputMessage.trim()"
-              @click="sendAdminMessage"
-              title="Kirim Pesan"
-            ></v-btn>
+                <!-- Emoji Picker Popup -->
+                <div v-if="showEmojiPicker" class="emoji-picker-popup">
+                  <EmojiPicker
+                    :native="true"
+                    :disable-skin-tones="true"
+                    :display-recent="true"
+                    @select="onSelectEmoji"
+                  />
+                </div>
+              </div>
+
+              <!-- Text Input -->
+              <v-textarea
+                ref="chatInputRef"
+                v-model="inputMessage"
+                rows="1"
+                auto-grow
+                max-rows="4"
+                density="compact"
+                variant="outlined"
+                rounded="xl"
+                placeholder="Ketik balasan CS... (Enter untuk kirim, Shift+Enter baris baru)"
+                hide-details
+                class="chat-input-textarea flex-grow-1"
+                @keydown.enter.exact.prevent="sendAdminMessage"
+                @input="notifyAdminTyping"
+                @focus="showEmojiPicker = false"
+              ></v-textarea>
+
+              <!-- Send Button -->
+              <v-btn
+                color="primary"
+                icon="mdi-send"
+                elevation="1"
+                size="default"
+                class="flex-shrink-0 mb-1"
+                :disabled="!inputMessage.trim()"
+                @click="sendAdminMessage"
+                title="Kirim Pesan"
+              ></v-btn>
+            </div>
           </footer>
         </template>
       </main>
@@ -597,6 +644,9 @@ import { useDisplay } from 'vuetify';
 import { useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
+import EmojiPicker from 'vue3-emoji-picker';
+import 'vue3-emoji-picker/css';
+import chatNotificationSound from '@/assets/chat-notification.mp3';
 
 const router = useRouter();
 const { mobile } = useDisplay();
@@ -616,9 +666,15 @@ const selectedBrand = ref('ALL');
 const showInfoPanel = ref(false);
 const inputMessage = ref('');
 const isCustomerTyping = ref(false);
+const showEmojiPicker = ref(false);
+const isSoundEnabled = ref(true);
+const chatInputRef = ref<any>(null);
 const isWsConnected = ref(false);
 
 const messagesScrollContainer = ref<HTMLElement | null>(null);
+
+// Audio notification instance (preloaded)
+let notificationAudio: HTMLAudioElement | null = null;
 
 let ws: WebSocket | null = null;
 let heartbeatTimer: any = null;
@@ -866,6 +922,27 @@ function useTemplate(tpl: any) {
   inputMessage.value = tpl.text;
 }
 
+// Emoji picker handler
+function onSelectEmoji(emoji: any) {
+  inputMessage.value += emoji.i;
+  showEmojiPicker.value = false;
+}
+
+// Sound notification
+function playNotificationSound() {
+  if (!isSoundEnabled.value) return;
+  try {
+    if (!notificationAudio) {
+      notificationAudio = new Audio(chatNotificationSound);
+      notificationAudio.volume = 0.6;
+    }
+    notificationAudio.currentTime = 0;
+    notificationAudio.play().catch(() => {
+      // Browser may block autoplay until user interacts
+    });
+  } catch (_) {}
+}
+
 function notifyAdminTyping() {
   if (!activeRoom.value) return;
   sendWsEvent('typing', {
@@ -956,6 +1033,11 @@ function handleWsIncoming(payload: any) {
         }
       } else {
         fetchRooms(true);
+      }
+
+      // Play notification sound for incoming customer messages
+      if (data.sender_type === 'customer') {
+        playNotificationSound();
       }
 
       if (activeRoom.value && activeRoom.value.id === data.room_id) {
@@ -1268,6 +1350,17 @@ onUnmounted(() => {
 
 .quick-chip:hover {
   transform: translateY(-1px);
+}
+
+/* ================= EMOJI PICKER ================= */
+.emoji-picker-popup {
+  position: absolute;
+  bottom: 48px;
+  left: 0;
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 /* ================= PANEL 3: CONTACT 360 ================= */
