@@ -67,6 +67,46 @@
           ></v-text-field>
         </div>
 
+        <!-- Status Filter Tabs (Aktif / Selesai / Semua) -->
+        <div class="px-3 pb-2 d-flex gap-1">
+          <v-btn
+            size="x-small"
+            :variant="selectedStatus === 'open' ? 'flat' : 'tonal'"
+            :color="selectedStatus === 'open' ? 'primary' : 'default'"
+            class="flex-grow-1 text-none font-weight-bold rounded-pill"
+            style="font-size: 0.72rem; height: 26px;"
+            @click="selectedStatus = 'open'"
+          >
+            Aktif
+            <span v-if="openRoomsCount > 0" class="ms-1 px-1.5 py-0.2 rounded-pill bg-primary-lighten-1 text-white font-weight-bold" style="font-size: 0.65rem;">
+              {{ openRoomsCount }}
+            </span>
+          </v-btn>
+          <v-btn
+            size="x-small"
+            :variant="selectedStatus === 'closed' ? 'flat' : 'tonal'"
+            :color="selectedStatus === 'closed' ? 'primary' : 'default'"
+            class="flex-grow-1 text-none font-weight-bold rounded-pill"
+            style="font-size: 0.72rem; height: 26px;"
+            @click="selectedStatus = 'closed'"
+          >
+            Selesai
+            <span v-if="closedRoomsCount > 0" class="ms-1 px-1.5 py-0.2 rounded-pill bg-grey-darken-1 text-white font-weight-bold" style="font-size: 0.65rem;">
+              {{ closedRoomsCount }}
+            </span>
+          </v-btn>
+          <v-btn
+            size="x-small"
+            :variant="selectedStatus === 'ALL' ? 'flat' : 'tonal'"
+            :color="selectedStatus === 'ALL' ? 'primary' : 'default'"
+            class="flex-grow-1 text-none font-weight-bold rounded-pill"
+            style="font-size: 0.72rem; height: 26px;"
+            @click="selectedStatus = 'ALL'"
+          >
+            Semua
+          </v-btn>
+        </div>
+
         <!-- Brand Filter Chips (Compact & Clean) -->
         <div class="px-3 pb-2 brand-filter-bar d-flex gap-1.5 overflow-x-auto">
           <v-chip
@@ -85,7 +125,7 @@
         <v-divider></v-divider>
 
         <!-- Rooms List -->
-        <div class="rooms-list-scroll flex-grow-1 overflow-y-auto pa-1">
+        <div class="rooms-list-scroll flex-grow-1 overflow-y-auto pa-2">
           <div v-if="isLoadingRooms" class="pa-8 text-center">
             <v-progress-circular indeterminate color="primary" size="26"></v-progress-circular>
             <div class="text-caption text-medium-emphasis mt-2">Memuat percakapan...</div>
@@ -94,10 +134,12 @@
           <div v-else-if="filteredRooms.length === 0" class="pa-8 text-center text-medium-emphasis">
             <v-icon size="36" color="grey-lighten-1" class="mb-2">mdi-message-text-outline</v-icon>
             <div class="text-body-2 font-weight-medium">Tidak ada percakapan</div>
-            <div class="text-caption">Belum ada obrolan yang cocok</div>
+            <div class="text-caption">
+              {{ selectedStatus === 'closed' ? 'Belum ada percakapan yang selesai' : 'Belum ada obrolan aktif' }}
+            </div>
           </div>
 
-          <div v-else class="d-flex flex-column gap-1">
+          <div v-else class="d-flex flex-column gap-1.5">
             <div
               v-for="room in filteredRooms"
               :key="room.id"
@@ -115,23 +157,24 @@
 
                 <!-- Details -->
                 <div class="flex-grow-1 min-w-0">
-                  <div class="d-flex align-center justify-space-between mb-0.5">
-                    <span class="font-weight-bold text-truncate text-body-2 text-high-emphasis">
+                  <!-- Name & Timestamp Row -->
+                  <div class="d-flex align-center justify-space-between mb-1">
+                    <span class="font-weight-bold text-truncate text-body-2 text-high-emphasis flex-grow-1 me-2" style="max-width: 160px;">
                       {{ room.pelanggan?.nama || 'Pelanggan #' + room.pelanggan_id }}
                     </span>
-                    <span class="text-caption text-medium-emphasis flex-shrink-0 ms-2" style="font-size: 0.7rem;">
+                    <span class="text-caption text-medium-emphasis flex-shrink-0 font-weight-medium" style="font-size: 0.7rem;">
                       {{ formatTimestamp(room.last_message_at) }}
                     </span>
                   </div>
 
-                  <!-- Brand Pill & Phone -->
-                  <div class="d-flex align-center gap-1.5 mb-1">
+                  <!-- Brand Pill & Phone Row -->
+                  <div class="d-flex align-center gap-1.5 mb-1.5 flex-wrap">
                     <v-chip
                       :color="getBrandColor(room.brand)"
                       size="x-small"
                       variant="flat"
                       class="px-1.5 font-weight-bold text-white"
-                      style="font-size: 0.62rem; height: 17px;"
+                      style="font-size: 0.62rem; height: 18px;"
                     >
                       {{ normalizeBrandName(room.brand) }}
                     </v-chip>
@@ -142,17 +185,27 @@
                     </span>
                   </div>
 
-                  <!-- Last message snippet & unread badge -->
+                  <!-- Last message snippet & status/unread badge Row -->
                   <div class="d-flex align-center justify-space-between">
-                    <span class="text-caption text-truncate text-medium-emphasis flex-grow-1" style="font-size: 0.75rem;">
+                    <span class="text-caption text-truncate text-medium-emphasis flex-grow-1 me-2" style="font-size: 0.75rem;">
                       {{ room.last_message_text || 'Mulai obrolan...' }}
                     </span>
+                    <v-chip
+                      v-if="room.status === 'closed'"
+                      size="x-small"
+                      variant="tonal"
+                      color="grey"
+                      class="font-weight-medium flex-shrink-0 px-1.5"
+                      style="font-size: 0.65rem; height: 18px;"
+                    >
+                      Selesai
+                    </v-chip>
                     <v-badge
-                      v-if="room.unread_count_admin > 0"
+                      v-else-if="room.unread_count_admin > 0"
                       :content="room.unread_count_admin"
                       color="error"
                       inline
-                      class="ms-2"
+                      class="flex-shrink-0"
                     ></v-badge>
                   </div>
                 </div>
@@ -250,6 +303,42 @@
 
             <!-- Header Action Buttons -->
             <div class="d-flex align-center gap-2 flex-shrink-0 ms-3">
+              <!-- Close / Selesai Conversation Button -->
+              <v-btn
+                v-if="activeRoom.status !== 'closed'"
+                variant="tonal"
+                color="success"
+                size="small"
+                prepend-icon="mdi-check-circle-outline"
+                class="text-none font-weight-bold rounded-pill"
+                :loading="isUpdatingStatus"
+                @click="closeActiveRoom"
+              >
+                Tutup Percakapan
+              </v-btn>
+              <div v-else class="d-flex align-center gap-1.5">
+                <v-chip
+                  color="grey"
+                  variant="tonal"
+                  size="small"
+                  class="font-weight-bold"
+                  prepend-icon="mdi-check-all"
+                >
+                  Selesai
+                </v-chip>
+                <v-btn
+                  variant="tonal"
+                  color="primary"
+                  size="small"
+                  prepend-icon="mdi-lock-open-outline"
+                  class="text-none font-weight-bold rounded-pill"
+                  :loading="isUpdatingStatus"
+                  @click="reopenActiveRoom"
+                >
+                  Buka Kembali
+                </v-btn>
+              </div>
+
               <!-- Sound Toggle -->
               <v-tooltip location="bottom" :text="isSoundEnabled ? 'Nonaktifkan Notifikasi Suara' : 'Aktifkan Notifikasi Suara'">
                 <template v-slot:activator="{ props }">
@@ -302,7 +391,7 @@
           </header>
 
           <!-- Messages Stream Area -->
-          <div ref="messagesScrollContainer" class="messages-container flex-grow-1 pa-4 overflow-y-auto">
+          <div ref="messagesScrollContainer" class="messages-container flex-grow-1 px-6 py-4 overflow-y-auto">
             <div v-if="isLoadingMessages" class="text-center pa-8">
               <v-progress-circular indeterminate color="primary" size="30"></v-progress-circular>
               <div class="text-caption text-medium-emphasis mt-2">Memuat riwayat obrolan...</div>
@@ -316,6 +405,14 @@
 
             <!-- Messages List -->
             <div v-else class="d-flex flex-column">
+              <!-- Closed Notice at Top of Stream if Room is Closed -->
+              <div v-if="activeRoom.status === 'closed'" class="text-center my-3">
+                <span class="d-inline-flex align-center gap-1.5 px-4 py-2 rounded-pill bg-grey-lighten-4 text-caption text-medium-emphasis border">
+                  <v-icon size="16" color="success">mdi-check-circle-outline</v-icon>
+                  Percakapan ini telah selesai. Kirim pesan baru untuk membuka kembali secara otomatis.
+                </span>
+              </div>
+
               <template v-for="(msg, idx) in activeMessages" :key="msg.id || msg.temp_id || idx">
                 <!-- Date Pill Separator -->
                 <div v-if="shouldShowDateHeader(idx)" class="text-center my-3">
@@ -326,28 +423,28 @@
 
                 <!-- Message Bubble Row -->
                 <div
-                  class="message-row d-flex mb-2"
+                  class="message-row d-flex mb-3.5"
                   :class="msg.sender_type === 'admin' ? 'justify-end' : 'justify-start'"
                 >
                   <div
-                    class="message-bubble py-2.5 px-3.5"
+                    class="message-bubble py-2.5 px-4"
                     :class="msg.sender_type === 'admin' ? 'bubble-admin' : 'bubble-customer'"
                   >
                     <!-- Text Message Body (Clean, without redundant sender name on 1-on-1 chat) -->
                     <div
                       class="message-text"
                       :class="msg.sender_type === 'admin' ? 'text-white' : 'text-high-emphasis'"
-                      style="white-space: pre-wrap; word-break: break-word; line-height: 1.5; font-size: 0.9rem;"
+                      style="white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; line-height: 1.55; font-size: 0.92rem;"
                     >
                       {{ msg.message }}
                     </div>
 
                     <!-- Footer: Timestamp & Delivery Status Icons -->
-                    <div class="message-footer d-flex align-center justify-end gap-1 mt-1">
+                    <div class="message-footer d-flex align-center justify-end gap-1.5 mt-1.5">
                       <span
                         class="timestamp"
                         :class="msg.sender_type === 'admin' ? 'text-blue-lighten-4' : 'text-medium-emphasis'"
-                        style="font-size: 0.68rem;"
+                        style="font-size: 0.7rem;"
                       >
                         {{ formatTime(msg.created_at) }}
                       </span>
@@ -662,6 +759,8 @@ const isLoadingRooms = ref(false);
 const isLoadingMessages = ref(false);
 const searchQuery = ref('');
 const selectedBrand = ref('ALL');
+const selectedStatus = ref<'open' | 'closed' | 'ALL'>('open');
+const isUpdatingStatus = ref(false);
 // Default false so chat has full spacious width when opened!
 const showInfoPanel = ref(false);
 const inputMessage = ref('');
@@ -723,6 +822,11 @@ const quickTemplates = [
     label: 'Restart Modem',
     icon: 'mdi-restart',
     text: 'Bisa dicoba untuk mematikan modem router selama 1-2 menit, lalu hidupkan kembali dan periksa koneksinya?'
+  },
+  {
+    label: 'Tutup & Terima Kasih',
+    icon: 'mdi-hand-heart-outline',
+    text: 'Terima kasih telah menghubungi Customer Care Artacom. Jika tidak ada hal lain yang ditanyakan, percakapan ini akan kami tutup. Selamat beraktivitas!'
   }
 ];
 
@@ -731,9 +835,25 @@ const totalUnreadCount = computed(() => {
   return rooms.value.reduce((acc, r) => acc + (r.unread_count_admin || 0), 0);
 });
 
+// Computed open and closed room counts
+const openRoomsCount = computed(() => {
+  return rooms.value.filter((r) => !r.status || r.status === 'open').length;
+});
+
+const closedRoomsCount = computed(() => {
+  return rooms.value.filter((r) => r.status === 'closed').length;
+});
+
 // Filtered rooms
 const filteredRooms = computed(() => {
   let list = rooms.value;
+
+  // Filter Status
+  if (selectedStatus.value === 'open') {
+    list = list.filter((r) => !r.status || r.status === 'open');
+  } else if (selectedStatus.value === 'closed') {
+    list = list.filter((r) => r.status === 'closed');
+  }
 
   // Filter Brand
   if (selectedBrand.value !== 'ALL') {
@@ -880,6 +1000,15 @@ function sendAdminMessage() {
   const text = inputMessage.value.trim();
   if (!text || !activeRoom.value) return;
 
+  // Auto reopen room if it was closed
+  if (activeRoom.value.status === 'closed') {
+    activeRoom.value.status = 'open';
+    const rIdx = rooms.value.findIndex((r) => r.id === activeRoom.value.id);
+    if (rIdx !== -1) {
+      rooms.value[rIdx].status = 'open';
+    }
+  }
+
   const tempId = `admin_temp_${Date.now()}`;
   const localMsg = {
     id: null,
@@ -916,6 +1045,48 @@ function sendAdminMessage() {
     temp_id: tempId,
     message_type: 'text',
   });
+}
+
+// Close & Reopen Room Actions
+async function closeActiveRoom() {
+  if (!activeRoom.value) return;
+  const roomId = activeRoom.value.id;
+  const custName = activeRoom.value.pelanggan?.nama || 'Pelanggan';
+  isUpdatingStatus.value = true;
+  try {
+    await apiClient.post(`/chat/rooms/${roomId}/close`);
+    activeRoom.value.status = 'closed';
+    const roomIdx = rooms.value.findIndex((r) => r.id === roomId);
+    if (roomIdx !== -1) {
+      rooms.value[roomIdx].status = 'closed';
+    }
+    sendWsEvent('close_room', { room_id: roomId });
+    showSnackbar(`Percakapan dengan ${custName} telah diselesaikan.`, 'success');
+  } catch (err: any) {
+    showSnackbar('Gagal menutup percakapan: ' + (err.response?.data?.error || err.message), 'error');
+  } finally {
+    isUpdatingStatus.value = false;
+  }
+}
+
+async function reopenActiveRoom() {
+  if (!activeRoom.value) return;
+  const roomId = activeRoom.value.id;
+  isUpdatingStatus.value = true;
+  try {
+    await apiClient.post(`/chat/rooms/${roomId}/reopen`);
+    activeRoom.value.status = 'open';
+    const roomIdx = rooms.value.findIndex((r) => r.id === roomId);
+    if (roomIdx !== -1) {
+      rooms.value[roomIdx].status = 'open';
+    }
+    sendWsEvent('reopen_room', { room_id: roomId });
+    showSnackbar('Percakapan telah dibuka kembali.', 'info');
+  } catch (err: any) {
+    showSnackbar('Gagal membuka percakapan: ' + (err.response?.data?.error || err.message), 'error');
+  } finally {
+    isUpdatingStatus.value = false;
+  }
 }
 
 function useTemplate(tpl: any) {
@@ -1027,6 +1198,7 @@ function handleWsIncoming(payload: any) {
       if (roomIdx !== -1) {
         rooms.value[roomIdx].last_message_text = data.message;
         rooms.value[roomIdx].last_message_at = data.created_at;
+        rooms.value[roomIdx].status = 'open'; // Auto reopen room on new message!
         if (roomIdx > 0) {
           const [moved] = rooms.value.splice(roomIdx, 1);
           rooms.value.unshift(moved);
@@ -1041,6 +1213,7 @@ function handleWsIncoming(payload: any) {
       }
 
       if (activeRoom.value && activeRoom.value.id === data.room_id) {
+        activeRoom.value.status = 'open';
         const exists = activeMessages.value.some(
           (m) => (data.id && m.id === data.id) || (data.temp_id && m.temp_id === data.temp_id)
         );
@@ -1058,6 +1231,17 @@ function handleWsIncoming(payload: any) {
           rooms.value[0].unread_count_admin = (rooms.value[0].unread_count_admin || 0) + 1;
         }
         showSnackbar(`Pesan baru dari ${data.sender_name || 'Pelanggan'}`, 'info');
+      }
+      break;
+    }
+
+    case 'room_status_update': {
+      const roomIdx = rooms.value.findIndex((r) => r.id === data.room_id);
+      if (roomIdx !== -1) {
+        rooms.value[roomIdx].status = data.status;
+      }
+      if (activeRoom.value && activeRoom.value.id === data.room_id) {
+        activeRoom.value.status = data.status;
       }
       break;
     }
@@ -1246,6 +1430,14 @@ onUnmounted(() => {
   position: relative;
 }
 
+/* Gap Utilities for Vuetify Flexbox */
+.gap-1 { gap: 4px; }
+.gap-1\.5 { gap: 6px; }
+.gap-2 { gap: 8px; }
+.gap-2\.5 { gap: 10px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+
 /* ================= PANEL 1: SIDEBAR ================= */
 .rooms-sidebar {
   width: 320px;
@@ -1272,6 +1464,7 @@ onUnmounted(() => {
 .room-card {
   transition: background-color 0.15s ease, transform 0.1s ease;
   border: 1px solid transparent;
+  border-left: 3px solid transparent;
 }
 
 .room-card:hover {
@@ -1279,8 +1472,9 @@ onUnmounted(() => {
 }
 
 .room-card--active {
-  background-color: rgba(var(--v-theme-primary), 0.09) !important;
-  border-color: rgba(var(--v-theme-primary), 0.25) !important;
+  background-color: rgba(var(--v-theme-primary), 0.08) !important;
+  border-color: rgba(var(--v-theme-primary), 0.2) !important;
+  border-left-color: rgb(var(--v-theme-primary)) !important;
 }
 
 /* ================= PANEL 2: CONVERSATION ================= */
@@ -1302,16 +1496,17 @@ onUnmounted(() => {
 }
 
 .message-bubble {
-  max-width: 65%;
-  min-width: 120px;
+  max-width: 72%;
+  min-width: 130px;
   position: relative;
-  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .bubble-customer {
   background-color: #ffffff;
   color: #1e293b;
-  border-radius: 18px 18px 18px 4px !important;
+  border-radius: 16px 16px 16px 4px !important;
   border: 1px solid rgba(226, 232, 240, 0.9);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
@@ -1326,7 +1521,7 @@ onUnmounted(() => {
 .bubble-admin {
   background: linear-gradient(135deg, #1d4ed8, #2563eb);
   color: #ffffff;
-  border-radius: 18px 18px 4px 18px !important;
+  border-radius: 16px 16px 4px 16px !important;
   box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
 }
 

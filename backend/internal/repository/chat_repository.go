@@ -231,6 +231,7 @@ func (r *chatRepository) UpdateRoomStats(ctx context.Context, roomID uint64, las
 	updates := map[string]interface{}{
 		"last_message_at":   &now,
 		"last_message_text": lastMsg,
+		"status":            "open", // Reopen automatically if room was closed
 	}
 
 	if unreadDeltaAdmin != 0 {
@@ -244,6 +245,13 @@ func (r *chatRepository) UpdateRoomStats(ctx context.Context, roomID uint64, las
 		Model(&domain.ChatRoom{}).
 		Where("id = ?", roomID).
 		Updates(updates).Error
+}
+
+func (r *chatRepository) UpdateRoomStatus(ctx context.Context, roomID uint64, status string) error {
+	return r.db.WithContext(ctx).
+		Model(&domain.ChatRoom{}).
+		Where("id = ?", roomID).
+		Update("status", status).Error
 }
 
 func (r *chatRepository) ResetUnreadCount(ctx context.Context, roomID uint64, readerType string) error {

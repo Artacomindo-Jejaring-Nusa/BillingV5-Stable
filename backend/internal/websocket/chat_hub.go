@@ -355,6 +355,38 @@ func (c *ChatClient) ReadPump() {
 					"is_typing": isTyping,
 				})
 			}
+
+		case "close_room":
+			targetRoomID := c.RoomID
+			if rID, ok := data["room_id"].(float64); ok && rID > 0 {
+				targetRoomID = uint64(rID)
+			}
+			if targetRoomID > 0 {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				_ = c.Hub.chatUsecase.UpdateRoomStatus(ctx, targetRoomID, "closed")
+				cancel()
+
+				c.Hub.BroadcastToRoom(targetRoomID, "room_status_update", map[string]interface{}{
+					"room_id": targetRoomID,
+					"status":  "closed",
+				})
+			}
+
+		case "reopen_room":
+			targetRoomID := c.RoomID
+			if rID, ok := data["room_id"].(float64); ok && rID > 0 {
+				targetRoomID = uint64(rID)
+			}
+			if targetRoomID > 0 {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				_ = c.Hub.chatUsecase.UpdateRoomStatus(ctx, targetRoomID, "open")
+				cancel()
+
+				c.Hub.BroadcastToRoom(targetRoomID, "room_status_update", map[string]interface{}{
+					"room_id": targetRoomID,
+					"status":  "open",
+				})
+			}
 		}
 	}
 }

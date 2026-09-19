@@ -33,6 +33,8 @@ func NewChatHandler(r *gin.RouterGroup, chatUsecase domain.ChatUsecase, authMidd
 
 		// Admin APIs (protected by JWT middleware)
 		chatGroup.GET("/rooms", authMiddleware, handler.ListRooms)
+		chatGroup.POST("/rooms/:room_id/close", authMiddleware, handler.CloseRoom)
+		chatGroup.POST("/rooms/:room_id/reopen", authMiddleware, handler.ReopenRoom)
 	}
 
 	return handler
@@ -223,3 +225,52 @@ func (h *ChatHandler) ListRooms(c *gin.Context) {
 		"page_size": pageSize,
 	})
 }
+
+// CloseRoom closes a chat room (marks conversation completed)
+func (h *ChatHandler) CloseRoom(c *gin.Context) {
+	roomIDStr := c.Param("room_id")
+	rid, err := strconv.ParseUint(roomIDStr, 10, 64)
+	if err != nil || rid == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "room_id tidak valid"})
+		return
+	}
+
+	if err := h.chatUsecase.UpdateRoomStatus(c.Request.Context(), rid, "closed"); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if websocket.GlobalChatHub != nil {
+		websocket.GlobalChatHub.BroadcastToRoom(rid, "room_status_update", map[string]interface{}{
+			"room_id": rid,
+			"status":  "closed",
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Percakapan telah ditutup"})
+}
+
+// ReopenRoom reopens a closed chat room
+func (h *ChatHandler) ReopenRoom(c *gin.Context) {
+	roomIDStr := c.Param("room_id")
+	rid, err := strconv.ParseUint(roomIDStr, 10, 64)
+	if err != nil || rid == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "room_id tidak valid"})
+		return
+	}
+
+	if err := h.chatUsecase.UpdateRoomStatus(c.Request.Context(), rid, "open"); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if websocket.GlobalChatHub != nil {
+		websocket.GlobalChatHub.BroadcastToRoom(rid, "room_status_update", map[string]interface{}{
+			"room_id": rid,
+			"status":  "open",
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Percakapan telah dibuka kembali"})
+}
+

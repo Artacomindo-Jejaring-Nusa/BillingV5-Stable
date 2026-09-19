@@ -84,3 +84,13 @@ func (u *chatUsecase) MarkRead(ctx context.Context, roomID uint64, readerType st
 	}
 	return u.chatRepo.ResetUnreadCount(ctx, roomID, readerType)
 }
+
+func (u *chatUsecase) UpdateRoomStatus(ctx context.Context, roomID uint64, status string) error {
+	if roomID == 0 {
+		return errors.New("room_id tidak valid")
+	}
+	if status != "open" && status != "closed" {
+		return errors.New("status harus 'open' atau 'closed'")
+	}
+	return u.chatRepo.UpdateRoomStatus(ctx, roomID, status)
+}

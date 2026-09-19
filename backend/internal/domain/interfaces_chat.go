@@ -13,6 +13,7 @@ type ChatRepository interface {
 	MarkMessagesAsDelivered(ctx context.Context, roomID uint64, recipientType string) error
 	MarkMessagesAsRead(ctx context.Context, roomID uint64, readerType string) error
 	UpdateRoomStats(ctx context.Context, roomID uint64, lastMsg string, unreadDeltaAdmin, unreadDeltaCust int) error
+	UpdateRoomStatus(ctx context.Context, roomID uint64, status string) error
 	ResetUnreadCount(ctx context.Context, roomID uint64, readerType string) error
 }
 
@@ -24,4 +25,5 @@ type ChatUsecase interface {
 	SendMessage(ctx context.Context, msg *ChatMessage) (*ChatMessage, error)
 	MarkDelivered(ctx context.Context, roomID uint64, recipientType string) error
 	MarkRead(ctx context.Context, roomID uint64, readerType string) error
+	UpdateRoomStatus(ctx context.Context, roomID uint64, status string) error
 }
