@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -30,6 +32,7 @@ func NewChatHandler(r *gin.RouterGroup, chatUsecase domain.ChatUsecase, authMidd
 		chatGroup.GET("/customer/room", handler.GetCustomerRoom)
 		chatGroup.GET("/messages/:room_id", handler.GetMessages)
 		chatGroup.POST("/messages/:room_id/read", handler.MarkRead)
+		chatGroup.POST("/upload", handler.UploadMedia)
 
 		// Admin APIs (protected by JWT middleware)
 		chatGroup.GET("/rooms", authMiddleware, handler.ListRooms)
@@ -272,5 +275,49 @@ func (h *ChatHandler) ReopenRoom(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Percakapan telah dibuka kembali"})
+}
+
+// UploadMedia handles file/image upload for chat messages
+func (h *ChatHandler) UploadMedia(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Tidak ada file yang diunggah"})
+		return
+	}
+
+	ext := filepath.Ext(file.Filename)
+	if ext == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File harus memiliki ekstensi yang valid"})
+		return
+	}
+
+	uniqueFilename := fmt.Sprintf("chat_%d%s", time.Now().UnixNano(), ext)
+	dir := "./uploads/chat"
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat direktori upload"})
+		return
+	}
+
+	filePath := filepath.Join(dir, uniqueFilename)
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file: " + err.Error()})
+		return
+	}
+
+	fileInfo, err := os.Stat(filePath)
+	var size int64
+	if err == nil {
+		size = fileInfo.Size()
+	}
+
+	contentType := file.Header.Get("Content-Type")
+	fileURL := fmt.Sprintf("/static/uploads/chat/%s", uniqueFilename)
+
+	c.JSON(http.StatusOK, gin.H{
+		"file_url":     fileURL,
+		"filename":     file.Filename,
+		"content_type": contentType,
+		"size":         size,
+	})
 }
 

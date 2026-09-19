@@ -17,6 +17,7 @@ func NewUploadsHandler(r *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
 	{
 		g.POST("/evidence", uploadFile("evidence"))
 		g.POST("/speedtest", uploadFile("speedtest"))
+		g.POST("/chat", uploadFile("chat"))
 	}
 }
 

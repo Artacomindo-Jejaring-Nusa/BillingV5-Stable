@@ -387,6 +387,20 @@
                   ></v-btn>
                 </template>
               </v-tooltip>
+
+              <!-- Close / Exit Chat Room (Esc) -->
+              <v-tooltip location="bottom" text="Keluar dari Obrolan (Esc)">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon="mdi-close"
+                    variant="text"
+                    size="small"
+                    color="medium-emphasis"
+                    @click="activeRoom = null"
+                  ></v-btn>
+                </template>
+              </v-tooltip>
             </div>
           </header>
 
@@ -430,8 +444,33 @@
                     class="message-bubble py-2.5 px-4"
                     :class="msg.sender_type === 'admin' ? 'bubble-admin' : 'bubble-customer'"
                   >
+                    <!-- Image Attachment if present -->
+                    <div v-if="msg.attachment_url || msg.message_type === 'image'" class="mb-1.5">
+                      <v-img
+                        :src="getFullMediaUrl(msg.attachment_url)"
+                        max-width="300"
+                        max-height="300"
+                        class="rounded-lg cursor-pointer elevation-1 bg-grey-lighten-3"
+                        cover
+                        @click="openImageLightbox(msg.attachment_url)"
+                      >
+                        <template v-slot:placeholder>
+                          <div class="d-flex align-center justify-center fill-height" style="min-height: 120px; width: 200px;">
+                            <v-progress-circular indeterminate color="primary" size="24"></v-progress-circular>
+                          </div>
+                        </template>
+                        <template v-slot:error>
+                          <div class="d-flex flex-column align-center justify-center fill-height pa-3 text-caption text-medium-emphasis bg-grey-lighten-3" style="min-height: 80px;">
+                            <v-icon size="24" color="grey">mdi-image-broken-variant</v-icon>
+                            <span>Gagal memuat gambar</span>
+                          </div>
+                        </template>
+                      </v-img>
+                    </div>
+
                     <!-- Text Message Body (Clean, without redundant sender name on 1-on-1 chat) -->
                     <div
+                      v-if="msg.message"
                       class="message-text"
                       :class="msg.sender_type === 'admin' ? 'text-white' : 'text-high-emphasis'"
                       style="white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; line-height: 1.55; font-size: 0.92rem;"
@@ -539,6 +578,31 @@
                   />
                 </div>
               </div>
+
+              <!-- Hidden File Input for Image Upload -->
+              <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/*"
+                class="d-none"
+                @change="onImageSelected"
+              />
+
+              <!-- Image Upload Button -->
+              <v-tooltip location="top" text="Kirim Gambar">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon="mdi-image-outline"
+                    variant="text"
+                    size="small"
+                    color="medium-emphasis"
+                    class="flex-shrink-0 mb-1"
+                    :loading="isUploadingImage"
+                    @click="triggerImageSelect"
+                  ></v-btn>
+                </template>
+              </v-tooltip>
 
               <!-- Text Input -->
               <v-textarea
@@ -728,6 +792,85 @@
       </aside>
     </v-card>
 
+    <!-- Dialog: Image Preview & Caption Before Send -->
+    <v-dialog v-model="imageUploadDialog" max-width="480" persistent>
+      <v-card class="rounded-xl overflow-hidden">
+        <v-card-title class="d-flex align-center justify-space-between px-4 py-3 border-b">
+          <span class="text-subtitle-1 font-weight-bold">Kirim Gambar</span>
+          <v-btn icon="mdi-close" variant="text" size="small" @click="cancelImageUpload"></v-btn>
+        </v-card-title>
+        <v-card-text class="pa-4 text-center">
+          <div class="image-preview-box rounded-lg overflow-hidden mb-3 bg-grey-lighten-4 d-flex align-center justify-center" style="max-height: 280px; min-height: 180px;">
+            <img
+              v-if="selectedImagePreviewUrl"
+              :src="selectedImagePreviewUrl"
+              alt="Preview"
+              style="max-width: 100%; max-height: 280px; object-fit: contain;"
+            />
+          </div>
+          <v-text-field
+            v-model="imageCaption"
+            placeholder="Tambah keterangan gambar... (opsional)"
+            variant="outlined"
+            density="compact"
+            hide-details
+            rounded="lg"
+            prepend-inner-icon="mdi-format-text"
+            @keydown.enter.prevent="sendImageMessage"
+          ></v-text-field>
+        </v-card-text>
+        <v-card-actions class="px-4 pb-4 pt-0 d-flex justify-end gap-2">
+          <v-btn variant="text" rounded="pill" :disabled="isUploadingImage" @click="cancelImageUpload">
+            Batal
+          </v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            rounded="pill"
+            prepend-icon="mdi-send"
+            :loading="isUploadingImage"
+            @click="sendImageMessage"
+          >
+            Kirim
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog: Fullscreen Image Lightbox -->
+    <v-dialog v-model="previewImageDialog" max-width="850">
+      <v-card class="rounded-xl overflow-hidden bg-black" elevation="8">
+        <div class="d-flex align-center justify-space-between px-4 py-2 bg-grey-darken-4 text-white">
+          <span class="text-caption">Pratinjau Gambar</span>
+          <div class="d-flex align-center gap-1">
+            <v-btn
+              icon="mdi-open-in-new"
+              variant="text"
+              size="small"
+              color="white"
+              title="Buka di tab baru"
+              @click="openInNewTab(lightboxImageUrl)"
+            ></v-btn>
+            <v-btn
+              icon="mdi-close"
+              variant="text"
+              size="small"
+              color="white"
+              @click="previewImageDialog = false"
+            ></v-btn>
+          </div>
+        </div>
+        <div class="pa-2 d-flex align-center justify-center bg-grey-darken-4" style="min-height: 300px; max-height: 80vh;">
+          <img
+            v-if="lightboxImageUrl"
+            :src="lightboxImageUrl"
+            alt="Fullscreen Preview"
+            style="max-width: 100%; max-height: 75vh; object-fit: contain;"
+          />
+        </div>
+      </v-card>
+    </v-dialog>
+
     <!-- Global Snackbar -->
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3000" location="top right">
       {{ snackbar.text }}
@@ -771,6 +914,18 @@ const chatInputRef = ref<any>(null);
 const isWsConnected = ref(false);
 
 const messagesScrollContainer = ref<HTMLElement | null>(null);
+
+// Image upload & preview state
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const isUploadingImage = ref(false);
+const imageUploadDialog = ref(false);
+const selectedImageFile = ref<File | null>(null);
+const selectedImagePreviewUrl = ref<string | null>(null);
+const imageCaption = ref('');
+
+// Lightbox state
+const previewImageDialog = ref(false);
+const lightboxImageUrl = ref('');
 
 // Audio notification instance (preloaded)
 let notificationAudio: HTMLAudioElement | null = null;
@@ -1390,6 +1545,166 @@ function onVisibilityChange() {
   }
 }
 
+// Media URL helper
+function getFullMediaUrl(url?: string): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (import.meta.env.DEV) {
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:8000${url.startsWith('/') ? '' : '/'}${url}`;
+  }
+  return url;
+}
+
+// Image upload handlers
+function triggerImageSelect() {
+  if (fileInputRef.value) {
+    fileInputRef.value.value = '';
+    fileInputRef.value.click();
+  }
+}
+
+function onImageSelected(e: Event) {
+  const target = e.target as HTMLInputElement;
+  if (!target.files || target.files.length === 0) return;
+
+  const file = target.files[0];
+  if (!file.type.startsWith('image/')) {
+    showSnackbar('Hanya file gambar yang didukung (JPG, PNG, WEBP)', 'error');
+    return;
+  }
+
+  // Max 10MB
+  if (file.size > 10 * 1024 * 1024) {
+    showSnackbar('Ukuran gambar maksimal 10MB', 'error');
+    return;
+  }
+
+  selectedImageFile.value = file;
+  selectedImagePreviewUrl.value = URL.createObjectURL(file);
+  imageCaption.value = '';
+  imageUploadDialog.value = true;
+}
+
+function cancelImageUpload() {
+  imageUploadDialog.value = false;
+  if (selectedImagePreviewUrl.value) {
+    URL.revokeObjectURL(selectedImagePreviewUrl.value);
+    selectedImagePreviewUrl.value = null;
+  }
+  selectedImageFile.value = null;
+  imageCaption.value = '';
+}
+
+async function sendImageMessage() {
+  if (!selectedImageFile.value || !activeRoom.value) return;
+
+  isUploadingImage.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('file', selectedImageFile.value);
+
+    const uploadRes = await apiClient.post('/uploads/chat', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    const fileUrl = uploadRes.data?.file_url;
+    if (!fileUrl) {
+      throw new Error('Gagal mendapatkan URL gambar');
+    }
+
+    const captionText = imageCaption.value.trim();
+    const tempId = `admin_img_${Date.now()}`;
+
+    // Auto reopen room if it was closed
+    if (activeRoom.value.status === 'closed') {
+      activeRoom.value.status = 'open';
+      const rIdx = rooms.value.findIndex((r) => r.id === activeRoom.value.id);
+      if (rIdx !== -1) {
+        rooms.value[rIdx].status = 'open';
+      }
+    }
+
+    const localMsg = {
+      id: null,
+      room_id: activeRoom.value.id,
+      sender_type: 'admin',
+      sender_name: authStore.user?.name || 'Admin CS',
+      message: captionText,
+      message_type: 'image',
+      attachment_url: fileUrl,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      temp_id: tempId,
+    };
+
+    activeMessages.value.push(localMsg);
+    activeRoom.value.last_message_text = captionText || '[Gambar]';
+    activeRoom.value.last_message_at = new Date().toISOString();
+
+    // Move to top
+    const currentRoomId = activeRoom.value.id;
+    const roomIdx = rooms.value.findIndex((r) => r.id === currentRoomId);
+    if (roomIdx > 0) {
+      const [moved] = rooms.value.splice(roomIdx, 1);
+      rooms.value.unshift(moved);
+    }
+
+    cancelImageUpload();
+    scrollToBottom();
+
+    // Send via WebSocket
+    sendWsEvent('send_message', {
+      room_id: activeRoom.value.id,
+      message: captionText,
+      message_type: 'image',
+      attachment_url: fileUrl,
+      temp_id: tempId,
+    });
+  } catch (err: any) {
+    showSnackbar('Gagal mengirim gambar: ' + (err.response?.data?.error || err.message), 'error');
+  } finally {
+    isUploadingImage.value = false;
+  }
+}
+
+function openImageLightbox(url?: string) {
+  if (!url) return;
+  lightboxImageUrl.value = getFullMediaUrl(url);
+  previewImageDialog.value = true;
+}
+
+function openInNewTab(url?: string) {
+  if (!url) return;
+  window.open(url, '_blank');
+}
+
+// Esc Key Handler to cleanly exit room
+function handleKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    if (previewImageDialog.value) {
+      previewImageDialog.value = false;
+      return;
+    }
+    if (imageUploadDialog.value) {
+      cancelImageUpload();
+      return;
+    }
+    if (showEmojiPicker.value) {
+      showEmojiPicker.value = false;
+      return;
+    }
+    if (showInfoPanel.value) {
+      showInfoPanel.value = false;
+      return;
+    }
+    if (activeRoom.value) {
+      activeRoom.value = null;
+    }
+  }
+}
+
 // Lifecycle hooks
 onMounted(() => {
   fetchRooms();
@@ -1397,6 +1712,7 @@ onMounted(() => {
   // Fallback background polling (20 detik) hanya jika WebSocket offline
   pollingTimer = setInterval(pollActiveRoomSilent, 20000);
   document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('keydown', handleKeyDown);
 });
 
 onUnmounted(() => {
@@ -1406,6 +1722,7 @@ onUnmounted(() => {
     pollingTimer = null;
   }
   document.removeEventListener('visibilitychange', onVisibilityChange);
+  window.removeEventListener('keydown', handleKeyDown);
   clearTimeout(typingClearTimer);
   clearTimeout(searchDebounceTimer);
   if (ws) {
