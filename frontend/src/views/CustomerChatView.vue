@@ -445,24 +445,26 @@
                     :class="msg.sender_type === 'admin' ? 'bubble-admin' : 'bubble-customer'"
                   >
                     <!-- Image Attachment if present -->
-                    <div v-if="msg.attachment_url || msg.message_type === 'image'" class="mb-1.5">
+                    <div v-if="msg.attachment_url || msg.message_type === 'image'" class="mb-1.5" style="min-width: 200px;">
                       <v-img
                         :src="getFullMediaUrl(msg.attachment_url)"
-                        max-width="300"
-                        max-height="300"
+                        width="260"
+                        min-height="160"
+                        max-height="320"
+                        aspect-ratio="1"
                         class="rounded-lg cursor-pointer elevation-1 bg-grey-lighten-3"
                         cover
                         @click="openImageLightbox(msg.attachment_url)"
                       >
                         <template v-slot:placeholder>
-                          <div class="d-flex align-center justify-center fill-height" style="min-height: 120px; width: 200px;">
-                            <v-progress-circular indeterminate color="primary" size="24"></v-progress-circular>
+                          <div class="d-flex align-center justify-center fill-height" style="min-height: 160px; width: 260px;">
+                            <v-progress-circular indeterminate color="primary" size="28"></v-progress-circular>
                           </div>
                         </template>
                         <template v-slot:error>
-                          <div class="d-flex flex-column align-center justify-center fill-height pa-3 text-caption text-medium-emphasis bg-grey-lighten-3" style="min-height: 80px;">
-                            <v-icon size="24" color="grey">mdi-image-broken-variant</v-icon>
-                            <span>Gagal memuat gambar</span>
+                          <div class="d-flex flex-column align-center justify-center fill-height pa-4 text-caption text-medium-emphasis bg-grey-lighten-3 rounded-lg" style="min-height: 140px; width: 260px;">
+                            <v-icon size="28" color="grey-darken-1" class="mb-1">mdi-image-broken-variant</v-icon>
+                            <span class="font-weight-medium text-center">Gagal memuat gambar</span>
                           </div>
                         </template>
                       </v-img>
