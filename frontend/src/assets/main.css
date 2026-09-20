@@ -1,18 +1,452 @@
 @import './base.css';
 @import '@/assets/css/dashboard-styles.css';
 
-a,
-.green {
+/* ==========================================================================
+   Global B2B SaaS Theme (Shadcn / Linear Enterprise Design System)
+   ========================================================================== */
+
+/* Typography & Focus */
+body {
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Global Vuetify Card Enhancements */
+.v-card {
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+.v-theme--dark .v-card {
+  border: 1px solid #27272a !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Global Vuetify Button Enhancements */
+.v-btn {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 500 !important;
+}
+
+/* Global Data Table Styling (Clean Flat Enterprise) */
+.v-data-table {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+.v-theme--dark .v-data-table {
+  border: 1px solid #27272a !important;
+}
+
+.v-data-table .v-data-table__thead {
+  background-color: #f8fafc !important;
+}
+
+.v-theme--dark .v-data-table .v-data-table__thead {
+  background-color: #18181b !important;
+}
+
+.v-data-table .v-data-table__th {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: #64748b !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  white-space: nowrap !important;
+}
+
+.v-theme--dark .v-data-table .v-data-table__th {
+  color: #a1a1aa !important;
+  border-bottom: 1px solid #27272a !important;
+}
+
+.v-data-table .v-data-table__td {
+  font-size: 0.875rem !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+.v-theme--dark .v-data-table .v-data-table__td {
+  border-bottom: 1px solid #27272a !important;
+}
+
+.v-data-table .v-data-table__tr:hover {
+  background-color: #f8fafc !important;
+}
+
+.v-theme--dark .v-data-table .v-data-table__tr:hover {
+  background-color: #27272a !important;
+}
+
+/* Global Dialog & Overlay Enhancements */
+.v-dialog .v-card {
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+  border-radius: 8px !important;
+}
+
+.v-theme--dark .v-dialog .v-card {
+  border: 1px solid #27272a !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Global Form Field Outlines */
+.v-field--variant-outlined {
+  border-radius: 6px !important;
+}
+
+.v-field--variant-outlined .v-field__outline {
+  --v-field-border-opacity: 0.2;
+}
+
+/* Global Subtle Scrollbars */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
+}
+
+.v-theme--dark *::-webkit-scrollbar-thumb {
+  background-color: #3f3f46;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+.v-theme--dark *::-webkit-scrollbar-thumb:hover {
+  background-color: #52525b;
+}
+
+/* Utility Links */
+a {
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+  color: inherit;
+  transition: color 0.15s ease;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+/* ==========================================================================
+   Universal AI Slop Elimination (Overriding Cheesy Gradients Across Modules)
+   ========================================================================== */
+
+/* Universal Clean Page Header (Invoices, Users, Roles, Permissions, Diskon, Settings, etc.) */
+.invoice-header,
+.header-card,
+.header-section,
+.page-header-card,
+.modern-header,
+.ticket-header-card,
+.diskon-header,
+.sk-header,
+.mikrotik-header,
+.odp-header {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  border-radius: 8px !important;
+  color: #0f172a !important;
 }
 
+.invoice-header::before,
+.invoice-header::after,
+.header-card::before,
+.header-card::after,
+.header-section::before,
+.header-section::after,
+.page-header-card::before,
+.page-header-card::after {
+  display: none !important;
+}
+
+/* Force Header Typography to Sharp Slate-900 */
+.invoice-header h1,
+.invoice-header h2,
+.invoice-header h3,
+.invoice-header > .text-white,
+.header-card h1,
+.header-card h2,
+.header-card h3,
+.header-card .header-title,
+.header-section h1,
+.header-section h2,
+.header-section h3,
+.header-section .text-h4,
+.header-section .text-h5,
+.page-header-card h1,
+.page-header-card .text-h4,
+.modern-header h1 {
+  color: #0f172a !important;
+  text-shadow: none !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em !important;
+}
+
+.invoice-header p,
+.invoice-header .text-subtitle-1,
+.invoice-header .text-body-2,
+.header-card p,
+.header-card .header-subtitle,
+.header-section .header-subtitle,
+.header-section p,
+.page-header-card .header-subtitle,
+.page-header-card p,
+.modern-header p {
+  color: #64748b !important;
+  text-shadow: none !important;
+  opacity: 1 !important;
+}
+
+.invoice-header .header-icon-box,
+.header-section .v-avatar {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.invoice-header .header-icon-box .v-icon,
+.header-section .v-avatar .v-icon {
+  color: #0f172a !important;
+}
+
+/* Header Action Buttons (e.g. "Tambah Data", "Tambah Langganan", "Import", "Export") */
+.invoice-header .v-btn,
+.header-card .v-btn,
+.header-section .v-btn {
+  border-radius: 6px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+}
+
+/* Primary buttons in headers */
+.header-card .primary-btn,
+.header-section .primary-btn,
+.invoice-header .v-btn[color="primary"] {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border: 1px solid #0f172a !important;
+  font-weight: 600 !important;
+}
+
+.header-card .primary-btn:hover,
+.header-section .primary-btn:hover,
+.invoice-header .v-btn[color="primary"]:hover {
+  background-color: #1e293b !important;
+  border-color: #1e293b !important;
+}
+
+/* Secondary / outline action buttons in headers */
+.header-card .action-btn,
+.header-section .action-btn {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  font-weight: 500 !important;
+}
+
+.header-card .action-btn:hover,
+.header-section .action-btn:hover {
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+/* Universal Metric & Stat Cards (Reports, Dashboard, etc.) */
+.blue-gradient {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  border: 1px solid #dbeafe !important;
+}
+
+.green-gradient {
+  background: #ecfdf5 !important;
+  color: #059669 !important;
+  border: 1px solid #d1fae5 !important;
+}
+
+.orange-gradient {
+  background: #fffbeb !important;
+  color: #d97706 !important;
+  border: 1px solid #fef3c7 !important;
+}
+
+.red-gradient {
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fee2e2 !important;
+}
+
+.purple-gradient {
+  background: #f5f3ff !important;
+  color: #7c3aed !important;
+  border: 1px solid #ede9fe !important;
+}
+
+.blue-gradient .v-icon { color: #2563eb !important; }
+.green-gradient .v-icon { color: #059669 !important; }
+.orange-gradient .v-icon { color: #d97706 !important; }
+.red-gradient .v-icon { color: #dc2626 !important; }
+.purple-gradient .v-icon { color: #7c3aed !important; }
+
+/* Eliminate Heavy Floating Shadows */
+.card-elevated,
+.modern-card,
+.stat-card-elevated {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+}
+
+/* Universal Clean Form Dialogs (Shadcn Style) */
+.v-dialog .v-card {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04) !important;
+}
+
+.v-dialog .v-card-title {
+  font-size: 1.125rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.025em !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding: 16px 20px !important;
+}
+
+.v-dialog .v-card-actions {
+  border-top: 1px solid #f1f5f9 !important;
+  padding: 12px 20px !important;
+  background-color: #fafafa !important;
+}
+
+/* Universal Clean Sidebar */
+.modern-drawer {
+  border-right: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   Comprehensive Form & Information Card Standardization (SaaS Style)
+   ========================================================================== */
+
+/* Universal Dialog Headers & Banners */
+.dialog-header,
+.detail-price-banner,
+.delete-header,
+.import-header-gradient,
+.generate-dialog .v-card-title,
+.form-header,
+.enhanced-form-header {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+}
+
+.detail-price-banner * {
+  color: #0f172a !important;
+}
+
+.delete-header {
+  border-bottom: 1px solid #fee2e2 !important;
+}
+
+.delete-header .v-icon {
+  color: #dc2626 !important;
+}
+
+.delete-header span,
+.delete-header .delete-title {
+  color: #0f172a !important;
+}
+
+/* Universal Form Body & Footers */
+.form-content,
+.form-section,
+.action-footer {
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.action-footer {
+  border-top: 1px solid #e2e8f0 !important;
+  padding: 16px 24px !important;
+  background: #fafafa !important;
+}
+
+/* Universal Stepper */
+.v-stepper,
+.elegant-stepper,
+.stepper-header,
+.stepper-content {
+  background: #ffffff !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}
+
+.stepper-header {
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+  margin-bottom: 16px !important;
+}
+
+.stepper-content {
+  border: 1px solid #e2e8f0 !important;
+  padding: 20px !important;
+}
+
+/* Universal Information & Section Cards */
+.enhanced-section-card,
+.step-card,
+.info-card,
+.service-card,
+.package-card,
+.billing-card,
+.filter-card,
+.detail-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+.filter-card::before,
+.enhanced-section-card::before,
+.form-header::before,
+.section-header::after {
+  display: none !important;
+}
+
+/* Special Fields & Alerts Overhaul */
+.price-field .v-field {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: none !important;
+}
+
+.price-field .v-field__input {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+.v-alert--variant-tonal {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+  border-radius: 6px !important;
+}
 

@@ -1816,15 +1816,14 @@ onMounted(async () => {
 
 .revenue-card {
   position: relative;
-  border-radius: 16px;
+  border-radius: 8px;
   overflow: hidden;
-  color: white;
-  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  color: #ffffff;
+  background: #0f172a;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   height: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  will-change: transform;
+  border: 1px solid #1e293b;
 }
 
 .donut-container {
@@ -1998,14 +1997,13 @@ onMounted(async () => {
 
 /* Header Section - Optimized for Performance */
 .dashboard-header {
-  margin-bottom: 2rem;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  padding: 1.5rem 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   position: relative;
-  overflow: hidden;
 }
 
 .header-content {
@@ -2018,25 +2016,19 @@ onMounted(async () => {
 }
 
 .dashboard-header::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 100%;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 50%, rgba(236, 72, 153, 0.05) 100%);
-  z-index: 1;
+  display: none;
 }
 
 .title-section {
   flex: 1;
-  min-width: 0; /* Prevents flex item from overflowing */
+  min-width: 0;
 }
 
 .dashboard-title {
-  color: rgb(var(--v-theme-on-background));
-  font-weight: 800;
-  font-size: 2rem;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 1.75rem;
+  letter-spacing: -0.025em;
   margin-bottom: 0.25rem;
   display: flex;
   align-items: center;
@@ -2045,11 +2037,11 @@ onMounted(async () => {
 }
 
 .v-theme--light .dashboard-title {
-  color: #1e293b;
-  background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #0f172a;
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  -webkit-text-fill-color: initial;
 }
 
 .v-theme--dark .dashboard-title {
@@ -2178,56 +2170,26 @@ onMounted(async () => {
 
 
 
-/* Stat Cards - Optimized */
+/* Stat Cards - Clean Flat B2B */
 .stat-card {
-  background: rgba(255, 255, 255, 0.98);
-  border-radius: 16px;
+  background: #ffffff;
+  border-radius: 8px;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  will-change: transform;
 }
 
-/* Simplified stat card decorations */
 .stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--card-gradient-start), var(--card-gradient-end));
-}
-
-/* Removed heavy ::after pseudo-element for better performance */
-
-.stat-card.card-0 {
-  --card-gradient-start: #6366f1;
-  --card-gradient-end: #8b5cf6;
-}
-
-.stat-card.card-1 {
-  --card-gradient-start: #22c55e;
-  --card-gradient-end: #10b981;
-}
-
-.stat-card.card-2 {
-  --card-gradient-start: #f59e0b;
-  --card-gradient-end: #f97316;
-}
-
-.stat-card.card-3 {
-  --card-gradient-start: #ef4444;
-  --card-gradient-end: #ec4899;
+  display: none;
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .stat-card-content {
@@ -2242,42 +2204,40 @@ onMounted(async () => {
 }
 
 .stat-icon-container {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--icon-gradient-start), var(--icon-gradient-end));
-  position: relative;
-}
-
-/* Removed heavy pseudo-element and transform animation */
-
-.stat-icon-container .v-icon {
-  color: white !important;
-  font-size: 22px !important;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .stat-icon-container.icon-0 {
-  --icon-gradient-start: #6366f1;
-  --icon-gradient-end: #8b5cf6;
+  background: #eff6ff;
+}
+.stat-icon-container.icon-0 .v-icon {
+  color: #2563eb !important;
 }
 
 .stat-icon-container.icon-1 {
-  --icon-gradient-start: #22c55e;
-  --icon-gradient-end: #10b981;
+  background: #ecfdf5;
+}
+.stat-icon-container.icon-1 .v-icon {
+  color: #059669 !important;
 }
 
 .stat-icon-container.icon-2 {
-  --icon-gradient-start: #f59e0b;
-  --icon-gradient-end: #f97316;
+  background: #fffbeb;
+}
+.stat-icon-container.icon-2 .v-icon {
+  color: #d97706 !important;
 }
 
 .stat-icon-container.icon-3 {
-  --icon-gradient-start: #ef4444;
-  --icon-gradient-end: #ec4899;
+  background: #fef2f2;
+}
+.stat-icon-container.icon-3 .v-icon {
+  color: #dc2626 !important;
 }
 
 .stat-body {
@@ -2363,32 +2323,17 @@ onMounted(async () => {
 }
 
 .chart-card {
-  background: rgba(255, 255, 255, 0.98);
-  border-radius: 16px;
-  padding: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   position: relative;
   overflow: hidden;
-  will-change: transform;
 }
 
-.chart-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-}
-
-/* Simplified chart card decoration */
 .chart-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899);
-  opacity: 0.6;
+  display: none;
 }
 
 /* Removed heavy decorative pseudo-element */

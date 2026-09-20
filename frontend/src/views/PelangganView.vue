@@ -5,7 +5,7 @@
         <div class="d-flex align-center header-info">
           <div class="header-avatar-wrapper">
             <v-avatar class="header-avatar" color="transparent" size="50">
-              <v-icon color="white" size="28">mdi-account-group</v-icon>
+              <v-icon color="primary" size="28">mdi-account-group</v-icon>
             </v-avatar>
           </div>
           <div class="ml-4">
@@ -1851,11 +1851,12 @@ function showSnackbar(text: string, color: 'success' | 'error' | 'warning') {
 
 /* Header Card - Mobile Optimized - REDUCED SHADOW */
 .header-card {
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
-  border-radius: 20px;
+  background: #ffffff;
+  border-radius: 8px;
   padding: 24px;
-  color: rgb(var(--v-theme-on-primary));
-  box-shadow: 0 2px 8px rgba(var(--v-theme-primary), 0.15);
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .header-card .d-flex.flex-column {
@@ -1869,24 +1870,25 @@ function showSnackbar(text: string, color: 'success' | 'error' | 'warning') {
 }
 
 .header-avatar-wrapper {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 50%;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
   flex-shrink: 0;
 }
-
 .header-title {
   font-size: 1.75rem;
   font-weight: 800;
   line-height: 1.2;
   margin-bottom: 4px;
+  color: #0f172a;
 }
 
 .header-subtitle {
   font-size: 0.95rem;
   opacity: 0.85;
   line-height: 1.3;
+  color: #64748b;
 }
 
 /* Action Buttons Container - Fixed Positioning */
@@ -1899,34 +1901,23 @@ function showSnackbar(text: string, color: 'success' | 'error' | 'warning') {
 }
 
 .mobile-btn {
-  border-radius: 14px;
-  font-weight: 600;
-  height: 48px;
+  border-radius: 6px;
+  font-weight: 500;
+  height: 40px;
   transition: background-color 0.2s ease;
 }
 
 .action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
-}
-
-.action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-}
-
-.primary-btn {
-  background: white !important;
-  color: rgb(var(--v-theme-primary)) !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
 }
 
 /* Filter Card - Modern Redesigned */
 .filter-card {
-  border-radius: 16px;
-  border: 1px solid rgba(var(--v-theme-primary), 0.12);
-  background: rgb(var(--v-theme-surface));
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   overflow: hidden;
 }
 
@@ -2234,16 +2225,17 @@ function showSnackbar(text: string, color: 'success' | 'error' | 'warning') {
 
 /* Form Dialog - Mobile Optimized */
 .form-card {
-  border-radius: 20px;
+  border-radius: 8px;
   overflow: hidden;
-  background: rgb(var(--v-theme-background));
-  border: 1px solid rgb(var(--v-theme-outline-variant));
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
 }
 
 .form-header {
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
-  padding: 24px 28px;
-  color: rgb(var(--v-theme-on-primary));
+  background: #ffffff;
+  padding: 20px 24px;
+  color: #0f172a;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2311,40 +2303,43 @@ function showSnackbar(text: string, color: 'success' | 'error' | 'warning') {
 }
 
 .elegant-input :deep(.v-field) {
-  border-radius: 12px;
-  background: rgb(var(--v-theme-background));
+  border-radius: 6px;
+  background: #ffffff;
 }
 
 .form-actions {
-  padding: 20px 28px !important;
-  border-top: 1px solid rgb(var(--v-theme-outline-variant));
-  background: rgb(var(--v-theme-surface));
+  padding: 16px 24px !important;
+  border-top: 1px solid #e2e8f0;
+  background: #fafafa;
 }
 
 .nav-btn, .save-btn {
-  border-radius: 12px;
-  font-weight: 600;
-  height: 44px;
+  border-radius: 6px;
+  font-weight: 500;
+  height: 40px;
   text-transform: none;
 }
 
 /* Delete Dialog */
 .delete-card, .import-card {
-  border-radius: 16px;
-  background: rgb(var(--v-theme-surface));
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
 }
 
 .delete-header {
-  background: rgb(var(--v-theme-error));
-  color: rgb(var(--v-theme-on-error));
-  padding: 20px 24px;
+  background: #ffffff;
+  color: #0f172a;
+  border-bottom: 1px solid #fee2e2;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
 }
 
 .delete-title {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 700;
+  color: #0f172a;
 }
 
 .delete-content {
@@ -2964,7 +2959,9 @@ function showSnackbar(text: string, color: 'success' | 'error' | 'warning') {
    ============================================ */
 
 .import-header-gradient {
-  background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
+  background: #ffffff;
+  color: #0f172a;
+  border-bottom: 1px solid #e2e8f0;
   position: relative;
 }
 

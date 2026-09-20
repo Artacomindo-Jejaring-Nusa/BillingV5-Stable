@@ -663,14 +663,12 @@ onUnmounted(() => {
    HEADER SECTION
    ======================================== */
 .page-header {
-  background: linear-gradient(135deg,
-    rgba(var(--v-theme-primary), 0.08) 0%,
-    rgba(var(--v-theme-secondary), 0.05) 100%);
-  border-radius: 20px;
-  padding: 24px 28px;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px 24px;
   margin-bottom: 24px;
-  border: 1px solid rgba(var(--v-theme-primary), 0.12);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .header-content {
@@ -1073,23 +1071,23 @@ onUnmounted(() => {
 }
 
 .timeline-dot.created {
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  background: #3b82f6;
 }
 
 .timeline-dot.open {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+  background: #f59e0b;
 }
 
 .timeline-dot.in_progress {
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  background: #06b6d4;
 }
 
 .timeline-dot.resolved {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: #10b981;
 }
 
 .timeline-dot.closed {
-  background: linear-gradient(135deg, #6b7280, #4b5563);
+  background: #64748b;
 }
 
 .timeline-content {
@@ -1127,7 +1125,7 @@ onUnmounted(() => {
 
 /* Light Mode Specific Overrides */
 .v-theme--light .trouble-ticket-detail-container {
-  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  background: #f8fafc;
 }
 
 .v-theme--light .detail-card,

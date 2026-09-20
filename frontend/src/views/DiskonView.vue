@@ -1,21 +1,20 @@
 <template>
   <v-container fluid class="pa-4 pa-md-6 diskon-view">
-    <!-- Header Section with Dynamic Gradient -->
+    <!-- Header Section with Clean SaaS Design -->
     <div class="header-card mb-6 animate-fade-in">
-      <div class="header-glass-effect"></div>
       <div class="header-content">
         <v-row align="center" class="ma-0">
           <v-col cols="12" md="auto" class="d-flex align-center mb-4 mb-md-0">
             <div class="icon-wrapper me-4">
-              <v-avatar class="header-avatar" size="64">
-                <v-icon color="white" size="32">mdi-percent-outline</v-icon>
+              <v-avatar color="primary" variant="tonal" class="header-avatar" size="52">
+                <v-icon color="primary" size="28">mdi-percent-outline</v-icon>
               </v-avatar>
             </div>
             <div>
-              <h1 class="text-h4 text-md-h3 font-weight-bold text-white mb-1 header-title">
+              <h1 class="text-h5 font-weight-bold text-slate-900 mb-1 header-title">
                 Manajemen Diskon
               </h1>
-              <p class="header-subtitle text-white mb-0">
+              <p class="header-subtitle text-medium-emphasis mb-0">
                 Kelola diskon berdasarkan cluster/alamat pelanggan
               </p>
             </div>
@@ -23,16 +22,14 @@
           <v-spacer class="d-none d-md-flex"></v-spacer>
           <v-col cols="12" md="auto">
             <v-btn
-              color="white"
-              size="large"
-              elevation="8"
+              color="primary"
+              size="default"
               @click="openDialog()"
-              prepend-icon="mdi-plus-circle"
-              class="text-none font-weight-bold px-6 add-btn"
+              prepend-icon="mdi-plus"
+              class="text-none font-weight-medium px-4 add-btn rounded-md"
               variant="elevated"
-              block
             >
-              <span class="gradient-text">Tambah Diskon</span>
+              Tambah Diskon
             </v-btn>
           </v-col>
         </v-row>
@@ -693,41 +690,32 @@ onMounted(() => {
 /* ========== Header Styles ========== */
 .diskon-view {
   min-height: 100vh;
-  background: linear-gradient(180deg, 
-    rgba(103, 126, 234, 0.03) 0%, 
-    rgba(118, 75, 162, 0.02) 100%
-  );
+  background: #f8fafc;
 }
 
 .header-card {
   position: relative;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 24px;
-  padding: 32px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 24px;
   overflow: hidden;
-  box-shadow: 
-    0 20px 60px -12px rgba(103, 126, 234, 0.35),
-    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.header-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    0 25px 70px -15px rgba(103, 126, 234, 0.45),
-    0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .header-glass-effect {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
-  pointer-events: none;
+  display: none;
+}
+
+.header-title {
+  color: #0f172a !important;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.header-subtitle {
+  color: #64748b !important;
+  font-size: 0.875rem;
 }
 
 .header-content {

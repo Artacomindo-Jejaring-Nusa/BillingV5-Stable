@@ -3854,11 +3854,12 @@ async function copyInvoiceLink(link: string | null | undefined) {
 
 /* Header Card - Mobile Optimized with Fixed Positioning */
 .header-card {
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
-  border-radius: 20px;
+  background: #ffffff;
+  border-radius: 8px;
   padding: 24px;
-  color: rgb(var(--v-theme-on-primary));
-  box-shadow: 0 8px 32px rgba(var(--v-theme-primary), 0.25);
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   position: relative;
 }
 
@@ -3903,27 +3904,50 @@ async function copyInvoiceLink(link: string | null | undefined) {
 }
 
 .mobile-btn {
-  border-radius: 14px;
-  font-weight: 600;
-  height: 48px;
-  transition: all 0.3s ease;
+  border-radius: 6px;
+  font-weight: 500;
+  height: 40px;
+  transition: all 0.2s ease;
 }
 
 .action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  backdrop-filter: none !important;
 }
 
 .action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-1px);
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+.action-buttons-container .v-btn[color="success"] {
+  background-color: #ecfdf5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+.action-buttons-container .v-btn[color="success"]:hover {
+  background-color: #d1fae5 !important;
 }
 
 .primary-btn {
-  background: white !important;
-  color: rgb(var(--v-theme-primary)) !important;
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border: 1px solid #0f172a !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.primary-btn:hover {
+  background-color: #1e293b !important;
+  border-color: #1e293b !important;
 }
 
 /* Import Dialog */
@@ -4095,18 +4119,14 @@ async function copyInvoiceLink(link: string | null | undefined) {
 
 /* Light Mode Base */
 .v-theme--light .v-container {
-  background: linear-gradient(135deg, 
-    var(--light-bg-secondary) 0%, 
-    var(--light-bg-tertiary) 100%);
-  color: var(--light-text-primary);
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 /* Dark Mode Base */
 .v-theme--dark .v-container {
-  background: linear-gradient(135deg, 
-    var(--dark-bg-primary) 0%, 
-    var(--dark-bg-secondary) 100%);
-  color: var(--dark-text-primary);
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 /* ============================================
@@ -4122,11 +4142,9 @@ async function copyInvoiceLink(link: string | null | undefined) {
 
 /* Light Mode Header */
 .v-theme--light .header-section {
-  background: linear-gradient(135deg, 
-    var(--light-surface) 0%, 
-    var(--light-surface-variant) 100%);
-  border: 1px solid var(--light-border);
-  box-shadow: 0 4px 20px var(--light-shadow);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 /* Dark Mode Header */
@@ -4144,10 +4162,7 @@ async function copyInvoiceLink(link: string | null | undefined) {
 }
 
 .header-section .text-primary {
-  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #0f172a !important;
 }
 
 
@@ -4156,26 +4171,28 @@ async function copyInvoiceLink(link: string | null | undefined) {
             max-width: 100vw;
             max-height: 100vh;
             overflow-y: auto;
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            background: #ffffff;
             font-family: 'Inter', 'Roboto', sans-serif;
         }
 
         .form-dialog {
-            border-radius: 24px !important;
+            border-radius: 8px !important;
             overflow: hidden;
             max-width: 800px;
             margin: 20px auto;
-            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.15), 0 15px 40px rgba(0, 0, 0, 0.1) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
             background: white;
+            border: 1px solid #e2e8f0;
         }
 
         /* Enhanced Header */
         .form-header {
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%) !important;
+            background: #ffffff !important;
             position: relative;
             overflow: hidden;
-            padding: 32px !important;
-            color: white;
+            padding: 20px 24px !important;
+            color: #0f172a;
+            border-bottom: 1px solid #e2e8f0;
         }
 
         .form-header::before {
@@ -4241,41 +4258,28 @@ async function copyInvoiceLink(link: string | null | undefined) {
 
         /* Form Content */
         .form-content {
-            padding: 32px !important;
-            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            padding: 24px !important;
+            background: #ffffff;
         }
 
         /* Form Sections */
         .form-section {
-            margin-bottom: 40px !important;
+            margin-bottom: 24px !important;
             position: relative;
         }
 
         .form-section:last-child {
-            margin-bottom: 24px !important;
+            margin-bottom: 16px !important;
         }
 
         .section-header {
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-bottom: 24px !important;
-            padding: 16px 0 12px 0;
+            margin-bottom: 16px !important;
+            padding: 12px 0 8px 0;
             position: relative;
-        }
-
-        .section-header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 40px;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, 
-                rgba(99, 102, 241, 0.3) 0%,
-                rgba(99, 102, 241, 0.1) 50%,
-                transparent 100%
-            );
+            border-bottom: 1px solid #e2e8f0;
         }
 
         .section-title {
@@ -4340,21 +4344,21 @@ async function copyInvoiceLink(link: string | null | undefined) {
 
         /* Price Field Special Styling */
         .price-field .v-field {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
-            border-color: rgba(14, 165, 233, 0.3) !important;
+            background: #f8fafc !important;
+            border-color: #cbd5e1 !important;
         }
 
         .price-field .v-field:hover {
-            border-color: rgba(14, 165, 233, 0.5) !important;
+            border-color: #94a3b8 !important;
         }
 
         .price-field .v-field--focused {
-            border-color: #0ea5e9 !important;
-            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.15), 0 0 0 4px rgba(14, 165, 233, 0.1) !important;
+            border-color: #0f172a !important;
+            box-shadow: none !important;
         }
 
         .price-field .v-field__input {
-            color: #0369a1 !important;
+            color: #0f172a !important;
             font-weight: 700 !important;
             font-size: 1.1rem !important;
         }
@@ -4375,21 +4379,21 @@ async function copyInvoiceLink(link: string | null | undefined) {
 
         /* Alert Styling */
         .v-alert {
-            border-radius: 16px !important;
-            margin-bottom: 20px !important;
-            border: 1px solid rgba(59, 130, 246, 0.2) !important;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08) !important;
+            border-radius: 6px !important;
+            margin-bottom: 16px !important;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: none !important;
         }
 
         .v-alert--variant-tonal {
-            background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%) !important;
+            background: #f8fafc !important;
         }
 
         /* Action Footer */
         .action-footer {
-            background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
-            border-top: 1px solid rgba(0, 0, 0, 0.06);
-            padding: 32px !important;
+            background: #fafafa;
+            border-top: 1px solid #e2e8f0;
+            padding: 16px 24px !important;
         }
 
         .action-buttons {
@@ -4419,26 +4423,20 @@ async function copyInvoiceLink(link: string | null | undefined) {
         }
 
         .save-btn {
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+            background: #0f172a !important;
             color: white !important;
             border: none !important;
-            border-radius: 12px !important;
-            font-weight: 700 !important;
+            border-radius: 6px !important;
+            font-weight: 600 !important;
             text-transform: none !important;
-            padding: 14px 32px !important;
-            font-size: 1rem !important;
-            letter-spacing: 0.3px !important;
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3), 0 3px 10px rgba(99, 102, 241, 0.2) !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-            position: relative;
-            overflow: hidden;
-            min-height: 48px !important;
+            padding: 8px 18px !important;
+            font-size: 0.95rem !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+            min-height: 40px !important;
         }
 
         .save-btn:hover {
-            background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%) !important;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4), 0 5px 15px rgba(99, 102, 241, 0.3) !important;
+            background: #1e293b !important;
         }
 
         .save-btn:active {
@@ -4630,66 +4628,45 @@ async function copyInvoiceLink(link: string | null | undefined) {
 
 /* Import Button */
 .import-btn {
-  background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%) !important;
-  color: white !important;
-  border: none !important;
-  border-radius: 12px !important;
-  padding: 12px 24px !important;
-  font-weight: 600 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  font-weight: 500 !important;
   text-transform: none !important;
-  box-shadow: 0 4px 16px rgba(var(--success-500), 0.3) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-.import-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(var(--success-500), 0.4) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 /* Export Button */
 .export-btn {
-  background: linear-gradient(135deg, var(--info-500) 0%, var(--info-600) 100%) !important;
-  color: white !important;
-  border: none !important;
-  border-radius: 12px !important;
-  padding: 12px 24px !important;
-  font-weight: 600 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  font-weight: 500 !important;
   text-transform: none !important;
-  box-shadow: 0 4px 16px rgba(var(--info-500), 0.3) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-.export-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(var(--info-500), 0.4) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 /* Add Subscription Button */
 .add-subscription-btn {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%) !important;
-  color: white !important;
+  background: #0f172a !important;
+  color: #ffffff !important;
   border: none !important;
-  border-radius: 16px !important;
-  padding: 14px 28px !important;
-  font-weight: 700 !important;
+  border-radius: 6px !important;
+  padding: 8px 18px !important;
+  font-weight: 600 !important;
   text-transform: none !important;
-  font-size: 1rem !important;
-  box-shadow: 0 6px 20px rgba(var(--primary-500), 0.3) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-.add-subscription-btn:hover {
-  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%) !important;
-  transform: translateY(-3px);
-  box-shadow: 0 10px 32px rgba(var(--primary-500), 0.4) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 /* ============================================
    FILTER CARD STYLING
    ============================================ */
 .filter-card {
-  border-radius: 20px !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px !important;
   position: relative;
   overflow: hidden;
   margin-bottom: 24px;
@@ -4697,48 +4674,20 @@ async function copyInvoiceLink(link: string | null | undefined) {
 
 /* Light Mode Filter Card */
 .v-theme--light .filter-card {
-  background: linear-gradient(145deg, 
-    var(--light-surface) 0%, 
-    var(--light-surface-variant) 100%) !important;
-  border: 1px solid var(--light-border) !important;
-  box-shadow: 0 4px 20px var(--light-shadow) !important;
-}
-
-.v-theme--light .filter-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px var(--light-shadow-hover) !important;
-  border-color: rgba(var(--primary-500), 0.2) !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 /* Dark Mode Filter Card */
 .v-theme--dark .filter-card {
-  background: linear-gradient(145deg, 
-    var(--dark-surface) 0%, 
-    var(--dark-surface-variant) 100%) !important;
-  border: 1px solid var(--dark-border) !important;
-  box-shadow: 0 4px 20px var(--dark-shadow) !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
-.v-theme--dark .filter-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px var(--dark-shadow-hover) !important;
-  border-color: rgba(var(--primary-500), 0.3) !important;
-}
-
-/* Filter Card Top Border Effect */
 .filter-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    var(--primary-500) 50%, 
-    transparent 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  display: none !important;
 }
 
 .filter-card:hover::before {
@@ -4910,128 +4859,51 @@ async function copyInvoiceLink(link: string | null | undefined) {
 
 /* Import Dialog Header */
 .import-dialog-header {
-  background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%) !important;
-  color: white !important;
-  padding: 24px 32px !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 20px 24px !important;
   position: relative;
-  overflow: hidden;
 }
 
 .import-dialog-header::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -10%;
-  width: 100px;
-  height: 200%;
-  background: rgba(255, 255, 255, 0.1);
-  transform: rotate(15deg);
-  transition: all 0.3s ease;
+  display: none !important;
 }
 
 /* Import Dialog Content - Light Mode */
 .v-theme--light .import-dialog-content {
-  background: linear-gradient(145deg, 
-    var(--light-surface) 0%, 
-    var(--light-surface-variant) 100%) !important;
-  color: var(--light-text-primary) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
 }
 
 /* Import Dialog Content - Dark Mode */
 .v-theme--dark .import-dialog-content {
-  background: linear-gradient(145deg, 
-    var(--dark-surface) 0%, 
-    var(--dark-surface-variant) 100%) !important;
-  color: var(--dark-text-primary) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
 }
 
 /* Import File Input Styling */
 .import-file-input .v-field {
-  border-radius: 16px !important;
-  border: 3px dashed rgba(var(--success-500), 0.3) !important;
+  border-radius: 8px !important;
+  border: 1px dashed #cbd5e1 !important;
   min-height: 80px !important;
   padding: 16px !important;
-  transition: all 0.3s ease !important;
+  background: #f8fafc !important;
 }
 
-/* Light Mode File Input */
-.v-theme--light .import-file-input .v-field {
-  background: linear-gradient(135deg, 
-    rgba(var(--success-50), 0.5) 0%, 
-    rgba(var(--success-50), 0.3) 100%) !important;
-}
-
-.v-theme--light .import-file-input .v-field:hover {
-  background: linear-gradient(135deg, 
-    rgba(var(--success-50), 0.8) 0%, 
-    rgba(var(--success-50), 0.6) 100%) !important;
-  border-color: rgba(var(--success-500), 0.5) !important;
-}
-
-/* Dark Mode File Input */
-.v-theme--dark .import-file-input .v-field {
-  background: linear-gradient(135deg, 
-    rgba(var(--success-500), 0.1) 0%, 
-    rgba(var(--success-500), 0.05) 100%) !important;
-}
-
-.v-theme--dark .import-file-input .v-field:hover {
-  background: linear-gradient(135deg, 
-    rgba(var(--success-500), 0.15) 0%, 
-    rgba(var(--success-500), 0.1) 100%) !important;
-  border-color: rgba(var(--success-500), 0.5) !important;
-}
-
-/* ============================================
-   FORM DIALOG STYLING
-   ============================================ */
-.subscription-form-dialog {
-  border-radius: 24px !important;
-  overflow: hidden;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.15) !important;
-}
-
-/* Enhanced Form Header */
-.enhanced-form-header {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 50%, var(--primary-700) 100%) !important;
-  position: relative;
-  overflow: hidden;
-  padding: 32px !important;
-}
-
-.enhanced-form-header::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -20%;
-  width: 200px;
-  height: 200%;
-  background: linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
-  transform: rotate(25deg);
-  transition: all 0.5s ease;
-}
-
-/* Section Cards - Light Mode */
+/* Section Cards */
 .v-theme--light .enhanced-section-card {
-  background: linear-gradient(145deg, 
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(248, 250, 252, 0.9) 100%) !important;
-  border: 1px solid rgba(var(--primary-500), 0.1) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 8px !important;
 }
 
-.v-theme--light .enhanced-section-card:hover {
-  border-color: rgba(var(--primary-500), 0.2) !important;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08) !important;
-}
-
-/* Section Cards - Dark Mode */
 .v-theme--dark .enhanced-section-card {
-  background: linear-gradient(145deg, 
-    rgba(30, 30, 30, 0.95) 0%,
-    rgba(42, 42, 42, 0.9) 100%) !important;
-  border: 1px solid rgba(var(--primary-500), 0.15) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 8px !important;
 }
 
 .v-theme--dark .enhanced-section-card:hover {

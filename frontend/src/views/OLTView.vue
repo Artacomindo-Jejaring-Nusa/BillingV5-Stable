@@ -331,15 +331,15 @@
     <v-dialog v-model="dialogExplorer" max-width="1100px" scrollable transition="dialog-bottom-transition">
       <v-card rounded="xl" class="overflow-hidden">
         <!-- Header -->
-        <div class="pa-4 pa-md-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white d-flex align-center justify-space-between" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);">
+        <div class="pa-4 pa-md-5 bg-white text-slate-900 d-flex align-center justify-space-between" style="background: #ffffff; border-bottom: 1px solid #e2e8f0;">
           <div class="d-flex align-center">
-            <v-avatar color="white" variant="tonal" size="48" class="me-3">
-              <v-icon size="28" color="white">mdi-lan-connect</v-icon>
+            <v-avatar color="primary" variant="tonal" size="48" class="me-3">
+              <v-icon size="28" color="primary">mdi-lan-connect</v-icon>
             </v-avatar>
             <div>
               <div class="d-flex align-center gap-2">
-                <h2 class="text-h6 font-weight-bold text-white mb-0">{{ activeOlt?.nama_olt }}</h2>
-                <v-chip size="x-small" color="white" variant="outlined" class="font-weight-bold">
+                <h2 class="text-h6 font-weight-bold text-slate-900 mb-0" style="color: #0f172a;">{{ activeOlt?.nama_olt }}</h2>
+                <v-chip size="x-small" color="primary" variant="outlined" class="font-weight-bold">
                   {{ activeOlt?.tipe_olt }}
                 </v-chip>
               </div>
@@ -1138,23 +1138,17 @@ function showSnackbar(text: string, color: 'success' | 'error' | 'info') {
 }
 
 .header-section {
-  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
   position: relative;
   overflow: hidden;
 }
 
 /* Background Pattern overlay */
 .header-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: 
-    radial-gradient(circle at 20% 150%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% -50%, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
-  z-index: 1;
+  display: none;
 }
 
 .header-content {

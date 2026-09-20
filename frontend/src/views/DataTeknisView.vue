@@ -182,18 +182,17 @@
         <v-card 
           class="stats-card pa-4 h-100" 
           :style="{
-            background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%)',
-            border: '1px solid rgba(76, 175, 80, 0.2)',
-            backdropFilter: 'blur(10px)'
+            background: '#ffffff',
+            border: '1px solid #e2e8f0'
           }"
-          elevation="2"
+          elevation="0"
         >
           <div class="d-flex align-center">
-            <v-avatar color="success" size="48" class="me-3">
-              <v-icon color="white">mdi-check-network</v-icon>
+            <v-avatar color="success" variant="tonal" size="44" class="me-3 rounded-md">
+              <v-icon color="success">mdi-check-network</v-icon>
             </v-avatar>
             <div>
-              <div class="text-h5 font-weight-bold">{{ statisticsData.totalPelanggan }}</div>
+              <div class="text-h5 font-weight-bold text-slate-900">{{ statisticsData.totalPelanggan }}</div>
               <div class="text-caption text-medium-emphasis">Total Pelanggan</div>
             </div>
           </div>
@@ -203,18 +202,17 @@
         <v-card 
           class="stats-card pa-4 h-100"
           :style="{
-            background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%)',
-            border: '1px solid rgba(255, 152, 0, 0.2)',
-            backdropFilter: 'blur(10px)'
+            background: '#ffffff',
+            border: '1px solid #e2e8f0'
           }"
-          elevation="2"
+          elevation="0"
         >
           <div class="d-flex align-center">
-            <v-avatar color="warning" size="48" class="me-3">
-              <v-icon color="white">mdi-signal</v-icon>
+            <v-avatar color="warning" variant="tonal" size="44" class="me-3 rounded-md">
+              <v-icon color="warning">mdi-signal</v-icon>
             </v-avatar>
             <div>
-              <div class="text-h5 font-weight-bold">{{ statisticsData.sinyalBaik }}</div>
+              <div class="text-h5 font-weight-bold text-slate-900">{{ statisticsData.sinyalBaik }}</div>
               <div class="text-caption text-medium-emphasis">Sinyal Baik</div>
             </div>
           </div>
@@ -224,18 +222,17 @@
         <v-card 
           class="stats-card pa-4 h-100"
           :style="{
-            background: 'linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(244, 67, 54, 0.05) 100%)',
-            border: '1px solid rgba(244, 67, 54, 0.2)',
-            backdropFilter: 'blur(10px)'
+            background: '#ffffff',
+            border: '1px solid #e2e8f0'
           }"
-          elevation="2"
+          elevation="0"
         >
           <div class="d-flex align-center">
-            <v-avatar color="error" size="48" class="me-3">
-              <v-icon color="white">mdi-alert</v-icon>
+            <v-avatar color="error" variant="tonal" size="44" class="me-3 rounded-md">
+              <v-icon color="error">mdi-alert</v-icon>
             </v-avatar>
             <div>
-              <div class="text-h5 font-weight-bold">{{ statisticsData.sinyalLemah }}</div>
+              <div class="text-h5 font-weight-bold text-slate-900">{{ statisticsData.sinyalLemah }}</div>
               <div class="text-caption text-medium-emphasis">Sinyal Lemah</div>
             </div>
           </div>
@@ -245,18 +242,17 @@
         <v-card 
           class="stats-card pa-4 h-100"
           :style="{
-            background: 'linear-gradient(135deg, rgba(103, 58, 183, 0.1) 0%, rgba(103, 58, 183, 0.05) 100%)',
-            border: '1px solid rgba(103, 58, 183, 0.2)',
-            backdropFilter: 'blur(10px)'
+            background: '#ffffff',
+            border: '1px solid #e2e8f0'
           }"
-          elevation="2"
+          elevation="0"
         >
           <div class="d-flex align-center">
-            <v-avatar color="deep-purple" size="48" class="me-3">
-              <v-icon color="white">mdi-router-network</v-icon>
+            <v-avatar color="primary" variant="tonal" size="44" class="me-3 rounded-md">
+              <v-icon color="primary">mdi-router-network</v-icon>
             </v-avatar>
             <div>
-              <div class="text-h5 font-weight-bold">{{ statisticsData.oltAktif }}</div>
+              <div class="text-h5 font-weight-bold text-slate-900">{{ statisticsData.oltAktif }}</div>
               <div class="text-caption text-medium-emphasis">OLT Aktif</div>
             </div>
           </div>
@@ -265,17 +261,12 @@
     </v-row>
 
     <v-card 
-      elevation="8" 
+      elevation="0" 
       class="modern-card overflow-hidden"
       :style="{
-        borderRadius: '20px',
-        backdropFilter: 'blur(20px)',
-        background: theme.global.current.value.dark 
-          ? 'rgba(30, 30, 30, 0.8)' 
-          : 'rgba(255, 255, 255, 0.9)',
-        border: theme.global.current.value.dark 
-          ? '1px solid rgba(255, 255, 255, 0.1)' 
-          : '1px solid rgba(0, 0, 0, 0.05)'
+        borderRadius: '8px',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0'
       }"
     >
       <v-expand-transition>
@@ -295,12 +286,12 @@
       <v-card-title 
         class="pa-6 d-flex align-center"
         :style="{
-          background: 'linear-gradient(135deg, rgba(0, 172, 193, 0.1) 0%, rgba(0, 96, 100, 0.05) 100%)',
-          borderBottom: '1px solid rgba(0, 172, 193, 0.2)'
+          background: '#ffffff',
+          borderBottom: '1px solid #e2e8f0'
         }"
       >
         <v-icon class="me-3 text-primary" size="24">mdi-table</v-icon>
-        <span class="text-h5 font-weight-bold">Daftar Infrastruktur</span>
+        <span class="text-h5 font-weight-bold" style="color: #0f172a;">Daftar Infrastruktur</span>
       </v-card-title>
       
       <!-- PERUBAHAN DIMULAI DI SINI -->
@@ -851,12 +842,12 @@
       >
       <v-card class="d-flex flex-column" style="height: 100vh;">
         
-        <v-card-title class="pa-0 flex-shrink-0" :style="{ background: 'linear-gradient(135deg, #00ACC1 0%, #006064 100%)', color: 'white' }">
+        <v-card-title class="pa-0 flex-shrink-0" :style="{ background: '#ffffff', color: '#0f172a', borderBottom: '1px solid #e2e8f0' }">
           <div class="pa-4 pa-sm-6 d-flex align-center">
-            <v-icon class="me-3" size="28">mdi-plus-network-outline</v-icon>
+            <v-icon class="me-3 text-primary" size="28">mdi-plus-network-outline</v-icon>
             <div>
-              <div class="text-h5 text-sm-h4 font-weight-bold">{{ formTitle }}</div>
-              <div class="text-body-2 opacity-90 mt-1">Lengkapi informasi teknis</div>
+              <div class="text-h5 text-sm-h4 font-weight-bold" style="color: #0f172a;">{{ formTitle }}</div>
+              <div class="text-body-2 text-medium-emphasis mt-1">Lengkapi informasi teknis</div>
             </div>
           </div>
         </v-card-title>
@@ -1196,14 +1187,14 @@
       </v-card>
     </v-dialog>
     <v-dialog v-model="dialogDelete" max-width="500px">
-      <v-card class="modern-dialog" :style="{ borderRadius: '20px' }" elevation="16">
-        <v-card-title class="pa-6 d-flex align-center" :style="{ background: 'linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(244, 67, 54, 0.05) 100%)', borderBottom: '1px solid rgba(244, 67, 54, 0.2)' }">
-          <v-avatar color="error" size="48" class="me-4">
-            <v-icon color="white">mdi-alert</v-icon>
+      <v-card class="modern-dialog" :style="{ borderRadius: '8px', border: '1px solid #e2e8f0' }" elevation="0">
+        <v-card-title class="pa-6 d-flex align-center" :style="{ background: '#ffffff', borderBottom: '1px solid #fee2e2' }">
+          <v-avatar color="error" variant="tonal" size="44" class="me-4 rounded-md">
+            <v-icon color="error">mdi-alert</v-icon>
           </v-avatar>
           <div>
-            <div class="text-h5 font-weight-bold">Konfirmasi Hapus</div>
-            <div class="text-body-2 opacity-80">Tindakan ini permanen</div>
+            <div class="text-h5 font-weight-bold" style="color: #0f172a;">Konfirmasi Hapus</div>
+            <div class="text-body-2 text-medium-emphasis">Tindakan ini permanen</div>
           </div>
         </v-card-title>
         <v-card-text class="pa-6">
@@ -1218,10 +1209,10 @@
         </v-card-text>
         <v-card-actions class="pa-6 pt-0">
           <v-spacer></v-spacer>
-          <v-btn variant="outlined" @click="closeDeleteDialog" class="me-3" :style="{ borderRadius: '12px' }">
+          <v-btn variant="outlined" @click="closeDeleteDialog" class="me-3" :style="{ borderRadius: '6px' }">
             Batal
           </v-btn>
-          <v-btn color="error" variant="flat" @click="confirmDelete" prepend-icon="mdi-delete" :style="{ borderRadius: '12px' }" :loading="deleting">
+          <v-btn color="error" variant="flat" @click="confirmDelete" prepend-icon="mdi-delete" :style="{ borderRadius: '6px' }" :loading="deleting">
             Ya, Hapus
           </v-btn>
         </v-card-actions>
@@ -1229,13 +1220,13 @@
     </v-dialog>
 
     <v-dialog v-model="dialogBulkDelete" max-width="500px">
-      <v-card class="modern-dialog" :style="{ borderRadius: '20px' }" elevation="16">
-        <v-card-title class="pa-6 d-flex align-center" :style="{ background: 'linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(244, 67, 54, 0.05) 100%)', borderBottom: '1px solid rgba(244, 67, 54, 0.2)' }">
-          <v-avatar color="error" size="48" class="me-4">
-            <v-icon color="white">mdi-delete-sweep</v-icon>
+      <v-card class="modern-dialog" :style="{ borderRadius: '8px', border: '1px solid #e2e8f0' }" elevation="0">
+        <v-card-title class="pa-6 d-flex align-center" :style="{ background: '#ffffff', borderBottom: '1px solid #fee2e2' }">
+          <v-avatar color="error" variant="tonal" size="44" class="me-4 rounded-md">
+            <v-icon color="error">mdi-delete-sweep</v-icon>
           </v-avatar>
           <div>
-            <div class="text-h5 font-weight-bold">Hapus Massal</div>
+            <div class="text-h5 font-weight-bold" style="color: #0f172a;">Hapus Massal</div>
           </div>
         </v-card-title>
         <v-card-text class="pa-6 text-center">
@@ -1445,18 +1436,18 @@
 
     <!-- Dialog Diagnosa & Telemetri Live Pelanggan -->
     <v-dialog v-model="dialogLiveDetail" max-width="600px">
-      <v-card rounded="xl" elevation="16" class="overflow-hidden">
-        <div class="pa-5 bg-gradient-primary text-white d-flex align-center justify-space-between" style="background: linear-gradient(135deg, #00838F 0%, #00acc1 100%);">
+      <v-card rounded="lg" elevation="0" class="overflow-hidden" style="border: 1px solid #e2e8f0;">
+        <div class="pa-5 bg-white text-slate-900 d-flex align-center justify-space-between" style="background: #ffffff; border-bottom: 1px solid #e2e8f0;">
           <div class="d-flex align-center gap-3">
-            <v-avatar color="white" size="42">
-              <v-icon color="cyan-darken-3">mdi-broadcast</v-icon>
+            <v-avatar color="primary" variant="tonal" size="42" class="rounded-md">
+              <v-icon color="primary">mdi-broadcast</v-icon>
             </v-avatar>
             <div>
-              <h3 class="text-h6 font-weight-bold text-white mb-0">Telemetri Live OLT</h3>
-              <p class="text-caption text-white opacity-80 mb-0">{{ selectedLiveDT?.pelanggan?.nama || selectedLiveDT?.id_pelanggan }} ({{ selectedLiveDT?.olt }})</p>
+              <h3 class="text-h6 font-weight-bold mb-0" style="color: #0f172a;">Telemetri Live OLT</h3>
+              <p class="text-caption text-medium-emphasis mb-0">{{ selectedLiveDT?.pelanggan?.nama || selectedLiveDT?.id_pelanggan }} ({{ selectedLiveDT?.olt }})</p>
             </div>
           </div>
-          <v-btn icon="mdi-close" variant="text" color="white" size="small" @click="dialogLiveDetail = false"></v-btn>
+          <v-btn icon="mdi-close" variant="text" color="default" size="small" @click="dialogLiveDetail = false"></v-btn>
         </div>
 
         <v-card-text class="pa-6">
@@ -1686,18 +1677,18 @@
 
     <!-- Dialog Auto-Sync Massal OLT -->
     <v-dialog v-model="dialogBulkSync" max-width="900px" persistent>
-      <v-card rounded="xl" elevation="16" class="overflow-hidden">
-        <div class="pa-5 bg-gradient-primary text-white d-flex align-center justify-space-between" style="background: linear-gradient(135deg, #f57c00 0%, #ff9800 100%);">
+      <v-card rounded="lg" elevation="0" class="overflow-hidden" style="border: 1px solid #e2e8f0;">
+        <div class="pa-5 bg-white text-slate-900 d-flex align-center justify-space-between" style="background: #ffffff; border-bottom: 1px solid #e2e8f0;">
           <div class="d-flex align-center gap-3">
-            <v-avatar color="white" size="44" class="elevation-2">
-              <v-icon color="orange-darken-3" size="26">mdi-flash</v-icon>
+            <v-avatar color="warning" variant="tonal" size="44" class="rounded-md">
+              <v-icon color="warning" size="26">mdi-flash</v-icon>
             </v-avatar>
             <div>
-              <h3 class="text-h6 font-weight-bold text-white mb-0">Auto-Sync Massal OLT</h3>
-              <p class="text-caption text-white opacity-90 mb-0">Pindai seluruh Port PON (500+ user) & hubungkan PON/SN otomatis</p>
+              <h3 class="text-h6 font-weight-bold mb-0" style="color: #0f172a;">Auto-Sync Massal OLT</h3>
+              <p class="text-caption text-medium-emphasis mb-0">Pindai seluruh Port PON (500+ user) & hubungkan PON/SN otomatis</p>
             </div>
           </div>
-          <v-btn icon="mdi-close" variant="text" color="white" size="small" :disabled="bulkSyncLoading" @click="closeBulkSyncDialog"></v-btn>
+          <v-btn icon="mdi-close" variant="text" color="default" size="small" :disabled="bulkSyncLoading" @click="closeBulkSyncDialog"></v-btn>
         </div>
 
         <v-card-text class="pa-5">
@@ -3462,13 +3453,14 @@ function getOnuPowerError() {
    MOBILE-FIRST RESPONSIVE DESIGN
    ============================================ */
 
-/* Header Card - Mobile Optimized with Fixed Positioning */
+/* Header Card - Clean SaaS Style */
 .header-card {
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
-  border-radius: 20px;
+  background: #ffffff;
+  border-radius: 8px;
   padding: 24px;
-  color: rgb(var(--v-theme-on-primary));
-  box-shadow: 0 8px 32px rgba(var(--v-theme-primary), 0.25);
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   position: relative;
 }
 
@@ -3513,27 +3505,39 @@ function getOnuPowerError() {
 }
 
 .mobile-btn {
-  border-radius: 14px;
-  font-weight: 600;
-  height: 48px;
-  transition: all 0.3s ease;
+  border-radius: 6px;
+  font-weight: 500;
+  height: 40px;
+  transition: all 0.2s ease;
 }
 
 .action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 .action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-1px);
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
 }
 
 .primary-btn {
-  background: white !important;
-  color: rgb(var(--v-theme-primary)) !important;
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border: 1px solid #0f172a !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.primary-btn:hover {
+  background-color: #1e293b !important;
+  border-color: #1e293b !important;
 }
 
 /* Import Dialog */
@@ -3756,51 +3760,17 @@ function getOnuPowerError() {
   overflow-x: auto;
   width: 100%;
 }
-
 .filter-card {
-  border-radius: 20px;
-  border: 1px solid rgba(var(--v-theme-primary), 0.12);
-  background: linear-gradient(145deg, 
-    rgba(var(--v-theme-surface), 0.95) 0%, 
-    rgba(var(--v-theme-background), 0.98) 100%);
-  backdrop-filter: blur(10px);
-  box-shadow: 
-    0 4px 20px rgba(var(--v-theme-shadow), 0.08),
-    0 1px 3px rgba(var(--v-theme-shadow), 0.12);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   position: relative;
   overflow: hidden;
 }
 
-.filter-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    0 8px 30px rgba(var(--v-theme-shadow), 0.12),
-    0 2px 6px rgba(var(--v-theme-shadow), 0.16);
-  border-color: rgba(var(--v-theme-primary), 0.2);
-}
-
-.filter-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(var(--v-theme-primary), 0.6) 50%, 
-    transparent 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.filter-card:hover::before {
-  opacity: 1;
-}
-
 .filter-card .d-flex {
-  padding: 24px 28px !important;
+  padding: 20px 24px !important;
   gap: 16px !important;
   flex-wrap: wrap;
 }
@@ -3810,9 +3780,9 @@ function getOnuPowerError() {
 }
 
 .filter-card :deep(.v-field) {
-  background: rgba(var(--v-theme-surface), 0.8) !important;
-  border: 2px solid rgba(var(--v-theme-outline-variant), 0.3) !important;
-  border-radius: 16px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
   box-shadow: inset 0 2px 4px rgba(var(--v-theme-shadow), 0.06);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -3967,23 +3937,8 @@ function getOnuPowerError() {
 .stats-card {
   position: relative;
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 16px !important;
-}
-
-.stats-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1) !important;
-}
-
-.stats-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #00ACC1, #006064);
+  border-radius: 8px !important;
+  border: 1px solid #e2e8f0;
 }
 
 .modern-card {
@@ -4298,276 +4253,62 @@ function getOnuPowerError() {
   box-shadow: 0 2px 6px rgba(211, 47, 47, 0.2) !important;
 }
 
-/* Fix for header action buttons (Import/Export) to match PelangganView */
+/* Header Action Buttons (Auto-Sync, Import, Export, Tambah Data) */
+.header-card .header-action-btn,
 .header-card .action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  backdrop-filter: none !important;
   opacity: 1 !important;
   visibility: visible !important;
 }
 
+.header-card .header-action-btn:hover,
 .header-card .action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-1px);
-  opacity: 0.9 !important;
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+.header-card .action-buttons-container .v-btn[color="amber-darken-3"] {
+  background-color: #fffbeb !important;
+  color: #b45309 !important;
+  border: 1px solid #fde68a !important;
+}
+
+.header-card .action-buttons-container .v-btn[color="amber-darken-3"]:hover {
+  background-color: #fef3c7 !important;
+  border-color: #fcd34d !important;
+}
+
+.header-card .action-buttons-container .v-btn[color="success"] {
+  background-color: #ecfdf5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+.header-card .action-buttons-container .v-btn[color="success"]:hover {
+  background-color: #d1fae5 !important;
 }
 
 .header-card .primary-btn {
-  background: white !important;
-  color: rgb(var(--v-theme-primary)) !important;
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border: 1px solid #0f172a !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
   opacity: 1 !important;
   visibility: visible !important;
 }
 
 .header-card .primary-btn:hover {
-  transform: translateY(-1px);
-  opacity: 0.9 !important;
-}
-
-/* Ensure header buttons work properly in both themes - VERY SPECIFIC OVERRIDES */
-.v-theme--light .header-card .action-btn,
-.v-theme--dark .header-card .action-btn,
-.header-card .v-btn.action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.v-theme--light .header-card .action-btn:hover,
-.v-theme--dark .header-card .action-btn:hover,
-.header-card .v-btn.action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-1px);
-  opacity: 0.9 !important;
-}
-
-/* Action buttons styling - SAME AS PELANGGANVIEW */
-.action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
-}
-
-.action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-1px);
-}
-
-/* VERY SPECIFIC: Header action buttons (Import/Export) - OVERRIDE EVERYTHING */
-.header-action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px) !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.header-action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-1px) !important;
-  opacity: 0.9 !important;
-}
-
-/* ULTRA SPECIFIC: Force header action buttons in light theme */
-.v-theme--light .header-action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px) !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.v-theme--light .header-action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-1px) !important;
-  opacity: 0.9 !important;
-}
-
-/* ULTRA SPECIFIC: Force header action buttons in dark theme */
-.v-theme--dark .header-action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px) !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.v-theme--dark .header-action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-1px) !important;
-  opacity: 0.9 !important;
-}
-
-/* SUPER AGGRESSIVE: Override any other styling that might interfere */
-.action-buttons-container .header-action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px) !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.action-buttons-container .header-action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-1px) !important;
-  opacity: 0.9 !important;
-}
-
-/* NUCLEAR OPTION: Force header action buttons to be visible with maximum specificity */
-.v-container .header-card .action-buttons-container .v-btn.header-action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px) !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.v-container .header-card .action-buttons-container .v-btn.header-action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-1px) !important;
-  opacity: 0.9 !important;
-}
-
-/* MAXIMUM SPECIFICITY: Override literally everything */
-div.v-container > div.header-card > div.action-buttons-container > v-btn.header-action-btn,
-.v-theme--light div.v-container > div.header-card > div.action-buttons-container > v-btn.header-action-btn,
-.v-theme--dark div.v-container > div.header-card > div.action-buttons-container > v-btn.header-action-btn {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px) !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.primary-btn {
-  background: white !important;
-  color: rgb(var(--v-theme-primary)) !important;
-}
-
-.v-theme--light .header-card .primary-btn,
-.v-theme--dark .header-card .primary-btn {
-  background: white !important;
-  color: rgb(var(--v-theme-primary)) !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-.v-theme--light .header-card .primary-btn:hover,
-.v-theme--dark .header-card .primary-btn:hover {
-  transform: translateY(-1px);
-  opacity: 0.9 !important;
-}
-
-/* Global override for all action buttons in light theme - EXCEPT Import/Export AND HEADER */
-.v-theme--light .v-btn[class*="action-btn"]:not([color="success"]):not([color="primary"]):not(.header-card *) {
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: inline-flex !important;
-}
-
-/* REMOVED: Let header buttons use default styling like PelangganView */
-
-.v-theme--light .v-btn[class*="mobile-edit-btn"],
-.v-theme--light .v-btn[class*="mobile-delete-btn"] {
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-/* Ensure buttons work in all container types - EXCEPT Import/Export AND HEADER */
-.v-theme--light .d-flex:not(.header-card) .v-btn.action-btn:not([color="success"]):not([color="primary"]),
-.v-theme--light .v-card:not(.header-card) .v-btn.action-btn:not([color="success"]):not([color="primary"]),
-.v-theme--light .v-data-table__tr .v-btn.action-btn:not([color="success"]):not([color="primary"]) {
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-/* FINAL OVERRIDE: Header Import/Export buttons - SAME AS PELANGGANVIEW */
-.action-buttons-container .v-btn[color="success"] {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.action-buttons-container .v-btn[color="primary"] {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.action-buttons-container .v-btn[color="success"]:hover,
-.action-buttons-container .v-btn[color="primary"]:hover {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  transform: translateY(-1px) !important;
-  opacity: 0.9 !important;
-}
-
-/* Force override for ANY potential conflicts - SAME AS PELANGGANVIEW */
-.v-theme--light .action-buttons-container .v-btn[color="success"] {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.v-theme--light .action-buttons-container .v-btn[color="primary"] {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.v-theme--dark .action-buttons-container .v-btn[color="success"] {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-
-.v-theme--dark .action-buttons-container .v-btn[color="primary"] {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(5px);
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: flex !important;
+  background-color: #1e293b !important;
+  border-color: #1e293b !important;
 }
 
 /* ============================================

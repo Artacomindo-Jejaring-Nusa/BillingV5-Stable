@@ -324,16 +324,15 @@
           <div class="logout-wrapper px-4 pb-4">
             <v-btn
               :block="!rail || isMobile"
-              color="error"
-              variant="tonal"
+              variant="outlined"
               :prepend-icon="!rail || isMobile ? 'mdi-logout' : ''"
               :icon="rail && !isMobile"
               class="logout-btn-custom"
-              height="44"
+              height="38"
               @click="handleLogout"
             >
               <v-icon v-if="rail && !isMobile">mdi-logout</v-icon>
-              <span v-if="!rail || isMobile">Logout</span>
+              <span v-if="!rail || isMobile">Keluar</span>
             </v-btn>
           </div>
 
@@ -380,18 +379,6 @@
 
       <!-- Global Search -->
       <GlobalSearch class="me-2" />
-
-      <!-- Theme Toggle -->
-      <v-btn
-        icon
-        variant="text"
-        @click="toggleTheme"
-        class="header-icon-btn"
-      >
-        <v-icon>
-          {{ theme.global.current.value.dark ? 'mdi-white-balance-sunny' : 'mdi-moon-waning-crescent' }}
-        </v-icon>
-      </v-btn>
 
       <!-- Notifications -->
       <v-menu offset-y max-width="400">
@@ -568,7 +555,7 @@
       <div class="footer-content">
         <span class="text-body-2">
           &copy; {{ new Date().getFullYear() }} 
-          <strong>Artacom Billing System</strong>. 
+          <strong> Artacom Billing System</strong>. 
           All Rights Reserved. Designed by 
           <a 
             href="https://www.instagram.com/amad.dyk/" 
@@ -1799,8 +1786,9 @@ function refreshPage() {
 }
 
 onMounted(async () => {
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme) theme.change(savedTheme);
+  // Lock to clean enterprise light mode
+  theme.change('light');
+  localStorage.setItem('theme', 'light');
 
   await settingsStore.fetchMaintenanceStatus();
 
@@ -2058,25 +2046,20 @@ onUnmounted(() => {
 }
 
 .group-title {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #6366f1;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #94a3b8;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 6px;
+  padding: 0 4px;
 }
 
 .group-title::before {
-  content: '';
-  display: inline-block;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #6366f1;
-  flex-shrink: 0;
+  display: none;
 }
 
 .group-divider {
@@ -2112,24 +2095,37 @@ onUnmounted(() => {
 }
 
 .menu-item:not(.v-list-item--active):hover {
-  background-color: rgba(99, 102, 241, 0.06);
+  background-color: #f1f5f9;
 }
 
 .menu-item:not(.v-list-item--active):hover :deep(.v-icon) {
-  color: #6366f1;
+  color: #0f172a;
 }
 
-/* Active Menu Item - Filled Pill Style */
+.v-theme--dark .menu-item:not(.v-list-item--active):hover {
+  background-color: #27272a;
+}
+
+.v-theme--dark .menu-item:not(.v-list-item--active):hover :deep(.v-icon) {
+  color: #fafafa;
+}
+
+/* Active Menu Item - Clean Flat Pill Style */
 .menu-item.v-list-item--active {
-  background: #6366f1 !important;
+  background: #0f172a !important;
   color: #ffffff !important;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   border: none;
-  border-radius: 10px;
+  border-radius: 6px;
   position: relative;
   overflow: visible;
   margin: 0;
+}
+
+.v-theme--dark .menu-item.v-list-item--active {
+  background: #27272a !important;
+  color: #fafafa !important;
 }
 
 .menu-item.v-list-item--active::before {
@@ -2151,8 +2147,12 @@ onUnmounted(() => {
   color: #334155;
 }
 
+.v-theme--dark .item-title {
+  color: #cbd5e1;
+}
+
 .menu-item.v-list-item--active .item-title {
-  color: #ffffff;
+  color: #ffffff !important;
   font-weight: 600;
 }
 
@@ -2194,16 +2194,20 @@ onUnmounted(() => {
   top: 0;
   bottom: 24px; /* Stop before the last item ends */
   width: 2px;
-  background: rgba(99, 102, 241, 0.15);
+  background: #e2e8f0;
   border-radius: 2px;
   z-index: 1;
+}
+
+.v-theme--dark .menu-group :deep(.v-list-group__items::before) {
+  background: #27272a;
 }
 
 .sub-item {
   padding-left: 12px !important;
   min-height: 40px;
   margin-bottom: 4px;
-  border-radius: 10px;
+  border-radius: 6px;
   position: relative;
   z-index: 2;
   width: calc(100% - 48px);
@@ -2218,13 +2222,21 @@ onUnmounted(() => {
   top: 50%;
   width: 11px;
   height: 2px;
-  background: rgba(99, 102, 241, 0.15);
+  background: #e2e8f0;
   border-radius: 0 2px 2px 0;
+}
+
+.v-theme--dark .sub-item::after {
+  background: #27272a;
 }
 
 /* Active horizontal line */
 .sub-item.v-list-item--active::after {
-  background: #6366f1;
+  background: #0f172a;
+}
+
+.v-theme--dark .sub-item.v-list-item--active::after {
+  background: #fafafa;
 }
 
 .sub-item .item-title {
@@ -2233,20 +2245,36 @@ onUnmounted(() => {
 }
 
 .sub-item:not(.v-list-item--active):hover {
-  background-color: rgba(99, 102, 241, 0.04);
+  background-color: #f8fafc;
+}
+
+.v-theme--dark .sub-item:not(.v-list-item--active):hover {
+  background-color: #27272a;
 }
 
 .sub-item.v-list-item--active {
-  background: rgba(99, 102, 241, 0.1) !important;
+  background: #f1f5f9 !important;
+}
+
+.v-theme--dark .sub-item.v-list-item--active {
+  background: #27272a !important;
 }
 
 .sub-item.v-list-item--active :deep(.v-icon) {
-  color: #6366f1 !important;
+  color: #0f172a !important;
+}
+
+.v-theme--dark .sub-item.v-list-item--active :deep(.v-icon) {
+  color: #fafafa !important;
 }
 
 .sub-item.v-list-item--active .item-title {
-  color: #6366f1;
+  color: #0f172a !important;
   font-weight: 600;
+}
+
+.v-theme--dark .sub-item.v-list-item--active .item-title {
+  color: #fafafa !important;
 }
 
 /* Badges - Premium Look (Matching User Image) */
@@ -2398,10 +2426,20 @@ onUnmounted(() => {
 
 .logout-btn-custom {
   text-transform: none !important;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  border-radius: 10px !important;
-  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  border-radius: 6px !important;
+  font-size: 0.8125rem;
+  border: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+  background: #ffffff !important;
+  transition: all 0.15s ease;
+}
+
+.logout-btn-custom:hover {
+  border-color: #fecaca !important;
+  color: #ef4444 !important;
+  background: #fef2f2 !important;
 }
 
 .sidebar-divider-bottom {
@@ -3443,15 +3481,18 @@ onUnmounted(() => {
 .running-text-container {
   overflow: hidden;
   position: relative;
-  background: rgba(99, 102, 241, 0.04);
-  border-radius: 50px;
+  background: #f8fafc;
+  border-radius: 6px;
   height: 34px;
   display: flex;
   align-items: center;
-  border: 1px solid rgba(99, 102, 241, 0.1);
+  border: 1px solid #e2e8f0;
   margin: 0 auto;
-  mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+}
+
+.v-theme--dark .running-text-container {
+  background: #18181b;
+  border: 1px solid #27272a;
 }
 
 .marquee-content {

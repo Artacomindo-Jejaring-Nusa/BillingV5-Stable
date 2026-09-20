@@ -2028,24 +2028,29 @@ onUnmounted(() => {
 
 .bubble-customer {
   background-color: #ffffff;
-  color: #1e293b;
-  border-radius: 16px 16px 16px 4px !important;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  color: #0f172a;
+  border-radius: 8px 8px 8px 2px !important;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .v-theme--dark .bubble-customer {
-  background-color: #1e293b;
-  color: #f8fafc;
-  border-color: rgba(51, 65, 85, 0.8);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  background-color: #18181b;
+  color: #fafafa;
+  border-color: #27272a;
+  box-shadow: none;
 }
 
 .bubble-admin {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  background-color: #2563eb;
   color: #ffffff;
-  border-radius: 16px 16px 4px 16px !important;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  border-radius: 8px 8px 2px 8px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.v-theme--dark .bubble-admin {
+  background-color: #2563eb;
+  color: #ffffff;
 }
 
 .date-pill {

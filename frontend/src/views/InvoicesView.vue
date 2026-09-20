@@ -1,14 +1,14 @@
 <template>
   <v-container fluid class="pa-4 pa-sm-6">
-    <div class="invoice-header mb-8 pa-6 rounded-xl">
+    <div class="invoice-header mb-6 pa-5 rounded-lg">
       <div class="d-flex flex-column flex-md-row align-start align-md-center gap-4">
         <div class="header-content d-flex align-center">
           <div class="header-icon-box me-4">
-            <v-icon size="32" color="white">mdi-receipt-text-outline</v-icon>
+            <v-icon size="28" color="primary">mdi-receipt-text-outline</v-icon>
           </div>
           <div>
-            <h1 class="text-h4 text-md-h3 font-weight-bold text-white mb-1">Invoices</h1>
-            <p class="text-subtitle-1 text-white text-opacity-90 mb-0">
+            <h1 class="text-h5 font-weight-bold mb-1 header-title">Invoices</h1>
+            <p class="text-body-2 text-medium-emphasis mb-0">
               Kelola tagihan dan pembayaran
             </p>
           </div>
@@ -16,14 +16,12 @@
         <v-spacer class="d-none d-md-block"></v-spacer>
         <v-btn
           v-if="auth.hasPermission('create_invoices')"
-          color="white"
+          color="primary"
           variant="elevated"
-          size="large"
-          elevation="4"
+          size="default"
           @click="openGenerateDialog"
           prepend-icon="mdi-plus-circle-outline"
-          class="text-none font-weight-bold w-100 w-md-auto rounded-lg"
-          style="color: #4338ca !important;"
+          class="text-none font-weight-medium w-100 w-md-auto rounded-md"
         >
           Buat Invoice Manual
         </v-btn>
@@ -837,8 +835,8 @@
     <v-dialog v-model="dialogGenerate" max-width="600px" persistent>
       <v-card class="generate-dialog">
         <div class="dialog-header pa-6">
-          <h2 class="text-h5 font-weight-bold text-white mb-1">Buat Invoice Manual</h2>
-          <p class="text-body-2 text-white text-opacity-90 mb-0">
+          <h2 class="text-h5 font-weight-bold mb-1" style="color: #0f172a;">Buat Invoice Manual</h2>
+          <p class="text-body-2 text-medium-emphasis mb-0">
             Pilih langganan pelanggan untuk membuat invoice baru
           </p>
         </div>
@@ -2153,26 +2151,28 @@ async function fetchSpecificLangganan(id: number) {
   width: 100%;
 }
 
-/* Main Header with gradient */
+/* Main Header with clean flat B2B styling */
 .invoice-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
-.theme--dark .invoice-header {
-  background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+.header-title {
+  color: #0f172a !important;
+  letter-spacing: -0.025em;
 }
 
 .header-icon-box {
-  width: 56px;
-  height: 56px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  width: 44px;
+  height: 44px;
+  background: #f1f5f9;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(10px);
+  border: 1px solid #e2e8f0;
 }
 
 .header-icon-box::before {
@@ -2184,16 +2184,10 @@ async function fetchSpecificLangganan(id: number) {
    ============================================ */
 
 .filter-card {
-  border-radius: 20px;
-  border: 1px solid rgba(var(--v-theme-primary), 0.12);
-  background: linear-gradient(145deg, 
-    rgba(var(--v-theme-surface), 0.95) 0%, 
-    rgba(var(--v-theme-background), 0.98) 100%);
-  backdrop-filter: blur(10px);
-  box-shadow: 
-    0 4px 20px rgba(var(--v-theme-shadow), 0.08),
-    0 1px 3px rgba(var(--v-theme-shadow), 0.12);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   position: relative;
   overflow: hidden;
 }
@@ -2202,31 +2196,13 @@ async function fetchSpecificLangganan(id: number) {
   display: flex;
   align-items: center;
   padding: 12px 24px;
-  background-color: rgba(var(--v-theme-primary), 0.08);
-  border-bottom: 1px solid rgba(var(--v-theme-primary), 0.15);
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .filter-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    0 8px 30px rgba(var(--v-theme-shadow), 0.12),
-    0 2px 6px rgba(var(--v-theme-shadow), 0.16);
-  border-color: rgba(var(--v-theme-primary), 0.2);
-}
-
-.filter-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(var(--v-theme-primary), 0.6) 50%, 
-    transparent 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
 }
 
 .filter-card:hover::before {
@@ -2640,27 +2616,31 @@ async function fetchSpecificLangganan(id: number) {
 
 /* Dialog Styling */
 .generate-dialog {
-  border-radius: 20px;
+  border-radius: 8px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .dialog-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .theme--dark .dialog-header {
-  background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 /* Invoice Detail Card */
 .invoice-detail-card {
-  border: 1px solid rgba(var(--v-border-color), 0.12) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 8px !important;
 }
 
 .detail-price-banner {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #0f172a;
+  color: #ffffff;
   padding: 20px 24px;
 }
 

@@ -31,42 +31,76 @@ import 'leaflet/dist/leaflet.css';
 import { useAuthStore } from './stores/auth'
 import NotificationsPlugin from './plugins/notifications'
 
-// 2. Buat instance Vuetify dengan tema light dan dark yang kontras
+// 2. Buat instance Vuetify dengan tema B2B SaaS (Slate / Zinc) & Component Defaults
 const vuetify = createVuetify({
   components: {
     ...components,
     ...vuetifyComponents
   },
   directives,
+  defaults: {
+    VCard: {
+      elevation: 0,
+      rounded: 'lg',
+    },
+    VBtn: {
+      elevation: 0,
+      rounded: 'md',
+    },
+    VTextField: {
+      variant: 'outlined',
+      density: 'compact',
+    },
+    VSelect: {
+      variant: 'outlined',
+      density: 'compact',
+    },
+    VAutocomplete: {
+      variant: 'outlined',
+      density: 'compact',
+    },
+    VCombobox: {
+      variant: 'outlined',
+      density: 'compact',
+    },
+    VTextarea: {
+      variant: 'outlined',
+      density: 'compact',
+    },
+    VChip: {
+      elevation: 0,
+      rounded: 'md',
+    },
+  },
   theme: {
     defaultTheme: 'light',
     themes: {
       light: {
         dark: false,
         colors: {
-          primary: '#6366f1',
-          secondary: '#8b5cf6',
-          accent: '#ec4899',
+          primary: '#0f172a',
+          secondary: '#475569',
+          accent: '#2563eb',
           error: '#ef4444',
           warning: '#f59e0b',
-          info: '#3b82f6',
+          info: '#0284c7',
           success: '#10b981',
-          background: '#ffffff',
-          surface: '#f8fafc',
+          background: '#f8fafc',
+          surface: '#ffffff',
         },
       },
       dark: {
         dark: true,
         colors: {
-          primary: '#818cf8',
-          secondary: '#a78bfa',
-          accent: '#f472b6',
+          primary: '#f8fafc',
+          secondary: '#94a3b8',
+          accent: '#3b82f6',
           error: '#f87171',
           warning: '#fbbf24',
-          info: '#60a5fa',
+          info: '#38bdf8',
           success: '#34d399',
-          background: '#0f172a',
-          surface: '#1e293b',
+          background: '#09090b',
+          surface: '#18181b',
         },
       },
     },

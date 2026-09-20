@@ -587,33 +587,30 @@ onMounted(fetchSK);
 }
 
 .header-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
   position: relative;
   overflow: hidden;
 }
 
 .header-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 50%;
-  height: 100%;
-  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="1" fill="white" opacity="0.05"/><circle cx="10" cy="50" r="1" fill="white" opacity="0.05"/><circle cx="90" cy="30" r="1" fill="white" opacity="0.05"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+  display: none;
 }
 
 /* Header text styling */
 .header-section h1 {
-  color: white !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  color: #0f172a !important;
+  text-shadow: none !important;
+  font-weight: 700;
 }
 
 .header-subtitle {
-  color: rgba(255, 255, 255, 0.9) !important;
-  font-size: 1.1rem;
+  color: #64748b !important;
+  font-size: 0.95rem;
   font-weight: 400;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  opacity: 0.95;
+  text-shadow: none !important;
 }
 
 /* Dark mode specific adjustments */
