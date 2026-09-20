@@ -15,6 +15,12 @@ type ChatRepository interface {
 	UpdateRoomStats(ctx context.Context, roomID uint64, lastMsg string, unreadDeltaAdmin, unreadDeltaCust int) error
 	UpdateRoomStatus(ctx context.Context, roomID uint64, status string) error
 	ResetUnreadCount(ctx context.Context, roomID uint64, readerType string) error
+
+	// Quick Reply Templates
+	ListTemplates(ctx context.Context) ([]QuickReplyTemplate, error)
+	CreateTemplate(ctx context.Context, tpl *QuickReplyTemplate) error
+	UpdateTemplate(ctx context.Context, tpl *QuickReplyTemplate) error
+	DeleteTemplate(ctx context.Context, id uint64) error
 }
 
 // ChatUsecase defines business operations for managing chat and status updates.
@@ -26,4 +32,11 @@ type ChatUsecase interface {
 	MarkDelivered(ctx context.Context, roomID uint64, recipientType string) error
 	MarkRead(ctx context.Context, roomID uint64, readerType string) error
 	UpdateRoomStatus(ctx context.Context, roomID uint64, status string) error
+
+	// Quick Reply Templates
+	ListTemplates(ctx context.Context) ([]QuickReplyTemplate, error)
+	CreateTemplate(ctx context.Context, tpl *QuickReplyTemplate) error
+	UpdateTemplate(ctx context.Context, tpl *QuickReplyTemplate) error
+	DeleteTemplate(ctx context.Context, id uint64) error
 }
+

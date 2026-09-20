@@ -265,3 +265,77 @@ func (r *chatRepository) ResetUnreadCount(ctx context.Context, roomID uint64, re
 		Where("id = ?", roomID).
 		Update(column, 0).Error
 }
+
+func (r *chatRepository) ListTemplates(ctx context.Context) ([]domain.QuickReplyTemplate, error) {
+	var count int64
+	r.db.WithContext(ctx).Model(&domain.QuickReplyTemplate{}).Count(&count)
+	if count == 0 {
+		// Auto-seed default templates
+		defaults := []domain.QuickReplyTemplate{
+			{
+				Shortcut:  "salam",
+				Title:     "Salam",
+				Content:   "Halo, selamat datang di layanan Customer Care Artacom. Ada yang bisa kami bantu?",
+				Icon:      "mdi-hand-wave-outline",
+				SortOrder: 1,
+			},
+			{
+				Shortcut:  "cekteknis",
+				Title:     "Cek Teknis",
+				Content:   "Baik pak/bu, mohon ditunggu sebentar ya. Sedang kami lakukan pengecekan ke tim teknis lapangan.",
+				Icon:      "mdi-wrench-clock-outline",
+				SortOrder: 2,
+			},
+			{
+				Shortcut:  "lunas",
+				Title:     "Lunas & Aktif",
+				Content:   "Terima kasih atas konfirmasinya. Tagihan Anda telah terverifikasi dan layanan internet sudah aktif normal kembali.",
+				Icon:      "mdi-check-decagram-outline",
+				SortOrder: 3,
+			},
+			{
+				Shortcut:  "fotomodem",
+				Title:     "Foto Modem",
+				Content:   "Bisa tolong difotokan lampu indikator (PON / LOS / Internet) yang menyala pada perangkat modem router Anda?",
+				Icon:      "mdi-camera-outline",
+				SortOrder: 4,
+			},
+			{
+				Shortcut:  "restart",
+				Title:     "Restart Modem",
+				Content:   "Bisa dicoba untuk mematikan modem router selama 1-2 menit, lalu hidupkan kembali dan periksa koneksinya?",
+				Icon:      "mdi-restart",
+				SortOrder: 5,
+			},
+			{
+				Shortcut:  "tutup",
+				Title:     "Tutup & Terima Kasih",
+				Content:   "Terima kasih telah menghubungi Customer Care Artacom. Jika tidak ada hal lain yang ditanyakan, percakapan ini akan kami tutup. Selamat beraktivitas!",
+				Icon:      "mdi-hand-heart-outline",
+				SortOrder: 6,
+			},
+		}
+		for _, d := range defaults {
+			_ = r.db.WithContext(ctx).Create(&d).Error
+		}
+	}
+
+	var list []domain.QuickReplyTemplate
+	err := r.db.WithContext(ctx).
+		Order("sort_order ASC, id ASC").
+		Find(&list).Error
+	return list, err
+}
+
+func (r *chatRepository) CreateTemplate(ctx context.Context, tpl *domain.QuickReplyTemplate) error {
+	return r.db.WithContext(ctx).Create(tpl).Error
+}
+
+func (r *chatRepository) UpdateTemplate(ctx context.Context, tpl *domain.QuickReplyTemplate) error {
+	return r.db.WithContext(ctx).Save(tpl).Error
+}
+
+func (r *chatRepository) DeleteTemplate(ctx context.Context, id uint64) error {
+	return r.db.WithContext(ctx).Delete(&domain.QuickReplyTemplate{}, id).Error
+}
+

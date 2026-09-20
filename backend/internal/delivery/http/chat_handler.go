@@ -38,6 +38,12 @@ func NewChatHandler(r *gin.RouterGroup, chatUsecase domain.ChatUsecase, authMidd
 		chatGroup.GET("/rooms", authMiddleware, handler.ListRooms)
 		chatGroup.POST("/rooms/:room_id/close", authMiddleware, handler.CloseRoom)
 		chatGroup.POST("/rooms/:room_id/reopen", authMiddleware, handler.ReopenRoom)
+
+		// Quick Reply Templates
+		chatGroup.GET("/templates", handler.ListTemplates)
+		chatGroup.POST("/templates", authMiddleware, handler.CreateTemplate)
+		chatGroup.PUT("/templates/:id", authMiddleware, handler.UpdateTemplate)
+		chatGroup.DELETE("/templates/:id", authMiddleware, handler.DeleteTemplate)
 	}
 
 	return handler
@@ -320,4 +326,96 @@ func (h *ChatHandler) UploadMedia(c *gin.Context) {
 		"size":         size,
 	})
 }
+
+// ListTemplates returns all quick reply templates
+func (h *ChatHandler) ListTemplates(c *gin.Context) {
+	templates, err := h.chatUsecase.ListTemplates(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil daftar template: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": templates})
+}
+
+type CreateTemplateRequest struct {
+	Shortcut  string `json:"shortcut" binding:"required"`
+	Title     string `json:"title"`
+	Content   string `json:"content" binding:"required"`
+	Icon      string `json:"icon"`
+	SortOrder int    `json:"sort_order"`
+}
+
+// CreateTemplate creates a new quick reply template
+func (h *ChatHandler) CreateTemplate(c *gin.Context) {
+	var req CreateTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid: " + err.Error()})
+		return
+	}
+
+	tpl := domain.QuickReplyTemplate{
+		Shortcut:  req.Shortcut,
+		Title:     req.Title,
+		Content:   req.Content,
+		Icon:      req.Icon,
+		SortOrder: req.SortOrder,
+	}
+
+	if err := h.chatUsecase.CreateTemplate(c.Request.Context(), &tpl); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan template: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Template berhasil dibuat", "data": tpl})
+}
+
+// UpdateTemplate updates an existing quick reply template
+func (h *ChatHandler) UpdateTemplate(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID template tidak valid"})
+		return
+	}
+
+	var req CreateTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid: " + err.Error()})
+		return
+	}
+
+	tpl := domain.QuickReplyTemplate{
+		ID:        id,
+		Shortcut:  req.Shortcut,
+		Title:     req.Title,
+		Content:   req.Content,
+		Icon:      req.Icon,
+		SortOrder: req.SortOrder,
+	}
+
+	if err := h.chatUsecase.UpdateTemplate(c.Request.Context(), &tpl); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui template: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Template berhasil diperbarui", "data": tpl})
+}
+
+// DeleteTemplate deletes a quick reply template
+func (h *ChatHandler) DeleteTemplate(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID template tidak valid"})
+		return
+	}
+
+	if err := h.chatUsecase.DeleteTemplate(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus template: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Template berhasil dihapus"})
+}
+
 

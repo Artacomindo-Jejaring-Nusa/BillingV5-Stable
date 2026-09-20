@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"billing-backend/internal/domain"
@@ -99,3 +100,38 @@ func (u *chatUsecase) UpdateRoomStatus(ctx context.Context, roomID uint64, statu
 	}
 	return u.chatRepo.UpdateRoomStatus(ctx, roomID, status)
 }
+
+func (u *chatUsecase) ListTemplates(ctx context.Context) ([]domain.QuickReplyTemplate, error) {
+	return u.chatRepo.ListTemplates(ctx)
+}
+
+func (u *chatUsecase) CreateTemplate(ctx context.Context, tpl *domain.QuickReplyTemplate) error {
+	if tpl == nil || tpl.Shortcut == "" || tpl.Content == "" {
+		return errors.New("shortcut dan konten template tidak boleh kosong")
+	}
+	// Normalisasi shortcut: hapus awalan slash jika ada, jadikan lowercase
+	tpl.Shortcut = strings.TrimPrefix(strings.TrimSpace(strings.ToLower(tpl.Shortcut)), "/")
+	if tpl.Title == "" {
+		tpl.Title = tpl.Shortcut
+	}
+	return u.chatRepo.CreateTemplate(ctx, tpl)
+}
+
+func (u *chatUsecase) UpdateTemplate(ctx context.Context, tpl *domain.QuickReplyTemplate) error {
+	if tpl == nil || tpl.ID == 0 || tpl.Shortcut == "" || tpl.Content == "" {
+		return errors.New("id, shortcut, dan konten template tidak boleh kosong")
+	}
+	tpl.Shortcut = strings.TrimPrefix(strings.TrimSpace(strings.ToLower(tpl.Shortcut)), "/")
+	if tpl.Title == "" {
+		tpl.Title = tpl.Shortcut
+	}
+	return u.chatRepo.UpdateTemplate(ctx, tpl)
+}
+
+func (u *chatUsecase) DeleteTemplate(ctx context.Context, id uint64) error {
+	if id == 0 {
+		return errors.New("id template tidak valid")
+	}
+	return u.chatRepo.DeleteTemplate(ctx, id)
+}
+

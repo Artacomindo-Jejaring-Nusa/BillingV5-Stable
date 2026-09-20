@@ -75,3 +75,20 @@ type ChatRoomFilter struct {
 	Page     int    `json:"page"`
 	PageSize int    `json:"page_size"`
 }
+
+// QuickReplyTemplate represents a canned response / shortcut for Live Chat
+type QuickReplyTemplate struct {
+	ID        uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	Shortcut  string    `gorm:"type:varchar(50);not null;uniqueIndex" json:"shortcut"` // e.g. "salam", "cek", "modem"
+	Title     string    `gorm:"type:varchar(100);not null" json:"title"`              // e.g. "Salam Pembuka"
+	Content   string    `gorm:"type:text;not null" json:"content"`                     // Message text
+	Icon      string    `gorm:"type:varchar(50);default:'mdi-message-text-outline'" json:"icon"`
+	SortOrder int       `gorm:"default:0" json:"sort_order"`
+	CreatedAt time.Time `gorm:"type:datetime;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt time.Time `gorm:"type:datetime;default:CURRENT_TIMESTAMP;autoUpdateTime" json:"updated_at"`
+}
+
+func (QuickReplyTemplate) TableName() string {
+	return "quick_reply_templates"
+}
+

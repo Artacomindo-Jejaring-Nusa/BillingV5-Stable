@@ -405,13 +405,20 @@
           </header>
 
           <!-- Messages Stream Area -->
-          <div ref="messagesScrollContainer" class="messages-container flex-grow-1 px-6 py-4 overflow-y-auto">
+          <div
+            ref="messagesScrollContainer"
+            class="messages-container flex-grow-1 overflow-y-auto chat-messages-stream"
+          >
             <div v-if="isLoadingMessages" class="text-center pa-8">
               <v-progress-circular indeterminate color="primary" size="30"></v-progress-circular>
               <div class="text-caption text-medium-emphasis mt-2">Memuat riwayat obrolan...</div>
             </div>
 
-            <div v-else-if="activeMessages.length === 0" class="text-center pa-8 text-medium-emphasis">
+            <!-- Empty state if no messages -->
+            <div
+              v-else-if="activeMessages.length === 0"
+              class="d-flex flex-column align-center justify-center fill-height text-center text-medium-emphasis pa-6"
+            >
               <v-icon size="44" color="grey-lighten-2" class="mb-2">mdi-chat-plus-outline</v-icon>
               <div class="text-body-2 font-weight-medium">Belum ada pesan dalam obrolan ini</div>
               <div class="text-caption">Ketik balasan di bawah untuk memulai percakapan</div>
@@ -437,11 +444,11 @@
 
                 <!-- Message Bubble Row -->
                 <div
-                  class="message-row d-flex mb-3.5"
+                  class="message-row d-flex"
                   :class="msg.sender_type === 'admin' ? 'justify-end' : 'justify-start'"
                 >
                   <div
-                    class="message-bubble py-2.5 px-4"
+                    class="message-bubble"
                     :class="msg.sender_type === 'admin' ? 'bubble-admin' : 'bubble-customer'"
                   >
                     <!-- Image Attachment if present -->
@@ -534,25 +541,68 @@
           <!-- Quick Template Replies Bar (Sleek & Scrollable) -->
           <div class="quick-replies-bar px-4 py-2 bg-surface border-t d-flex align-center gap-2 overflow-x-auto">
             <v-icon size="14" color="amber-darken-2" class="flex-shrink-0">mdi-lightning-bolt</v-icon>
-            <span class="text-caption font-weight-bold text-medium-emphasis flex-shrink-0">Templat:</span>
-            <div class="d-flex align-center gap-1.5 flex-nowrap overflow-x-auto py-0.5">
+            <span class="text-caption font-weight-bold text-medium-emphasis flex-shrink-0">Templat (/):</span>
+            <div class="d-flex align-center gap-1.5 flex-nowrap overflow-x-auto py-0.5 flex-grow-1">
               <v-chip
                 v-for="(tpl, tIdx) in quickTemplates"
-                :key="tIdx"
+                :key="tpl.id || tpl.shortcut || tIdx"
                 size="small"
                 variant="tonal"
                 color="primary"
                 class="cursor-pointer font-weight-medium flex-shrink-0 quick-chip px-3"
-                :prepend-icon="tpl.icon"
+                :prepend-icon="tpl.icon || 'mdi-message-text-outline'"
                 @click="useTemplate(tpl)"
               >
-                {{ tpl.label }}
+                {{ tpl.title || tpl.label }}
               </v-chip>
             </div>
+            <!-- Kelola Template Button -->
+            <v-btn
+              variant="text"
+              size="x-small"
+              prepend-icon="mdi-cog-outline"
+              color="medium-emphasis"
+              class="flex-shrink-0 text-caption font-weight-medium"
+              @click="openManageTemplates"
+            >
+              Kelola
+            </v-btn>
           </div>
 
           <!-- Bottom Chat Input Bar -->
-          <footer class="chat-input-bar px-4 py-3 bg-surface border-t">
+          <footer class="chat-input-bar px-4 py-3 bg-surface border-t" style="position: relative;">
+            <!-- Slash Command Floating Autocomplete Popover -->
+            <div v-if="showSlashMenu && filteredSlashTemplates.length > 0" class="slash-popup-menu elevation-4">
+              <div class="slash-popup-header d-flex align-center justify-space-between px-3 py-1.5 border-b bg-slate-50">
+                <div class="d-flex align-center gap-1.5 text-caption font-weight-bold text-medium-emphasis">
+                  <v-icon size="14" color="primary">mdi-lightning-bolt</v-icon>
+                  <span>Template Pintasan</span>
+                  <span class="text-caption text-medium-emphasis">({{ filteredSlashTemplates.length }})</span>
+                </div>
+                <span class="text-caption text-medium-emphasis">[Enter] pilih &bull; [&uarr;&darr;] navigasi &bull; [Esc] tutup</span>
+              </div>
+              <div class="slash-popup-list py-1">
+                <div
+                  v-for="(tpl, idx) in filteredSlashTemplates"
+                  :key="tpl.id || tpl.shortcut || idx"
+                  class="slash-popup-item px-3 py-2 d-flex align-start gap-2 cursor-pointer"
+                  :class="{ 'slash-item-active': selectedSlashIndex === idx }"
+                  @mouseenter="selectedSlashIndex = idx"
+                  @click="applySlashTemplate(tpl)"
+                >
+                  <v-chip size="x-small" color="primary" variant="flat" class="font-weight-bold flex-shrink-0 mt-0.5">
+                    /{{ tpl.shortcut }}
+                  </v-chip>
+                  <div class="flex-grow-1 min-w-0">
+                    <div class="text-caption font-weight-bold text-high-emphasis">{{ tpl.title || tpl.label }}</div>
+                    <div class="text-caption text-medium-emphasis text-truncate" style="max-width: 500px;">
+                      {{ tpl.content || tpl.text }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="d-flex align-end gap-2" style="position: relative;">
               <!-- Emoji Picker Toggle -->
               <div style="position: relative;">
@@ -616,11 +666,11 @@
                 density="compact"
                 variant="outlined"
                 rounded="xl"
-                placeholder="Ketik balasan CS... (Enter untuk kirim, Shift+Enter baris baru)"
+                placeholder="Ketik balasan CS... (Ketik / untuk template, Enter untuk kirim)"
                 hide-details
                 class="chat-input-textarea flex-grow-1"
-                @keydown.enter.exact.prevent="sendAdminMessage"
-                @input="notifyAdminTyping"
+                @keydown="handleChatInputKeyDown"
+                @input="onChatInput"
                 @focus="showEmojiPicker = false"
               ></v-textarea>
 
@@ -933,6 +983,170 @@
       </v-card>
     </v-dialog>
 
+    <!-- Dialog: Kelola Template Live Chat -->
+    <v-dialog v-model="manageTemplatesDialog" max-width="750" scrollable>
+      <v-card rounded="xl" class="border">
+        <v-card-title class="d-flex align-center justify-space-between pa-5 border-b bg-surface">
+          <div class="d-flex align-center gap-2">
+            <v-avatar color="primary" variant="tonal" size="36">
+              <v-icon size="20" color="primary">mdi-lightning-bolt</v-icon>
+            </v-avatar>
+            <div>
+              <div class="text-subtitle-1 font-weight-bold text-high-emphasis">Konfigurasi Template Live Chat</div>
+              <div class="text-caption text-medium-emphasis">Kelola pesan cepat &amp; pintasan balasan CS</div>
+            </div>
+          </div>
+          <div class="d-flex align-center gap-2">
+            <v-btn
+              color="primary"
+              variant="flat"
+              size="small"
+              prepend-icon="mdi-plus"
+              class="font-weight-bold"
+              @click="openAddTemplateDialog"
+            >
+              Tambah Template
+            </v-btn>
+            <v-btn icon="mdi-close" variant="text" size="small" @click="manageTemplatesDialog = false"></v-btn>
+          </div>
+        </v-card-title>
+
+        <v-card-text class="pa-0">
+          <v-table hover density="comfortable">
+            <thead>
+              <tr class="bg-slate-50">
+                <th style="width: 140px;">Pintasan (/)</th>
+                <th style="width: 180px;">Judul</th>
+                <th>Isi Pesan</th>
+                <th style="width: 100px;" class="text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="quickTemplates.length === 0">
+                <td colspan="4" class="text-center py-6 text-medium-emphasis">
+                  Belum ada template. Klik "Tambah Template" untuk membuatnya.
+                </td>
+              </tr>
+              <tr v-for="tpl in quickTemplates" :key="tpl.id || tpl.shortcut">
+                <td>
+                  <v-chip size="x-small" color="primary" variant="tonal" class="font-weight-bold font-mono">
+                    /{{ tpl.shortcut }}
+                  </v-chip>
+                </td>
+                <td class="font-weight-medium">
+                  <div class="d-flex align-center gap-1.5">
+                    <v-icon size="16" color="medium-emphasis">{{ tpl.icon || 'mdi-message-text-outline' }}</v-icon>
+                    <span>{{ tpl.title || tpl.label }}</span>
+                  </div>
+                </td>
+                <td class="text-body-2 text-medium-emphasis py-2" style="max-width: 280px;">
+                  <div style="white-space: pre-wrap; font-size: 0.8125rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                    {{ tpl.content || tpl.text }}
+                  </div>
+                </td>
+                <td class="text-center">
+                  <div class="d-flex align-center justify-center gap-1">
+                    <v-btn
+                      icon="mdi-pencil-outline"
+                      size="x-small"
+                      variant="text"
+                      color="primary"
+                      title="Edit Template"
+                      @click="openEditTemplateDialog(tpl)"
+                    ></v-btn>
+                    <v-btn
+                      icon="mdi-delete-outline"
+                      size="x-small"
+                      variant="text"
+                      color="error"
+                      title="Hapus Template"
+                      @click="deleteTemplate(tpl)"
+                    ></v-btn>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
+        </v-card-text>
+
+        <v-divider></v-divider>
+        <v-card-actions class="pa-4 bg-surface justify-end">
+          <v-btn variant="outlined" size="small" @click="manageTemplatesDialog = false">Tutup</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog: Form Tambah / Edit Template -->
+    <v-dialog v-model="formTemplateDialog" max-width="500">
+      <v-card rounded="xl" class="border">
+        <v-card-title class="pa-5 border-b bg-surface">
+          <span class="text-subtitle-1 font-weight-bold">
+            {{ editingTemplateId ? 'Edit Template Chat' : 'Tambah Template Chat Baru' }}
+          </span>
+        </v-card-title>
+        <v-card-text class="pa-5">
+          <v-form ref="templateFormRef" @submit.prevent="saveTemplate">
+            <v-text-field
+              v-model="templateForm.shortcut"
+              label="Pintasan (Shortcut)"
+              placeholder="contoh: salam, cekteknis, promo"
+              prefix="/"
+              variant="outlined"
+              density="compact"
+              class="mb-3"
+              hint="Ketikkan kata ini setelah tanda slash (/) di kolom chat"
+              persistent-hint
+              :rules="[v => !!v || 'Shortcut wajib diisi']"
+            ></v-text-field>
+
+            <v-text-field
+              v-model="templateForm.title"
+              label="Judul Template"
+              placeholder="contoh: Salam Pembuka"
+              variant="outlined"
+              density="compact"
+              class="mb-3"
+              :rules="[v => !!v || 'Judul template wajib diisi']"
+            ></v-text-field>
+
+            <v-textarea
+              v-model="templateForm.content"
+              label="Isi Pesan Balasan"
+              placeholder="Tuliskan template balasan CS di sini..."
+              variant="outlined"
+              density="compact"
+              rows="4"
+              class="mb-3"
+              :rules="[v => !!v || 'Isi pesan tidak boleh kosong']"
+            ></v-textarea>
+
+            <v-text-field
+              v-model="templateForm.icon"
+              label="Ikon MDI (Opsional)"
+              placeholder="mdi-message-text-outline"
+              variant="outlined"
+              density="compact"
+              prepend-inner-icon="mdi-emoticon-outline"
+              hint="Nama ikon Material Design Icons, misal: mdi-hand-wave-outline"
+            ></v-text-field>
+          </v-form>
+        </v-card-text>
+        <v-divider></v-divider>
+        <v-card-actions class="pa-4 bg-surface justify-end gap-2">
+          <v-btn variant="outlined" size="small" @click="formTemplateDialog = false">Batal</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            size="small"
+            :loading="isSavingTemplate"
+            @click="saveTemplate"
+          >
+            Simpan Template
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Global Snackbar -->
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3000" location="top right">
       {{ snackbar.text }}
@@ -1018,39 +1232,87 @@ const brandFilters = [
   { label: 'Nagrak', value: 'JELANTIK NAGRAK', color: 'success' },
 ];
 
-// Quick templates
-const quickTemplates = [
+// Quick templates (Dynamic loaded from API)
+const quickTemplates = ref<any[]>([
   {
+    shortcut: 'salam',
+    title: 'Salam',
     label: 'Salam',
     icon: 'mdi-hand-wave-outline',
+    content: 'Halo, selamat datang di layanan Customer Care Artacom. Ada yang bisa kami bantu?',
     text: 'Halo, selamat datang di layanan Customer Care Artacom. Ada yang bisa kami bantu?'
   },
   {
+    shortcut: 'cekteknis',
+    title: 'Cek Teknis',
     label: 'Cek Teknis',
     icon: 'mdi-wrench-clock-outline',
+    content: 'Baik pak/bu, mohon ditunggu sebentar ya. Sedang kami lakukan pengecekan ke tim teknis lapangan.',
     text: 'Baik pak/bu, mohon ditunggu sebentar ya. Sedang kami lakukan pengecekan ke tim teknis lapangan.'
   },
   {
+    shortcut: 'lunas',
+    title: 'Lunas & Aktif',
     label: 'Lunas & Aktif',
     icon: 'mdi-check-decagram-outline',
+    content: 'Terima kasih atas konfirmasinya. Tagihan Anda telah terverifikasi dan layanan internet sudah aktif normal kembali.',
     text: 'Terima kasih atas konfirmasinya. Tagihan Anda telah terverifikasi dan layanan internet sudah aktif normal kembali.'
   },
   {
+    shortcut: 'fotomodem',
+    title: 'Foto Modem',
     label: 'Foto Modem',
     icon: 'mdi-camera-outline',
+    content: 'Bisa tolong difotokan lampu indikator (PON / LOS / Internet) yang menyala pada perangkat modem router Anda?',
     text: 'Bisa tolong difotokan lampu indikator (PON / LOS / Internet) yang menyala pada perangkat modem router Anda?'
   },
   {
+    shortcut: 'restart',
+    title: 'Restart Modem',
     label: 'Restart Modem',
     icon: 'mdi-restart',
+    content: 'Bisa dicoba untuk mematikan modem router selama 1-2 menit, lalu hidupkan kembali dan periksa koneksinya?',
     text: 'Bisa dicoba untuk mematikan modem router selama 1-2 menit, lalu hidupkan kembali dan periksa koneksinya?'
   },
   {
+    shortcut: 'tutup',
+    title: 'Tutup & Terima Kasih',
     label: 'Tutup & Terima Kasih',
     icon: 'mdi-hand-heart-outline',
+    content: 'Terima kasih telah menghubungi Customer Care Artacom. Jika tidak ada hal lain yang ditanyakan, percakapan ini akan kami tutup. Selamat beraktivitas!',
     text: 'Terima kasih telah menghubungi Customer Care Artacom. Jika tidak ada hal lain yang ditanyakan, percakapan ini akan kami tutup. Selamat beraktivitas!'
   }
-];
+]);
+
+// Slash command autocomplete state
+const showSlashMenu = ref(false);
+const slashQuery = ref('');
+const selectedSlashIndex = ref(0);
+
+const filteredSlashTemplates = computed(() => {
+  const q = slashQuery.value.trim().toLowerCase();
+  if (!q) return quickTemplates.value;
+  return quickTemplates.value.filter((t: any) => {
+    const s = (t.shortcut || '').toLowerCase();
+    const title = (t.title || t.label || '').toLowerCase();
+    const c = (t.content || t.text || '').toLowerCase();
+    return s.includes(q) || title.includes(q) || c.includes(q);
+  });
+});
+
+// Manage templates state
+const manageTemplatesDialog = ref(false);
+const formTemplateDialog = ref(false);
+const editingTemplateId = ref<number | null>(null);
+const isSavingTemplate = ref(false);
+const templateFormRef = ref<any>(null);
+const templateForm = ref({
+  shortcut: '',
+  title: '',
+  content: '',
+  icon: 'mdi-message-text-outline',
+  sort_order: 0,
+});
 
 // Computed unread total
 const totalUnreadCount = computed(() => {
@@ -1368,8 +1630,174 @@ async function reopenActiveRoom() {
   }
 }
 
+// Quick templates methods & API integration
+async function fetchTemplates() {
+  try {
+    const res = await apiClient.get('/chat/templates');
+    if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+      quickTemplates.value = res.data.data;
+    }
+  } catch (err: any) {
+    console.warn('Gagal memuat template dari backend, menggunakan default:', err);
+  }
+}
+
 function useTemplate(tpl: any) {
-  inputMessage.value = tpl.text;
+  const content = tpl.content || tpl.text || '';
+  inputMessage.value = content;
+  nextTick(() => {
+    if (chatInputRef.value) {
+      chatInputRef.value.focus();
+    }
+  });
+}
+
+function onChatInput() {
+  notifyAdminTyping();
+  checkSlashCommand();
+}
+
+function checkSlashCommand() {
+  const text = inputMessage.value;
+  const lastSlashIndex = text.lastIndexOf('/');
+  if (lastSlashIndex !== -1) {
+    if (lastSlashIndex === 0 || text[lastSlashIndex - 1] === ' ' || text[lastSlashIndex - 1] === '\n') {
+      const query = text.slice(lastSlashIndex + 1);
+      if (!/\s/.test(query)) {
+        slashQuery.value = query.toLowerCase();
+        showSlashMenu.value = true;
+        selectedSlashIndex.value = 0;
+        return;
+      }
+    }
+  }
+  showSlashMenu.value = false;
+}
+
+function handleChatInputKeyDown(e: KeyboardEvent) {
+  if (showSlashMenu.value && filteredSlashTemplates.value.length > 0) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedSlashIndex.value = (selectedSlashIndex.value + 1) % filteredSlashTemplates.value.length;
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedSlashIndex.value = (selectedSlashIndex.value - 1 + filteredSlashTemplates.value.length) % filteredSlashTemplates.value.length;
+      return;
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      if (!e.shiftKey) {
+        e.preventDefault();
+        applySlashTemplate(filteredSlashTemplates.value[selectedSlashIndex.value]);
+        return;
+      }
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      showSlashMenu.value = false;
+      return;
+    }
+  }
+
+  // Normal Enter sends message
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendAdminMessage();
+  }
+}
+
+function applySlashTemplate(tpl: any) {
+  if (!tpl) return;
+  const content = tpl.content || tpl.text || '';
+  const text = inputMessage.value;
+  const lastSlashIndex = text.lastIndexOf('/');
+  if (lastSlashIndex !== -1) {
+    inputMessage.value = text.slice(0, lastSlashIndex) + content;
+  } else {
+    inputMessage.value = content;
+  }
+  showSlashMenu.value = false;
+  nextTick(() => {
+    if (chatInputRef.value) {
+      chatInputRef.value.focus();
+    }
+  });
+}
+
+function openManageTemplates() {
+  manageTemplatesDialog.value = true;
+}
+
+function openAddTemplateDialog() {
+  editingTemplateId.value = null;
+  templateForm.value = {
+    shortcut: '',
+    title: '',
+    content: '',
+    icon: 'mdi-message-text-outline',
+    sort_order: quickTemplates.value.length + 1,
+  };
+  formTemplateDialog.value = true;
+}
+
+function openEditTemplateDialog(tpl: any) {
+  editingTemplateId.value = tpl.id || null;
+  templateForm.value = {
+    shortcut: tpl.shortcut || '',
+    title: tpl.title || tpl.label || '',
+    content: tpl.content || tpl.text || '',
+    icon: tpl.icon || 'mdi-message-text-outline',
+    sort_order: tpl.sort_order || 0,
+  };
+  formTemplateDialog.value = true;
+}
+
+async function saveTemplate() {
+  if (!templateForm.value.shortcut.trim() || !templateForm.value.content.trim()) {
+    showSnackbar('Shortcut dan Isi Pesan wajib diisi', 'error');
+    return;
+  }
+
+  isSavingTemplate.value = true;
+  try {
+    const payload = {
+      shortcut: templateForm.value.shortcut.replace(/^\//, '').trim().toLowerCase(),
+      title: templateForm.value.title.trim() || templateForm.value.shortcut.trim(),
+      content: templateForm.value.content.trim(),
+      icon: templateForm.value.icon?.trim() || 'mdi-message-text-outline',
+      sort_order: templateForm.value.sort_order || 0,
+    };
+
+    if (editingTemplateId.value) {
+      await apiClient.put(`/chat/templates/${editingTemplateId.value}`, payload);
+      showSnackbar('Template berhasil diperbarui', 'success');
+    } else {
+      await apiClient.post('/chat/templates', payload);
+      showSnackbar('Template baru berhasil ditambahkan', 'success');
+    }
+
+    formTemplateDialog.value = false;
+    await fetchTemplates();
+  } catch (err: any) {
+    showSnackbar('Gagal menyimpan template: ' + (err.response?.data?.error || err.message), 'error');
+  } finally {
+    isSavingTemplate.value = false;
+  }
+}
+
+async function deleteTemplate(tpl: any) {
+  if (!confirm(`Hapus template "/${tpl.shortcut}"?`)) return;
+
+  try {
+    if (tpl.id) {
+      await apiClient.delete(`/chat/templates/${tpl.id}`);
+    }
+    quickTemplates.value = quickTemplates.value.filter((t: any) => t.id !== tpl.id && t.shortcut !== tpl.shortcut);
+    showSnackbar('Template berhasil dihapus', 'success');
+  } catch (err: any) {
+    showSnackbar('Gagal menghapus template: ' + (err.response?.data?.error || err.message), 'error');
+  }
 }
 
 // Emoji picker handler
@@ -1914,6 +2342,7 @@ function handleKeyDown(e: KeyboardEvent) {
 // Lifecycle hooks
 onMounted(() => {
   fetchRooms();
+  fetchTemplates();
   initWebSocket();
   // Fallback background polling (20 detik) hanya jika WebSocket offline
   pollingTimer = setInterval(pollActiveRoomSilent, 20000);
@@ -2014,24 +2443,35 @@ onUnmounted(() => {
   background-color: #0b1120;
 }
 
-.messages-container {
+.chat-messages-stream {
+  padding: 20px 24px;
   background-color: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.message-row {
+  margin-bottom: 12px;
+  width: 100%;
 }
 
 .message-bubble {
-  max-width: 72%;
-  min-width: 130px;
+  max-width: 68%;
+  min-width: 140px;
   position: relative;
   word-break: break-word;
   overflow-wrap: anywhere;
+  padding: 10px 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .bubble-customer {
   background-color: #ffffff;
   color: #0f172a;
-  border-radius: 8px 8px 8px 2px !important;
+  border-radius: 12px 12px 12px 2px !important;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  margin-left: 6px;
 }
 
 .v-theme--dark .bubble-customer {
@@ -2044,8 +2484,8 @@ onUnmounted(() => {
 .bubble-admin {
   background-color: #2563eb;
   color: #ffffff;
-  border-radius: 8px 8px 2px 8px !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  border-radius: 12px 12px 2px 12px !important;
+  margin-right: 6px;
 }
 
 .v-theme--dark .bubble-admin {
@@ -2073,6 +2513,38 @@ onUnmounted(() => {
 
 .quick-chip:hover {
   transform: translateY(-1px);
+}
+
+/* ================= SLASH POPUP MENU ================= */
+.slash-popup-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 16px;
+  right: 16px;
+  margin-bottom: 8px;
+  max-height: 280px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+.slash-popup-list {
+  overflow-y: auto;
+  max-height: 230px;
+}
+
+.slash-popup-item {
+  transition: background-color 0.1s ease;
+  border-radius: 4px;
+}
+
+.slash-popup-item:hover,
+.slash-item-active {
+  background-color: #f1f5f9 !important;
 }
 
 /* ================= EMOJI PICKER ================= */

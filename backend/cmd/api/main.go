@@ -165,6 +165,7 @@ func main() {
 		&domain.UserFcmToken{},
 		&domain.ChatRoom{},
 		&domain.ChatMessage{},
+		&domain.QuickReplyTemplate{},
 	}
 	var migrationErrors []error
 	for _, model := range modelsToMigrate {

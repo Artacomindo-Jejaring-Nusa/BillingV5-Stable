@@ -336,6 +336,177 @@
       </v-card-actions>
     </v-card>
 
+    <!-- Live Chat Quick Reply Templates Card -->
+    <v-card rounded="xl" elevation="2" class="settings-card mt-6">
+      <div class="maintenance-header">
+        <v-card-title class="d-flex align-center justify-space-between pa-6">
+          <div class="d-flex align-center">
+            <div class="header-icon-wrapper me-3" style="background: rgba(15, 23, 42, 0.08);">
+              <v-icon color="primary" size="28">mdi-lightning-bolt</v-icon>
+            </div>
+            <div>
+              <h2 class="text-h6 font-weight-bold mb-0">Template Pesan Cepat Live Chat</h2>
+              <p class="text-caption text-medium-emphasis mb-0">
+                Kelola template balasan CS dan kata kunci pintasan slash (/) untuk Customer Care
+              </p>
+            </div>
+          </div>
+          <v-btn
+            color="primary"
+            variant="flat"
+            size="small"
+            prepend-icon="mdi-plus"
+            class="font-weight-bold"
+            @click="openAddChatTemplate"
+          >
+            Tambah Template
+          </v-btn>
+        </v-card-title>
+      </div>
+
+      <v-divider></v-divider>
+
+      <v-card-text class="pa-6">
+        <div class="description-section mb-6">
+          <p class="text-body-1 text-medium-emphasis mb-4">
+            CS dapat memanggil pesan template secara instan saat mengetik pesan dengan menekan tombol slash (<code>/</code>) diikuti kata pintasannya (misal <code>/salam</code> atau <code>/modem</code>), lalu menekan <strong>Enter</strong>.
+          </p>
+        </div>
+
+        <div v-if="loadingChatTemplates" class="d-flex justify-center align-center py-6">
+          <v-progress-circular indeterminate color="primary"></v-progress-circular>
+          <span class="ms-3 text-medium-emphasis">Memuat template...</span>
+        </div>
+
+        <v-table v-else hover density="comfortable" class="border rounded-lg">
+          <thead>
+            <tr class="bg-slate-50">
+              <th style="width: 140px;">Pintasan (/)</th>
+              <th style="width: 180px;">Judul</th>
+              <th>Isi Pesan</th>
+              <th style="width: 110px;" class="text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="chatTemplates.length === 0">
+              <td colspan="4" class="text-center py-6 text-medium-emphasis">
+                Belum ada template yang disimpan. Klik "Tambah Template" untuk membuatnya.
+              </td>
+            </tr>
+            <tr v-for="tpl in chatTemplates" :key="tpl.id">
+              <td>
+                <v-chip size="x-small" color="primary" variant="tonal" class="font-weight-bold font-mono">
+                  /{{ tpl.shortcut }}
+                </v-chip>
+              </td>
+              <td class="font-weight-medium">
+                <div class="d-flex align-center gap-1.5">
+                  <v-icon size="16" color="medium-emphasis">{{ tpl.icon || 'mdi-message-text-outline' }}</v-icon>
+                  <span>{{ tpl.title }}</span>
+                </div>
+              </td>
+              <td class="text-body-2 text-medium-emphasis py-2" style="max-width: 320px;">
+                <div style="white-space: pre-wrap; font-size: 0.8125rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                  {{ tpl.content }}
+                </div>
+              </td>
+              <td class="text-center">
+                <div class="d-flex align-center justify-center gap-1">
+                  <v-btn
+                    icon="mdi-pencil-outline"
+                    size="x-small"
+                    variant="text"
+                    color="primary"
+                    title="Edit Template"
+                    @click="openEditChatTemplate(tpl)"
+                  ></v-btn>
+                  <v-btn
+                    icon="mdi-delete-outline"
+                    size="x-small"
+                    variant="text"
+                    color="error"
+                    title="Hapus Template"
+                    @click="deleteChatTemplate(tpl)"
+                  ></v-btn>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card-text>
+    </v-card>
+
+    <!-- Dialog: Form Tambah / Edit Template Chat -->
+    <v-dialog v-model="chatTemplateDialog" max-width="500">
+      <v-card rounded="xl" class="border">
+        <v-card-title class="pa-5 border-b bg-surface">
+          <span class="text-subtitle-1 font-weight-bold">
+            {{ editingChatTemplateId ? 'Edit Template Chat' : 'Tambah Template Chat Baru' }}
+          </span>
+        </v-card-title>
+        <v-card-text class="pa-5">
+          <v-form @submit.prevent="saveChatTemplate">
+            <v-text-field
+              v-model="chatTemplateForm.shortcut"
+              label="Pintasan (Shortcut)"
+              placeholder="contoh: salam, cekteknis, promo"
+              prefix="/"
+              variant="outlined"
+              density="compact"
+              class="mb-3"
+              hint="Ketikkan kata ini setelah tanda slash (/) di kolom chat"
+              persistent-hint
+              :rules="[v => !!v || 'Shortcut wajib diisi']"
+            ></v-text-field>
+
+            <v-text-field
+              v-model="chatTemplateForm.title"
+              label="Judul Template"
+              placeholder="contoh: Salam Pembuka"
+              variant="outlined"
+              density="compact"
+              class="mb-3"
+              :rules="[v => !!v || 'Judul template wajib diisi']"
+            ></v-text-field>
+
+            <v-textarea
+              v-model="chatTemplateForm.content"
+              label="Isi Pesan Balasan"
+              placeholder="Tuliskan template balasan CS di sini..."
+              variant="outlined"
+              density="compact"
+              rows="4"
+              class="mb-3"
+              :rules="[v => !!v || 'Isi pesan tidak boleh kosong']"
+            ></v-textarea>
+
+            <v-text-field
+              v-model="chatTemplateForm.icon"
+              label="Ikon MDI (Opsional)"
+              placeholder="mdi-message-text-outline"
+              variant="outlined"
+              density="compact"
+              prepend-inner-icon="mdi-emoticon-outline"
+              hint="Nama ikon Material Design Icons, misal: mdi-hand-wave-outline"
+            ></v-text-field>
+          </v-form>
+        </v-card-text>
+        <v-divider></v-divider>
+        <v-card-actions class="pa-4 bg-surface justify-end gap-2">
+          <v-btn variant="outlined" size="small" @click="chatTemplateDialog = false">Batal</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            size="small"
+            :loading="savingChatTemplate"
+            @click="saveChatTemplate"
+          >
+            Simpan Template
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar
       v-model="snackbar.show"
       :color="snackbar.color"
@@ -419,6 +590,7 @@ onMounted(async () => {
   await fetchWatzapSettings();
   await fetchSchedulerStatus();
   await fetchSchedulerJobs();
+  await fetchChatTemplates();
 });
 
 // Fungsi untuk menyimpan perubahan ke backend
@@ -566,6 +738,99 @@ function showSnackbar(text: string, color: 'success' | 'error') {
   snackbar.value.text = text;
   snackbar.value.color = color;
   snackbar.value.show = true;
+}
+
+// ================= LIVE CHAT TEMPLATES =================
+const chatTemplates = ref<any[]>([]);
+const loadingChatTemplates = ref(false);
+const chatTemplateDialog = ref(false);
+const editingChatTemplateId = ref<number | null>(null);
+const savingChatTemplate = ref(false);
+const chatTemplateForm = ref({
+  shortcut: '',
+  title: '',
+  content: '',
+  icon: 'mdi-message-text-outline',
+  sort_order: 0,
+});
+
+async function fetchChatTemplates() {
+  loadingChatTemplates.value = true;
+  try {
+    const res = await apiClient.get('/chat/templates');
+    if (res.data?.data) {
+      chatTemplates.value = res.data.data;
+    }
+  } catch (err: any) {
+    console.error('Gagal memuat template chat:', err);
+  } finally {
+    loadingChatTemplates.value = false;
+  }
+}
+
+function openAddChatTemplate() {
+  editingChatTemplateId.value = null;
+  chatTemplateForm.value = {
+    shortcut: '',
+    title: '',
+    content: '',
+    icon: 'mdi-message-text-outline',
+    sort_order: chatTemplates.value.length + 1,
+  };
+  chatTemplateDialog.value = true;
+}
+
+function openEditChatTemplate(tpl: any) {
+  editingChatTemplateId.value = tpl.id;
+  chatTemplateForm.value = {
+    shortcut: tpl.shortcut,
+    title: tpl.title,
+    content: tpl.content,
+    icon: tpl.icon || 'mdi-message-text-outline',
+    sort_order: tpl.sort_order || 0,
+  };
+  chatTemplateDialog.value = true;
+}
+
+async function saveChatTemplate() {
+  if (!chatTemplateForm.value.shortcut.trim() || !chatTemplateForm.value.content.trim()) {
+    showSnackbar('Shortcut dan Isi Pesan wajib diisi', 'error');
+    return;
+  }
+  savingChatTemplate.value = true;
+  try {
+    const payload = {
+      shortcut: chatTemplateForm.value.shortcut.replace(/^\//, '').trim().toLowerCase(),
+      title: chatTemplateForm.value.title.trim() || chatTemplateForm.value.shortcut.trim(),
+      content: chatTemplateForm.value.content.trim(),
+      icon: chatTemplateForm.value.icon?.trim() || 'mdi-message-text-outline',
+      sort_order: chatTemplateForm.value.sort_order || 0,
+    };
+    if (editingChatTemplateId.value) {
+      await apiClient.put(`/chat/templates/${editingChatTemplateId.value}`, payload);
+      showSnackbar('Template chat berhasil diperbarui', 'success');
+    } else {
+      await apiClient.post('/chat/templates', payload);
+      showSnackbar('Template chat berhasil ditambahkan', 'success');
+    }
+    chatTemplateDialog.value = false;
+    await fetchChatTemplates();
+  } catch (err: any) {
+    showSnackbar('Gagal menyimpan template: ' + (err.response?.data?.error || err.message), 'error');
+  } finally {
+    savingChatTemplate.value = false;
+  }
+}
+
+async function deleteChatTemplate(tpl: any) {
+  if (!confirm(`Hapus template "/${tpl.shortcut}"?`)) return;
+  try {
+    await apiClient.delete(`/chat/templates/${tpl.id}`);
+    showSnackbar('Template berhasil dihapus', 'success');
+    await fetchChatTemplates();
+  } catch (err: any) {
+    showSnackbar('Gagal menghapus template: ' + (err.response?.data?.error || err.message), 'error');
+  }
 }
 </script>
 
