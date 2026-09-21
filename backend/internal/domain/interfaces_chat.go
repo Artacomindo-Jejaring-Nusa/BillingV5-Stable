@@ -16,6 +16,11 @@ type ChatRepository interface {
 	UpdateRoomStatus(ctx context.Context, roomID uint64, status string) error
 	ResetUnreadCount(ctx context.Context, roomID uint64, readerType string) error
 
+	// Assignment
+	AssignRoom(ctx context.Context, roomID uint64, adminID uint64) error
+	UnassignRoom(ctx context.Context, roomID uint64) error
+	GetRoomCounts(ctx context.Context, adminID uint64, brand string) (*RoomCounts, error)
+
 	// Quick Reply Templates
 	ListTemplates(ctx context.Context) ([]QuickReplyTemplate, error)
 	CreateTemplate(ctx context.Context, tpl *QuickReplyTemplate) error
@@ -34,10 +39,16 @@ type ChatUsecase interface {
 	MarkRead(ctx context.Context, roomID uint64, readerType string) error
 	UpdateRoomStatus(ctx context.Context, roomID uint64, status string) error
 
+	// Assignment
+	AssignRoom(ctx context.Context, roomID uint64, adminID uint64) error
+	UnassignRoom(ctx context.Context, roomID uint64) error
+	GetRoomCounts(ctx context.Context, adminID uint64, brand string) (*RoomCounts, error)
+
 	// Quick Reply Templates
 	ListTemplates(ctx context.Context) ([]QuickReplyTemplate, error)
 	CreateTemplate(ctx context.Context, tpl *QuickReplyTemplate) error
 	UpdateTemplate(ctx context.Context, tpl *QuickReplyTemplate) error
 	DeleteTemplate(ctx context.Context, id uint64) error
 }
+
 

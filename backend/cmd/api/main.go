@@ -383,7 +383,7 @@ func main() {
 	aiService := service.NewAIService(cfg, paketLayananRepo)
 	websocket.GlobalChatHub = websocket.NewChatHub(chatUsecase, aiService)
 	go websocket.GlobalChatHub.Run()
-	httpDelivery.NewChatHandler(api, chatUsecase, authMw)
+	httpDelivery.NewChatHandler(api, chatUsecase, troubleTicketUsecase, authMw)
 
 	// Portal Pelanggan High-Performance Lookup
 	portalHandler := httpDelivery.NewPortalHandler(db)

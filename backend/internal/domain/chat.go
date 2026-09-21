@@ -69,11 +69,22 @@ type ChatEvent struct {
 
 // Filter parameter for Chat Rooms
 type ChatRoomFilter struct {
-	Brand    string `json:"brand"`
-	Status   string `json:"status"`
-	Search   string `json:"search"`
-	Page     int    `json:"page"`
-	PageSize int    `json:"page_size"`
+	Brand      string `json:"brand"`
+	Status     string `json:"status"`
+	Search     string `json:"search"`
+	Assignment string `json:"assignment"` // "all", "unassigned", "assigned", "mine"
+	AdminID    uint64 `json:"admin_id"`   // Used with Assignment="mine"
+	Page       int    `json:"page"`
+	PageSize   int    `json:"page_size"`
+}
+
+// RoomCounts holds the aggregate counts for inbox filter tabs.
+type RoomCounts struct {
+	All        int64 `json:"all"`
+	Unassigned int64 `json:"unassigned"`
+	Assigned   int64 `json:"assigned"`
+	Mine       int64 `json:"mine"`
+	Closed     int64 `json:"closed"`
 }
 
 // QuickReplyTemplate represents a canned response / shortcut for Live Chat

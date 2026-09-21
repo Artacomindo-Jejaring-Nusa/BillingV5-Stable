@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"billing-backend/internal/domain"
@@ -17,11 +18,15 @@ import (
 )
 
 type ChatHandler struct {
-	chatUsecase domain.ChatUsecase
+	chatUsecase          domain.ChatUsecase
+	troubleTicketUsecase domain.TroubleTicketUsecase
 }
 
-func NewChatHandler(r *gin.RouterGroup, chatUsecase domain.ChatUsecase, authMiddleware gin.HandlerFunc) *ChatHandler {
-	handler := &ChatHandler{chatUsecase: chatUsecase}
+func NewChatHandler(r *gin.RouterGroup, chatUsecase domain.ChatUsecase, troubleTicketUsecase domain.TroubleTicketUsecase, authMiddleware gin.HandlerFunc) *ChatHandler {
+	handler := &ChatHandler{
+		chatUsecase:          chatUsecase,
+		troubleTicketUsecase: troubleTicketUsecase,
+	}
 
 	chatGroup := r.Group("/chat")
 	{
@@ -36,8 +41,12 @@ func NewChatHandler(r *gin.RouterGroup, chatUsecase domain.ChatUsecase, authMidd
 
 		// Admin APIs (protected by JWT middleware)
 		chatGroup.GET("/rooms", authMiddleware, handler.ListRooms)
+		chatGroup.GET("/rooms/counts", authMiddleware, handler.GetRoomCounts)
 		chatGroup.POST("/rooms/:room_id/close", authMiddleware, handler.CloseRoom)
 		chatGroup.POST("/rooms/:room_id/reopen", authMiddleware, handler.ReopenRoom)
+		chatGroup.POST("/rooms/:room_id/assign", authMiddleware, handler.AssignRoom)
+		chatGroup.POST("/rooms/:room_id/unassign", authMiddleware, handler.UnassignRoom)
+		chatGroup.POST("/rooms/:room_id/auto-fill-ticket", authMiddleware, handler.AutoFillTicket)
 
 		// Quick Reply Templates
 		chatGroup.GET("/templates", handler.ListTemplates)
@@ -212,13 +221,17 @@ func (h *ChatHandler) ListRooms(c *gin.Context) {
 	brand := c.Query("brand")
 	status := c.Query("status")
 	search := c.Query("search")
+	assignment := c.Query("assignment")
+	adminID, _ := strconv.ParseUint(c.DefaultQuery("admin_id", "0"), 10, 64)
 
 	filter := domain.ChatRoomFilter{
-		Brand:    brand,
-		Status:   status,
-		Search:   search,
-		Page:     page,
-		PageSize: pageSize,
+		Brand:      brand,
+		Status:     status,
+		Search:     search,
+		Assignment: assignment,
+		AdminID:    adminID,
+		Page:       page,
+		PageSize:   pageSize,
 	}
 
 	rooms, total, err := h.chatUsecase.ListActiveRooms(c.Request.Context(), filter)
@@ -418,4 +431,207 @@ func (h *ChatHandler) DeleteTemplate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Template berhasil dihapus"})
 }
 
+// AssignRoom assigns a chat room to a specific admin/CS agent
+func (h *ChatHandler) AssignRoom(c *gin.Context) {
+	roomIDStr := c.Param("room_id")
+	rid, err := strconv.ParseUint(roomIDStr, 10, 64)
+	if err != nil || rid == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "room_id tidak valid"})
+		return
+	}
 
+	var req struct {
+		AdminID uint64 `json:"admin_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "admin_id wajib diisi"})
+		return
+	}
+
+	if err := h.chatUsecase.AssignRoom(c.Request.Context(), rid, req.AdminID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Reload room with admin relation for broadcast
+	room, _ := h.chatUsecase.GetRoomByID(c.Request.Context(), rid)
+
+	if websocket.GlobalChatHub != nil {
+		websocket.GlobalChatHub.BroadcastToRoom(rid, "room_assigned", map[string]interface{}{
+			"room_id":  rid,
+			"admin_id": req.AdminID,
+			"room":     room,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Room berhasil di-assign", "data": room})
+}
+
+// UnassignRoom removes the admin assignment from a chat room
+func (h *ChatHandler) UnassignRoom(c *gin.Context) {
+	roomIDStr := c.Param("room_id")
+	rid, err := strconv.ParseUint(roomIDStr, 10, 64)
+	if err != nil || rid == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "room_id tidak valid"})
+		return
+	}
+
+	if err := h.chatUsecase.UnassignRoom(c.Request.Context(), rid); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if websocket.GlobalChatHub != nil {
+		websocket.GlobalChatHub.BroadcastToRoom(rid, "room_unassigned", map[string]interface{}{
+			"room_id": rid,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Room telah di-unassign"})
+}
+
+// GetRoomCounts returns aggregate counts for inbox filter tabs
+func (h *ChatHandler) GetRoomCounts(c *gin.Context) {
+	adminID, _ := strconv.ParseUint(c.DefaultQuery("admin_id", "0"), 10, 64)
+	brand := c.Query("brand")
+
+	counts, err := h.chatUsecase.GetRoomCounts(c.Request.Context(), adminID, brand)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": counts})
+}
+
+// AutoFillTicket analyzes recent chat messages and auto-fills trouble ticket fields
+func (h *ChatHandler) AutoFillTicket(c *gin.Context) {
+	roomIDStr := c.Param("room_id")
+	rid, err := strconv.ParseUint(roomIDStr, 10, 64)
+	if err != nil || rid == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "room_id tidak valid"})
+		return
+	}
+
+	// Ambil room data untuk info pelanggan
+	room, err := h.chatUsecase.GetRoomByID(c.Request.Context(), rid)
+	if err != nil || room == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Room tidak ditemukan"})
+		return
+	}
+
+	// Ambil riwayat pesan terakhir dari customer
+	messages, err := h.chatUsecase.GetRoomMessages(c.Request.Context(), rid, 20, 0)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil riwayat pesan"})
+		return
+	}
+
+	// Gabungkan pesan dari customer untuk analisis
+	var customerTexts []string
+	for _, msg := range messages {
+		if msg.SenderType == "customer" && msg.Message != "" {
+			customerTexts = append(customerTexts, msg.Message)
+		}
+	}
+	combined := strings.ToLower(strings.Join(customerTexts, " "))
+
+	// Deteksi kategori berdasarkan keyword matching
+	category := detectCategory(combined)
+	priority := detectPriority(combined, category)
+	title := detectTitle(combined, category)
+	description := buildDescription(customerTexts)
+
+	result := gin.H{
+		"pelanggan_id": room.PelangganID,
+		"category":     category,
+		"priority":     priority,
+		"title":        title,
+		"description":  description,
+	}
+
+	if room.Pelanggan != nil {
+		result["pelanggan_nama"] = room.Pelanggan.Nama
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func detectCategory(text string) string {
+	categoryRules := []struct {
+		keywords []string
+		category string
+	}{
+		{[]string{"los", "merah", "lampu merah", "signal", "sinyal"}, "no_connection"},
+		{[]string{"putus", "kabel", "potong", "kabel putus"}, "cable_issue"},
+		{[]string{"lemot", "lambat", "lelet", "slow", "lag", "pelan"}, "slow_connection"},
+		{[]string{"hidup mati", "kadang", "naik turun", "intermittent", "putus nyambung"}, "intermittent"},
+		{[]string{"modem", "router", "onu", "device"}, "onu_issue"},
+		{[]string{"olt", "server"}, "olt_issue"},
+		{[]string{"mikrotik", "pppoe", "login"}, "mikrotik_issue"},
+		{[]string{"hardware", "perangkat", "alat"}, "hardware_issue"},
+	}
+
+	for _, rule := range categoryRules {
+		for _, kw := range rule.keywords {
+			if strings.Contains(text, kw) {
+				return rule.category
+			}
+		}
+	}
+	return "other"
+}
+
+func detectPriority(text string, category string) string {
+	highKeywords := []string{"mati total", "tidak bisa", "ga bisa", "urgent", "darurat", "los merah"}
+	for _, kw := range highKeywords {
+		if strings.Contains(text, kw) {
+			return "high"
+		}
+	}
+	if category == "no_connection" || category == "cable_issue" {
+		return "high"
+	}
+	if category == "slow_connection" || category == "intermittent" {
+		return "medium"
+	}
+	return "low"
+}
+
+func detectTitle(text string, category string) string {
+	titleMap := map[string]string{
+		"no_connection":   "Internet Mati Total / Tidak Ada Koneksi",
+		"cable_issue":     "Kabel Fiber Optic Bermasalah",
+		"slow_connection": "Koneksi Internet Lambat",
+		"intermittent":    "Koneksi Internet Tidak Stabil / Putus-Nyambung",
+		"onu_issue":       "Perangkat Modem/ONU Bermasalah",
+		"olt_issue":       "Gangguan Perangkat OLT/Server",
+		"mikrotik_issue":  "Kendala Konfigurasi Mikrotik/PPPoE",
+		"hardware_issue":  "Kerusakan Perangkat/Hardware",
+	}
+
+	if t, ok := titleMap[category]; ok {
+		return t
+	}
+	return "Kendala Layanan Internet"
+}
+
+func buildDescription(customerTexts []string) string {
+	if len(customerTexts) == 0 {
+		return ""
+	}
+	// Ambil maksimal 5 pesan terakhir yang relevan
+	start := 0
+	if len(customerTexts) > 5 {
+		start = len(customerTexts) - 5
+	}
+	var lines []string
+	for _, t := range customerTexts[start:] {
+		trimmed := strings.TrimSpace(t)
+		if len(trimmed) > 200 {
+			trimmed = trimmed[:200] + "..."
+		}
+		lines = append(lines, "- "+trimmed)
+	}
+	return "Laporan pelanggan via Live Chat:\n" + strings.Join(lines, "\n")
+}

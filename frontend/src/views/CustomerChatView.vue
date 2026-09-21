@@ -67,43 +67,28 @@
           ></v-text-field>
         </div>
 
-        <!-- Status Filter Tabs (Aktif / Selesai / Semua) -->
-        <div class="px-3 pb-2 d-flex gap-1">
+        <!-- Mekari Qontak Style Assignment Filter Tabs -->
+        <div class="px-3 pb-2 assignment-filter-bar d-flex gap-1 overflow-x-auto">
           <v-btn
+            v-for="tab in assignmentTabs"
+            :key="tab.value"
             size="x-small"
-            :variant="selectedStatus === 'open' ? 'flat' : 'tonal'"
-            :color="selectedStatus === 'open' ? 'primary' : 'default'"
-            class="flex-grow-1 text-none font-weight-bold rounded-pill"
+            :variant="selectedAssignment === tab.value ? 'flat' : 'tonal'"
+            :color="selectedAssignment === tab.value ? tab.color : 'default'"
+            class="assignment-tab-btn text-none font-weight-bold rounded-pill flex-shrink-0"
             style="font-size: 0.72rem; height: 26px;"
-            @click="selectedStatus = 'open'"
+            @click="selectedAssignment = tab.value"
           >
-            Aktif
-            <span v-if="openRoomsCount > 0" class="ms-1 px-1.5 py-0.2 rounded-pill bg-primary-lighten-1 text-white font-weight-bold" style="font-size: 0.65rem;">
-              {{ openRoomsCount }}
+            <v-icon size="13" class="me-1">{{ tab.icon }}</v-icon>
+            {{ tab.label }}
+            <span
+              v-if="tab.count > 0"
+              class="ms-1 px-1.5 py-0.2 rounded-pill font-weight-bold"
+              :class="selectedAssignment === tab.value ? 'bg-white text-dark' : 'bg-grey-lighten-2 text-dark'"
+              style="font-size: 0.65rem;"
+            >
+              {{ tab.count }}
             </span>
-          </v-btn>
-          <v-btn
-            size="x-small"
-            :variant="selectedStatus === 'closed' ? 'flat' : 'tonal'"
-            :color="selectedStatus === 'closed' ? 'primary' : 'default'"
-            class="flex-grow-1 text-none font-weight-bold rounded-pill"
-            style="font-size: 0.72rem; height: 26px;"
-            @click="selectedStatus = 'closed'"
-          >
-            Selesai
-            <span v-if="closedRoomsCount > 0" class="ms-1 px-1.5 py-0.2 rounded-pill bg-grey-darken-1 text-white font-weight-bold" style="font-size: 0.65rem;">
-              {{ closedRoomsCount }}
-            </span>
-          </v-btn>
-          <v-btn
-            size="x-small"
-            :variant="selectedStatus === 'ALL' ? 'flat' : 'tonal'"
-            :color="selectedStatus === 'ALL' ? 'primary' : 'default'"
-            class="flex-grow-1 text-none font-weight-bold rounded-pill"
-            style="font-size: 0.72rem; height: 26px;"
-            @click="selectedStatus = 'ALL'"
-          >
-            Semua
           </v-btn>
         </div>
 
@@ -167,7 +152,7 @@
                     </span>
                   </div>
 
-                  <!-- Brand Pill & Phone Row -->
+                  <!-- Brand Pill, Assignment & Phone Row -->
                   <div class="d-flex align-center gap-1.5 mb-1.5 flex-wrap">
                     <v-chip
                       :color="getBrandColor(room.brand)"
@@ -177,6 +162,40 @@
                       style="font-size: 0.62rem; height: 18px;"
                     >
                       {{ normalizeBrandName(room.brand) }}
+                    </v-chip>
+
+                    <!-- Assignment Badge (Mekari Qontak style) -->
+                    <v-chip
+                      v-if="room.status === 'closed'"
+                      size="x-small"
+                      variant="tonal"
+                      color="grey"
+                      class="px-1.5 font-weight-bold"
+                      style="font-size: 0.62rem; height: 18px;"
+                    >
+                      Selesai
+                    </v-chip>
+                    <v-chip
+                      v-else-if="room.assigned_admin_id"
+                      size="x-small"
+                      variant="flat"
+                      :color="room.assigned_admin_id === authStore.user?.id ? 'info' : 'deep-purple'"
+                      class="px-1.5 font-weight-bold text-white"
+                      style="font-size: 0.62rem; height: 18px;"
+                    >
+                      <v-icon size="10" class="me-0.5">mdi-account-check</v-icon>
+                      {{ room.assigned_admin_id === authStore.user?.id ? 'Saya' : (room.assigned_admin?.nama || 'Assigned') }}
+                    </v-chip>
+                    <v-chip
+                      v-else
+                      size="x-small"
+                      variant="tonal"
+                      color="amber-darken-3"
+                      class="px-1.5 font-weight-bold"
+                      style="font-size: 0.62rem; height: 18px;"
+                    >
+                      <v-icon size="10" class="me-0.5">mdi-account-clock-outline</v-icon>
+                      Unassigned
                     </v-chip>
 
                     <span v-if="room.pelanggan?.no_telp" class="text-caption text-medium-emphasis d-flex align-center" style="font-size: 0.72rem;">
@@ -302,7 +321,94 @@
             </div>
 
             <!-- Header Action Buttons -->
-            <div class="d-flex align-center gap-2 flex-shrink-0 ms-3">
+            <div class="d-flex align-center gap-2 flex-shrink-0 ms-3 flex-wrap justify-end">
+              <!-- Assignment Status & Action (Mekari Qontak style) -->
+              <template v-if="activeRoom.status !== 'closed'">
+                <!-- If assigned to logged-in user -->
+                <div v-if="activeRoom.assigned_admin_id === authStore.user?.id" class="d-flex align-center gap-1">
+                  <v-chip
+                    color="primary"
+                    variant="flat"
+                    size="small"
+                    class="font-weight-bold text-white"
+                    prepend-icon="mdi-account-check"
+                  >
+                    Ditangani Saya
+                  </v-chip>
+                  <v-btn
+                    variant="tonal"
+                    color="grey-darken-1"
+                    size="small"
+                    prepend-icon="mdi-account-minus-outline"
+                    class="text-none font-weight-medium rounded-pill"
+                    :loading="isAssigning"
+                    @click="unassignActiveRoom"
+                  >
+                    Lepas
+                  </v-btn>
+                </div>
+
+                <!-- If assigned to someone else -->
+                <div v-else-if="activeRoom.assigned_admin_id" class="d-flex align-center gap-1">
+                  <v-chip
+                    color="deep-purple"
+                    variant="tonal"
+                    size="small"
+                    class="font-weight-bold"
+                    prepend-icon="mdi-account-outline"
+                  >
+                    {{ activeRoom.assigned_admin?.nama || 'Admin' }}
+                  </v-chip>
+                  <v-btn
+                    variant="flat"
+                    color="primary"
+                    size="small"
+                    prepend-icon="mdi-hand-back-left-outline"
+                    class="text-none font-weight-bold rounded-pill"
+                    :loading="isAssigning"
+                    @click="assignRoomToMe"
+                  >
+                    Ambil Alih
+                  </v-btn>
+                </div>
+
+                <!-- If unassigned -->
+                <div v-else class="d-flex align-center gap-1">
+                  <v-chip
+                    color="amber-darken-3"
+                    variant="tonal"
+                    size="small"
+                    class="font-weight-bold"
+                    prepend-icon="mdi-account-clock-outline"
+                  >
+                    Unassigned
+                  </v-chip>
+                  <v-btn
+                    variant="flat"
+                    color="primary"
+                    size="small"
+                    prepend-icon="mdi-hand-back-left-outline"
+                    class="text-none font-weight-bold rounded-pill"
+                    :loading="isAssigning"
+                    @click="assignRoomToMe"
+                  >
+                    Ambil Alih
+                  </v-btn>
+                </div>
+              </template>
+
+              <!-- Trouble Ticket Quick Open Button -->
+              <v-btn
+                variant="tonal"
+                color="warning"
+                size="small"
+                prepend-icon="mdi-ticket-alert-outline"
+                class="text-none font-weight-bold rounded-pill d-none d-sm-inline-flex"
+                @click="openTroubleTicketPanel"
+              >
+                Trouble Ticket
+              </v-btn>
+
               <!-- Close / Selesai Conversation Button -->
               <v-btn
                 v-if="activeRoom.status !== 'closed'"
@@ -365,21 +471,11 @@
                 WhatsApp
               </v-btn>
 
-              <v-btn
-                variant="tonal"
-                size="small"
-                prepend-icon="mdi-account-details-outline"
-                class="text-none font-weight-medium rounded-pill d-none d-md-inline-flex"
-                @click="navigateToCustomer(activeRoom.pelanggan_id)"
-              >
-                Detail Pelanggan
-              </v-btn>
-
-              <v-tooltip location="bottom" :text="showInfoPanel ? 'Tutup Panel Profil' : 'Lihat Profil Pelanggan 360'">
+              <v-tooltip location="bottom" :text="showInfoPanel ? 'Tutup Panel Samping' : 'Panel Profil & Trouble Ticket'">
                 <template v-slot:activator="{ props }">
                   <v-btn
                     v-bind="props"
-                    :icon="showInfoPanel ? 'mdi-close' : 'mdi-information-outline'"
+                    :icon="showInfoPanel ? 'mdi-close' : 'mdi-view-split-vertical'"
                     variant="tonal"
                     size="small"
                     :color="showInfoPanel ? 'primary' : 'default'"
@@ -704,12 +800,34 @@
         v-if="showInfoPanel && activeRoom"
         class="customer-info-panel border-s d-flex flex-column bg-surface overflow-y-auto"
       >
-        <!-- Panel Header -->
-        <div class="px-4 py-3 border-b d-flex align-center justify-space-between flex-shrink-0">
-          <div class="d-flex align-center gap-2">
-            <v-icon size="18" color="primary">mdi-card-account-details-outline</v-icon>
-            <h4 class="text-subtitle-2 font-weight-bold text-high-emphasis">Profil Pelanggan</h4>
-          </div>
+        <!-- Panel Header with Tab Switcher -->
+        <div class="px-3 py-2.5 border-b d-flex align-center justify-space-between flex-shrink-0 bg-surface">
+          <v-btn-toggle
+            v-model="rightPanelTab"
+            mandatory
+            density="compact"
+            color="primary"
+            rounded="lg"
+            variant="flat"
+            class="elevation-0 border"
+          >
+            <v-btn value="profile" size="small" class="text-none font-weight-bold px-3" style="height: 28px; font-size: 0.75rem;">
+              <v-icon size="15" class="me-1">mdi-account-details-outline</v-icon>
+              Profil 360
+            </v-btn>
+            <v-btn value="ticket" size="small" class="text-none font-weight-bold px-3" style="height: 28px; font-size: 0.75rem;">
+              <v-icon size="15" class="me-1">mdi-ticket-alert-outline</v-icon>
+              Trouble Ticket
+              <v-badge
+                v-if="customerTickets.length > 0"
+                :content="customerTickets.length"
+                color="error"
+                inline
+                class="ms-1"
+              ></v-badge>
+            </v-btn>
+          </v-btn-toggle>
+
           <v-btn
             icon="mdi-close"
             variant="text"
@@ -719,7 +837,8 @@
           ></v-btn>
         </div>
 
-        <div class="pa-4 d-flex flex-column gap-4">
+        <!-- TAB 1: CUSTOMER PROFILE 360 -->
+        <div v-if="rightPanelTab === 'profile'" class="pa-4 d-flex flex-column gap-4">
           <!-- Profile Hero -->
           <div class="text-center pb-1">
             <v-avatar :color="getBrandColor(activeRoom.brand)" size="56" class="elevation-2 mb-2">
@@ -848,6 +967,174 @@
             >
               Buka Data Pelanggan
             </v-btn>
+          </div>
+        </div>
+
+        <!-- TAB 2: TROUBLE TICKET & AUTO-FILL -->
+        <div v-else class="pa-4 d-flex flex-column gap-3.5">
+          <!-- Asisten Pintar Auto-Fill Banner -->
+          <v-card variant="tonal" color="primary" class="pa-3 rounded-lg border">
+            <div class="d-flex align-center gap-2 mb-2">
+              <v-avatar color="primary" size="28" variant="flat">
+                <v-icon size="16" color="white">mdi-creation</v-icon>
+              </v-avatar>
+              <div>
+                <div class="text-caption font-weight-bold text-high-emphasis">Asisten Tiket Cerdas</div>
+                <div class="text-caption text-medium-emphasis" style="font-size: 0.68rem;">Deteksi otomatis keluhan pelanggan dari percakapan</div>
+              </div>
+            </div>
+            <v-btn
+              block
+              color="primary"
+              variant="flat"
+              size="small"
+              class="text-none font-weight-bold rounded-pill"
+              prepend-icon="mdi-lightning-bolt"
+              :loading="isAutoFilling"
+              @click="autoFillTicketFromChat"
+            >
+              ⚡ Auto-Fill dari Chat
+            </v-btn>
+          </v-card>
+
+          <!-- Trouble Ticket Form -->
+          <div class="d-flex flex-column gap-2.5">
+            <div class="text-overline text-medium-emphasis font-weight-bold">Formulir Trouble Ticket</div>
+
+            <!-- Kategori Kendala -->
+            <div>
+              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block">
+                Kategori Gangguan *
+              </label>
+              <v-select
+                v-model="ticketForm.category"
+                :items="ticketCategories"
+                item-title="title"
+                item-value="value"
+                density="compact"
+                variant="outlined"
+                rounded="lg"
+                hide-details
+              ></v-select>
+            </div>
+
+            <!-- Judul Tiket -->
+            <div>
+              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block">
+                Judul Tiket *
+              </label>
+              <v-text-field
+                v-model="ticketForm.title"
+                placeholder="Contoh: Kabel Fiber Optic Putus / WiFi Lemot"
+                density="compact"
+                variant="outlined"
+                rounded="lg"
+                hide-details
+              ></v-text-field>
+            </div>
+
+            <!-- Tingkat Prioritas -->
+            <div>
+              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block">
+                Tingkat Prioritas *
+              </label>
+              <v-select
+                v-model="ticketForm.priority"
+                :items="ticketPriorities"
+                item-title="title"
+                item-value="value"
+                density="compact"
+                variant="outlined"
+                rounded="lg"
+                hide-details
+              ></v-select>
+            </div>
+
+            <!-- Rincian Keluhan -->
+            <div>
+              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block">
+                Rincian / Deskripsi Keluhan *
+              </label>
+              <v-textarea
+                v-model="ticketForm.description"
+                placeholder="Tuliskan keluhan atau laporan gangguan pelanggan..."
+                rows="4"
+                density="compact"
+                variant="outlined"
+                rounded="lg"
+                auto-grow
+                hide-details
+              ></v-textarea>
+            </div>
+
+            <!-- Ringkasan Info Pelanggan -->
+            <v-card variant="tonal" class="pa-2.5 rounded-lg border">
+              <div class="d-flex align-center justify-space-between mb-1">
+                <span class="text-caption text-medium-emphasis font-weight-medium">Pelanggan:</span>
+                <span class="text-caption font-weight-bold text-high-emphasis">{{ activeRoom.pelanggan?.nama }}</span>
+              </div>
+              <div class="d-flex align-center justify-space-between mb-1">
+                <span class="text-caption text-medium-emphasis font-weight-medium">Paket:</span>
+                <span class="text-caption font-weight-bold text-primary">{{ getCustomerPackage(activeRoom.pelanggan) }}</span>
+              </div>
+              <div v-if="activeRoom.pelanggan?.alamat" class="text-caption text-medium-emphasis">
+                <v-icon size="12" class="me-1">mdi-map-marker-outline</v-icon>
+                {{ activeRoom.pelanggan.alamat }}
+              </div>
+            </v-card>
+
+            <!-- Submit Button -->
+            <v-btn
+              block
+              color="error"
+              variant="flat"
+              size="default"
+              prepend-icon="mdi-ticket-confirmation-outline"
+              class="text-none font-weight-bold rounded-pill mt-1"
+              :loading="isSubmittingTicket"
+              @click="submitTroubleTicket"
+            >
+              Terbitkan Trouble Ticket
+            </v-btn>
+          </div>
+
+          <v-divider></v-divider>
+
+          <!-- Riwayat Tiket Pelanggan -->
+          <div>
+            <div class="d-flex align-center justify-space-between mb-2">
+              <span class="text-overline font-weight-bold text-medium-emphasis">Riwayat Tiket Pelanggan</span>
+              <span class="text-caption text-medium-emphasis">({{ customerTickets.length }})</span>
+            </div>
+
+            <div v-if="isLoadingCustomerTickets" class="text-center py-4">
+              <v-progress-circular indeterminate size="20" color="primary"></v-progress-circular>
+            </div>
+
+            <div v-else-if="customerTickets.length === 0" class="text-caption text-medium-emphasis text-center py-3 border rounded-lg bg-surface">
+              Belum ada riwayat tiket gangguan.
+            </div>
+
+            <div v-else class="d-flex flex-column gap-2">
+              <v-card
+                v-for="t in customerTickets"
+                :key="t.id"
+                variant="outlined"
+                class="pa-2.5 rounded-lg"
+              >
+                <div class="d-flex align-center justify-space-between mb-1">
+                  <span class="text-caption font-weight-bold text-primary">{{ t.ticket_number }}</span>
+                  <v-chip size="x-small" :color="getTicketStatusColor(t.status)" variant="flat" class="font-weight-bold text-white px-1.5" style="height: 18px;">
+                    {{ formatTicketStatus(t.status) }}
+                  </v-chip>
+                </div>
+                <div class="text-caption font-weight-medium text-truncate mb-1">{{ t.title }}</div>
+                <div class="d-flex align-center justify-space-between text-caption text-medium-emphasis" style="font-size: 0.68rem;">
+                  <span>{{ t.category }}</span>
+                  <span>{{ formatDate(t.created_at) }}</span>
+                </div>
+              </v-card>
+            </div>
           </div>
         </div>
       </aside>
@@ -987,6 +1274,55 @@
             @click="confirmCloseRoom"
           >
             Selesaikan & Tutup
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog: Sukses Terbitkan Trouble Ticket -->
+    <v-dialog v-model="ticketSuccessDialog" max-width="480">
+      <v-card class="rounded-xl overflow-hidden" elevation="8">
+        <v-card-title class="d-flex align-center justify-space-between px-5 py-4 border-b bg-surface">
+          <div class="d-flex align-center gap-2">
+            <v-avatar color="success" size="32" variant="tonal">
+              <v-icon size="18" color="success">mdi-check-circle-outline</v-icon>
+            </v-avatar>
+            <span class="text-subtitle-1 font-weight-bold">Tiket Gangguan Berhasil Dibuat</span>
+          </div>
+          <v-btn icon="mdi-close" variant="text" size="small" @click="ticketSuccessDialog = false"></v-btn>
+        </v-card-title>
+        <v-card-text class="pa-5 text-center">
+          <div class="text-h6 font-weight-bold text-primary mb-1">
+            #{{ createdTicketResult?.ticket_number || '-' }}
+          </div>
+          <div class="text-body-2 font-weight-medium text-high-emphasis mb-2">
+            {{ createdTicketResult?.title || '-' }}
+          </div>
+          <p class="text-caption text-medium-emphasis mb-4">
+            Tiket gangguan telah masuk ke sistem dan tim teknisi dapat segera memonitor serta menindaklanjuti.
+          </p>
+
+          <v-alert
+            type="info"
+            variant="tonal"
+            density="compact"
+            class="text-start text-caption mb-0 rounded-lg"
+          >
+            Kirimkan nomor tiket ke ruang obrolan agar pelanggan mengetahui bahwa kendalanya sudah resmi tercatat.
+          </v-alert>
+        </v-card-text>
+        <v-card-actions class="px-5 pb-5 pt-0 d-flex justify-end gap-2">
+          <v-btn variant="text" rounded="pill" @click="ticketSuccessDialog = false">
+            Tutup
+          </v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            rounded="pill"
+            prepend-icon="mdi-send"
+            @click="sendTicketNoticeToChat"
+          >
+            Kirim No. Tiket ke Chat
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -1167,7 +1503,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useDisplay } from 'vuetify';
 import { useRouter } from 'vue-router';
-import apiClient from '@/services/api';
+import apiClient, { troubleTicketAPI } from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 import EmojiPicker from 'vue3-emoji-picker';
 import 'vue3-emoji-picker/css';
@@ -1189,8 +1525,101 @@ const searchQuery = ref('');
 const selectedBrand = ref('ALL');
 const selectedStatus = ref<'open' | 'closed' | 'ALL'>('open');
 const isUpdatingStatus = ref(false);
-// Default false so chat has full spacious width when opened!
+
+// Mekari Qontak style Assignment Filter
+type AssignmentFilter = 'all' | 'mine' | 'unassigned' | 'assigned' | 'closed';
+const selectedAssignment = ref<AssignmentFilter>('all');
+const roomCounts = ref({
+  all: 0,
+  mine: 0,
+  unassigned: 0,
+  assigned: 0,
+  closed: 0,
+});
+const isAssigning = ref(false);
+
+// Panel 3 (Profil 360 & Trouble Ticket) State
 const showInfoPanel = ref(false);
+const rightPanelTab = ref<'profile' | 'ticket'>('profile');
+const isAutoFilling = ref(false);
+const isSubmittingTicket = ref(false);
+const ticketSuccessDialog = ref(false);
+const createdTicketResult = ref<any | null>(null);
+const customerTickets = ref<any[]>([]);
+const isLoadingCustomerTickets = ref(false);
+
+const ticketForm = ref({
+  category: 'slow_connection',
+  priority: 'medium',
+  title: '',
+  description: '',
+});
+
+const ticketCategories = [
+  { title: 'Kabel Fiber Optic Bermasalah / Putus', value: 'cable_issue' },
+  { title: 'Internet Mati Total / Tidak Ada Sinyal (LOS)', value: 'no_connection' },
+  { title: 'Koneksi Lambat / Lemot', value: 'slow_connection' },
+  { title: 'Koneksi Tidak Stabil / Putus-Nyambung', value: 'intermittent' },
+  { title: 'Modem / Router / ONU Bermasalah', value: 'onu_issue' },
+  { title: 'Gangguan Server / OLT', value: 'olt_issue' },
+  { title: 'Kendala PPPoE / Mikrotik', value: 'mikrotik_issue' },
+  { title: 'Kerusakan Hardware / Adaptor', value: 'hardware_issue' },
+  { title: 'Lainnya', value: 'other' },
+];
+
+const ticketPriorities = [
+  { title: 'Rendah (Low)', value: 'low' },
+  { title: 'Sedang (Medium)', value: 'medium' },
+  { title: 'Tinggi (High)', value: 'high' },
+  { title: 'Kritis (Critical)', value: 'critical' },
+];
+
+interface AssignmentTabItem {
+  label: string;
+  value: AssignmentFilter;
+  icon: string;
+  color: string;
+  count: number;
+}
+
+const assignmentTabs = computed<AssignmentTabItem[]>(() => [
+  {
+    label: 'Semua',
+    value: 'all',
+    icon: 'mdi-inbox-outline',
+    color: 'primary',
+    count: roomCounts.value.all,
+  },
+  {
+    label: 'Saya',
+    value: 'mine',
+    icon: 'mdi-account-outline',
+    color: 'info',
+    count: roomCounts.value.mine,
+  },
+  {
+    label: 'Unassigned',
+    value: 'unassigned',
+    icon: 'mdi-account-clock-outline',
+    color: 'amber-darken-3',
+    count: roomCounts.value.unassigned,
+  },
+  {
+    label: 'Assigned',
+    value: 'assigned',
+    icon: 'mdi-account-check-outline',
+    color: 'deep-purple',
+    count: roomCounts.value.assigned,
+  },
+  {
+    label: 'Selesai',
+    value: 'closed',
+    icon: 'mdi-check-all',
+    color: 'grey-darken-1',
+    count: roomCounts.value.closed,
+  },
+]);
+
 const inputMessage = ref('');
 const isCustomerTyping = ref(false);
 const showEmojiPicker = ref(false);
@@ -1341,10 +1770,17 @@ const closedRoomsCount = computed(() => {
 const filteredRooms = computed(() => {
   let list = rooms.value;
 
-  // Filter Status
-  if (selectedStatus.value === 'open') {
+  // Filter Assignment & Status
+  const currentUserId = authStore.user?.id;
+  if (selectedAssignment.value === 'all') {
     list = list.filter((r) => !r.status || r.status === 'open');
-  } else if (selectedStatus.value === 'closed') {
+  } else if (selectedAssignment.value === 'mine') {
+    list = list.filter((r) => (!r.status || r.status === 'open') && r.assigned_admin_id === currentUserId);
+  } else if (selectedAssignment.value === 'unassigned') {
+    list = list.filter((r) => (!r.status || r.status === 'open') && !r.assigned_admin_id);
+  } else if (selectedAssignment.value === 'assigned') {
+    list = list.filter((r) => (!r.status || r.status === 'open') && !!r.assigned_admin_id);
+  } else if (selectedAssignment.value === 'closed') {
     list = list.filter((r) => r.status === 'closed');
   }
 
@@ -1361,7 +1797,8 @@ const filteredRooms = computed(() => {
       const phone = (r.pelanggan?.no_telp || '').toLowerCase();
       const brand = (r.brand || '').toLowerCase();
       const lastMsg = (r.last_message_text || '').toLowerCase();
-      return name.includes(q) || phone.includes(q) || brand.includes(q) || lastMsg.includes(q);
+      const adminName = (r.assigned_admin?.nama || '').toLowerCase();
+      return name.includes(q) || phone.includes(q) || brand.includes(q) || lastMsg.includes(q) || adminName.includes(q);
     });
   }
 
@@ -1395,6 +1832,7 @@ function getInitials(name: string): string {
 
 function setBrandFilter(brandVal: string) {
   selectedBrand.value = brandVal;
+  fetchRoomCounts();
 }
 
 function onSearchDebounced() {
@@ -1422,6 +1860,7 @@ async function fetchRooms(silent = false) {
   } finally {
     if (!silent) isLoadingRooms.value = false;
   }
+  fetchRoomCounts();
 }
 
 // Silent polling as fallback only if WebSocket is offline
@@ -1466,6 +1905,19 @@ async function selectRoom(room: any) {
   activeRoom.value = room;
   isLoadingMessages.value = true;
   activeMessages.value = [];
+
+  // Load previous trouble tickets for this customer
+  if (room.pelanggan_id) {
+    loadCustomerTickets(room.pelanggan_id);
+  }
+
+  // Reset ticket form with default values
+  ticketForm.value = {
+    category: 'slow_connection',
+    priority: 'medium',
+    title: '',
+    description: '',
+  };
 
   try {
     const res = await apiClient.get(`/chat/messages/${room.id}?limit=100`);
@@ -1979,6 +2431,39 @@ function handleWsIncoming(payload: any) {
       if (activeRoom.value && activeRoom.value.id === data.room_id) {
         activeRoom.value.status = data.status;
       }
+      fetchRoomCounts();
+      break;
+    }
+
+    case 'room_assigned': {
+      const roomIdx = rooms.value.findIndex((r) => r.id === data.room_id);
+      if (roomIdx !== -1) {
+        rooms.value[roomIdx].assigned_admin_id = data.admin_id;
+        if (data.room?.assigned_admin) {
+          rooms.value[roomIdx].assigned_admin = data.room.assigned_admin;
+        }
+      }
+      if (activeRoom.value && activeRoom.value.id === data.room_id) {
+        activeRoom.value.assigned_admin_id = data.admin_id;
+        if (data.room?.assigned_admin) {
+          activeRoom.value.assigned_admin = data.room.assigned_admin;
+        }
+      }
+      fetchRoomCounts();
+      break;
+    }
+
+    case 'room_unassigned': {
+      const roomIdx = rooms.value.findIndex((r) => r.id === data.room_id);
+      if (roomIdx !== -1) {
+        rooms.value[roomIdx].assigned_admin_id = null;
+        rooms.value[roomIdx].assigned_admin = null;
+      }
+      if (activeRoom.value && activeRoom.value.id === data.room_id) {
+        activeRoom.value.assigned_admin_id = null;
+        activeRoom.value.assigned_admin = null;
+      }
+      fetchRoomCounts();
       break;
     }
 
@@ -2118,6 +2603,254 @@ function getCustomerStatus(p?: any): string {
 
 function showSnackbar(text: string, color = 'success') {
   snackbar.value = { show: true, text, color };
+}
+
+// ================= MEKARI QONTAK INBOX ASSIGNMENT & TROUBLE TICKET METHODS =================
+async function fetchRoomCounts() {
+  try {
+    const adminId = authStore.user?.id || 0;
+    const res = await apiClient.get('/chat/rooms/counts', {
+      params: {
+        admin_id: adminId,
+        brand: selectedBrand.value !== 'ALL' ? selectedBrand.value : undefined,
+      },
+    });
+    if (res.data?.data) {
+      roomCounts.value = res.data.data;
+    }
+  } catch (err) {
+    console.error('Failed to fetch room counts:', err);
+  }
+}
+
+async function assignRoomToMe() {
+  if (!activeRoom.value) return;
+  const adminId = authStore.user?.id;
+  if (!adminId) {
+    showSnackbar('ID Admin tidak ditemukan', 'error');
+    return;
+  }
+  isAssigning.value = true;
+  try {
+    const roomId = activeRoom.value.id;
+    await apiClient.post(`/chat/rooms/${roomId}/assign`, { admin_id: adminId });
+    activeRoom.value.assigned_admin_id = adminId;
+    activeRoom.value.assigned_admin = {
+      id: adminId,
+      nama: authStore.user?.name || 'Admin CS',
+      email: authStore.user?.email || '',
+    };
+    const roomIdx = rooms.value.findIndex((r) => r.id === roomId);
+    if (roomIdx !== -1) {
+      rooms.value[roomIdx].assigned_admin_id = adminId;
+      rooms.value[roomIdx].assigned_admin = activeRoom.value.assigned_admin;
+    }
+    showSnackbar('Percakapan berhasil diambil alih.', 'success');
+    fetchRoomCounts();
+  } catch (err: any) {
+    showSnackbar('Gagal mengambil alih percakapan: ' + (err.response?.data?.error || err.message), 'error');
+  } finally {
+    isAssigning.value = false;
+  }
+}
+
+async function unassignActiveRoom() {
+  if (!activeRoom.value) return;
+  isAssigning.value = true;
+  try {
+    const roomId = activeRoom.value.id;
+    await apiClient.post(`/chat/rooms/${roomId}/unassign`);
+    activeRoom.value.assigned_admin_id = null;
+    activeRoom.value.assigned_admin = null;
+    const roomIdx = rooms.value.findIndex((r) => r.id === roomId);
+    if (roomIdx !== -1) {
+      rooms.value[roomIdx].assigned_admin_id = null;
+      rooms.value[roomIdx].assigned_admin = null;
+    }
+    showSnackbar('Penugasan percakapan telah dilepas.', 'info');
+    fetchRoomCounts();
+  } catch (err: any) {
+    showSnackbar('Gagal melepas penugasan: ' + (err.response?.data?.error || err.message), 'error');
+  } finally {
+    isAssigning.value = false;
+  }
+}
+
+function openTroubleTicketPanel() {
+  showInfoPanel.value = true;
+  rightPanelTab.value = 'ticket';
+}
+
+async function autoFillTicketFromChat() {
+  if (!activeRoom.value) return;
+  isAutoFilling.value = true;
+  try {
+    const res = await apiClient.post(`/chat/rooms/${activeRoom.value.id}/auto-fill-ticket`);
+    if (res.data?.data) {
+      const d = res.data.data;
+      ticketForm.value.category = d.category || 'cable_issue';
+      ticketForm.value.priority = d.priority || 'medium';
+      ticketForm.value.title = d.title || 'Kendala Layanan Pelanggan';
+      ticketForm.value.description = d.description || '';
+      showSnackbar('Formulir berhasil diisi otomatis dari riwayat chat!', 'success');
+    }
+  } catch (err: any) {
+    showSnackbar('Gagal menganalisis chat: ' + (err.response?.data?.error || err.message), 'error');
+  } finally {
+    isAutoFilling.value = false;
+  }
+}
+
+async function submitTroubleTicket() {
+  if (!activeRoom.value) return;
+  if (!ticketForm.value.title.trim()) {
+    showSnackbar('Judul tiket wajib diisi', 'error');
+    return;
+  }
+  if (!ticketForm.value.description.trim()) {
+    showSnackbar('Rincian deskripsi keluhan wajib diisi', 'error');
+    return;
+  }
+
+  isSubmittingTicket.value = true;
+  try {
+    const payload = {
+      pelanggan_id: Number(activeRoom.value.pelanggan_id),
+      title: ticketForm.value.title.trim(),
+      description: ticketForm.value.description.trim(),
+      category: ticketForm.value.category,
+      priority: ticketForm.value.priority,
+      data_teknis_id: activeRoom.value.pelanggan?.data_teknis?.id
+        ? Number(activeRoom.value.pelanggan.data_teknis.id)
+        : null,
+    };
+
+    const res = await troubleTicketAPI.createTicket(payload);
+    const createdTicket = res.data?.data;
+    createdTicketResult.value = createdTicket;
+    ticketSuccessDialog.value = true;
+
+    // Reset form
+    ticketForm.value = {
+      category: 'slow_connection',
+      priority: 'medium',
+      title: '',
+      description: '',
+    };
+
+    // Reload customer tickets
+    loadCustomerTickets(activeRoom.value.pelanggan_id);
+    showSnackbar(`Trouble Ticket #${createdTicket?.ticket_number || ''} berhasil diterbitkan!`, 'success');
+  } catch (err: any) {
+    showSnackbar('Gagal membuat Trouble Ticket: ' + (err.response?.data?.error || err.message), 'error');
+  } finally {
+    isSubmittingTicket.value = false;
+  }
+}
+
+async function sendTicketNoticeToChat() {
+  if (!activeRoom.value || !createdTicketResult.value) return;
+  const tNo = createdTicketResult.value.ticket_number;
+  const custName = activeRoom.value.pelanggan?.nama || 'Bapak/Ibu';
+  const notice = `Halo ${custName}, keluhan Anda telah kami catat dengan nomor Trouble Ticket #${tNo}. Tim teknisi kami segera memproses dan melakukan pengecekan. Mohon ditunggu ya. Terima kasih! 🙏`;
+
+  sendAdminTextMessage(notice);
+  ticketSuccessDialog.value = false;
+}
+
+function sendAdminTextMessage(text: string) {
+  if (!text || !activeRoom.value) return;
+
+  if (activeRoom.value.status === 'closed') {
+    activeRoom.value.status = 'open';
+    const rIdx = rooms.value.findIndex((r) => r.id === activeRoom.value.id);
+    if (rIdx !== -1) {
+      rooms.value[rIdx].status = 'open';
+    }
+  }
+
+  const tempId = `admin_temp_${Date.now()}`;
+  const localMsg = {
+    id: null,
+    room_id: activeRoom.value.id,
+    sender_type: 'admin',
+    sender_name: authStore.user?.name || 'Admin CS',
+    message: text,
+    message_type: 'text',
+    status: 'pending',
+    created_at: new Date().toISOString(),
+    temp_id: tempId,
+  };
+
+  activeMessages.value.push(localMsg);
+  activeRoom.value.last_message_text = text;
+  activeRoom.value.last_message_at = new Date().toISOString();
+
+  const currentRoomId = activeRoom.value.id;
+  const roomIdx = rooms.value.findIndex((r) => r.id === currentRoomId);
+  if (roomIdx > 0) {
+    const [moved] = rooms.value.splice(roomIdx, 1);
+    rooms.value.unshift(moved);
+  }
+
+  scrollToBottom();
+
+  sendWsEvent('send_message', {
+    room_id: activeRoom.value.id,
+    message: text,
+    temp_id: tempId,
+    message_type: 'text',
+  });
+}
+
+async function loadCustomerTickets(pelangganId: number | string) {
+  if (!pelangganId) return;
+  isLoadingCustomerTickets.value = true;
+  try {
+    const res = await troubleTicketAPI.getTickets({
+      pelanggan_id: pelangganId,
+      pageSize: 5,
+    });
+    if (res.data?.data) {
+      customerTickets.value = Array.isArray(res.data.data) ? res.data.data : [];
+    }
+  } catch (err) {
+    console.error('Failed to load customer tickets:', err);
+  } finally {
+    isLoadingCustomerTickets.value = false;
+  }
+}
+
+function formatDate(dateStr?: string): string {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function formatTicketStatus(status?: string): string {
+  const map: Record<string, string> = {
+    open: 'Open',
+    in_progress: 'Diproses',
+    pending_customer: 'Pending Pelanggan',
+    pending_vendor: 'Pending Vendor',
+    resolved: 'Selesai',
+    closed: 'Ditutup',
+    cancelled: 'Dibatalkan',
+  };
+  return map[status || ''] || status || 'Open';
+}
+
+function getTicketStatusColor(status?: string): string {
+  const map: Record<string, string> = {
+    open: 'error',
+    in_progress: 'warning',
+    pending_customer: 'info',
+    pending_vendor: 'secondary',
+    resolved: 'success',
+    closed: 'grey',
+    cancelled: 'grey-darken-2',
+  };
+  return map[status || ''] || 'primary';
 }
 
 function onVisibilityChange() {
@@ -2590,14 +3323,18 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* ================= PANEL 3: CONTACT 360 ================= */
+/* ================= PANEL 3: CONTACT 360 & TROUBLE TICKET ================= */
 .customer-info-panel {
-  width: 320px;
-  min-width: 300px;
-  max-width: 340px;
+  width: 360px;
+  min-width: 320px;
+  max-width: 420px;
   flex-shrink: 0;
   height: 100%;
   background-color: rgb(var(--v-theme-surface));
+}
+
+.assignment-filter-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .animate-pulse {

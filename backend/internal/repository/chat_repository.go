@@ -167,10 +167,22 @@ func (r *chatRepository) ListRooms(ctx context.Context, filter domain.ChatRoomFi
 	query := r.db.WithContext(ctx).Model(&domain.ChatRoom{})
 
 	if filter.Brand != "" {
-		query = query.Where("brand = ?", filter.Brand)
+		query = query.Where("chat_rooms.brand = ?", filter.Brand)
 	}
 	if filter.Status != "" {
-		query = query.Where("status = ?", filter.Status)
+		query = query.Where("chat_rooms.status = ?", filter.Status)
+	}
+
+	// Assignment-based filtering
+	switch filter.Assignment {
+	case "unassigned":
+		query = query.Where("chat_rooms.assigned_admin_id IS NULL AND chat_rooms.status = 'open'")
+	case "assigned":
+		query = query.Where("chat_rooms.assigned_admin_id IS NOT NULL AND chat_rooms.status = 'open'")
+	case "mine":
+		if filter.AdminID > 0 {
+			query = query.Where("chat_rooms.assigned_admin_id = ? AND chat_rooms.status = 'open'", filter.AdminID)
+		}
 	}
 
 	if filter.Search != "" {
@@ -310,6 +322,53 @@ func (r *chatRepository) ResetUnreadCount(ctx context.Context, roomID uint64, re
 		Model(&domain.ChatRoom{}).
 		Where("id = ?", roomID).
 		Update(column, 0).Error
+}
+
+func (r *chatRepository) AssignRoom(ctx context.Context, roomID uint64, adminID uint64) error {
+	return r.db.WithContext(ctx).
+		Model(&domain.ChatRoom{}).
+		Where("id = ?", roomID).
+		Updates(map[string]interface{}{
+			"assigned_admin_id": adminID,
+			"status":            "open",
+		}).Error
+}
+
+func (r *chatRepository) UnassignRoom(ctx context.Context, roomID uint64) error {
+	return r.db.WithContext(ctx).
+		Model(&domain.ChatRoom{}).
+		Where("id = ?", roomID).
+		Update("assigned_admin_id", nil).Error
+}
+
+func (r *chatRepository) GetRoomCounts(ctx context.Context, adminID uint64, brand string) (*domain.RoomCounts, error) {
+	counts := &domain.RoomCounts{}
+	base := r.db.WithContext(ctx).Model(&domain.ChatRoom{})
+	if brand != "" {
+		base = base.Where("brand = ?", brand)
+	}
+
+	// All open
+	base.Where("status = 'open'").Count(&counts.All)
+	// Unassigned & open
+	r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(r.brandClause(brand)).Where("status = 'open' AND assigned_admin_id IS NULL").Count(&counts.Unassigned)
+	// Assigned & open
+	r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(r.brandClause(brand)).Where("status = 'open' AND assigned_admin_id IS NOT NULL").Count(&counts.Assigned)
+	// Mine
+	if adminID > 0 {
+		r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(r.brandClause(brand)).Where("status = 'open' AND assigned_admin_id = ?", adminID).Count(&counts.Mine)
+	}
+	// Closed
+	r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(r.brandClause(brand)).Where("status = 'closed'").Count(&counts.Closed)
+
+	return counts, nil
+}
+
+func (r *chatRepository) brandClause(brand string) string {
+	if brand != "" {
+		return "brand = '" + brand + "'"
+	}
+	return "1 = 1"
 }
 
 func (r *chatRepository) ListTemplates(ctx context.Context) ([]domain.QuickReplyTemplate, error) {

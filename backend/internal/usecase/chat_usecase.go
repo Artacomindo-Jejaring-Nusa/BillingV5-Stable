@@ -108,6 +108,27 @@ func (u *chatUsecase) UpdateRoomStatus(ctx context.Context, roomID uint64, statu
 	return u.chatRepo.UpdateRoomStatus(ctx, roomID, status)
 }
 
+func (u *chatUsecase) AssignRoom(ctx context.Context, roomID uint64, adminID uint64) error {
+	if roomID == 0 {
+		return errors.New("room_id tidak valid")
+	}
+	if adminID == 0 {
+		return errors.New("admin_id tidak valid")
+	}
+	return u.chatRepo.AssignRoom(ctx, roomID, adminID)
+}
+
+func (u *chatUsecase) UnassignRoom(ctx context.Context, roomID uint64) error {
+	if roomID == 0 {
+		return errors.New("room_id tidak valid")
+	}
+	return u.chatRepo.UnassignRoom(ctx, roomID)
+}
+
+func (u *chatUsecase) GetRoomCounts(ctx context.Context, adminID uint64, brand string) (*domain.RoomCounts, error) {
+	return u.chatRepo.GetRoomCounts(ctx, adminID, brand)
+}
+
 func (u *chatUsecase) ListTemplates(ctx context.Context) ([]domain.QuickReplyTemplate, error) {
 	return u.chatRepo.ListTemplates(ctx)
 }
