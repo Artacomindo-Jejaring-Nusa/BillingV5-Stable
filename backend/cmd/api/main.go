@@ -16,6 +16,7 @@ import (
 	"billing-backend/internal/middleware"
 	"billing-backend/internal/repository"
 	"billing-backend/internal/scheduler"
+	"billing-backend/internal/service"
 	"billing-backend/internal/usecase"
 	"billing-backend/internal/websocket"
 	"billing-backend/pkg/database"
@@ -379,7 +380,8 @@ func main() {
 	// In-App Real-Time Customer Support Chat (WebSocket)
 	chatRepo := repository.NewChatRepository(db)
 	chatUsecase := usecase.NewChatUsecase(chatRepo)
-	websocket.GlobalChatHub = websocket.NewChatHub(chatUsecase)
+	aiService := service.NewAIService(cfg, paketLayananRepo)
+	websocket.GlobalChatHub = websocket.NewChatHub(chatUsecase, aiService)
 	go websocket.GlobalChatHub.Run()
 	httpDelivery.NewChatHandler(api, chatUsecase, authMw)
 

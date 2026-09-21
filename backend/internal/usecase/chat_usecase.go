@@ -27,6 +27,13 @@ func (u *chatUsecase) GetCustomerRoom(ctx context.Context, pelangganID uint64, b
 	return u.chatRepo.GetOrCreateRoomByPelangganID(ctx, pelangganID, brand)
 }
 
+func (u *chatUsecase) GetRoomByID(ctx context.Context, roomID uint64) (*domain.ChatRoom, error) {
+	if roomID == 0 {
+		return nil, errors.New("room_id tidak valid")
+	}
+	return u.chatRepo.GetRoomByID(ctx, roomID)
+}
+
 func (u *chatUsecase) GetRoomMessages(ctx context.Context, roomID uint64, limit, offset int) ([]domain.ChatMessage, error) {
 	if roomID == 0 {
 		return nil, errors.New("room_id tidak valid")

@@ -43,6 +43,10 @@ type Config struct {
 	SchedulerEnabled                bool
 	ZteOltApiURL                    string
 	ZteOltApiKey                    string
+	AIRouterURL                     string
+	AIRouterKey                     string
+	AIRouterModel                   string
+	AIRouterEnabled                 bool
 }
 
 var GlobalConfig *Config
@@ -93,6 +97,10 @@ func LoadConfig() *Config {
 		SchedulerEnabled:                getEnv("SCHEDULER_ENABLED", "true") == "true",
 		ZteOltApiURL:                    getEnv("ZTE_OLT_API_URL", "http://localhost:8081"),
 		ZteOltApiKey:                    getEnv("ZTE_OLT_API_KEY", ""),
+		AIRouterURL:                     getEnv("AI_ROUTER_URL", "https://ai.ajnusa.com/v1"),
+		AIRouterKey:                     getEnv("AI_ROUTER_KEY", ""),
+		AIRouterModel:                   getEnv("AI_ROUTER_MODEL", "cf/@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
+		AIRouterEnabled:                 getEnvAsBool("AI_ROUTER_ENABLED", true),
 		
 		Menus: []string{
 			"Dashboard", "Pelanggan", "Langganan", "Teknis", "Paket", "Invoices", "Reports",

@@ -3,11 +3,13 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"billing-backend/internal/domain"
+	"billing-backend/internal/service"
 
 	"github.com/gorilla/websocket"
 )
@@ -33,6 +35,7 @@ type ChatClient struct {
 
 type ChatHub struct {
 	chatUsecase    domain.ChatUsecase
+	aiService      service.AIService
 	rooms          map[uint64]map[*ChatClient]bool
 	adminListeners map[*ChatClient]bool
 	register       chan *ChatClient
@@ -42,9 +45,10 @@ type ChatHub struct {
 
 var GlobalChatHub *ChatHub
 
-func NewChatHub(chatUsecase domain.ChatUsecase) *ChatHub {
+func NewChatHub(chatUsecase domain.ChatUsecase, aiService service.AIService) *ChatHub {
 	return &ChatHub{
 		chatUsecase:    chatUsecase,
+		aiService:      aiService,
 		rooms:          make(map[uint64]map[*ChatClient]bool),
 		adminListeners: make(map[*ChatClient]bool),
 		register:       make(chan *ChatClient),
@@ -301,6 +305,114 @@ func (c *ChatClient) ReadPump() {
 
 			// 3. Broadcast ke lawan bicara: NEW MESSAGE
 			c.Hub.BroadcastToRoomExcept(targetRoomID, c, "new_message", savedMsg)
+
+			// 4. Jika pesan dikirim oleh PELANGGAN (Mobile / Web Portal), proses via AI Assistant
+			if c.Role == "customer" && c.Hub.aiService != nil && msgText != "" {
+				// A. Periksa apakah pelanggan meminta CS/agen manusia
+				if c.Hub.aiService.IsHumanHandoverRequested(msgText) {
+					// Beritahu admin/CS via broadcast bahwa pelanggan meminta CS manusia
+					c.Hub.BroadcastToRoom(targetRoomID, "human_handover_requested", map[string]interface{}{
+						"room_id":        targetRoomID,
+						"pelanggan_id":   c.SenderID,
+						"pelanggan_name": c.SenderName,
+						"message":        "Pelanggan meminta terhubung dengan Customer Support manusia",
+					})
+
+					// Kirim konfirmasi sistem yang sangat sopan kepada pelanggan
+					go func(roomID uint64, custName string) {
+						time.Sleep(350 * time.Millisecond)
+						greetingName := custName
+						if greetingName == "" {
+							greetingName = "Bapak/Ibu"
+						}
+						confirmText := fmt.Sprintf("Baik Kak %s, permintaan Anda telah kami teruskan ke tim Customer Support kami. Mohon kesediaannya menunggu sebentar, staf kami akan segera bergabung dan melayani Anda secara langsung dalam obrolan ini.\n\n---\n🤖 Dibalas otomatis oleh Asisten Virtual AI", greetingName)
+
+						sysMsg := &domain.ChatMessage{
+							RoomID:      roomID,
+							SenderType:  "system",
+							SenderName:  "Asisten Virtual",
+							Message:     confirmText,
+							MessageType: "text",
+							Status:      domain.ChatStatusDelivered,
+							TempID:      fmt.Sprintf("sys_%d", time.Now().UnixNano()),
+						}
+						ctxSys, cancelSys := context.WithTimeout(context.Background(), 3*time.Second)
+						savedSysMsg, errSys := c.Hub.chatUsecase.SendMessage(ctxSys, sysMsg)
+						cancelSys()
+						if errSys == nil {
+							c.Hub.BroadcastToRoom(roomID, "new_message", savedSysMsg)
+						}
+					}(targetRoomID, c.SenderName)
+
+					continue
+				}
+
+				// B. Jika bukan permintaan CS manusia, proses otomatis dengan 9Router AI Agent
+				go func(roomID uint64, userText string, client *ChatClient) {
+					// 1. Dapatkan info room & data pelanggan
+					ctxRoom, cancelRoom := context.WithTimeout(context.Background(), 4*time.Second)
+					room, errRoom := client.Hub.chatUsecase.GetRoomByID(ctxRoom, roomID)
+					cancelRoom()
+					if errRoom != nil || room == nil {
+						return
+					}
+
+					// Jika room sudah dipegang oleh admin CS manusia (assigned_admin_id != nil),
+					// AI tidak perlu membalas agar percakapan manusia tidak terinterupsi
+					if room.AssignedAdminID != nil {
+						return
+					}
+
+					// 2. Ambil riwayat percakapan terakhir untuk konteks
+					ctxHist, cancelHist := context.WithTimeout(context.Background(), 4*time.Second)
+					history, _ := client.Hub.chatUsecase.GetRoomMessages(ctxHist, roomID, 6, 0)
+					cancelHist()
+
+					// 3. Tampilkan indikator "sedang mengetik..." ke pelanggan
+					client.Hub.BroadcastToRoom(roomID, "typing", map[string]interface{}{
+						"room_id":   roomID,
+						"is_typing": true,
+						"sender":    "Asisten Virtual AI",
+					})
+
+					// 4. Panggil 9Router AI Service
+					ctxAI, cancelAI := context.WithTimeout(context.Background(), 25*time.Second)
+					aiReply, errAI := client.Hub.aiService.GenerateReply(ctxAI, room, history, userText)
+					cancelAI()
+
+					// Matikan indikator mengetik
+					client.Hub.BroadcastToRoom(roomID, "typing", map[string]interface{}{
+						"room_id":   roomID,
+						"is_typing": false,
+						"sender":    "Asisten Virtual AI",
+					})
+
+					if errAI != nil {
+						log.Printf("[ChatHub] AI GenerateReply error for room %d: %v", roomID, errAI)
+						return
+					}
+
+					// 5. Simpan balasan AI ke database
+					aiMsg := &domain.ChatMessage{
+						RoomID:      roomID,
+						SenderType:  "system",
+						SenderName:  "Asisten Virtual",
+						Message:     aiReply,
+						MessageType: "text",
+						Status:      domain.ChatStatusDelivered,
+						TempID:      fmt.Sprintf("ai_%d", time.Now().UnixNano()),
+					}
+
+					ctxSave, cancelSave := context.WithTimeout(context.Background(), 3*time.Second)
+					savedAIMsg, errSave := client.Hub.chatUsecase.SendMessage(ctxSave, aiMsg)
+					cancelSave()
+
+					if errSave == nil {
+						// 6. Broadcast balasan AI ke room (pelanggan & admin)
+						client.Hub.BroadcastToRoom(roomID, "new_message", savedAIMsg)
+					}
+				}(targetRoomID, msgText, c)
+			}
 
 		case "ack_delivered":
 			// Device lawan bicara mengonfirmasi telah menerima pesan (Ceklis 2 Abu-abu)

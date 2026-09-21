@@ -26,6 +26,7 @@ type ChatRepository interface {
 // ChatUsecase defines business operations for managing chat and status updates.
 type ChatUsecase interface {
 	GetCustomerRoom(ctx context.Context, pelangganID uint64, brand string) (*ChatRoom, error)
+	GetRoomByID(ctx context.Context, roomID uint64) (*ChatRoom, error)
 	GetRoomMessages(ctx context.Context, roomID uint64, limit, offset int) ([]ChatMessage, error)
 	ListActiveRooms(ctx context.Context, filter ChatRoomFilter) ([]ChatRoom, int64, error)
 	SendMessage(ctx context.Context, msg *ChatMessage) (*ChatMessage, error)

@@ -449,8 +449,17 @@
                 >
                   <div
                     class="message-bubble"
-                    :class="msg.sender_type === 'admin' ? 'bubble-admin' : 'bubble-customer'"
+                    :class="{
+                      'bubble-admin': msg.sender_type === 'admin',
+                      'bubble-customer': msg.sender_type === 'customer',
+                      'bubble-system': msg.sender_type === 'system'
+                    }"
                   >
+                    <!-- Header for System / AI message -->
+                    <div v-if="msg.sender_type === 'system'" class="d-flex align-center gap-1.5 mb-1.5 text-primary">
+                      <v-icon size="14" color="primary">mdi-robot-outline</v-icon>
+                      <span class="text-caption font-weight-bold" style="font-size: 0.75rem;">Asisten Virtual AI</span>
+                    </div>
                     <!-- Image Attachment if present -->
                     <div v-if="msg.attachment_url || msg.message_type === 'image'" class="mb-1.5" style="min-width: 200px;">
                       <v-img
@@ -1912,6 +1921,14 @@ function handleWsIncoming(payload: any) {
       break;
     }
 
+    case 'human_handover_requested': {
+      if (activeRoom.value?.id === data.room_id) {
+        showSnackbar(`Perhatian: Pelanggan ${data.pelanggan_name || ''} meminta bantuan Customer Support manusia!`, 'warning');
+      }
+      playNotificationSound();
+      break;
+    }
+
     case 'new_message': {
       const roomIdx = rooms.value.findIndex((r) => r.id === data.room_id);
       if (roomIdx !== -1) {
@@ -2474,10 +2491,25 @@ onUnmounted(() => {
   margin-left: 6px;
 }
 
+.bubble-system {
+  background-color: #f8fafc;
+  color: #0f172a;
+  border-radius: 12px 12px 12px 2px !important;
+  border: 1px solid #cbd5e1;
+  margin-left: 6px;
+}
+
 .v-theme--dark .bubble-customer {
   background-color: #18181b;
   color: #fafafa;
   border-color: #27272a;
+  box-shadow: none;
+}
+
+.v-theme--dark .bubble-system {
+  background-color: #1e293b;
+  color: #f8fafc;
+  border-color: #334155;
   box-shadow: none;
 }
 
