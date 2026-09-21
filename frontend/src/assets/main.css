@@ -450,3 +450,34 @@ a {
   border-radius: 6px !important;
 }
 
+/* Neutralize Gradient Text Globally */
+.gradient-text,
+.text-gradient {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  background-clip: unset !important;
+  color: #0f172a !important;
+}
+
+/* Neutralize Card Header Wrappers & Legacy Avatars */
+.card-header-wrapper,
+.panel-header,
+.settings-header,
+.api-keys-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.discount-avatar,
+.action-avatar {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+.discount-avatar .v-icon,
+.action-avatar .v-icon {
+  color: #0f172a !important;
+}
+

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"billing-backend/internal/domain"
@@ -12,7 +13,8 @@ import (
 )
 
 type chatRepository struct {
-	db *gorm.DB
+	db     *gorm.DB
+	roomMu sync.Mutex
 }
 
 func NewChatRepository(db *gorm.DB) domain.ChatRepository {
@@ -44,26 +46,71 @@ func detectExactBrand(brandHint string, p *domain.Pelanggan) string {
 }
 
 func (r *chatRepository) GetOrCreateRoomByPelangganID(ctx context.Context, pelangganID uint64, brand string) (*domain.ChatRoom, error) {
-	var room domain.ChatRoom
+	r.roomMu.Lock()
+	defer r.roomMu.Unlock()
+
+	var rooms []domain.ChatRoom
 	err := r.db.WithContext(ctx).
 		Preload("Pelanggan").
 		Preload("Pelanggan.HargaLayanan").
 		Preload("Pelanggan.Langganan").
 		Where("pelanggan_id = ? AND status = ?", pelangganID, "open").
-		First(&room).Error
+		Order("last_message_at DESC, id DESC").
+		Find(&rooms).Error
 
-	if err == nil {
-		// Update brand jika ada identifikasi brand lebih akurat
-		exact := detectExactBrand(room.Brand, room.Pelanggan)
-		if room.Brand != exact {
-			room.Brand = exact
-			_ = r.db.WithContext(ctx).Model(&room).Update("brand", exact).Error
-		}
-		return &room, nil
+	if err != nil {
+		return nil, err
 	}
 
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
+	now := time.Now()
+
+	// Jika ada room berstatus open
+	if len(rooms) > 0 {
+		latestRoom := rooms[0]
+
+		// Jika ada duplikasi room open lebih dari 1, otomatis tutup room-room lama
+		if len(rooms) > 1 {
+			var dupIDs []uint64
+			for i := 1; i < len(rooms); i++ {
+				dupIDs = append(dupIDs, rooms[i].ID)
+			}
+			_ = r.db.WithContext(ctx).
+				Model(&domain.ChatRoom{}).
+				Where("id IN ?", dupIDs).
+				Updates(map[string]interface{}{
+					"status":    "closed",
+					"closed_at": &now,
+				}).Error
+		}
+
+		// Periksa periode masa aktif obrolan (2 hari = 48 jam)
+		// Jika percakapan terakhir sudah lebih dari 48 jam yang lalu, tutup room lama dan buat room baru!
+		isExpired := false
+		if latestRoom.LastMessageAt != nil {
+			if now.Sub(*latestRoom.LastMessageAt) > 48*time.Hour {
+				isExpired = true
+			}
+		} else if now.Sub(latestRoom.CreatedAt) > 48*time.Hour {
+			isExpired = true
+		}
+
+		if !isExpired {
+			// Room masih aktif dalam periode 2 hari, gunakan room ini
+			exact := detectExactBrand(latestRoom.Brand, latestRoom.Pelanggan)
+			if latestRoom.Brand != exact {
+				latestRoom.Brand = exact
+				_ = r.db.WithContext(ctx).Model(&latestRoom).Update("brand", exact).Error
+			}
+			return &latestRoom, nil
+		}
+
+		// Jika sudah kedaluwarsa (> 2 hari), tutup room lama
+		_ = r.db.WithContext(ctx).
+			Model(&latestRoom).
+			Updates(map[string]interface{}{
+				"status":    "closed",
+				"closed_at": &now,
+			}).Error
 	}
 
 	// Deteksi brand presisi dari data pelanggan
@@ -74,8 +121,7 @@ func (r *chatRepository) GetOrCreateRoomByPelangganID(ctx context.Context, pelan
 		brand = detectExactBrand(brand, nil)
 	}
 
-	// Buat room baru jika belum ada
-	now := time.Now()
+	// Buat room baru jika belum ada atau sesi sebelumnya sudah lewat 2 hari
 	newRoom := domain.ChatRoom{
 		PelangganID:     pelangganID,
 		Brand:           brand,
