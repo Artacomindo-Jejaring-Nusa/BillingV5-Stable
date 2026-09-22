@@ -64,6 +64,17 @@ services:
       retries: 5
     restart: always
 
+  ml-chatbot:
+    build:
+      context: ./ml_portalajnusa
+      dockerfile: Dockerfile
+    container_name: billing-ml-chatbot
+    ports:
+      - "8001:8001"
+    networks:
+      - billing_network
+    restart: always
+
   backend1:
     build:
       context: ./backend
@@ -78,6 +89,8 @@ services:
       - SCHEDULER_ENABLED=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
       - ZTE_OLT_API_URL=${ZTE_OLT_API_URL:-http://snmp-olt-zte:8081}
+      - AI_PROVIDER=${AI_PROVIDER:-ml_local}
+      - ML_LOCAL_URL=${ML_LOCAL_URL:-http://ml-chatbot:8001}
     volumes:
       - ./backend/uploads:/app/uploads
       - ./Notif Sound:/app/Notif Sound
@@ -85,6 +98,8 @@ services:
       mysql-master:
         condition: service_healthy
       otel-collector:
+        condition: service_started
+      ml-chatbot:
         condition: service_started
     networks:
       - billing_network
@@ -104,6 +119,8 @@ services:
       - SCHEDULER_ENABLED=false
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
       - ZTE_OLT_API_URL=${ZTE_OLT_API_URL:-http://snmp-olt-zte:8081}
+      - AI_PROVIDER=${AI_PROVIDER:-ml_local}
+      - ML_LOCAL_URL=${ML_LOCAL_URL:-http://ml-chatbot:8001}
     volumes:
       - ./backend/uploads:/app/uploads
       - ./Notif Sound:/app/Notif Sound
@@ -111,6 +128,8 @@ services:
       mysql-master:
         condition: service_healthy
       otel-collector:
+        condition: service_started
+      ml-chatbot:
         condition: service_started
     networks:
       - billing_network

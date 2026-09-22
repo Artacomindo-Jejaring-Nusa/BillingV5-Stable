@@ -380,8 +380,18 @@ func main() {
 	// In-App Real-Time Customer Support Chat (WebSocket)
 	chatRepo := repository.NewChatRepository(db)
 	chatUsecase := usecase.NewChatUsecase(chatRepo)
-	aiService := service.NewAIService(cfg, paketLayananRepo)
-	websocket.GlobalChatHub = websocket.NewChatHub(chatUsecase, aiService)
+
+	// AI Provider: switch antara 9Router (LLM) dan ML Local (FastAPI Chatbot)
+	var aiSvc service.AIService
+	if strings.ToLower(strings.TrimSpace(cfg.AIProvider)) == "9router" {
+		aiSvc = service.NewAIService(cfg, paketLayananRepo)
+		log.Println("[AI] Provider: 9Router (LLM Agent)")
+	} else {
+		aiSvc = service.NewMLService(cfg)
+		log.Printf("[AI] Provider: ML Local (FastAPI Chatbot) → %s", cfg.MLLocalURL)
+	}
+
+	websocket.GlobalChatHub = websocket.NewChatHub(chatUsecase, aiSvc)
 	go websocket.GlobalChatHub.Run()
 	httpDelivery.NewChatHandler(api, chatUsecase, troubleTicketUsecase, authMw)
 

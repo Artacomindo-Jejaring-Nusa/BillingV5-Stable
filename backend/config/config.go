@@ -47,6 +47,8 @@ type Config struct {
 	AIRouterKey                     string
 	AIRouterModel                   string
 	AIRouterEnabled                 bool
+	AIProvider                      string
+	MLLocalURL                      string
 }
 
 var GlobalConfig *Config
@@ -101,6 +103,8 @@ func LoadConfig() *Config {
 		AIRouterKey:                     getEnv("AI_ROUTER_KEY", ""),
 		AIRouterModel:                   getEnv("AI_ROUTER_MODEL", "cf/@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
 		AIRouterEnabled:                 getEnvAsBool("AI_ROUTER_ENABLED", true),
+		AIProvider:                      getEnv("AI_PROVIDER", "ml_local"),
+		MLLocalURL:                      getEnv("ML_LOCAL_URL", "http://127.0.0.1:8001"),
 		
 		Menus: []string{
 			"Dashboard", "Pelanggan", "Langganan", "Teknis", "Paket", "Invoices", "Reports",
