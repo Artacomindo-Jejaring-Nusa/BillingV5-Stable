@@ -1,0 +1,394 @@
+{
+  "metadata": {
+    "nama_dataset": "ISP FTTH Customer Service Intents",
+    "versi": "1.0",
+    "bahasa": "id",
+    "deskripsi": "Dataset intent classification untuk chatbot customer service ISP FTTH. Struktur: tag (label Y / kode intent), patterns (data latih X / kata kunci & variasi kalimat pelanggan), responses (template jawaban bot).",
+    "total_intents": 19
+  },
+  "intents": [
+    {
+      "tag": "1.1_wifi_lambat",
+      "kode_menu": "1.1",
+      "kategori": "Gangguan Teknis & Koneksi",
+      "patterns": [
+        "lemot",
+        "lambat",
+        "internet lambat",
+        "wifi lambat",
+        "koneksi lambat",
+        "patah-patah",
+        "putus-putus",
+        "buffer",
+        "buffering",
+        "lelet",
+        "kecepatan",
+        "speed",
+        "speed rendah",
+        "kenapa lemot",
+        "kok lemot",
+        "internet lemot banget",
+        "wifi lelet",
+        "loading terus",
+        "loadingnya lama",
+        "koneksi ga stabil",
+        "koneksi tidak stabil",
+        "sinyal lemah",
+        "sinyal wifi lemah",
+        "internet lag",
+        "lag terus",
+        "download lambat",
+        "upload lambat",
+        "streaming putus putus",
+        "nonton youtube buffer terus",
+        "zoom sering putus",
+        "internet gangguan lambat",
+        "kenapa koneksi internet lambat",
+        "wifi kok pelan",
+        "kecepatan tidak sesuai paket",
+        "wifi lag pas main game",
+        "ping tinggi",
+        "kenapa internetnya lemot ya",
+        "wifi rumah lelet banget"
+      ],
+      "responses": [
+        "**Solusi Cepat Mengatasi WiFi Lambat:**\n\n1. **Restart Modem (ONT)**: Cabut adaptor daya listrik di belakang modem selama 30 detik, lalu tancapkan kembali.\n2. **Gunakan Frekuensi 5 GHz**: Jika perangkat Anda dan modem mendukung pita 5 GHz, sambungkan ke nama WiFi berakhiran `_5G` untuk kecepatan maksimal.\n3. **Periksa Perangkat Terhubung**: Matikan sementara sambungan WiFi pada perangkat yang sedang mengunduh file besar atau pembaruan otomatis (update game/OS).\n4. **Uji Kecepatan**: Lakukan pengujian ulang kecepatan di dekat modem melalui situs speedtest.net.\n\nMasih mengalami kendala? Ketik 2 atau tekan tombol di bawah untuk terhubung dengan Teknisi."
+      ]
+    },
+    {
+      "tag": "1.2_los_merah",
+      "kode_menu": "1.2",
+      "kategori": "Gangguan Teknis & Koneksi",
+      "patterns": [
+        "los",
+        "lampu los",
+        "lampu merah",
+        "lampu modem merah",
+        "tanda silang",
+        "kabel putus",
+        "tidak ada internet",
+        "internet mati total",
+        "modem lampu merah",
+        "indikator los berkedip",
+        "lampu berkedip merah",
+        "internet mati",
+        "wifi mati total",
+        "gak ada internet sama sekali",
+        "modem nyala tapi ga ada internet",
+        "lampu internet merah",
+        "lampu pon merah",
+        "tidak connect internet",
+        "internet down",
+        "kabel fiber putus",
+        "kabel optik putus",
+        "modem tidak konek",
+        "kenapa lampu modem merah",
+        "internet total mati dari tadi",
+        "koneksi terputus total",
+        "no signal modem",
+        "modem error los"
+      ],
+      "responses": [
+        "**Penanganan Lampu Indikator LOS Merah:**\n\nLampu LOS merah menunjukkan bahwa modem Anda tidak menerima sinyal optik dari jaringan pusat:\n\n1. Periksa kabel optik (kabel tipis warna kuning/hitam) di bagian bawah/belakang modem. Pastikan konektor terpasang rapat dan kabel tidak tertekuk patah atau terjepit.\n2. **PERHATIAN**: Jangan mencabut paksa atau menatap langsung ke ujung konektor optik karena terdapat radiasi laser tak kasat mata.\n3. Jika kabel di rumah dalam kondisi baik namun lampu tetap merah, kemungkinan terdapat kendala fisik pada kabel luar.\n\nTekan tombol [Hubungkan ke CS] agar tim kami dapat segera menerbitkan tiket penanganan teknisi ke lokasi Anda."
+      ]
+    },
+    {
+      "tag": "1.3_larangan_reset",
+      "kode_menu": "1.3",
+      "kategori": "Gangguan Teknis & Koneksi",
+      "patterns": [
+        "reset",
+        "tombol kecil",
+        "tusuk jarum",
+        "kembali ke pabrik",
+        "nama wifi berubah",
+        "wifi hilang setelah reset",
+        "kepencet tombol reset",
+        "kena tusuk reset",
+        "modem ke reset sendiri",
+        "settingan hilang",
+        "ssid hilang",
+        "password wifi hilang tiba tiba",
+        "modem restart total ke setelan pabrik",
+        "abis reset internet mati",
+        "salah pencet tombol belakang modem",
+        "modem jadi default lagi",
+        "wifi ganti nama sendiri",
+        "kenapa nama wifi jadi beda"
+      ],
+      "responses": [
+        "⚠️ **PERINGATAN PENTING: Jangan Menusuk Tombol Reset Modem**\n\nMenusuk tombol reset fisik di belakang modem akan menghapus seluruh settingan username, password internet (PPPoE), dan konfigurasi jaringan. Hal ini menyebabkan modem mati total dan tidak bisa terhubung ke server.\n\n**Cara Me-restart yang Benar:**\nCukup cabut adaptor listrik modem selama 30 detik lalu colokkan kembali.\n\nJika tombol reset sudah terlanjur tertusuk dan internet mati, silakan hubungkan ke CS untuk dilakukan pengaturan ulang (remote setting / kunjungan teknisi)."
+      ]
+    },
+    {
+      "tag": "2.1_cek_tagihan",
+      "kode_menu": "2.1",
+      "kategori": "Tagihan & Pembayaran",
+      "patterns": [
+        "tagihan",
+        "invoice",
+        "jatuh tempo",
+        "berapa bayar",
+        "total tagihan",
+        "cek tagihan",
+        "tagihan bulan ini",
+        "berapa tagihan saya",
+        "kapan jatuh tempo",
+        "cara bayar tagihan",
+        "nomor virtual account",
+        "nomor va",
+        "mau bayar internet",
+        "gimana cara bayar",
+        "info tagihan bulanan",
+        "biaya bulanan berapa",
+        "cek nominal tagihan",
+        "tagihan saya belum keluar",
+        "tanggal bayar",
+        "batas waktu pembayaran",
+        "cara cek va",
+        "qris pembayaran"
+      ],
+      "responses": [
+        "**Informasi Tagihan & Jatuh Tempo:**\n\nRincian tagihan Anda dapat diakses secara real-time melalui menu Home / Riwayat Tagihan pada aplikasi ini.\n\n- Tanggal Cetak Invoice: Tanggal 1 setiap bulannya.\n- Batas Waktu Pembayaran: Tanggal 10 atau 20 (sesuai paket langganan Anda).\n\nPembayaran dapat dilakukan via:\n- Virtual Account (BCA, Mandiri, BRI, BNI)\n- Scan QRIS (Semua E-Wallet / Mobile Banking)\n\nPastikan pembayaran dilakukan sebelum tanggal jatuh tempo untuk menghindari pemutusan sementara (isolir) otomatis oleh sistem."
+      ]
+    },
+    {
+      "tag": "2.2_konfirmasi_pembayaran",
+      "kode_menu": "2.2",
+      "kategori": "Tagihan & Pembayaran",
+      "patterns": [
+        "sudah bayar",
+        "sudah transfer",
+        "masih isolir",
+        "masih suspend",
+        "buka blokir",
+        "udah bayar tapi masih isolir",
+        "sudah bayar kok belum aktif",
+        "internet belum nyala padahal sudah bayar",
+        "kapan aktif lagi setelah bayar",
+        "bukti transfer",
+        "konfirmasi pembayaran",
+        "lapor sudah bayar",
+        "kenapa masih diblokir padahal udah transfer",
+        "sudah lunas tapi internet mati",
+        "status pembayaran belum update",
+        "pembayaran belum masuk sistem"
+      ],
+      "responses": [
+        "**Konfirmasi Pembayaran Berhasil:**\n\n- Jika pembayaran dilakukan via Virtual Account / QRIS resmi, sistem akan otomatis membuka blokir dalam waktu 1-5 menit.\n- Langkah Tambahan: Silakan matikan dan hidupkan kembali (restart) modem Anda agar perangkat mengambil IP internet baru.\n- Jika Anda membayar via transfer manual atau internet belum aktif lebih dari 10 menit, silakan kirimkan foto bukti transfer di sini agar diverifikasi langsung oleh Admin Keuangan."
+      ]
+    },
+    {
+      "tag": "3.1_ganti_password_wifi",
+      "kode_menu": "3.1",
+      "kategori": "Pengaturan Perangkat & Sandi WiFi",
+      "patterns": [
+        "ganti password",
+        "ganti sandi",
+        "ubah nama wifi",
+        "ganti ssid",
+        "ganti nama wifi",
+        "ubah password wifi",
+        "cara ganti password wifi",
+        "lupa password wifi",
+        "mau ganti sandi wifi",
+        "setting nama wifi",
+        "masuk ke pengaturan modem",
+        "login admin modem",
+        "cara masuk 192.168.1.1",
+        "password default modem",
+        "ubah wpa passphrase",
+        "ganti sandi supaya tidak dipakai tetangga",
+        "atur ulang nama wifi"
+      ],
+      "responses": [
+        "**Panduan Mandiri Ubah Password WiFi:**\n\n1. Sambungkan HP/Laptop ke jaringan WiFi rumah Anda.\n2. Buka browser (Chrome/Safari) dan ketik alamat IP: 192.168.1.1 (atau 192.168.100.1).\n3. Masukkan username & password modem Anda (tertera di stiker bawah modem).\n4. Masuk ke menu Network / WLAN / Wireless, cari kolom WPA Passphrase / PreSharedKey.\n5. Ubah kata sandi baru (minimal 8 karakter kombinasi huruf dan angka), lalu klik Apply / Save.\n\nJika kesulitan atau tidak mengetahui sandi admin modem, silakan tekan [Hubungkan ke CS] agar dapat kami bantu ubah dari sistem pusat."
+      ]
+    },
+    {
+      "tag": "4.1_upgrade_paket",
+      "kode_menu": "4.1",
+      "kategori": "Administrasi & Perubahan Layanan",
+      "patterns": [
+        "upgrade",
+        "tambah kecepatan",
+        "naik paket",
+        "ganti paket",
+        "turun paket",
+        "downgrade",
+        "mau upgrade paket",
+        "mau nambah kecepatan internet",
+        "paket internet apa saja",
+        "harga paket internet",
+        "list paket internet",
+        "mau pindah paket yang lebih murah",
+        "paket 50mbps berapa",
+        "info harga paket",
+        "mau ganti paket ke yang lebih cepat",
+        "perbandingan paket internet",
+        "paket internet untuk kerja",
+        "paket buat gaming"
+      ],
+      "responses": [
+        "**Pilihan Upgrade Paket Internet:**\n\nNikmati koneksi lebih cepat dan stabil untuk seluruh keluarga:\n\n- Paket 20 Mbps: Rp 165.000 / bulan (Cocok untuk 3-5 perangkat)\n- Paket 30 Mbps: Rp 220.000 / bulan (Cocok untuk 5-8 perangkat, streaming 4K)\n- Paket 50 Mbps: Rp 300.000 / bulan (Cocok untuk 8-15 perangkat, game online)\n- Paket 100 Mbps: Rp 450.000 / bulan (Kebutuhan bisnis / penggunaan berat)\n\nPerubahan paket dapat langsung diproses pada hari yang sama. Ketik 2 untuk mengajukan perubahan paket kepada CS kami."
+      ]
+    },
+    {
+      "tag": "4.2_relokasi",
+      "kode_menu": "4.2",
+      "kategori": "Administrasi & Perubahan Layanan",
+      "patterns": [
+        "pindah rumah",
+        "relokasi",
+        "pindah alamat",
+        "geser modem",
+        "mau pindah lokasi pasang wifi",
+        "pindah rumah bawa wifi",
+        "cara pindahkan internet ke rumah baru",
+        "alamat baru pasang wifi",
+        "mau relokasi layanan",
+        "boleh pindah alamat pemasangan",
+        "mindahin modem ke alamat lain"
+      ],
+      "responses": [
+        "**Ketentuan Relokasi Layanan:**\n\n1. Layanan dapat dipindahkan selama alamat tujuan berada dalam jangkauan jaringan kabel kami.\n2. Mohon kirimkan Share Location alamat baru & Foto tiang/ODP terdekat di obrolan ini untuk pengecekan jaringan.\n3. Perangkat modem (ONT) dan adaptor dibawa sendiri oleh pelanggan ke lokasi baru.\n4. Jadwal penarikan kabel baru akan diatur oleh tim teknis kami."
+      ]
+    },
+    {
+      "tag": "4.3_berhenti_langganan",
+      "kode_menu": "4.3",
+      "kategori": "Administrasi & Perubahan Layanan",
+      "patterns": [
+        "berhenti langganan",
+        "cabut layanan",
+        "unsubscribe",
+        "mau berhenti pakai internet",
+        "cara putus kontrak",
+        "cabut wifi",
+        "tutup layanan internet",
+        "stop layanan",
+        "cara cancel langganan",
+        "mau stop internet karena pindah kota",
+        "berhenti berlangganan permanen"
+      ],
+      "responses": [
+        "**Prosedur Berhenti Langganan:**\n\n1. Pengajuan berhenti langganan dapat dilakukan melalui menu Layanan Pelanggan atau menghubungi CS.\n2. Mohon pastikan seluruh tagihan aktif telah dilunasi sebelum pengajuan diproses.\n3. Tim kami akan menjadwalkan penarikan perangkat modem (ONT) dan adaptor dari lokasi Anda.\n4. Proses pemutusan resmi akan dikonfirmasi melalui chat/WhatsApp maksimal 3 hari kerja.\n\nKetik 2 untuk terhubung dengan CS dan memproses pengajuan berhenti langganan."
+      ]
+    },
+    {
+      "tag": "5.1_jam_operasional",
+      "kode_menu": "5.1",
+      "kategori": "Kunjungan Teknisi & Jam Operasional",
+      "patterns": [
+        "jam operasional",
+        "jam buka",
+        "kapan teknisi datang",
+        "nomor teknisi",
+        "jam kerja cs",
+        "kapan bisa dikunjungi teknisi",
+        "jam berapa teknisi datang",
+        "cs buka jam berapa",
+        "kontak teknisi",
+        "jam layanan pelanggan",
+        "hari libur cs buka tidak",
+        "bisa dikunjungi hari minggu tidak"
+      ],
+      "responses": [
+        "**Jam Operasional Layanan:**\n\n- Customer Support & Helpdesk: Setiap hari pukul 08:00 - 22:00 WIB (Layanan Chat & WhatsApp).\n- Kunjungan Teknisi Lapangan: Setiap hari (Senin - Minggu) pukul 08:30 - 17:00 WIB.\n\nUntuk tiket gangguan yang masuk setelah jam 17:00 WIB, kunjungan fisik akan dijadwalkan pada hari berikutnya mulai pukul 08:30 WIB."
+      ]
+    },
+    {
+      "tag": "5.2_status_tiket_teknisi",
+      "kode_menu": "5.2",
+      "kategori": "Kunjungan Teknisi & Jam Operasional",
+      "patterns": [
+        "status tiket",
+        "cek tiket gangguan",
+        "teknisi belum datang",
+        "sudah lapor tapi belum ditangani",
+        "kapan tiket saya diproses",
+        "sudah komplain dari kemarin belum ada solusi",
+        "cek status laporan gangguan",
+        "nomor tiket saya",
+        "teknisi janji datang tapi belum datang",
+        "sudah 2 hari belum ada teknisi"
+      ],
+      "responses": [
+        "**Cek Status Tiket Gangguan:**\n\nUntuk mengecek status tiket gangguan Anda, silakan cek melalui menu Riwayat Tiket / Status Laporan pada aplikasi ini, atau sebutkan nomor tiket Anda di sini.\n\nJika tiket sudah lebih dari 1x24 jam belum ada progres, silakan ketik 2 untuk kami eskalasikan langsung ke tim lapangan."
+      ]
+    },
+    {
+      "tag": "greeting",
+      "kode_menu": "0.1",
+      "kategori": "Umum",
+      "patterns": [
+        "halo",
+        "hai",
+        "hi",
+        "selamat pagi",
+        "selamat siang",
+        "selamat sore",
+        "selamat malam",
+        "min",
+        "admin",
+        "cs",
+        "permisi",
+        "assalamualaikum",
+        "mau tanya",
+        "boleh tanya"
+      ],
+      "responses": [
+        "Halo, selamat datang di Layanan Bantuan kami! 😊 Ada yang bisa kami bantu terkait koneksi, tagihan, atau pengaturan WiFi Anda? Ketik 1 untuk Bantuan Cepat/FAQ atau 2 untuk terhubung dengan CS."
+      ]
+    },
+    {
+      "tag": "thanks",
+      "kode_menu": "0.2",
+      "kategori": "Umum",
+      "patterns": [
+        "terima kasih",
+        "makasih",
+        "thanks",
+        "thank you",
+        "oke makasih",
+        "sip terima kasih",
+        "sudah selesai terima kasih",
+        "oke sudah jelas"
+      ],
+      "responses": [
+        "Sama-sama! Senang bisa membantu 😊 Jika ada kendala lain seputar internet, tagihan, atau layanan kami, jangan ragu untuk menghubungi kami kembali kapan saja."
+      ]
+    },
+    {
+      "tag": "keluhan_eskalasi",
+      "kode_menu": "0.3",
+      "kategori": "Umum",
+      "patterns": [
+        "komplain",
+        "mau komplain",
+        "kecewa",
+        "pelayanan buruk",
+        "sudah lama tidak ditangani",
+        "capek terus gangguan",
+        "mau ngadu",
+        "tolong segera tangani",
+        "ini sudah keterlaluan",
+        "saya kecewa dengan layanan ini",
+        "mau bicara sama supervisor",
+        "minta ganti rugi"
+      ],
+      "responses": [
+        "Mohon maaf atas ketidaknyamanan yang Anda alami. Keluhan Anda sangat berarti bagi kami. Saya akan segera menghubungkan Anda dengan tim Customer Support agar dapat ditindaklanjuti secara prioritas. Ketik 2 atau tekan tombol [Hubungkan ke CS]."
+      ]
+    },
+    {
+      "tag": "fallback",
+      "kode_menu": "0.0",
+      "kategori": "Umum",
+      "patterns": [],
+      "responses": [
+        "Mohon maaf, saya belum memahami maksud pesan Anda. Bisa dijelaskan lebih detail, atau pilih salah satu topik berikut: 1) WiFi Lambat, 2) Lampu Modem Merah, 3) Tagihan, 4) Ganti Password WiFi, 5) Upgrade Paket, 6) Hubungkan ke CS."
+      ]
+    }
+  ]
+}
