@@ -785,7 +785,7 @@
                 icon="mdi-send"
                 elevation="1"
                 size="default"
-                class="flex-shrink-0 mb-1"
+                class="flex-shrink-0 mb-1 chat-send-btn"
                 :disabled="!inputMessage.trim()"
                 @click="sendAdminMessage"
                 title="Kirim Pesan"
@@ -3118,10 +3118,37 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* =====================================================================
+   DESIGN TOKENS — grounded in fiber-optic / signal theme for an ISP
+   customer-care console (Artacom: Jakinet / Jelantik / Jelantik Nagrak).
+   Accent is a signal-teal (the color of light traveling through fiber),
+   paired with a warm terracotta-free amber reserved only for tickets.
+   ===================================================================== */
 .customer-chat-wrapper {
+  --ink: #101827;
+  --ink-soft: #47566e;
+  --muted: #8994a6;
+  --surface: #ffffff;
+  --panel: #f5f7f9;
+  --panel-alt: #eaf3f4;
+  --border: #e2e7eb;
+  --border-soft: #edf1f3;
+  --accent: #0e7c8c;
+  --accent-deep: #0a5866;
+  --accent-soft: #e2f3f4;
+  --amber: #b6540f;
+  --amber-soft: #fbebdd;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 39, 0.06);
+  --shadow-md: 0 6px 20px rgba(16, 24, 39, 0.07);
+  --shadow-ring: 0 0 0 3px var(--accent-soft);
+
   height: calc(100vh - 150px);
   max-height: calc(100vh - 150px);
   box-sizing: border-box;
+  color: var(--ink);
 }
 
 .chat-workspace {
@@ -3130,6 +3157,8 @@ onUnmounted(() => {
   width: 100%;
   overflow: hidden;
   position: relative;
+  border-color: var(--border) !important;
+  box-shadow: var(--shadow-md) !important;
 }
 
 /* Gap Utilities for Vuetify Flexbox */
@@ -3149,34 +3178,69 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: rgb(var(--v-theme-surface));
+  background-color: var(--surface);
+  border-color: var(--border) !important;
 }
 
-.brand-filter-bar::-webkit-scrollbar,
+.sidebar-header {
+  border-color: var(--border) !important;
+}
+
+.search-input :deep(.v-field) {
+  border-radius: var(--radius-md);
+  background-color: var(--panel);
+  box-shadow: none;
+}
+
+.search-input :deep(.v-field__outline) {
+  color: var(--border);
+  opacity: 1;
+}
+
+.search-input :deep(.v-field--focused .v-field__outline) {
+  color: var(--accent);
+}
+
+/* Segmented assignment tabs read as one connected control, not loose buttons */
+.assignment-filter-bar {
+  background: var(--panel);
+  border-radius: var(--radius-md);
+  margin-left: 12px;
+  margin-right: 12px;
+  padding: 4px !important;
+  width: calc(100% - 24px);
+}
+
+.assignment-filter-bar::-webkit-scrollbar,
 .quick-replies-bar::-webkit-scrollbar {
   display: none;
+}
+
+.assignment-tab-btn {
+  box-shadow: none !important;
 }
 
 .brand-filter-chip {
   height: 26px;
   font-size: 0.72rem;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.15px;
+  border-radius: 999px;
 }
 
 .room-card {
-  transition: background-color 0.15s ease, transform 0.1s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
   border: 1px solid transparent;
   border-left: 3px solid transparent;
 }
 
 .room-card:hover {
-  background-color: rgba(var(--v-theme-primary), 0.05);
+  background-color: var(--panel);
 }
 
 .room-card--active {
-  background-color: rgba(var(--v-theme-primary), 0.08) !important;
-  border-color: rgba(var(--v-theme-primary), 0.2) !important;
-  border-left-color: rgb(var(--v-theme-primary)) !important;
+  background-color: var(--accent-soft) !important;
+  border-color: rgba(14, 124, 140, 0.18) !important;
+  border-left-color: var(--accent) !important;
 }
 
 /* ================= PANEL 2: CONVERSATION ================= */
@@ -3186,19 +3250,41 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #f8fafc;
+  background-color: var(--panel);
 }
 
 .v-theme--dark .chat-conversation-panel {
   background-color: #0b1120;
 }
 
+.chat-room-header {
+  border-color: var(--border) !important;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  z-index: 2;
+}
+
+.chat-room-header :deep(.v-avatar) {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.chat-room-header :deep(.v-btn) {
+  letter-spacing: 0.1px;
+}
+
+/* Fine dotted texture reminiscent of a fiber signal grid — quiet, low-contrast */
 .chat-messages-stream {
-  padding: 20px 24px;
-  background-color: transparent;
+  padding: 22px 26px;
+  background-color: var(--panel);
+  background-image: radial-gradient(circle at 1px 1px, var(--border-soft) 1px, transparent 0);
+  background-size: 24px 24px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.v-theme--dark .chat-messages-stream {
+  background-image: none;
 }
 
 .message-row {
@@ -3207,28 +3293,28 @@ onUnmounted(() => {
 }
 
 .message-bubble {
-  max-width: 68%;
+  max-width: 66%;
   min-width: 140px;
   position: relative;
   word-break: break-word;
   overflow-wrap: anywhere;
   padding: 10px 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .bubble-customer {
-  background-color: #ffffff;
-  color: #0f172a;
-  border-radius: 12px 12px 12px 2px !important;
-  border: 1px solid #e2e8f0;
+  background-color: var(--surface);
+  color: var(--ink);
+  border-radius: 4px 16px 16px 16px !important;
+  border: 1px solid var(--border);
   margin-left: 6px;
 }
 
 .bubble-system {
-  background-color: #f8fafc;
-  color: #0f172a;
-  border-radius: 12px 12px 12px 2px !important;
-  border: 1px solid #cbd5e1;
+  background-color: var(--accent-soft);
+  color: var(--ink);
+  border-radius: 4px 16px 16px 16px !important;
+  border: 1px dashed rgba(14, 124, 140, 0.35);
   margin-left: 6px;
 }
 
@@ -3240,30 +3326,32 @@ onUnmounted(() => {
 }
 
 .v-theme--dark .bubble-system {
-  background-color: #1e293b;
-  color: #f8fafc;
-  border-color: #334155;
+  background-color: #123239;
+  color: #e6f6f7;
+  border-color: #1c5e68;
   box-shadow: none;
 }
 
 .bubble-admin {
-  background-color: #2563eb;
+  background: linear-gradient(155deg, var(--accent) 0%, var(--accent-deep) 100%);
   color: #ffffff;
-  border-radius: 12px 12px 2px 12px !important;
+  border-radius: 16px 4px 16px 16px !important;
   margin-right: 6px;
+  box-shadow: 0 4px 14px rgba(10, 88, 102, 0.22);
 }
 
 .v-theme--dark .bubble-admin {
-  background-color: #2563eb;
+  background: linear-gradient(155deg, var(--accent) 0%, var(--accent-deep) 100%);
   color: #ffffff;
 }
 
 .date-pill {
-  background-color: rgba(226, 232, 240, 0.9);
-  color: #475569;
-  border: 1px solid rgba(203, 213, 225, 0.7);
+  background-color: var(--surface);
+  color: var(--ink-soft);
+  border: 1px solid var(--border);
   font-size: 0.7rem;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.15px;
+  box-shadow: var(--shadow-sm);
 }
 
 .v-theme--dark .date-pill {
@@ -3272,12 +3360,19 @@ onUnmounted(() => {
   border-color: #334155;
 }
 
+/* ================= QUICK REPLIES BAR ================= */
+.quick-replies-bar {
+  border-color: var(--border) !important;
+}
+
 .quick-chip {
-  transition: transform 0.1s ease;
+  transition: transform 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+  border-radius: 999px;
 }
 
 .quick-chip:hover {
   transform: translateY(-1px);
+  border-color: var(--accent) !important;
 }
 
 /* ================= SLASH POPUP MENU ================= */
@@ -3288,13 +3383,19 @@ onUnmounted(() => {
   right: 16px;
   margin-bottom: 8px;
   max-height: 280px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 14px 32px -8px rgba(16, 24, 39, 0.18), 0 4px 10px -4px rgba(16, 24, 39, 0.1);
   z-index: 100;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.slash-popup-header {
+  border-color: var(--border) !important;
+  background-color: var(--panel) !important;
 }
 
 .slash-popup-list {
@@ -3304,12 +3405,45 @@ onUnmounted(() => {
 
 .slash-popup-item {
   transition: background-color 0.1s ease;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+  margin: 0 4px;
 }
 
 .slash-popup-item:hover,
 .slash-item-active {
-  background-color: #f1f5f9 !important;
+  background-color: var(--accent-soft) !important;
+}
+
+/* ================= INPUT BAR ================= */
+.chat-input-bar {
+  border-color: var(--border) !important;
+}
+
+.chat-input-textarea :deep(.v-field) {
+  border-radius: 20px;
+  background-color: var(--panel);
+}
+
+.chat-input-textarea :deep(.v-field__outline) {
+  color: var(--border);
+  opacity: 1;
+}
+
+.chat-input-textarea :deep(.v-field--focused) {
+  box-shadow: var(--shadow-ring);
+}
+
+.chat-input-textarea :deep(.v-field--focused .v-field__outline) {
+  color: var(--accent);
+}
+
+.chat-send-btn {
+  background: linear-gradient(155deg, var(--accent) 0%, var(--accent-deep) 100%) !important;
+  transition: transform 0.12s ease;
+}
+
+.chat-send-btn:hover:not(.v-btn--disabled) {
+  transform: translateY(-1px) scale(1.03);
 }
 
 /* ================= EMOJI PICKER ================= */
@@ -3318,9 +3452,10 @@ onUnmounted(() => {
   bottom: 48px;
   left: 0;
   z-index: 100;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(16, 24, 39, 0.2);
+  border-radius: var(--radius-md);
   overflow: hidden;
+  border: 1px solid var(--border);
 }
 
 /* ================= PANEL 3: CONTACT 360 & TROUBLE TICKET ================= */
@@ -3330,7 +3465,13 @@ onUnmounted(() => {
   max-width: 420px;
   flex-shrink: 0;
   height: 100%;
-  background-color: rgb(var(--v-theme-surface));
+  background-color: var(--surface);
+  border-color: var(--border) !important;
+}
+
+.customer-info-panel :deep(.v-card--variant-tonal) {
+  background-color: var(--panel) !important;
+  border-color: var(--border-soft) !important;
 }
 
 .assignment-filter-bar::-webkit-scrollbar {
@@ -3346,7 +3487,7 @@ onUnmounted(() => {
   50% { opacity: 0.3; }
 }
 
-/* Slim modern scrollbars */
+/* Slim, tinted scrollbars in the accent color rather than plain grey */
 .rooms-list-scroll::-webkit-scrollbar,
 .messages-container::-webkit-scrollbar,
 .customer-info-panel::-webkit-scrollbar {
@@ -3356,8 +3497,14 @@ onUnmounted(() => {
 .rooms-list-scroll::-webkit-scrollbar-thumb,
 .messages-container::-webkit-scrollbar-thumb,
 .customer-info-panel::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.12);
+  background-color: rgba(14, 124, 140, 0.22);
   border-radius: 4px;
+}
+
+.rooms-list-scroll::-webkit-scrollbar-thumb:hover,
+.messages-container::-webkit-scrollbar-thumb:hover,
+.customer-info-panel::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(14, 124, 140, 0.4);
 }
 
 .v-theme--dark .rooms-list-scroll::-webkit-scrollbar-thumb,
