@@ -68,30 +68,8 @@ async function handleLogin() {
   error.value = '';
   loading.value = true;
 
-  // Aktifkan animasi ledakan mencar aur-auran!
-  isExploding.value = true;
-  isRewinding.value = false;
-
-  // Hasilkan 35 partikel serpihan warna-warni yang berhamburan ke segala arah
-  explosionParticles.value = Array.from({ length: 35 }, (_, i) => ({
-    id: i,
-    x: (Math.random() - 0.5) * 1400,
-    y: (Math.random() - 0.5) * 1100,
-    rot: Math.floor(Math.random() * 720) - 360,
-    size: Math.random() * 12 + 6,
-    color: ['#3b82f6', '#1d4ed8', '#60a5fa', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#ec4899'][Math.floor(Math.random() * 8)],
-    delay: Math.random() * 0.4,
-    duration: 3 + Math.random() * 2,
-  }));
-
   try {
-    const loginPromise = authStore.login(email.value, password.value);
-
-    // Tunggu full 4.8 - 5 detik durasi animasi mencar agar terasa epic
-    const [success] = await Promise.all([
-      loginPromise,
-      new Promise((resolve) => setTimeout(resolve, 4800)),
-    ]);
+    const success = await authStore.login(email.value, password.value);
 
     if (success) {
       // Store remember me preference if checked
@@ -100,14 +78,33 @@ async function handleLogin() {
       } else {
         localStorage.removeItem('remember_email');
       }
+
+      // Aktifkan animasi ledakan transisi keluar yang cepat & mulus
+      isExploding.value = true;
+      isRewinding.value = false;
+
+      // Hasilkan serpihan partikel warna-warni yang cepat berhamburan
+      explosionParticles.value = Array.from({ length: 28 }, (_, i) => ({
+        id: i,
+        x: (Math.random() - 0.5) * 1200,
+        y: (Math.random() - 0.5) * 900,
+        rot: Math.floor(Math.random() * 540) - 270,
+        size: Math.random() * 10 + 6,
+        color: ['#3b82f6', '#1d4ed8', '#60a5fa', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#ec4899'][Math.floor(Math.random() * 8)],
+        delay: Math.random() * 0.1,
+        duration: 0.4 + Math.random() * 0.25,
+      }));
+
+      // Transisi super cepat (450ms) langsung masuk ke dashboard
+      await new Promise((resolve) => setTimeout(resolve, 450));
       router.push('/dashboard');
     } else {
-      triggerRewind('Email atau password salah!');
+      error.value = 'Email atau password salah!';
     }
   } catch (err) {
     const errorResponse = err as AxiosError<ErrorResponse>;
     console.error('Login error:', errorResponse.response?.data || errorResponse.message);
-    triggerRewind(errorResponse.response?.data?.detail || errorResponse.response?.data?.message || 'Terjadi kesalahan saat login');
+    error.value = errorResponse.response?.data?.detail || errorResponse.response?.data?.message || 'Terjadi kesalahan saat login';
   } finally {
     loading.value = false;
   }
@@ -529,39 +526,39 @@ function backToLogin() {
   transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s ease, filter 0.5s ease;
 }
 
-/* EXPLOSION ACTIVE STATE (5 Seconds physics simulation) */
+/* EXPLOSION ACTIVE STATE (Fast Snappy 450ms exit transition) */
 .chaos-active .chaos-title {
   transform: translate3d(-750px, -450px, 350px) rotate(-720deg) scale(0.3);
   opacity: 0;
   filter: blur(8px);
-  transition: transform 5s cubic-bezier(0.12, 0.8, 0.2, 1), opacity 4.5s ease, filter 4.5s ease;
+  transition: transform 0.45s cubic-bezier(0.12, 0.8, 0.2, 1), opacity 0.4s ease, filter 0.4s ease;
 }
 
 .chaos-active .chaos-logo-left {
   transform: translate3d(-350px, -700px, 600px) rotate(1080deg) scale(2.2);
   opacity: 0;
   filter: blur(12px);
-  transition: transform 5s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 4.5s ease, filter 4.5s ease;
+  transition: transform 0.45s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.4s ease, filter 0.4s ease;
 }
 
 .chaos-active .chaos-email {
   transform: translate3d(-950px, 180px, 200px) rotate(-240deg) scale(0.4);
   opacity: 0;
   filter: blur(10px);
-  transition: transform 5s cubic-bezier(0.15, 0.85, 0.2, 1), opacity 4.2s ease, filter 4.2s ease;
+  transition: transform 0.45s cubic-bezier(0.15, 0.85, 0.2, 1), opacity 0.4s ease, filter 0.4s ease;
 }
 
 .chaos-active .chaos-password {
   transform: translate3d(-850px, 500px, -250px) rotate3d(1, 1, 0.5, 450deg) scale(0.3);
   opacity: 0;
   filter: blur(10px);
-  transition: transform 5s cubic-bezier(0.18, 0.82, 0.2, 1), opacity 4.4s ease, filter 4.4s ease;
+  transition: transform 0.45s cubic-bezier(0.18, 0.82, 0.2, 1), opacity 0.4s ease, filter 0.4s ease;
 }
 
 .chaos-active .chaos-remember {
   transform: translate3d(-400px, 850px, 120px) rotate(-400deg) scale(0.15);
   opacity: 0;
-  transition: transform 4.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 4s ease;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease;
 }
 
 .chaos-active .chaos-btn {
@@ -569,28 +566,28 @@ function backToLogin() {
   opacity: 0;
   filter: blur(16px);
   box-shadow: 0 0 50px rgba(59, 130, 246, 0.8);
-  transition: transform 5s cubic-bezier(0.08, 0.92, 0.15, 1), opacity 4.5s ease, filter 4.5s ease;
+  transition: transform 0.45s cubic-bezier(0.08, 0.92, 0.15, 1), opacity 0.4s ease, filter 0.4s ease;
 }
 
 .chaos-active .chaos-card-left {
   transform: translate3d(-400px, 80px, -600px) rotate(-22deg) scale(0.7);
   opacity: 0.15;
   filter: blur(6px);
-  transition: transform 5s cubic-bezier(0.15, 0.85, 0.2, 1), opacity 4.8s ease, filter 4.8s ease;
+  transition: transform 0.45s cubic-bezier(0.15, 0.85, 0.2, 1), opacity 0.4s ease, filter 0.4s ease;
 }
 
 .chaos-active .chaos-card-right {
   transform: translate3d(500px, -70px, -600px) rotate(25deg) scale(0.7);
   opacity: 0.15;
   filter: blur(6px);
-  transition: transform 5s cubic-bezier(0.15, 0.85, 0.2, 1), opacity 4.8s ease, filter 4.8s ease;
+  transition: transform 0.45s cubic-bezier(0.15, 0.85, 0.2, 1), opacity 0.4s ease, filter 0.4s ease;
 }
 
 .chaos-active .chaos-logo-right {
   transform: translate3d(350px, -950px, 500px) rotate(1440deg) scale(0.15);
   opacity: 0;
   filter: blur(14px);
-  transition: transform 5s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 4.5s ease, filter 4.5s ease;
+  transition: transform 0.45s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.4s ease, filter 0.4s ease;
 }
 
 .chaos-active .chaos-welcome-text {
@@ -598,21 +595,21 @@ function backToLogin() {
   opacity: 0;
   filter: blur(18px);
   text-shadow: 0 0 30px rgba(255, 255, 255, 0.9);
-  transition: transform 5s cubic-bezier(0.08, 0.92, 0.15, 1), opacity 4.2s ease, filter 4.2s ease;
+  transition: transform 0.45s cubic-bezier(0.08, 0.92, 0.15, 1), opacity 0.4s ease, filter 0.4s ease;
 }
 
 .chaos-active .chaos-subtitle {
   transform: translate3d(900px, 700px, -350px) rotate(-600deg) scale(0.2);
   opacity: 0;
   filter: blur(12px);
-  transition: transform 5s cubic-bezier(0.16, 0.84, 0.2, 1), opacity 4.4s ease, filter 4.4s ease;
+  transition: transform 0.45s cubic-bezier(0.16, 0.84, 0.2, 1), opacity 0.4s ease, filter 0.4s ease;
 }
 
 .chaos-active .chaos-footer {
   transform: translate3d(0, 650px, -300px) rotate(12deg) scale(0.5);
   opacity: 0;
   filter: blur(8px);
-  transition: transform 4.8s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 4.2s ease, filter 4.2s ease;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease, filter 0.4s ease;
 }
 
 /* REWIND STATE (Magnetic Spring Snap Back when login fails) */
@@ -647,7 +644,7 @@ function backToLogin() {
   border-radius: 50%;
   border: 4px solid rgba(59, 130, 246, 0.8);
   box-shadow: 0 0 60px rgba(59, 130, 246, 0.9), inset 0 0 40px rgba(255, 255, 255, 0.8);
-  animation: shockwaveExpand 1.5s cubic-bezier(0.1, 0.9, 0.2, 1) infinite;
+  animation: shockwaveExpand 0.6s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
 }
 
 @keyframes shockwaveExpand {

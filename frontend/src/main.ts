@@ -108,6 +108,12 @@ const vuetify = createVuetify({
 })
 
 
+// Tangani pembaruan chunk Vite saat ada build/deployment baru agar navigasi menu tidak macet
+window.addEventListener('vite:preloadError', (event) => {
+  console.warn('[Vite] Preload error detected, reloading to fetch latest assets...', event);
+  window.location.reload();
+});
+
 async function startup() {
   const app = createApp(App)
   const pinia = createPinia()

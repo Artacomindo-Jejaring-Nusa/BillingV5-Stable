@@ -1091,7 +1091,7 @@ const menuGroups = ref([
 ]);
 
 const menuKey = computed(() => {
-  return JSON.stringify(userPermissions.value) + '-' + forceRender.value + '-' + Date.now();
+  return JSON.stringify(userPermissions.value) + '-' + forceRender.value;
 });
 
 const filteredMenuGroups = computed(() => {

@@ -298,20 +298,39 @@ const router = createRouter({
   ],
 });
 
-// Navigation guard Anda sudah benar, biarkan seperti ini.
-router.beforeEach(async (to, _from, next) => {
+// Navigation guard terstandarisasi Vue Router 4 (synchronous, direct return)
+router.beforeEach((to) => {
   const token = getEncryptedToken('access_token');
   const isAuthenticated = !!token;
   
   if (to.meta.requiresAuth && !isAuthenticated) {
-    return next('/login');
+    return '/login';
   }
   
   if (to.meta.guest && isAuthenticated) {
-    return next('/dashboard');
+    return '/dashboard';
   }
   
-  next();
+  return true;
+});
+
+// Penanganan error loading chunk otomatis saat navigasi antar menu (mencegah halaman macet / butuh reload manual)
+router.onError((error, to) => {
+  const isChunkLoadFailed = 
+    error?.message?.includes('Failed to fetch dynamically imported module') ||
+    error?.message?.includes('Importing a module script failed') ||
+    error?.message?.includes('error loading dynamically imported module') ||
+    error?.message?.includes('Loading chunk') ||
+    error?.message?.includes('Unexpected token');
+
+  if (isChunkLoadFailed) {
+    console.warn('[Router] Terdeteksi kegagalan chunk modul, merefresh ke rute target...', error);
+    if (to?.fullPath) {
+      window.location.href = to.fullPath;
+    } else {
+      window.location.reload();
+    }
+  }
 });
 
 export default router;
