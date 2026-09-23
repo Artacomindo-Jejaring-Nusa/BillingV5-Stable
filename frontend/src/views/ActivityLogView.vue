@@ -1,17 +1,15 @@
 <template>
   <v-container fluid class="pa-4 pa-md-6">
     <div class="header-card mb-4 mb-md-6">
-      <div class="d-flex flex-column align-center gap-4">
-        <div class="d-flex align-center header-info">
-          <div class="header-avatar-wrapper">
-            <v-avatar class="header-avatar" color="transparent" size="50">
-              <v-icon color="white" size="28">mdi-history</v-icon>
-            </v-avatar>
-          </div>
-          <div class="ml-4">
-            <h1 class="header-title">Log Aktivitas</h1>
-            <p class="header-subtitle">Melacak semua perubahan data penting dalam sistem</p>
-          </div>
+      <div class="d-flex align-center header-info">
+        <div class="header-avatar-wrapper">
+          <v-avatar class="header-avatar" size="48">
+            <v-icon size="26">mdi-history</v-icon>
+          </v-avatar>
+        </div>
+        <div class="ml-4">
+          <h1 class="header-title">Log Aktivitas</h1>
+          <p class="header-subtitle">Melacak semua perubahan data penting dalam sistem</p>
         </div>
       </div>
     </div>
@@ -42,23 +40,23 @@
     <template v-if="activeTab === 'user'">
       <!-- Filters Section -->
       <v-card class="filter-card mb-4 mb-md-6" elevation="0" rounded="xl">
-        <v-card-title class="d-flex align-center pa-6">
-          <v-icon color="purple" size="24" class="me-3">mdi-filter-variant</v-icon>
+        <v-card-title class="d-flex align-center pa-5">
+          <v-icon color="#0e7c8c" size="22" class="me-3">mdi-filter-variant</v-icon>
           <div>
-            <h3 class="text-h6 font-weight-bold mb-0">Filter Pencarian User</h3>
-            <p class="text-caption text-primary mb-0">Temukan aktivitas pengguna dengan cepat</p>
+            <h3 class="filter-card-title">Filter Pencarian User</h3>
+            <p class="filter-card-subtitle">Temukan aktivitas pengguna dengan cepat</p>
           </div>
           <v-spacer></v-spacer>
           <v-btn
             v-if="hasActiveFilters"
-            variant="text"
+            variant="tonal"
             color="error"
-            prepend-icon="mdi-refresh"
+            prepend-icon="mdi-close-circle-outline"
             size="small"
             @click="clearFilters"
             class="clear-filters-btn"
           >
-            Reset Filter
+            Reset
           </v-btn>
         </v-card-title>
 
@@ -340,11 +338,11 @@
     <template v-else-if="activeTab === 'system'">
       <!-- System Filters Section -->
       <v-card class="filter-card mb-4 mb-md-6" elevation="0" rounded="xl">
-        <v-card-title class="d-flex align-center flex-wrap gap-2 pa-6">
-          <v-icon color="indigo" size="24" class="me-3">mdi-server-network</v-icon>
+        <v-card-title class="d-flex align-center flex-wrap gap-2 pa-5">
+          <v-icon color="#0e7c8c" size="22" class="me-3">mdi-server-network</v-icon>
           <div>
-            <h3 class="text-h6 font-weight-bold mb-0">Filter Log Sistem & Otomatisasi</h3>
-            <p class="text-caption text-primary mb-0">Pantau proses cron auto-billing, suspensi, & callback Xendit</p>
+            <h3 class="filter-card-title">Filter Log Sistem & Otomatisasi</h3>
+            <p class="filter-card-subtitle">Pantau proses cron auto-billing, suspensi, & callback Xendit</p>
           </div>
           <v-spacer></v-spacer>
           <div class="d-flex align-center gap-2">
@@ -358,14 +356,14 @@
             ></v-switch>
             <v-btn
               v-if="hasActiveSystemFilters"
-              variant="text"
+              variant="tonal"
               color="error"
-              prepend-icon="mdi-refresh"
+              prepend-icon="mdi-close-circle-outline"
               size="small"
               @click="clearSystemFilters"
               class="clear-filters-btn"
             >
-              Reset Filter
+              Reset
             </v-btn>
           </div>
         </v-card-title>
@@ -1340,77 +1338,116 @@ fetchUsers();
 </script>
 
 <style scoped>
-/* Header Card - Mobile Optimized with Fixed Positioning */
+/* =====================================================================
+   DESIGN TOKENS — consistent with CustomerChatView ISP fiber-optic theme
+   ===================================================================== */
+
+/* Header Card */
 .header-card {
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
-  border-radius: 20px;
-  padding: 24px;
-  color: rgb(var(--v-theme-on-primary));
-  box-shadow: 0 8px 32px rgba(var(--v-theme-primary), 0.25);
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  border: 1px solid #e2e7eb;
+  box-shadow: 0 1px 3px rgba(16, 24, 39, 0.06);
   position: relative;
 }
 
-.header-card .d-flex.flex-column {
-  align-items: stretch !important; /* Changed from align-center to stretch */
+.v-theme--dark .header-card {
+  background: #1a1f2e;
+  border-color: #2d3548;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .header-info {
   width: 100%;
   justify-content: flex-start;
-  margin-bottom: 0; /* Reset margin */
 }
 
 .header-avatar-wrapper {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 50%;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
   flex-shrink: 0;
 }
 
+.header-avatar {
+  background: linear-gradient(155deg, #0e7c8c 0%, #0a5866 100%) !important;
+  color: #ffffff !important;
+}
+
 .header-title {
-  font-size: 1.75rem;
-  font-weight: 800;
-  line-height: 1.2;
-  margin-bottom: 4px;
-  color: white !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 2px;
+  color: #101827 !important;
+  letter-spacing: -0.01em;
+}
+
+.v-theme--dark .header-title {
+  color: #f0f2f5 !important;
 }
 
 .header-subtitle {
-  font-size: 0.95rem;
-  opacity: 1;
-  line-height: 1.3;
-  color: white !important;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #47566e !important;
   font-weight: 400;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  margin-bottom: 0;
+}
+
+.v-theme--dark .header-subtitle {
+  color: #8994a6 !important;
 }
 
 /* Filter Card */
 .filter-card {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-border-color), 0.12);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
+  background: #ffffff;
+  border: 1px solid #e2e7eb;
+  box-shadow: 0 1px 3px rgba(16, 24, 39, 0.06);
+  overflow: hidden;
 }
 
 .v-theme--dark .filter-card {
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-border-color), 0.3);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  background: #1a1f2e;
+  border-color: #2d3548;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .filter-card .v-card-title {
-  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.04) 0%, rgba(var(--v-theme-secondary), 0.04) 100%);
+  background: #f5f7f9;
 }
 
 .v-theme--dark .filter-card .v-card-title {
-  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.08) 0%, rgba(var(--v-theme-secondary), 0.08) 100%);
+  background: #141825;
+}
+
+.filter-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #101827;
+  margin-bottom: 0;
+  line-height: 1.4;
+}
+
+.v-theme--dark .filter-card-title {
+  color: #f0f2f5;
+}
+
+.filter-card-subtitle {
+  font-size: 0.75rem;
+  color: #47566e;
+  margin-bottom: 0;
+  line-height: 1.4;
+}
+
+.v-theme--dark .filter-card-subtitle {
+  color: #8994a6;
 }
 
 .filter-divider {
-  border-color: rgba(var(--v-border-color), 0.08) !important;
+  border-color: #e2e7eb !important;
+}
+
+.v-theme--dark .filter-divider {
+  border-color: #2d3548 !important;
 }
 
 .filter-content {
@@ -2181,21 +2218,7 @@ fetchUsers();
   background: rgba(var(--v-theme-primary), 0.5);
 }
 
-.v-theme--dark .header-card {
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
-}
-
-/* Header section background pattern - sama seperti menu lainnya */
-.header-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 50%;
-  height: 100%;
-  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="1" fill="white" opacity="0.05"/><circle cx="10" cy="50" r="1" fill="white" opacity="0.05"/><circle cx="90" cy="30" r="1" fill="white" opacity="0.05"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-  pointer-events: none;
-}
+/* Dark-mode header card handled above in main header-card block */
 
 /* Animations */
 @keyframes fadeIn {
