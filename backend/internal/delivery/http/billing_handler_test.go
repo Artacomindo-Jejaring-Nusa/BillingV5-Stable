@@ -50,6 +50,10 @@ func (m *mockBillingUsecase) GetRevenueReportDetails(ctx context.Context, params
 	return []domain.InvoiceReportItem{}, nil
 }
 
+func (m *mockBillingUsecase) GetMLRevenueInsights(ctx context.Context, brand string, location string) (*domain.MLRevenueInsightResponse, error) {
+	return &domain.MLRevenueInsightResponse{Status: "success"}, nil
+}
+
 func TestBillingHandler_GetRevenueReportDetails(t *testing.T) {
 	router := setupRouter()
 	mockUsecase := &mockBillingUsecase{}

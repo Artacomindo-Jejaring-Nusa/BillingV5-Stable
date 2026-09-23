@@ -2891,3 +2891,249 @@ func (u *billingUsecase) RetryFailedMikrotikSync(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (u *billingUsecase) GetMLRevenueInsights(ctx context.Context, brand string, location string) (*domain.MLRevenueInsightResponse, error) {
+	customers, err := u.invoiceRepo.GetCustomerPaymentFeatures(ctx, brand, location)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch customer payment features: %w", err)
+	}
+
+	targetMonth := time.Now().Format("2006-01")
+	reqPayload := domain.MLRevenueRequest{
+		CycleDate:   "26/27",
+		TargetMonth: targetMonth,
+		Customers:   customers,
+	}
+
+	mlURL := "http://127.0.0.1:8001"
+	if u.cfg != nil && u.cfg.MLLocalURL != "" {
+		mlURL = u.cfg.MLLocalURL
+	}
+	endpoint := strings.TrimRight(mlURL, "/") + "/api/ml/revenue-analysis"
+
+	var response domain.MLRevenueInsightResponse
+	calledMLSuccessfully := false
+
+	jsonBytes, err := json.Marshal(reqPayload)
+	if err == nil {
+		ctxTimeout, cancel := context.WithTimeout(ctx, 8*time.Second)
+		defer cancel()
+
+		httpReq, reqErr := http.NewRequestWithContext(ctxTimeout, "POST", endpoint, bytes.NewBuffer(jsonBytes))
+		if reqErr == nil {
+			httpReq.Header.Set("Content-Type", "application/json")
+			client := &http.Client{Timeout: 8 * time.Second}
+			resp, doErr := client.Do(httpReq)
+			if doErr == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					bodyBytes, readErr := io.ReadAll(resp.Body)
+					if readErr == nil {
+						if jsonErr := json.Unmarshal(bodyBytes, &response); jsonErr == nil && response.Status == "success" {
+							calledMLSuccessfully = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if calledMLSuccessfully {
+		return &response, nil
+	}
+
+	// Fallback Heuristic Classification if Python ML Container is offline
+	return u.generateFallbackMLInsights(customers, targetMonth), nil
+}
+
+func (u *billingUsecase) generateFallbackMLInsights(customers []domain.MLCustomerRecord, targetMonth string) *domain.MLRevenueInsightResponse {
+	resp := &domain.MLRevenueInsightResponse{
+		Status: "success (fallback heuristic)",
+	}
+	resp.CycleInfo.InvoiceIssuanceDate = "26/27 " + targetMonth
+	resp.CycleInfo.DueDate = "01 (Bulan Berikutnya)"
+	resp.CycleInfo.GracePeriodCutoff = "10 (Bulan Berikutnya, Auto-Isolir tgl 11)"
+	resp.CycleInfo.TotalActiveSubscribers = len(customers)
+
+	clusterCounts := map[string]int{
+		"early_ontime":  0,
+		"grace_period":  0,
+		"chronic_late":  0,
+		"at_risk_churn": 0,
+	}
+	clusterNominals := map[string]float64{
+		"early_ontime":  0,
+		"grace_period":  0,
+		"chronic_late":  0,
+		"at_risk_churn": 0,
+	}
+
+	var classified []domain.MLClassifiedCustomer
+	var totalBilling float64
+
+	for _, c := range customers {
+		bill := c.MonthlyBill
+		totalBilling += bill
+
+		paidRatio := 0.0
+		if c.TotalInvoices > 0 {
+			paidRatio = math.Round(float64(c.PaidInvoices)/float64(c.TotalInvoices)*100) / 100
+		}
+
+		clusterKey := "early_ontime"
+		clusterName := "Early Birds / Tepat Waktu"
+		clusterColor := "#10B981"
+		riskLevel := "Low"
+		riskScore := 15
+		recommendation := "Pertahankan loyalti dengan apresiasi atau program rewards bulanan."
+
+		if (c.ExpiredInvoices > 0 && float64(c.ExpiredInvoices)/float64(c.TotalInvoices) >= 0.4) || c.RecentStatus == "Expired" {
+			clusterKey = "at_risk_churn"
+			clusterName = "At-Risk / Potensi Churn"
+			clusterColor = "#EF4444"
+			riskLevel = "Critical"
+			riskScore = 85
+			recommendation = "Follow-up intensif via Call/WA sebelum tanggal 10. Pertimbangkan paket retention."
+		} else if c.LateRatio >= 0.35 || c.AvgPaymentDayOfMonth > 10 {
+			clusterKey = "chronic_late"
+			clusterName = "Terlambat Kronis (Rawan Isolir)"
+			clusterColor = "#F59E0B"
+			riskLevel = "High"
+			riskScore = 65
+			recommendation = "Kirim reminder H-2 sebelum isolir (tgl 8-9) dan ingatkan risiko pemutusan isolir otomatis."
+		} else if c.GracePeriodRatio >= 0.4 || (c.AvgPaymentDayOfMonth >= 2 && c.AvgPaymentDayOfMonth <= 10) {
+			clusterKey = "grace_period"
+			clusterName = "Masa Tenggang (Grace Period 2-10)"
+			clusterColor = "#3B82F6"
+			riskLevel = "Medium"
+			riskScore = 35
+			recommendation = "Kirim reminder terjadwal tanggal 5 untuk mencegah pembayaran menumpuk di tanggal 10."
+		}
+
+		clusterCounts[clusterKey]++
+		clusterNominals[clusterKey] += bill
+
+		classified = append(classified, domain.MLClassifiedCustomer{
+			CustomerID:     c.CustomerID,
+			CustomerName:   c.CustomerName,
+			NoTelp:         c.NoTelp,
+			Brand:          c.Brand,
+			MonthlyBill:    bill,
+			ClusterKey:     clusterKey,
+			ClusterName:    clusterName,
+			ClusterColor:   clusterColor,
+			RiskScore:      riskScore,
+			RiskLevel:      riskLevel,
+			AvgPaymentDay:  c.AvgPaymentDayOfMonth,
+			DaysToPayAvg:   c.DaysToPayAvg,
+			PaidRatio:      paidRatio,
+			Recommendation: recommendation,
+		})
+	}
+
+	totalCustomers := len(customers)
+	if totalCustomers == 0 {
+		return resp
+	}
+
+	clusterDefs := []struct {
+		Key       string
+		Name      string
+		Color     string
+		RiskLevel string
+	}{
+		{"early_ontime", "Early Birds / Tepat Waktu (Tgl 26-1)", "#10B981", "Low"},
+		{"grace_period", "Masa Tenggang (Grace Period Tgl 2-10)", "#3B82F6", "Medium"},
+		{"chronic_late", "Terlambat Kronis (Rawan Isolir)", "#F59E0B", "High"},
+		{"at_risk_churn", "At-Risk / Potensi Churn", "#EF4444", "Critical"},
+	}
+
+	for _, d := range clusterDefs {
+		cnt := clusterCounts[d.Key]
+		nom := clusterNominals[d.Key]
+		pct := 0.0
+		if totalCustomers > 0 {
+			pct = math.Round(float64(cnt)/float64(totalCustomers)*1000) / 10
+		}
+		resp.ClustersSummary = append(resp.ClustersSummary, domain.MLClusterSummary{
+			Key:          d.Key,
+			Name:         d.Name,
+			Count:        cnt,
+			Percentage:   pct,
+			TotalNominal: nom,
+			Color:        d.Color,
+			RiskLevel:    d.RiskLevel,
+		})
+	}
+
+	earlyNominal := clusterNominals["early_ontime"]
+	graceNominal := clusterNominals["grace_period"]
+	lateNominal := clusterNominals["chronic_late"]
+	atRiskNominal := clusterNominals["at_risk_churn"]
+
+	resp.CashFlowForecast = []domain.MLCashFlowPhase{
+		{
+			Phase:           "Pra-Jatuh Tempo",
+			Description:     "Pembayaran awal pasca terbit invoice (Early Birds)",
+			EstimatedAmount: earlyNominal * 0.35,
+			Percentage:      math.Round((earlyNominal*0.35)/math.Max(totalBilling, 1)*1000) / 10,
+			TargetDays:      "26 s/d Akhir Bulan",
+			StatusClass:     "text-teal-400",
+		},
+		{
+			Phase:           "Puncak Jatuh Tempo",
+			Description:     "Sisa Early Birds + Gelombang pertama tanggal gajian",
+			EstimatedAmount: (earlyNominal * 0.65) + (graceNominal * 0.40),
+			Percentage:      math.Round(((earlyNominal*0.65)+(graceNominal*0.40))/math.Max(totalBilling, 1)*1000) / 10,
+			TargetDays:      "1 s/d 5 Awal Bulan",
+			StatusClass:     "text-blue-400",
+		},
+		{
+			Phase:           "Masa Tenggang (Grace Period)",
+			Description:     "Pelanggan grace period sebelum batas isolir tgl 10",
+			EstimatedAmount: (graceNominal * 0.60) + (lateNominal * 0.35),
+			Percentage:      math.Round(((graceNominal*0.60)+(lateNominal*0.35))/math.Max(totalBilling, 1)*1000) / 10,
+			TargetDays:      "6 s/d 10 (Deadline Isolir)",
+			StatusClass:     "text-amber-400",
+		},
+		{
+			Phase:           "Jatuh Tempo Lewat / Penagihan",
+			Description:     "Pelanggan terisolir & penagihan intensif",
+			EstimatedAmount: (lateNominal * 0.45) + (atRiskNominal * 0.25),
+			Percentage:      math.Round(((lateNominal*0.45)+(atRiskNominal*0.25))/math.Max(totalBilling, 1)*1000) / 10,
+			TargetDays:      "11 s/d Akhir Periode",
+			StatusClass:     "text-red-400",
+		},
+	}
+
+	earlyEst := (earlyNominal * 0.35) + (earlyNominal * 0.65) + (graceNominal * 0.40)
+	graceEst := (graceNominal * 0.60) + (lateNominal * 0.35)
+	atRiskEst := atRiskNominal * 0.75
+
+	totalCollectedEst := earlyEst + graceEst + (lateNominal * 0.45) + (atRiskNominal * 0.25)
+	recRate := 0.0
+	if totalBilling > 0 {
+		recRate = math.Round(totalCollectedEst/totalBilling*1000) / 10
+	}
+
+	resp.Summary.TotalCustomers = totalCustomers
+	resp.Summary.ProjectedBilling = totalBilling
+	resp.Summary.ProjectedEarlyCollection = earlyEst
+	resp.Summary.ProjectedGraceCollection = graceEst
+	resp.Summary.ProjectedAtRisk = atRiskEst
+	resp.Summary.ProjectedRecoveryRate = recRate
+
+	resp.ClassifiedCustomers = classified
+
+	resp.ActionableInsights = []string{
+		fmt.Sprintf("Sebanyak %.1f%% pelanggan diprediksi melunasi sebelum tanggal 5 dengan estimasi cash flow Rp %.0f.",
+			math.Round((earlyEst/math.Max(totalBilling, 1))*1000)/10, earlyEst),
+		fmt.Sprintf("Terdapat %d pelanggan (%s %.0f) dalam kategori Masa Tenggang; optimalkan reminder WA otomatis pada tanggal 4 dan 8.",
+			clusterCounts["grace_period"], "Rp", graceNominal),
+		fmt.Sprintf("Potensi pendapatan tertunda/terisolir mencapai Rp %.0f dari %d pelanggan kronis dan at-risk.",
+			lateNominal+atRiskNominal, clusterCounts["chronic_late"]+clusterCounts["at_risk_churn"]),
+	}
+
+	return resp
+}
+

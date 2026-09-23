@@ -70,6 +70,7 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 	{
 		reportsGroup.GET("/revenue", handler.GetRevenueReport)
 		reportsGroup.GET("/revenue/details", handler.GetRevenueReportDetails)
+		reportsGroup.GET("/revenue/ml-insights", handler.GetMLRevenueInsights)
 	}
 
 	calculatorGroup := r.Group("/calculator")
@@ -576,6 +577,26 @@ func (h *BillingHandler) GetRevenueReportDetails(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, items)
+}
+
+func (h *BillingHandler) GetMLRevenueInsights(c *gin.Context) {
+	brand := c.Query("brand")
+	if brand == "" {
+		brand = c.Query("id_brand")
+	}
+	location := c.Query("location")
+	if location == "" {
+		location = c.Query("alamat")
+	}
+
+	insights, err := h.billingUsecase.GetMLRevenueInsights(c.Request.Context(), brand, location)
+	if err != nil {
+		fmt.Printf("[REPORT ERROR] GetMLRevenueInsights failed: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, insights)
 }
 
 func (h *BillingHandler) ExportLangganan(c *gin.Context) {

@@ -507,6 +507,92 @@ func (r *invoiceRepository) ExportPaymentLinksExcel(ctx context.Context, filters
 	return buf.Bytes(), nil
 }
 
+func (r *invoiceRepository) GetCustomerPaymentFeatures(ctx context.Context, brand string, location string) ([]domain.MLCustomerRecord, error) {
+	type rawCustomerStats struct {
+		CustomerID           uint64  `gorm:"column:customer_id"`
+		CustomerName         string  `gorm:"column:customer_name"`
+		NoTelp               string  `gorm:"column:no_telp"`
+		Brand                string  `gorm:"column:brand"`
+		TotalInvoices        int     `gorm:"column:total_invoices"`
+		PaidInvoices         int     `gorm:"column:paid_invoices"`
+		ExpiredInvoices      int     `gorm:"column:expired_invoices"`
+		OnTimeInvoices       int     `gorm:"column:on_time_invoices"`
+		GraceInvoices        int     `gorm:"column:grace_invoices"`
+		LateInvoices         int     `gorm:"column:late_invoices"`
+		AvgPaymentDayOfMonth float64 `gorm:"column:avg_payment_day"`
+		DaysToPayAvg         float64 `gorm:"column:days_to_pay_avg"`
+		MonthlyBill          float64 `gorm:"column:monthly_bill"`
+		RecentStatus         string  `gorm:"column:recent_status"`
+	}
+
+	query := r.db.WithContext(ctx).Table("pelanggan").
+		Select(`
+			pelanggan.id AS customer_id,
+			pelanggan.nama AS customer_name,
+			COALESCE(pelanggan.no_telp, '') AS no_telp,
+			COALESCE(pelanggan.id_brand, '') AS brand,
+			COUNT(invoices.id) AS total_invoices,
+			COALESCE(SUM(CASE WHEN invoices.status_invoice = 'Lunas' THEN 1 ELSE 0 END), 0) AS paid_invoices,
+			COALESCE(SUM(CASE WHEN invoices.status_invoice = 'Expired' THEN 1 ELSE 0 END), 0) AS expired_invoices,
+			COALESCE(SUM(CASE WHEN invoices.status_invoice = 'Lunas' AND (DAY(invoices.paid_at) <= 1 OR invoices.paid_at <= invoices.tgl_jatuh_tempo) THEN 1 ELSE 0 END), 0) AS on_time_invoices,
+			COALESCE(SUM(CASE WHEN invoices.status_invoice = 'Lunas' AND DAY(invoices.paid_at) BETWEEN 2 AND 10 THEN 1 ELSE 0 END), 0) AS grace_invoices,
+			COALESCE(SUM(CASE WHEN invoices.status_invoice = 'Lunas' AND DAY(invoices.paid_at) > 10 THEN 1 ELSE 0 END), 0) AS late_invoices,
+			COALESCE(AVG(CASE WHEN invoices.status_invoice = 'Lunas' AND invoices.paid_at IS NOT NULL THEN DAY(invoices.paid_at) END), 0) AS avg_payment_day,
+			COALESCE(AVG(CASE WHEN invoices.status_invoice = 'Lunas' AND invoices.paid_at IS NOT NULL THEN DATEDIFF(invoices.paid_at, invoices.tgl_invoice) END), 0) AS days_to_pay_avg,
+			COALESCE(MAX(invoices.total_harga), 0) AS monthly_bill,
+			COALESCE(SUBSTRING_INDEX(GROUP_CONCAT(invoices.status_invoice ORDER BY invoices.id DESC), ',', 1), 'Belum Bayar') AS recent_status
+		`).
+		Joins("JOIN invoices ON invoices.pelanggan_id = pelanggan.id AND invoices.deleted_at IS NULL").
+		Where("pelanggan.deleted_at IS NULL")
+
+	if brand != "" {
+		query = query.Where("pelanggan.id_brand = ?", brand)
+	}
+	if location != "" {
+		query = query.Where("pelanggan.alamat = ? OR pelanggan.alamat_2 = ?", location, location)
+	}
+
+	var rawStats []rawCustomerStats
+	err := query.Group("pelanggan.id, pelanggan.nama, pelanggan.no_telp, pelanggan.id_brand").
+		Having("COUNT(invoices.id) > 0").
+		Scan(&rawStats).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	records := make([]domain.MLCustomerRecord, len(rawStats))
+	for i, r := range rawStats {
+		onTimeRatio := 0.0
+		graceRatio := 0.0
+		lateRatio := 0.0
+		if r.PaidInvoices > 0 {
+			onTimeRatio = math.Round(float64(r.OnTimeInvoices)/float64(r.PaidInvoices)*100) / 100
+			graceRatio = math.Round(float64(r.GraceInvoices)/float64(r.PaidInvoices)*100) / 100
+			lateRatio = math.Round(float64(r.LateInvoices)/float64(r.PaidInvoices)*100) / 100
+		}
+
+		records[i] = domain.MLCustomerRecord{
+			CustomerID:           r.CustomerID,
+			CustomerName:         r.CustomerName,
+			NoTelp:               r.NoTelp,
+			Brand:                r.Brand,
+			MonthlyBill:          r.MonthlyBill,
+			TotalInvoices:        r.TotalInvoices,
+			PaidInvoices:         r.PaidInvoices,
+			ExpiredInvoices:      r.ExpiredInvoices,
+			AvgPaymentDayOfMonth: math.Round(r.AvgPaymentDayOfMonth*10) / 10,
+			DaysToPayAvg:         math.Round(r.DaysToPayAvg*10) / 10,
+			OnTimeRatio:          onTimeRatio,
+			GracePeriodRatio:     graceRatio,
+			LateRatio:            lateRatio,
+			RecentStatus:         r.RecentStatus,
+		}
+	}
+
+	return records, nil
+}
+
 // Langganan Repository
 type langgananRepository struct {
 	db *gorm.DB

@@ -4,7 +4,7 @@
     "versi": "1.0",
     "bahasa": "id",
     "deskripsi": "Dataset intent classification untuk chatbot customer service ISP FTTH. Struktur: tag (label Y / kode intent), patterns (data latih X / kata kunci & variasi kalimat pelanggan), responses (template jawaban bot).",
-    "total_intents": 19
+    "total_intents": 21
   },
   "intents": [
     {
@@ -149,7 +149,7 @@
         "qris pembayaran"
       ],
       "responses": [
-        "**Informasi Tagihan & Jatuh Tempo:**\n\nRincian tagihan Anda dapat diakses secara real-time melalui menu Home / Riwayat Tagihan pada aplikasi ini.\n\n- Tanggal Cetak Invoice: Tanggal 1 setiap bulannya.\n- Batas Waktu Pembayaran: Tanggal 10 atau 20 (sesuai paket langganan Anda).\n\nPembayaran dapat dilakukan via:\n- Virtual Account (BCA, Mandiri, BRI, BNI)\n- Scan QRIS (Semua E-Wallet / Mobile Banking)\n\nPastikan pembayaran dilakukan sebelum tanggal jatuh tempo untuk menghindari pemutusan sementara (isolir) otomatis oleh sistem."
+        "**Informasi Tagihan & Jatuh Tempo:**\n\nRincian tagihan Anda dapat diakses secara real-time melalui menu Riwayat Tagihan / Portal Pelanggan.\n\n- **Tanggal Cetak/Terbit Invoice**: Tanggal 26 atau 27 setiap bulannya (untuk periode bulan berikutnya).\n- **Tanggal Jatuh Tempo**: Tanggal 01 awal bulan.\n- **Masa Tenggang (Grace Period)**: Tanggal 02 s/d 10.\n- **Batas Akhir Sebelum Isolir**: Tanggal 10 pukul 23:59 WIB.\n\nPembayaran dapat dilakukan via:\n- Virtual Account (BCA, Mandiri, BRI, BNI)\n- Scan QRIS (Semua E-Wallet & Mobile Banking)\n\nPastikan pembayaran dilunasi sebelum tanggal 11 agar terhindar dari pemutusan sementara (isolir) otomatis oleh sistem."
       ]
     },
     {
@@ -176,6 +176,54 @@
       ],
       "responses": [
         "**Konfirmasi Pembayaran Berhasil:**\n\n- Jika pembayaran dilakukan via Virtual Account / QRIS resmi, sistem akan otomatis membuka blokir dalam waktu 1-5 menit.\n- Langkah Tambahan: Silakan matikan dan hidupkan kembali (restart) modem Anda agar perangkat mengambil IP internet baru.\n- Jika Anda membayar via transfer manual atau internet belum aktif lebih dari 10 menit, silakan kirimkan foto bukti transfer di sini agar diverifikasi langsung oleh Admin Keuangan."
+      ]
+    },
+    {
+      "tag": "2.3_siklus_dan_jadwal_tagihan",
+      "kode_menu": "2.3",
+      "kategori": "Tagihan & Pembayaran",
+      "patterns": [
+        "kapan invoice terbit",
+        "kapan tagihan keluar",
+        "kenapa invoice keluar akhir bulan",
+        "tanggal berapa tagihan dicetak",
+        "siklus tagihan bulanan",
+        "jadwal cetak invoice",
+        "kapan tagihan bulan depan muncul",
+        "invoice terbit tanggal berapa",
+        "kenapa tanggal 26 sudah ada tagihan",
+        "kenapa tanggal 27 sudah ditagih",
+        "jadwal pembayaran bulanan",
+        "siklus pembayaran internet",
+        "kapan bayar tagihan berikutnya",
+        "periode tagihan bulanan"
+      ],
+      "responses": [
+        "**Jadwal & Siklus Penagihan Bulanan:**\n\n- **Penerbitan Invoice**: Sistem otomatis mencetak dan mengirimkan invoice tagihan setiap tanggal **26 atau 27** setiap bulannya untuk periode pemakaian bulan berikutnya.\n- **Jatuh Tempo Pembayaran**: Tanggal **01** awal bulan.\n- **Tenggat Pelunasan**: Diberikan masa tenggang (grace period) hingga tanggal **10**.\n\nDengan terbitnya invoice di akhir bulan (tgl 26/27), pelanggan memiliki waktu lebih leluasa untuk melakukan pelunasan sebelum jatuh tempo."
+      ]
+    },
+    {
+      "tag": "2.4_batas_isolir_dan_keringanan",
+      "kode_menu": "2.4",
+      "kategori": "Tagihan & Pembayaran",
+      "patterns": [
+        "kapan kena isolir",
+        "tanggal berapa internet diblokir",
+        "batas waktu sebelum diputus",
+        "apakah ada masa tenggang",
+        "minta penundaan bayar sampai tanggal 10",
+        "dispensasi pembayaran",
+        "kapan batas akhir bayar sebelum mati",
+        "tanggal berapa pemutusan internet",
+        "isolir tanggal berapa",
+        "kapan suspend otomatis",
+        "apakah tanggal 2 langsung diputus",
+        "keringanan pembayaran tagihan",
+        "minta waktu bayar sampai tanggal 10",
+        "batas waktu grace period"
+      ],
+      "responses": [
+        "**Ketentuan Masa Tenggang & Isolir Otomatis:**\n\n1. **Masa Tenggang (Grace Period)**: Meskipun jatuh tempo adalah tanggal 01, sistem memberikan masa toleransi pembayaran dari **tanggal 02 sampai dengan tanggal 10** tanpa denda/pemutusan.\n2. **Batas Akhir Pelunasan**: Tanggal **10 pukul 23:59 WIB**.\n3. **Isolir Otomatis (Auto-Suspend)**: Layanan internet yang belum lunas akan secara otomatis terisolir oleh sistem Mikrotik pada tanggal **11 pukul 00:00 WIB**.\n\nUntuk menghindari gangguan koneksi, kami sarankan melakukan pembayaran sebelum tanggal 10."
       ]
     },
     {

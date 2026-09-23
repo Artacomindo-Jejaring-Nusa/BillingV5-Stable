@@ -27,6 +27,7 @@ type InvoiceRepository interface {
 	GetInvoiceSummary(ctx context.Context) (*InvoiceSummaryStats, error)
 	GetRevenueReport(ctx context.Context, params *RevenueReportParams) (*RevenueReportResponse, error)
 	GetRevenueReportDetails(ctx context.Context, params *RevenueReportParams) ([]InvoiceReportItem, error)
+	GetCustomerPaymentFeatures(ctx context.Context, brand string, location string) ([]MLCustomerRecord, error)
 	ExportPaymentLinksExcel(ctx context.Context, filters map[string]string) ([]byte, error)
 }
 
@@ -102,6 +103,7 @@ type BillingUsecase interface {
 	// Reports
 	GetRevenueReport(ctx context.Context, params *RevenueReportParams) (*RevenueReportResponse, error)
 	GetRevenueReportDetails(ctx context.Context, params *RevenueReportParams) ([]InvoiceReportItem, error)
+	GetMLRevenueInsights(ctx context.Context, brand string, location string) (*MLRevenueInsightResponse, error)
 
 	// Portability
 	ExportLangganan(ctx context.Context, format string, filters LanggananFilterParams) ([]byte, string, error)
