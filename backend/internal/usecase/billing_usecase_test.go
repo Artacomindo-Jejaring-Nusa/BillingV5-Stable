@@ -339,6 +339,21 @@ func TestProcessXenditCallback_Prorate(t *testing.T) {
 	tglJatuhTempo := time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC)
 	tglJatuhTempoPembayaran := time.Date(2026, 8, 20, 0, 0, 0, 0, time.UTC)
 	tglMulaiLangganan := time.Date(2026, 8, 20, 0, 0, 0, 0, time.UTC)
+	proratePrice := 58064.0
+
+	paket := &domain.PaketLayanan{
+		ID:        1,
+		IDBrand:   "jelantik",
+		NamaPaket: "Paket 20 Mbps",
+		Kecepatan: 20,
+		Harga:     100000.0,
+	}
+
+	brand := &domain.HargaLayanan{
+		IDBrand: "jelantik",
+		Brand:   "Jelantik",
+		Pajak:   11.0,
+	}
 
 	invoice := &domain.Invoice{
 		ID:            2,
@@ -346,11 +361,16 @@ func TestProcessXenditCallback_Prorate(t *testing.T) {
 		StatusInvoice: "Belum Bayar",
 		TotalHarga:    58064.0,
 		Pelanggan: &domain.Pelanggan{
-			ID:   2,
-			Nama: "Risna",
+			ID:           2,
+			Nama:         "Risna",
+			IDBrand:      &brand.IDBrand,
+			HargaLayanan: brand,
 			Langganan: []domain.Langganan{
 				{
 					ID:                      2,
+					PaketLayananID:          1,
+					PaketLayanan:            paket,
+					HargaAwal:               &proratePrice,
 					Status:                  "Suspended",
 					MetodePembayaran:        "Prorate",
 					TglJatuhTempo:           &tglJatuhTempo,
@@ -373,7 +393,19 @@ func TestProcessXenditCallback_Prorate(t *testing.T) {
 		},
 	}
 
-	u := NewBillingUsecase(invRepo, langgRepo, nil, nil, nil, nil, nil, nil, nil, cfg)
+	pkRepo := &mockPaketRepo{
+		data: map[uint64]*domain.PaketLayanan{
+			1: paket,
+		},
+	}
+
+	brRepo := &mockBrandRepo{
+		data: map[string]*domain.HargaLayanan{
+			"jelantik": brand,
+		},
+	}
+
+	u := NewBillingUsecase(invRepo, langgRepo, nil, pkRepo, brRepo, nil, nil, nil, nil, cfg)
 
 	payload := map[string]interface{}{
 		"id":          "xendit_456",
@@ -407,6 +439,12 @@ func TestProcessXenditCallback_Prorate(t *testing.T) {
 	}
 	if !l.TglMulaiLangganan.Equal(expectedDue) {
 		t.Errorf("expected TglMulaiLangganan to be 2026-09-01, got %s", l.TglMulaiLangganan.Format("2006-01-02"))
+	}
+
+	// 100,000 * 1.11 = 111,000 normal package price
+	expectedNormalPrice := 111000.0
+	if l.HargaAwal == nil || *l.HargaAwal != expectedNormalPrice {
+		t.Errorf("expected HargaAwal to be %f, got %v", expectedNormalPrice, l.HargaAwal)
 	}
 }
 

@@ -277,24 +277,23 @@ func (u *billingUsecase) UpdateInvoiceStatus(ctx context.Context, id uint64, sta
 	}
 
 	oldStatus := invoice.StatusInvoice
+	if status == "Lunas" && oldStatus != "Lunas" {
+		paidAmount := invoice.TotalHarga
+		if invoice.PaidAmount != nil && *invoice.PaidAmount > 0 {
+			paidAmount = *invoice.PaidAmount
+		}
+		paidAt := time.Now()
+		if invoice.PaidAt != nil && !invoice.PaidAt.IsZero() {
+			paidAt = *invoice.PaidAt
+		}
+		return u.processSuccessfulPayment(ctx, invoice, paidAmount, paidAt)
+	}
+
 	invoice.StatusInvoice = status
 	err = u.invoiceRepo.Update(ctx, invoice)
 	if err == nil {
 		u.logActivity(ctx, "Update Invoice Status", fmt.Sprintf("Updated invoice %s status from %s to %s", invoice.InvoiceNumber, oldStatus, status))
 		websocket.InvalidateDashboardCache(ctx)
-		if status == "Lunas" && oldStatus != "Lunas" {
-			if websocket.GlobalHub != nil {
-				pName := invoice.PelangganNama
-				if pName == "" && invoice.Pelanggan != nil {
-					pName = invoice.Pelanggan.Nama
-				}
-				websocket.GlobalHub.BroadcastNotification("new_payment", map[string]interface{}{
-					"invoice_number": invoice.InvoiceNumber,
-					"pelanggan_nama": pName,
-					"amount":         invoice.TotalHarga,
-				})
-			}
-		}
 	}
 	return err
 }
@@ -1162,13 +1161,18 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 
 					// Calculate price with tax and discount
 					var originalPrice float64
-					if l.HargaAwal != nil {
+					var basePackagePrice float64
+					paket, err := u.paketRepo.GetByID(ctx, l.PaketLayananID)
+					if err == nil && paket != nil {
+						basePackagePrice = math.Round(paket.Harga * (1.0 + (brand.Pajak / 100.0)))
+					}
+
+					if l.HargaAwal != nil && (l.MetodePembayaran != "Otomatis" || (paket != nil && *l.HargaAwal >= paket.Harga)) {
 						originalPrice = *l.HargaAwal
-					} else {
-						paket, err := u.paketRepo.GetByID(ctx, l.PaketLayananID)
-						if err == nil && paket != nil {
-							originalPrice = paket.Harga * (1.0 + (brand.Pajak / 100.0))
-						}
+					} else if basePackagePrice > 0 {
+						originalPrice = basePackagePrice
+					} else if l.HargaAwal != nil {
+						originalPrice = *l.HargaAwal
 					}
 
 					inv.TotalHarga = originalPrice
@@ -1196,7 +1200,9 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 					pajak := inv.TotalHarga - math.Round(inv.TotalHarga/(1.0+(brand.Pajak/100.0)))
 					
 					var itemPrefix string
-					paket, _ := u.paketRepo.GetByID(ctx, l.PaketLayananID)
+					if paket == nil {
+						paket, _ = u.paketRepo.GetByID(ctx, l.PaketLayananID)
+					}
 					if paket != nil && paket.Kecepatan > 0 {
 						itemPrefix = fmt.Sprintf("Biaya berlangganan internet up to %d Mbps", paket.Kecepatan)
 					} else {
@@ -2779,8 +2785,11 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 		})
 	}
 
-	if inv.Pelanggan != nil && len(inv.Pelanggan.Langganan) > 0 {
-		var targetLangganan *domain.Langganan
+	var targetLangganan *domain.Langganan
+	if inv.LanggananID != nil && *inv.LanggananID > 0 && u.langgananRepo != nil {
+		targetLangganan, _ = u.langgananRepo.GetByID(ctx, *inv.LanggananID)
+	}
+	if targetLangganan == nil && inv.Pelanggan != nil && len(inv.Pelanggan.Langganan) > 0 {
 		if inv.LanggananID != nil {
 			for i := range inv.Pelanggan.Langganan {
 				if inv.Pelanggan.Langganan[i].ID == *inv.LanggananID {
@@ -2792,7 +2801,21 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 		if targetLangganan == nil {
 			targetLangganan = &inv.Pelanggan.Langganan[0]
 		}
+	}
+	if targetLangganan == nil && inv.PelangganID > 0 && u.langgananRepo != nil {
+		langs, _ := u.langgananRepo.GetByPelangganID(ctx, inv.PelangganID)
+		for i := range langs {
+			if langs[i].Status != "Berhenti" {
+				targetLangganan = &langs[i]
+				break
+			}
+		}
+		if targetLangganan == nil && len(langs) > 0 {
+			targetLangganan = &langs[0]
+		}
+	}
 
+	if targetLangganan != nil {
 		l := targetLangganan
 		l.Status = "Aktif"
 		if l.MetodePembayaran == "Prorate" {
@@ -2808,6 +2831,11 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 			l.TglJatuhTempo = &next
 			l.TglJatuhTempoPembayaran = &next
 			l.TglMulaiLangganan = &next
+
+			// Kembalikan harga langganan ke harga normal paket layanan
+			if normalPrice, ok := u.getNormalPackagePrice(ctx, l, inv); ok {
+				l.HargaAwal = &normalPrice
+			}
 		} else {
 			// Otomatis (Flat bulanan): Selalu kunci jatuh tempo siklus berikutnya ke Tanggal 1 bulan depan
 			refDate := time.Now()
@@ -2820,9 +2848,25 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 			l.TglJatuhTempo = &next
 			l.TglJatuhTempoPembayaran = &next
 			l.TglMulaiLangganan = &next
+
+			// Self-heal: jika metode pembayaran sudah Otomatis tapi harga_awal masih harga prorate
+			if normalPrice, ok := u.getNormalPackagePrice(ctx, l, inv); ok {
+				var minBasePrice float64
+				if l.PaketLayanan != nil {
+					minBasePrice = l.PaketLayanan.Harga
+				} else if u.paketRepo != nil && l.PaketLayananID > 0 {
+					p, _ := u.paketRepo.GetByID(ctx, l.PaketLayananID)
+					if p != nil {
+						minBasePrice = p.Harga
+					}
+				}
+				if l.HargaAwal == nil || (minBasePrice > 0 && *l.HargaAwal < minBasePrice) {
+					l.HargaAwal = &normalPrice
+				}
+			}
 		}
 		_ = u.langgananRepo.Update(ctx, l)
-		if inv.Pelanggan.DataTeknis != nil {
+		if inv.Pelanggan != nil && inv.Pelanggan.DataTeknis != nil {
 			// Jalankan pembaruan Mikrotik secara asinkron di goroutine agar tidak memblokir HTTP response
 			go func(invoiceNo string, dt domain.DataTeknis, status string) {
 				// Gunakan context baru yang tidak terikat dengan lifetime HTTP request
@@ -2852,6 +2896,52 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 	u.logActivity(ctx, "Payment Confirmed", fmt.Sprintf("Invoice %s marked as paid (Lunas) for amount %.2f", inv.InvoiceNumber, amt))
 	websocket.InvalidateDashboardCache(ctx)
 	return nil
+}
+
+func (u *billingUsecase) getNormalPackagePrice(ctx context.Context, l *domain.Langganan, inv *domain.Invoice) (float64, bool) {
+	if l == nil {
+		return 0, false
+	}
+	var paket *domain.PaketLayanan
+	if l.PaketLayanan != nil {
+		paket = l.PaketLayanan
+	} else if u.paketRepo != nil && l.PaketLayananID > 0 {
+		p, err := u.paketRepo.GetByID(ctx, l.PaketLayananID)
+		if err == nil && p != nil {
+			paket = p
+		}
+	}
+	if paket == nil {
+		return 0, false
+	}
+
+	var pajakRate float64 = 0
+	if inv != nil && inv.Pelanggan != nil && inv.Pelanggan.HargaLayanan != nil {
+		pajakRate = inv.Pelanggan.HargaLayanan.Pajak
+	} else if inv != nil && inv.Pelanggan != nil && inv.Pelanggan.IDBrand != nil && *inv.Pelanggan.IDBrand != "" && u.brandRepo != nil {
+		b, err := u.brandRepo.GetByID(ctx, *inv.Pelanggan.IDBrand)
+		if err == nil && b != nil {
+			pajakRate = b.Pajak
+		}
+	} else if paket.HargaLayanan != nil {
+		pajakRate = paket.HargaLayanan.Pajak
+	} else if paket.IDBrand != "" && u.brandRepo != nil {
+		b, err := u.brandRepo.GetByID(ctx, paket.IDBrand)
+		if err == nil && b != nil {
+			pajakRate = b.Pajak
+		}
+	} else if u.pelangganRepo != nil && l.PelangganID > 0 && u.brandRepo != nil {
+		pel, err := u.pelangganRepo.GetByID(ctx, l.PelangganID)
+		if err == nil && pel != nil && pel.IDBrand != nil && *pel.IDBrand != "" {
+			b, err := u.brandRepo.GetByID(ctx, *pel.IDBrand)
+			if err == nil && b != nil {
+				pajakRate = b.Pajak
+			}
+		}
+	}
+
+	normalPrice := math.Round(paket.Harga * (1.0 + (pajakRate / 100.0)))
+	return normalPrice, true
 }
 
 func (u *billingUsecase) RetryFailedMikrotikSync(ctx context.Context) error {

@@ -319,13 +319,21 @@ func (h *BillingHandler) mapToLanggananResponse(ctx context.Context, lang domain
 		resp.NamaPaket = lang.PaketLayanan.NamaPaket
 		resp.Harga = lang.PaketLayanan.Harga
 
-		if lang.HargaAwal != nil {
-			resp.HargaFinal = h.billingUsecase.GetDiscountedPrice(ctx, resp.Alamat, *lang.HargaAwal)
+		basePrice := lang.PaketLayanan.Harga
+		if lang.PaketLayanan.HargaLayanan != nil {
+			basePrice = math.Round(lang.PaketLayanan.Harga * (1.0 + lang.PaketLayanan.HargaLayanan.Pajak/100.0))
+		}
+
+		displayHargaAwal := lang.HargaAwal
+		// Self-heal: jika metode pembayaran sudah Otomatis tetapi harga_awal di DB masih harga prorate (< harga dasar paket), gunakan harga normal paket
+		if lang.MetodePembayaran == "Otomatis" && displayHargaAwal != nil && *displayHargaAwal < lang.PaketLayanan.Harga {
+			displayHargaAwal = &basePrice
+		}
+
+		if displayHargaAwal != nil {
+			resp.HargaAwal = displayHargaAwal
+			resp.HargaFinal = h.billingUsecase.GetDiscountedPrice(ctx, resp.Alamat, *displayHargaAwal)
 		} else {
-			basePrice := lang.PaketLayanan.Harga
-			if lang.PaketLayanan.HargaLayanan != nil {
-				basePrice = math.Round(lang.PaketLayanan.Harga * (1.0 + lang.PaketLayanan.HargaLayanan.Pajak/100.0))
-			}
 			resp.HargaFinal = h.billingUsecase.GetDiscountedPrice(ctx, resp.Alamat, basePrice)
 		}
 

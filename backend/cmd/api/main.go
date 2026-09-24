@@ -68,6 +68,17 @@ func main() {
 	// This fixes errors where GORM expects certain columns but legacy dump doesn't have them
 	db.Exec("CREATE TABLE IF NOT EXISTS system_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, timestamp DATETIME(6), level VARCHAR(50), message TEXT);")
 	db.Exec("ALTER TABLE action_taken MODIFY COLUMN action_description TEXT NULL;")
+
+	// Auto-heal subscriptions where payment transitioned them to 'Otomatis' but harga_awal was stuck at prorate price
+	db.Exec(`UPDATE langganan l
+		JOIN paket_layanan p ON l.paket_layanan_id = p.id
+		LEFT JOIN pelanggan c ON l.pelanggan_id = c.id
+		LEFT JOIN harga_layanan h ON c.id_brand = h.id_brand
+		SET l.harga_awal = ROUND(p.harga * (1.0 + COALESCE(h.pajak, 0) / 100.0))
+		WHERE l.metode_pembayaran = 'Otomatis'
+		  AND l.status != 'Berhenti'
+		  AND (l.harga_awal IS NULL OR l.harga_awal < p.harga);`)
+
 	ensureColumn := func(tableName, columnName, columnSpec string) {
 		var columnCount int
 		err := db.Raw("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?", tableName, columnName).Scan(&columnCount).Error
