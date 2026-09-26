@@ -7,6 +7,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 	"time"
@@ -278,9 +279,18 @@ func (u *pelangganUsecase) syncLanggananWithNewLayanan(ctx context.Context, cust
 		if lng.Status != "Berhenti" {
 			lng.PaketLayananID = matchingPaket.ID
 			harga := matchingPaket.Harga
+			var taxRate float64
+			if cust.HargaLayanan != nil {
+				taxRate = cust.HargaLayanan.Pajak
+			} else if matchingPaket.HargaLayanan != nil {
+				taxRate = matchingPaket.HargaLayanan.Pajak
+			}
+			if taxRate > 0 {
+				harga = math.Round(matchingPaket.Harga * (1.0 + (taxRate / 100.0)))
+			}
 			lng.HargaAwal = &harga
 			_ = u.langgananRepo.Update(ctx, &lng)
-			u.logActivity(ctx, "Auto Sync Langganan", fmt.Sprintf("Auto-synced langganan ID %d for %s to paket %s (Rp %.2f)", lng.ID, cust.Nama, matchingPaket.NamaPaket, matchingPaket.Harga))
+			u.logActivity(ctx, "Auto Sync Langganan", fmt.Sprintf("Auto-synced langganan ID %d for %s to paket %s (Rp %.2f)", lng.ID, cust.Nama, matchingPaket.NamaPaket, harga))
 		}
 	}
 

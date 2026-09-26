@@ -69,7 +69,7 @@ func main() {
 	db.Exec("CREATE TABLE IF NOT EXISTS system_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, timestamp DATETIME(6), level VARCHAR(50), message TEXT);")
 	db.Exec("ALTER TABLE action_taken MODIFY COLUMN action_description TEXT NULL;")
 
-	// Auto-heal subscriptions where payment transitioned them to 'Otomatis' but harga_awal was stuck at prorate price
+	// Auto-heal subscriptions where payment transitioned them to 'Otomatis' but harga_awal was stuck at prorate price or untaxed price
 	db.Exec(`UPDATE langganan l
 		JOIN paket_layanan p ON l.paket_layanan_id = p.id
 		LEFT JOIN pelanggan c ON l.pelanggan_id = c.id
@@ -77,7 +77,7 @@ func main() {
 		SET l.harga_awal = ROUND(p.harga * (1.0 + COALESCE(h.pajak, 0) / 100.0))
 		WHERE l.metode_pembayaran = 'Otomatis'
 		  AND l.status != 'Berhenti'
-		  AND (l.harga_awal IS NULL OR l.harga_awal < p.harga);`)
+		  AND (l.harga_awal IS NULL OR l.harga_awal < ROUND(p.harga * (1.0 + COALESCE(h.pajak, 0) / 100.0)));`)
 
 	ensureColumn := func(tableName, columnName, columnSpec string) {
 		var columnCount int

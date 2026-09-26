@@ -1167,10 +1167,14 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 						basePackagePrice = math.Round(paket.Harga * (1.0 + (brand.Pajak / 100.0)))
 					}
 
-					if l.HargaAwal != nil && (l.MetodePembayaran != "Otomatis" || (paket != nil && *l.HargaAwal >= paket.Harga)) {
+					if l.HargaAwal != nil && (l.MetodePembayaran != "Otomatis" || (paket != nil && *l.HargaAwal == paket.Harga) || (basePackagePrice > 0 && *l.HargaAwal >= basePackagePrice)) {
 						originalPrice = *l.HargaAwal
 					} else if basePackagePrice > 0 {
 						originalPrice = basePackagePrice
+						if l.MetodePembayaran == "Otomatis" && (l.HargaAwal == nil || *l.HargaAwal < basePackagePrice) {
+							l.HargaAwal = &basePackagePrice
+							_ = u.langgananRepo.Update(ctx, &l)
+						}
 					} else if l.HargaAwal != nil {
 						originalPrice = *l.HargaAwal
 					}
@@ -2849,18 +2853,9 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 			l.TglJatuhTempoPembayaran = &next
 			l.TglMulaiLangganan = &next
 
-			// Self-heal: jika metode pembayaran sudah Otomatis tapi harga_awal masih harga prorate
+			// Self-heal: jika metode pembayaran sudah Otomatis tapi harga_awal masih harga prorate atau belum include pajak
 			if normalPrice, ok := u.getNormalPackagePrice(ctx, l, inv); ok {
-				var minBasePrice float64
-				if l.PaketLayanan != nil {
-					minBasePrice = l.PaketLayanan.Harga
-				} else if u.paketRepo != nil && l.PaketLayananID > 0 {
-					p, _ := u.paketRepo.GetByID(ctx, l.PaketLayananID)
-					if p != nil {
-						minBasePrice = p.Harga
-					}
-				}
-				if l.HargaAwal == nil || (minBasePrice > 0 && *l.HargaAwal < minBasePrice) {
+				if l.HargaAwal == nil || *l.HargaAwal < normalPrice {
 					l.HargaAwal = &normalPrice
 				}
 			}

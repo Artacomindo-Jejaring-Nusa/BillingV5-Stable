@@ -797,10 +797,23 @@ type mockLanggananRepoForGenerate struct {
 }
 
 func (m *mockLanggananRepoForGenerate) GetAll(ctx context.Context, limit, offset int, filters domain.LanggananFilterParams) ([]domain.Langganan, int64, error) {
-	return m.data, int64(len(m.data)), nil
+	if offset >= len(m.data) {
+		return nil, int64(len(m.data)), nil
+	}
+	end := offset + limit
+	if end > len(m.data) {
+		end = len(m.data)
+	}
+	return m.data[offset:end], int64(len(m.data)), nil
 }
 
 func (m *mockLanggananRepoForGenerate) Update(ctx context.Context, l *domain.Langganan) error {
+	for i := range m.data {
+		if m.data[i].ID == l.ID {
+			m.data[i] = *l
+			break
+		}
+	}
 	return nil
 }
 
@@ -1003,6 +1016,90 @@ func TestGenerateInvoices_NilTglJatuhTempo(t *testing.T) {
 	inv := invRepo.created[0]
 	if inv.PelangganID != 1 {
 		t.Errorf("expected PelangganID 1, got %d", inv.PelangganID)
+	}
+}
+
+func TestGenerateInvoices_DirtyHargaAwalWithoutTax(t *testing.T) {
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		loc = time.FixedZone("WIB", 7*3600)
+	}
+
+	today := time.Now().In(loc)
+	dueDate := today.AddDate(0, 0, 35)
+	dueDatePembayaran := today.AddDate(0, 0, 5)
+
+	brandID := "ajn-02"
+	brand := &domain.HargaLayanan{
+		IDBrand: brandID,
+		Brand:   "Jelantik",
+		Pajak:   11.0,
+	}
+
+	// Paket 8: Internet 50 Mbps (Harga 289,000 -> With 11% Tax = 320,790)
+	paket := &domain.PaketLayanan{
+		ID:        8,
+		NamaPaket: "Internet 50 Mbps",
+		Harga:     289000.0,
+		Kecepatan: 50,
+	}
+
+	pelanggan := &domain.Pelanggan{
+		ID:      29,
+		Nama:    "Vivian desilva",
+		IDBrand: &brandID,
+		Alamat:  "Waringin",
+		NoTelp:  "081315503675",
+		Email:   "vivian@gmail.com",
+	}
+
+	// Dirty data in DB: HargaAwal was 289900.0 (old legacy price, less than 320,790)
+	dirtyHarga := 289900.0
+	langganan := domain.Langganan{
+		ID:                      29,
+		PelangganID:             29,
+		PaketLayananID:          8,
+		Status:                  "Aktif",
+		TglJatuhTempo:           &dueDate,
+		TglJatuhTempoPembayaran: &dueDatePembayaran,
+		HargaAwal:               &dirtyHarga,
+		MetodePembayaran:        "Otomatis",
+	}
+
+	langRepo := &mockLanggananRepoForGenerate{data: []domain.Langganan{langganan}}
+	invRepo := &mockInvoiceRepoForGenerate{}
+	pelRepo := &mockPelangganRepo{data: map[uint64]*domain.Pelanggan{29: pelanggan}}
+	bRepo := &mockBrandRepo{data: map[string]*domain.HargaLayanan{brandID: brand}}
+	dtRepo := &mockDataTeknisRepoForGenerate{data: &domain.DataTeknis{ID: 29, IDPelanggan: "WRG-A6-2"}}
+	pkRepo := &mockPaketRepo{data: map[uint64]*domain.PaketLayanan{8: paket}}
+	diskRepo := &mockDiskonRepoForGenerate{}
+	sysRepo := &mockSystemRepo{}
+
+	cfg := &config.Config{
+		XenditApiUrl: "https://api.xendit.co/v2/invoices",
+	}
+
+	u := NewBillingUsecase(invRepo, langRepo, pelRepo, pkRepo, bRepo, dtRepo, nil, diskRepo, sysRepo, cfg).(*billingUsecase)
+
+	err = u.GenerateInvoices(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(invRepo.created) != 1 {
+		t.Fatalf("expected 1 invoice to be created, got %d", len(invRepo.created))
+	}
+
+	inv := invRepo.created[0]
+	// Expected total MUST be 320790.0 (normal price with tax), NOT the dirty 289900.0
+	expectedPrice := 320790.0
+	if inv.TotalHarga != expectedPrice {
+		t.Errorf("expected TotalHarga %f, got %f", expectedPrice, inv.TotalHarga)
+	}
+
+	// And langganan.HargaAwal in repo should be auto-healed to 320790.0
+	if langRepo.data[0].HargaAwal == nil || *langRepo.data[0].HargaAwal != expectedPrice {
+		t.Errorf("expected langganan.HargaAwal to be healed to %f, got %v", expectedPrice, langRepo.data[0].HargaAwal)
 	}
 }
 
