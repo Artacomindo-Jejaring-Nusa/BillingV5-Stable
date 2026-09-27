@@ -500,6 +500,123 @@ func TestExportLanggananMultiSheet(t *testing.T) {
 	if len(data) == 0 { t.Error("empty data") }
 }
 
+func TestDetermineIsNewUser(t *testing.T) {
+	today := time.Now()
+	startOfMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
+	endOfMonth := startOfMonth.AddDate(0, 1, 0)
+
+	fiveMonthsAgo := today.AddDate(0, -5, 0)
+	twoDaysAgo := today.AddDate(0, 0, -2)
+
+	tests := []struct {
+		name          string
+		langganan     domain.Langganan
+		invoiceCounts map[uint64]int64
+		expected      bool
+	}{
+		{
+			name: "Pelanggan lama dengan 5 invoice - harus Existing User (false)",
+			langganan: domain.Langganan{
+				ID:          1,
+				PelangganID: 10,
+				Status:      "Aktif",
+				Pelanggan: &domain.Pelanggan{
+					ID:           10,
+					Nama:         "User Lama",
+					TglInstalasi: &fiveMonthsAgo,
+				},
+			},
+			invoiceCounts: map[uint64]int64{10: 5},
+			expected:      false,
+		},
+		{
+			name: "Pelanggan baru dipasang 2 hari lalu dengan 0 invoice - harus New User (true)",
+			langganan: domain.Langganan{
+				ID:          2,
+				PelangganID: 20,
+				Status:      "Aktif",
+				Pelanggan: &domain.Pelanggan{
+					ID:           20,
+					Nama:         "User Baru 1",
+					TglInstalasi: &twoDaysAgo,
+				},
+			},
+			invoiceCounts: map[uint64]int64{20: 0},
+			expected:      true,
+		},
+		{
+			name: "Pelanggan baru dipasang 2 hari lalu dengan 1 invoice pertama (prorate) - harus New User (true)",
+			langganan: domain.Langganan{
+				ID:          3,
+				PelangganID: 30,
+				Status:      "Aktif",
+				Pelanggan: &domain.Pelanggan{
+					ID:           30,
+					Nama:         "User Baru 2",
+					TglInstalasi: &twoDaysAgo,
+				},
+			},
+			invoiceCounts: map[uint64]int64{30: 1},
+			expected:      true,
+		},
+		{
+			name: "Pelanggan lama tanpa invoice tetapi tgl_instalasi 5 bulan lalu - harus Existing User (false)",
+			langganan: domain.Langganan{
+				ID:          4,
+				PelangganID: 40,
+				Status:      "Aktif",
+				Pelanggan: &domain.Pelanggan{
+					ID:           40,
+					Nama:         "User Lama 2",
+					TglInstalasi: &fiveMonthsAgo,
+				},
+			},
+			invoiceCounts: map[uint64]int64{40: 0},
+			expected:      false,
+		},
+		{
+			name: "Pelanggan tanpa tgl_instalasi tapi CreatedAt bulan ini - harus New User (true)",
+			langganan: domain.Langganan{
+				ID:          5,
+				PelangganID: 50,
+				Status:      "Aktif",
+				Pelanggan: &domain.Pelanggan{
+					ID:        50,
+					Nama:      "User Baru No Instalasi",
+					CreatedAt: &twoDaysAgo,
+				},
+			},
+			invoiceCounts: map[uint64]int64{50: 0},
+			expected:      true,
+		},
+		{
+			name: "Pelanggan dengan TglMulaiLangganan maju ke bulan depan tapi tgl_instalasi 5 bulan lalu dan punya 5 invoice - harus Existing User (false)",
+			langganan: domain.Langganan{
+				ID:                6,
+				PelangganID:       60,
+				Status:            "Aktif",
+				TglMulaiLangganan: &startOfMonth,
+				Pelanggan: &domain.Pelanggan{
+					ID:           60,
+					Nama:         "User Kasus Bug",
+					TglInstalasi: &fiveMonthsAgo,
+				},
+			},
+			invoiceCounts: map[uint64]int64{60: 5},
+			expected:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := determineIsNewUser(tt.langganan, startOfMonth, endOfMonth, today, tt.invoiceCounts)
+			if res != tt.expected {
+				t.Errorf("got %v, expected %v", res, tt.expected)
+			}
+		})
+	}
+}
+
 func TestExportInvoices(t *testing.T) {
 	invRepo := &mockInvoiceRepoCallback{
 		invoices: map[string]*domain.Invoice{

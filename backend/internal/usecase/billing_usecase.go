@@ -1632,12 +1632,69 @@ func (u *billingUsecase) GetRevenueReportDetails(ctx context.Context, params *do
 
 // --- Portability ---
 
+func fetchInvoiceCounts(ctx context.Context) map[uint64]int64 {
+	invoiceCounts := make(map[uint64]int64)
+	db := database.GetDB()
+	if db != nil {
+		type InvCount struct {
+			PelangganID uint64 `gorm:"column:pelanggan_id"`
+			Total       int64  `gorm:"column:total"`
+		}
+		var counts []InvCount
+		if err := db.WithContext(ctx).Table("invoices").Select("pelanggan_id, COUNT(*) as total").Group("pelanggan_id").Scan(&counts).Error; err == nil {
+			for _, c := range counts {
+				invoiceCounts[c.PelangganID] += c.Total
+			}
+		}
+		var archiveCounts []InvCount
+		if err := db.WithContext(ctx).Table("invoices_archive").Select("pelanggan_id, COUNT(*) as total").Group("pelanggan_id").Scan(&archiveCounts).Error; err == nil {
+			for _, c := range archiveCounts {
+				invoiceCounts[c.PelangganID] += c.Total
+			}
+		}
+	}
+	return invoiceCounts
+}
+
+func determineIsNewUser(l domain.Langganan, startOfMonth, endOfMonth, today time.Time, invoiceCounts map[uint64]int64) bool {
+	// 1. Jika pelanggan sudah pernah memiliki lebih dari 1 invoice (misal sudah 2, 5, 10 kali invoice otomatis/lunas),
+	// maka secara absolut mereka BUKAN user baru.
+	if l.PelangganID > 0 && invoiceCounts != nil && invoiceCounts[l.PelangganID] > 1 {
+		return false
+	}
+
+	// 2. Tentukan tanggal acuan bergabung/pemasangan (prioritas: tgl_instalasi fisik -> pelanggan.created_at -> langganan.created_at)
+	var joinDate *time.Time
+	if l.Pelanggan != nil && l.Pelanggan.TglInstalasi != nil {
+		joinDate = l.Pelanggan.TglInstalasi
+	} else if l.Pelanggan != nil && l.Pelanggan.CreatedAt != nil {
+		joinDate = l.Pelanggan.CreatedAt
+	} else if l.CreatedAt != nil {
+		joinDate = l.CreatedAt
+	}
+
+	if joinDate != nil {
+		// Terdaftar / dipasang di bulan berjalan
+		if (joinDate.After(startOfMonth) || joinDate.Equal(startOfMonth)) && joinDate.Before(endOfMonth) {
+			return true
+		}
+		// Atau baru dipasang dalam rentang 35 hari terakhir
+		diffHours := today.Sub(*joinDate).Hours()
+		if diffHours >= 0 && diffHours <= 24*35 && joinDate.Before(today.Add(24*time.Hour)) {
+			return true
+		}
+	}
+	return false
+}
+
 func (u *billingUsecase) ExportLangganan(ctx context.Context, format string, filters domain.LanggananFilterParams) ([]byte, string, error) {
 	headers := []string{"ID", "Nama Pelanggan", "No. Telepon", "Alamat", "Brand", "Paket", "Status", "Kategori User", "Harga Awal", "Jatuh Tempo", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti", "Metode"}
 	limit := 1000
 	offset := 0
 	today := time.Now()
 	startOfMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
+	endOfMonth := startOfMonth.AddDate(0, 1, 0)
+	invoiceCounts := fetchInvoiceCounts(ctx)
 
 	brandMap := make(map[string]string)
 	db := database.GetDB()
@@ -1716,7 +1773,7 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string, fil
 				}
 
 				userCategory := "Existing User"
-				if (l.TglMulaiLangganan != nil && (l.TglMulaiLangganan.After(startOfMonth) || l.TglMulaiLangganan.Equal(startOfMonth))) || (l.CreatedAt != nil && l.CreatedAt.After(startOfMonth)) {
+				if determineIsNewUser(l, startOfMonth, endOfMonth, today, invoiceCounts) {
 					userCategory = "New User"
 				}
 
@@ -1785,7 +1842,7 @@ func (u *billingUsecase) ExportLangganan(ctx context.Context, format string, fil
 				}
 
 				userCategory := "Existing User"
-				if (l.TglMulaiLangganan != nil && (l.TglMulaiLangganan.After(startOfMonth) || l.TglMulaiLangganan.Equal(startOfMonth))) || (l.CreatedAt != nil && l.CreatedAt.After(startOfMonth)) {
+				if determineIsNewUser(l, startOfMonth, endOfMonth, today, invoiceCounts) {
 					userCategory = "New User"
 				}
 
@@ -1807,6 +1864,7 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 	f := excelize.NewFile()
 	today := time.Now()
 	limit := 1000
+	invoiceCounts := fetchInvoiceCounts(ctx)
 
 	brandMap := make(map[string]string)
 	db := database.GetDB()
@@ -1931,19 +1989,9 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 
 			// Determine if New User
 			userCategory := "Existing User"
-			isNew := false
-			if l.TglMulaiLangganan != nil {
-				if (l.TglMulaiLangganan.After(startOfMonth) || l.TglMulaiLangganan.Equal(startOfMonth)) && l.TglMulaiLangganan.Before(endOfMonth) {
-					userCategory = "New User"
-					isNew = true
-					totalNewUsersThisMonth++
-				} else if today.Sub(*l.TglMulaiLangganan).Hours() <= 24*35 && l.TglMulaiLangganan.Before(today.Add(24*time.Hour)) {
-					userCategory = "New User"
-					isNew = true
-				}
-			} else if l.CreatedAt != nil && l.CreatedAt.After(startOfMonth) {
+			isNew := determineIsNewUser(l, startOfMonth, endOfMonth, today, invoiceCounts)
+			if isNew {
 				userCategory = "New User"
-				isNew = true
 				totalNewUsersThisMonth++
 			}
 
