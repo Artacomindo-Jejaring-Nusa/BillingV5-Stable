@@ -51,23 +51,60 @@
           </div>
         </div>
 
-        <!-- Search Box -->
-        <div class="px-3 pt-3 pb-2">
+        <!-- Search & Brand Filter Row -->
+        <div class="px-3 pt-3 pb-2 d-flex align-center gap-1.5">
           <v-text-field
             v-model="searchQuery"
-            placeholder="Cari nama, no telp, brand..."
+            placeholder="Cari chat..."
             prepend-inner-icon="mdi-magnify"
             variant="outlined"
             density="compact"
             hide-details
             clearable
             rounded="lg"
-            class="search-input"
+            class="search-input flex-grow-1"
             @update:model-value="onSearchDebounced"
           ></v-text-field>
+
+          <!-- Brand Filter Dropdown Menu (Eliminates messy extra chip row) -->
+          <v-menu location="bottom end">
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                variant="tonal"
+                :color="selectedBrand === 'ALL' ? 'default' : getBrandColor(selectedBrand)"
+                size="small"
+                class="text-none font-weight-bold px-2 rounded-lg flex-shrink-0"
+                style="height: 40px; min-width: 40px;"
+                title="Filter Channel / Brand"
+              >
+                <v-icon size="16">mdi-filter-variant</v-icon>
+                <span class="ms-1 d-none d-sm-inline" style="font-size: 0.74rem;">
+                  {{ getBrandShortLabel(selectedBrand) }}
+                </span>
+                <v-icon size="12" class="ms-0.5">mdi-chevron-down</v-icon>
+              </v-btn>
+            </template>
+            <v-list density="compact" class="py-1 rounded-lg elevation-3">
+              <v-list-item
+                v-for="filter in brandFilters"
+                :key="filter.value"
+                :value="filter.value"
+                :active="selectedBrand === filter.value"
+                @click="setBrandFilter(filter.value)"
+              >
+                <template v-slot:prepend>
+                  <v-icon size="14" :color="filter.color || 'primary'">mdi-circle-medium</v-icon>
+                </template>
+                <v-list-item-title class="text-caption font-weight-medium">
+                  {{ filter.label }}
+                </v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
         </div>
 
-        <!-- Omnichannel Status Tabs (All | Open | Resolved) -->
+        <!-- Omnichannel Status Tabs (Terbuka | Selesai | Semua) -->
         <div class="px-3 pb-2">
           <div class="omnichannel-status-tabs">
             <button
@@ -84,44 +121,27 @@
           </div>
         </div>
 
-        <!-- Assignment Filter Sub-bar -->
-        <div class="px-3 pb-2 assignment-filter-bar d-flex gap-1 overflow-x-auto">
-          <v-btn
-            v-for="tab in assignmentTabs"
-            :key="tab.value"
-            size="x-small"
-            :variant="selectedAssignment === tab.value ? 'flat' : 'tonal'"
-            :color="selectedAssignment === tab.value ? tab.color : 'default'"
-            class="assignment-tab-btn text-none font-weight-bold rounded-pill flex-shrink-0"
-            style="font-size: 0.72rem; height: 26px;"
-            @click="selectedAssignment = tab.value"
-          >
-            <v-icon size="13" class="me-1">{{ tab.icon }}</v-icon>
-            {{ tab.label }}
-            <span
-              v-if="tab.count !== undefined && tab.count > 0"
-              class="ms-1 px-1.5 py-0.2 rounded-pill font-weight-bold"
-              :class="selectedAssignment === tab.value ? 'bg-white text-dark' : 'bg-grey-lighten-2 text-dark'"
-              style="font-size: 0.65rem;"
+        <!-- Assignment Segment Bar (3 Segments: Semua Tim, Saya, Unassigned) -->
+        <div class="px-3 pb-2">
+          <div class="assignment-filter-bar">
+            <button
+              v-for="tab in assignmentTabs"
+              :key="tab.value"
+              type="button"
+              class="assignment-tab-btn"
+              :class="{ 'assignment-tab-btn--active': selectedAssignment === tab.value }"
+              @click="selectedAssignment = tab.value"
             >
-              {{ tab.count }}
-            </span>
-          </v-btn>
-        </div>
-
-        <!-- Brand Filter Chips (Compact & Clean) -->
-        <div class="px-3 pb-2 brand-filter-bar d-flex gap-1.5 overflow-x-auto">
-          <v-chip
-            v-for="filter in brandFilters"
-            :key="filter.value"
-            :color="selectedBrand === filter.value ? filter.color : undefined"
-            :variant="selectedBrand === filter.value ? 'flat' : 'tonal'"
-            size="small"
-            class="font-weight-medium cursor-pointer brand-filter-chip flex-shrink-0"
-            @click="setBrandFilter(filter.value)"
-          >
-            {{ filter.label }}
-          </v-chip>
+              <v-icon size="12" class="me-1">{{ tab.icon }}</v-icon>
+              <span>{{ tab.label }}</span>
+              <span
+                v-if="tab.count !== undefined && tab.count > 0"
+                class="assignment-tab-count ms-1"
+              >
+                {{ tab.count }}
+              </span>
+            </button>
+          </div>
         </div>
 
         <v-divider></v-divider>
@@ -166,83 +186,19 @@
 
                 <!-- Details -->
                 <div class="flex-grow-1 min-w-0">
-                  <!-- Name & Timestamp Row -->
-                  <div class="d-flex align-center justify-space-between mb-1">
-                    <span class="font-weight-bold text-truncate text-body-2 text-high-emphasis flex-grow-1 me-2" style="max-width: 160px;">
+                  <!-- Row 1: Name & Timestamp -->
+                  <div class="d-flex align-center justify-space-between mb-0.5">
+                    <span class="font-weight-bold text-truncate text-body-2 text-high-emphasis flex-grow-1 me-2" style="font-size: 0.84rem;">
                       {{ room.pelanggan?.nama || 'Pelanggan #' + room.pelanggan_id }}
                     </span>
-                    <span class="text-caption text-medium-emphasis flex-shrink-0 font-weight-medium" style="font-size: 0.7rem;">
+                    <span class="text-caption text-medium-emphasis flex-shrink-0" style="font-size: 0.68rem;">
                       {{ formatTimestamp(room.last_message_at) }}
                     </span>
                   </div>
 
-                  <!-- Brand Pill, Status & Assignment Row -->
-                  <div class="d-flex align-center gap-1.5 mb-1.5 flex-wrap">
-                    <v-chip
-                      :color="getBrandColor(room.brand)"
-                      size="x-small"
-                      variant="flat"
-                      class="px-1.5 font-weight-bold text-white"
-                      style="font-size: 0.62rem; height: 18px;"
-                    >
-                      {{ normalizeBrandName(room.brand) }}
-                    </v-chip>
-
-                    <!-- Status Badge (Omnichannel style) -->
-                    <v-chip
-                      v-if="room.status === 'closed'"
-                      size="x-small"
-                      variant="tonal"
-                      color="success"
-                      class="px-1.5 font-weight-bold"
-                      style="font-size: 0.62rem; height: 18px;"
-                    >
-                      Resolved
-                    </v-chip>
-                    <v-chip
-                      v-else
-                      size="x-small"
-                      variant="tonal"
-                      color="primary"
-                      class="px-1.5 font-weight-bold"
-                      style="font-size: 0.62rem; height: 18px;"
-                    >
-                      Open
-                    </v-chip>
-
-                    <!-- Assignment Badge -->
-                    <v-chip
-                      v-if="room.assigned_admin_id"
-                      size="x-small"
-                      variant="flat"
-                      :color="room.assigned_admin_id === authStore.user?.id ? 'info' : 'deep-purple'"
-                      class="px-1.5 font-weight-bold text-white"
-                      style="font-size: 0.62rem; height: 18px;"
-                    >
-                      <v-icon size="10" class="me-0.5">mdi-account-check</v-icon>
-                      {{ room.assigned_admin_id === authStore.user?.id ? 'Saya' : (room.assigned_admin?.nama || 'Assigned') }}
-                    </v-chip>
-                    <v-chip
-                      v-else
-                      size="x-small"
-                      variant="tonal"
-                      color="amber-darken-3"
-                      class="px-1.5 font-weight-bold"
-                      style="font-size: 0.62rem; height: 18px;"
-                    >
-                      <v-icon size="10" class="me-0.5">mdi-account-clock-outline</v-icon>
-                      Unassigned
-                    </v-chip>
-
-                    <span v-if="room.pelanggan?.no_telp" class="text-caption text-medium-emphasis d-flex align-center" style="font-size: 0.72rem;">
-                      <v-icon size="11" class="me-0.5">mdi-phone-outline</v-icon>
-                      {{ room.pelanggan.no_telp }}
-                    </span>
-                  </div>
-
-                  <!-- Last message snippet & unread badge Row -->
-                  <div class="d-flex align-center justify-space-between">
-                    <span class="text-caption text-truncate text-medium-emphasis flex-grow-1 me-2" style="font-size: 0.75rem;">
+                  <!-- Row 2: Last message snippet & unread badge -->
+                  <div class="d-flex align-center justify-space-between mb-1.5">
+                    <span class="text-caption text-truncate text-medium-emphasis flex-grow-1 me-2" style="font-size: 0.76rem; line-height: 1.35;">
                       {{ room.last_message_text || 'Mulai obrolan...' }}
                     </span>
                     <v-badge
@@ -252,6 +208,48 @@
                       inline
                       class="flex-shrink-0"
                     ></v-badge>
+                  </div>
+
+                  <!-- Row 3: Meta Badges (Micro-pills that never overlap) -->
+                  <div class="d-flex align-center gap-1 flex-nowrap overflow-hidden">
+                    <!-- Brand Pill -->
+                    <span
+                      class="room-meta-pill text-white flex-shrink-0"
+                      :class="getBrandBgClass(room.brand)"
+                    >
+                      {{ getBrandShortLabel(room.brand) }}
+                    </span>
+
+                    <!-- Resolved Tag (Only shown if closed) -->
+                    <span
+                      v-if="room.status === 'closed'"
+                      class="room-meta-pill bg-grey-lighten-2 text-grey-darken-3 flex-shrink-0"
+                    >
+                      Resolved
+                    </span>
+
+                    <!-- Assignment Tag -->
+                    <span
+                      v-if="room.assigned_admin_id === authStore.user?.id"
+                      class="room-meta-pill bg-primary-lighten-4 text-primary flex-shrink-0 d-inline-flex align-center gap-0.5"
+                    >
+                      <v-icon size="10">mdi-account-check</v-icon>
+                      Saya
+                    </span>
+                    <span
+                      v-else-if="!room.assigned_admin_id"
+                      class="room-meta-pill bg-amber-lighten-4 text-amber-darken-4 flex-shrink-0 d-inline-flex align-center gap-0.5"
+                    >
+                      <v-icon size="10">mdi-clock-outline</v-icon>
+                      Unassigned
+                    </span>
+                    <span
+                      v-else
+                      class="room-meta-pill bg-purple-lighten-4 text-deep-purple flex-shrink-0 text-truncate"
+                      style="max-width: 75px;"
+                    >
+                      {{ room.assigned_admin?.nama || 'Admin' }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -359,31 +357,37 @@
             </div>
 
             <!-- Header Action Buttons -->
-            <div class="d-flex align-center gap-2 flex-shrink-0 ms-3 flex-wrap justify-end">
-              <!-- Assignment Status & Action (Mekari Qontak style) -->
+            <!-- Header Action Buttons (Streamlined & Compact to fit on 1 line at 100% zoom) -->
+            <div class="d-flex align-center gap-1.5 flex-shrink-0 ms-2">
+              <!-- Assignment Status & Action -->
               <template v-if="activeRoom.status !== 'closed'">
-                <!-- If assigned to logged-in user -->
+                <!-- If assigned to logged-in user: compact chip with unassign button -->
                 <div v-if="activeRoom.assigned_admin_id === authStore.user?.id" class="d-flex align-center gap-1">
                   <v-chip
                     color="primary"
                     variant="flat"
                     size="small"
-                    class="font-weight-bold text-white"
+                    class="font-weight-bold text-white px-2"
                     prepend-icon="mdi-account-check"
+                    style="height: 28px; font-size: 0.72rem;"
                   >
-                    Ditangani Saya
+                    Saya
                   </v-chip>
-                  <v-btn
-                    variant="tonal"
-                    color="grey-darken-1"
-                    size="small"
-                    prepend-icon="mdi-account-minus-outline"
-                    class="text-none font-weight-medium rounded-pill"
-                    :loading="isAssigning"
-                    @click="unassignActiveRoom"
-                  >
-                    Lepas
-                  </v-btn>
+                  <v-tooltip location="bottom" text="Lepas Penugasan">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        variant="tonal"
+                        color="grey-darken-1"
+                        size="small"
+                        icon="mdi-account-minus-outline"
+                        density="compact"
+                        style="height: 28px; width: 28px;"
+                        :loading="isAssigning"
+                        @click="unassignActiveRoom"
+                      ></v-btn>
+                    </template>
+                  </v-tooltip>
                 </div>
 
                 <!-- If assigned to someone else -->
@@ -392,8 +396,9 @@
                     color="deep-purple"
                     variant="tonal"
                     size="small"
-                    class="font-weight-bold"
+                    class="font-weight-bold px-2 text-truncate"
                     prepend-icon="mdi-account-outline"
+                    style="height: 28px; font-size: 0.72rem; max-width: 100px;"
                   >
                     {{ activeRoom.assigned_admin?.nama || 'Admin' }}
                   </v-chip>
@@ -401,8 +406,8 @@
                     variant="flat"
                     color="primary"
                     size="small"
-                    prepend-icon="mdi-hand-back-left-outline"
-                    class="text-none font-weight-bold rounded-pill"
+                    class="text-none font-weight-bold rounded-pill px-2.5"
+                    style="height: 28px; font-size: 0.72rem;"
                     :loading="isAssigning"
                     @click="assignRoomToMe"
                   >
@@ -412,21 +417,13 @@
 
                 <!-- If unassigned -->
                 <div v-else class="d-flex align-center gap-1">
-                  <v-chip
-                    color="amber-darken-3"
-                    variant="tonal"
-                    size="small"
-                    class="font-weight-bold"
-                    prepend-icon="mdi-account-clock-outline"
-                  >
-                    Unassigned
-                  </v-chip>
                   <v-btn
                     variant="flat"
                     color="primary"
                     size="small"
                     prepend-icon="mdi-hand-back-left-outline"
-                    class="text-none font-weight-bold rounded-pill"
+                    class="text-none font-weight-bold rounded-pill px-2.5"
+                    style="height: 28px; font-size: 0.72rem;"
                     :loading="isAssigning"
                     @click="assignRoomToMe"
                   >
@@ -435,87 +432,93 @@
                 </div>
               </template>
 
-              <!-- Trouble Ticket Quick Open Button -->
-              <v-btn
-                variant="tonal"
-                color="warning"
-                size="small"
-                prepend-icon="mdi-ticket-alert-outline"
-                class="text-none font-weight-bold rounded-pill d-none d-sm-inline-flex"
-                @click="openTroubleTicketPanel"
-              >
-                Trouble Ticket
-              </v-btn>
+              <!-- Trouble Ticket Quick Open Tooltip Button -->
+              <v-tooltip location="bottom" text="Buat Trouble Ticket">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    variant="tonal"
+                    color="warning"
+                    size="small"
+                    icon="mdi-ticket-alert-outline"
+                    density="compact"
+                    style="height: 28px; width: 28px;"
+                    @click="openTroubleTicketPanel"
+                  ></v-btn>
+                </template>
+              </v-tooltip>
 
-              <!-- Resolve / Selesaikan Conversation Button (Omnichannel Style) -->
+              <!-- Resolve / Selesaikan Conversation Button -->
               <v-btn
                 v-if="activeRoom.status !== 'closed'"
                 variant="flat"
                 color="deep-purple"
                 size="small"
                 prepend-icon="mdi-check-circle"
-                class="text-none font-weight-bold rounded-pill shadow-sm"
+                class="text-none font-weight-bold rounded-pill px-3 shadow-sm"
+                style="height: 28px; font-size: 0.74rem;"
                 :loading="isUpdatingStatus"
                 @click="openCloseRoomDialog"
               >
                 Resolve
               </v-btn>
-              <div v-else class="d-flex align-center gap-1.5">
-                <v-chip
-                  color="success"
-                  variant="flat"
-                  size="small"
-                  class="font-weight-bold text-white"
-                  prepend-icon="mdi-check-all"
-                >
-                  Resolved
-                </v-chip>
-                <v-btn
-                  variant="tonal"
-                  color="primary"
-                  size="small"
-                  prepend-icon="mdi-lock-open-outline"
-                  class="text-none font-weight-bold rounded-pill"
-                  :loading="isUpdatingStatus"
-                  @click="reopenActiveRoom"
-                >
-                  Buka Kembali
-                </v-btn>
-              </div>
+              <v-btn
+                v-else
+                variant="tonal"
+                color="primary"
+                size="small"
+                prepend-icon="mdi-lock-open-outline"
+                class="text-none font-weight-bold rounded-pill px-3"
+                style="height: 28px; font-size: 0.74rem;"
+                :loading="isUpdatingStatus"
+                @click="reopenActiveRoom"
+              >
+                Buka Kembali
+              </v-btn>
+
+              <!-- WhatsApp Quick Open Tooltip Button -->
+              <v-tooltip location="bottom" text="Buka di WhatsApp">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    v-if="activeRoom.pelanggan?.no_telp"
+                    variant="tonal"
+                    color="success"
+                    size="small"
+                    icon="mdi-whatsapp"
+                    density="compact"
+                    style="height: 28px; width: 28px;"
+                    @click="openWhatsApp(activeRoom.pelanggan.no_telp)"
+                  ></v-btn>
+                </template>
+              </v-tooltip>
 
               <!-- Sound Toggle -->
-              <v-tooltip location="bottom" :text="isSoundEnabled ? 'Nonaktifkan Notifikasi Suara' : 'Aktifkan Notifikasi Suara'">
+              <v-tooltip location="bottom" :text="isSoundEnabled ? 'Suara Notifikasi Aktif' : 'Suara Notifikasi Mati'">
                 <template v-slot:activator="{ props }">
                   <v-btn
                     v-bind="props"
                     :icon="isSoundEnabled ? 'mdi-volume-high' : 'mdi-volume-off'"
                     variant="text"
                     size="small"
+                    density="compact"
+                    style="height: 28px; width: 28px;"
                     :color="isSoundEnabled ? 'primary' : 'medium-emphasis'"
                     @click="isSoundEnabled = !isSoundEnabled"
                   ></v-btn>
                 </template>
               </v-tooltip>
 
-              <v-btn
-                v-if="activeRoom.pelanggan?.no_telp"
-                variant="tonal"
-                color="success"
-                size="small"
-                prepend-icon="mdi-whatsapp"
-                class="text-none font-weight-bold rounded-pill d-none d-sm-inline-flex"
-                @click="openWhatsApp(activeRoom.pelanggan.no_telp)"
-              >
-                WhatsApp
-              </v-btn>
-
+              <!-- Panel 3 (Profil 360 / Ticket) Toggle Button -->
               <v-tooltip location="bottom" :text="showInfoPanel ? 'Tutup Panel Samping' : 'Panel Profil & Trouble Ticket'">
                 <template v-slot:activator="{ props }">
                   <v-btn
                     v-bind="props"
-                    :icon="showInfoPanel ? 'mdi-close' : 'mdi-view-split-vertical'"
+                    :icon="showInfoPanel ? 'mdi-close' : 'mdi-dock-right'"
                     variant="tonal"
                     size="small"
+                    density="compact"
+                    style="height: 28px; width: 28px;"
                     :color="showInfoPanel ? 'primary' : 'default'"
                     @click="showInfoPanel = !showInfoPanel"
                   ></v-btn>
@@ -530,6 +533,8 @@
                     icon="mdi-close"
                     variant="text"
                     size="small"
+                    density="compact"
+                    style="height: 28px; width: 28px;"
                     color="medium-emphasis"
                     @click="activeRoom = null"
                   ></v-btn>
@@ -681,18 +686,22 @@
             </div>
           </div>
 
-          <!-- Quick Template Replies Bar (Sleek & Scrollable) -->
-          <div class="quick-replies-bar px-4 py-2 bg-surface border-t d-flex align-center gap-2 overflow-x-auto">
+          <!-- Quick Template Replies Bar (Only shown when room is Open) -->
+          <div
+            v-if="activeRoom.status !== 'closed'"
+            class="quick-replies-bar px-3 py-1.5 bg-surface border-t d-flex align-center gap-2 overflow-x-auto"
+          >
             <v-icon size="14" color="amber-darken-2" class="flex-shrink-0">mdi-lightning-bolt</v-icon>
-            <span class="text-caption font-weight-bold text-medium-emphasis flex-shrink-0">Templat (/):</span>
-            <div class="d-flex align-center gap-1.5 flex-nowrap overflow-x-auto py-0.5 flex-grow-1">
+            <span class="text-caption font-weight-bold text-medium-emphasis flex-shrink-0" style="font-size: 0.72rem;">Templat:</span>
+            <div class="d-flex align-center gap-1.5 flex-nowrap overflow-x-auto py-0.5 flex-grow-1 quick-replies-scroll">
               <v-chip
                 v-for="(tpl, tIdx) in quickTemplates"
                 :key="tpl.id || tpl.shortcut || tIdx"
-                size="small"
+                size="x-small"
                 variant="tonal"
                 color="primary"
-                class="cursor-pointer font-weight-medium flex-shrink-0 quick-chip px-3"
+                class="cursor-pointer font-weight-medium flex-shrink-0 quick-chip px-2.5"
+                style="height: 24px; font-size: 0.72rem;"
                 :prepend-icon="tpl.icon || 'mdi-message-text-outline'"
                 @click="useTemplate(tpl)"
               >
@@ -705,27 +714,31 @@
               size="x-small"
               prepend-icon="mdi-cog-outline"
               color="medium-emphasis"
-              class="flex-shrink-0 text-caption font-weight-medium"
+              class="flex-shrink-0 text-caption font-weight-medium px-1.5"
+              style="font-size: 0.7rem;"
               @click="openManageTemplates"
             >
               Kelola
             </v-btn>
           </div>
 
-          <!-- Reopen Notice Banner when Room is Resolved -->
+          <!-- Reopen Notice Banner when Room is Resolved (Clean & Slim) -->
           <div
             v-if="activeRoom.status === 'closed'"
-            class="px-4 py-2 bg-amber-lighten-5 border-t d-flex align-center justify-space-between text-caption text-amber-darken-4"
+            class="px-4 py-2 bg-grey-lighten-4 border-t d-flex align-center justify-space-between text-caption text-medium-emphasis"
           >
             <div class="d-flex align-center gap-2">
-              <v-icon size="16" color="amber-darken-3">mdi-information-outline</v-icon>
-              <span>Percakapan ini berstatus <strong>Resolved (Selesai)</strong>. Mengirim pesan akan membuka kembali obrolan ini secara otomatis.</span>
+              <v-icon size="16" color="success">mdi-check-circle-outline</v-icon>
+              <span style="font-size: 0.75rem;">
+                Percakapan ini berstatus <strong>Resolved (Selesai)</strong>. Mengetik balasan akan otomatis membuka obrolan kembali.
+              </span>
             </div>
             <v-btn
               variant="tonal"
               size="x-small"
               color="primary"
-              class="text-none font-weight-bold rounded-pill"
+              class="text-none font-weight-bold rounded-pill px-3"
+              style="height: 24px; font-size: 0.7rem;"
               prepend-icon="mdi-lock-open-outline"
               :loading="isUpdatingStatus"
               @click="reopenActiveRoom"
@@ -1615,9 +1628,10 @@ const isUpdatingStatus = ref(false);
 
 // Omnichannel Status Tabs: 'all' | 'open' | 'resolved'
 type StatusFilter = 'all' | 'open' | 'resolved';
-const selectedStatusTab = ref<StatusFilter>('all');
+// Default to 'open' (Terbuka) so resolved conversations do NOT crowd the view on initial load
+const selectedStatusTab = ref<StatusFilter>('open');
 
-// Assignment Filter: 'all' | 'mine' | 'unassigned' | 'assigned'
+// Assignment Filter: 'all' | 'mine' | 'unassigned'
 type AssignmentFilter = 'all' | 'mine' | 'unassigned' | 'assigned';
 const selectedAssignment = ref<AssignmentFilter>('all');
 
@@ -1677,11 +1691,6 @@ interface StatusTabItem {
 
 const statusTabs = computed<StatusTabItem[]>(() => [
   {
-    label: 'Semua',
-    value: 'all',
-    count: rooms.value.length,
-  },
-  {
     label: 'Terbuka',
     value: 'open',
     count: openRoomsCount.value,
@@ -1690,6 +1699,11 @@ const statusTabs = computed<StatusTabItem[]>(() => [
     label: 'Selesai',
     value: 'resolved',
     count: closedRoomsCount.value,
+  },
+  {
+    label: 'Semua',
+    value: 'all',
+    count: rooms.value.length,
   },
 ]);
 
@@ -1701,6 +1715,7 @@ interface AssignmentTabItem {
   count?: number;
 }
 
+// 3 segments fit cleanly without horizontal scrollbars
 const assignmentTabs = computed<AssignmentTabItem[]>(() => [
   {
     label: 'Semua Tim',
@@ -1721,13 +1736,6 @@ const assignmentTabs = computed<AssignmentTabItem[]>(() => [
     icon: 'mdi-account-clock-outline',
     color: 'amber-darken-3',
     count: unassignedRoomsCount.value,
-  },
-  {
-    label: 'Assigned',
-    value: 'assigned',
-    icon: 'mdi-account-check-outline',
-    color: 'deep-purple',
-    count: assignedRoomsCount.value,
   },
 ]);
 
@@ -1939,6 +1947,21 @@ function normalizeBrandName(brandStr?: string): string {
   if (b.includes('NAGRAK')) return 'JELANTIK NAGRAK';
   if (b.includes('JELANTIK')) return 'JELANTIK';
   return 'JAKINET';
+}
+
+function getBrandShortLabel(brandStr?: string): string {
+  if (!brandStr || brandStr === 'ALL') return 'Semua Brand';
+  const norm = normalizeBrandName(brandStr);
+  if (norm === 'JELANTIK NAGRAK') return 'Nagrak';
+  if (norm === 'JELANTIK') return 'Jelantik';
+  return 'Jakinet';
+}
+
+function getBrandBgClass(brandStr?: string): string {
+  const norm = normalizeBrandName(brandStr);
+  if (norm === 'JELANTIK NAGRAK') return 'bg-success';
+  if (norm === 'JELANTIK') return 'bg-primary';
+  return 'bg-error';
 }
 
 function getBrandColor(brandStr?: string): string {
@@ -3302,9 +3325,9 @@ onUnmounted(() => {
 
 /* ================= PANEL 1: SIDEBAR ================= */
 .rooms-sidebar {
-  width: 320px;
-  min-width: 300px;
-  max-width: 340px;
+  width: 300px;
+  min-width: 280px;
+  max-width: 320px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -3332,30 +3355,85 @@ onUnmounted(() => {
   color: var(--accent);
 }
 
-/* Segmented assignment tabs read as one connected control, not loose buttons */
+/* Segmented assignment bar reads as 1 connected control with 3 equal segments */
 .assignment-filter-bar {
-  background: var(--panel);
+  background-color: var(--panel);
   border-radius: var(--radius-md);
-  margin-left: 12px;
-  margin-right: 12px;
-  padding: 4px !important;
-  width: calc(100% - 24px);
+  padding: 3px;
+  display: flex;
+  gap: 3px;
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .assignment-filter-bar::-webkit-scrollbar,
+.quick-replies-scroll::-webkit-scrollbar,
 .quick-replies-bar::-webkit-scrollbar {
-  display: none;
+  display: none !important;
+}
+
+.quick-replies-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .assignment-tab-btn {
-  box-shadow: none !important;
+  flex: 1 1 0px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 2px;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.brand-filter-chip {
-  height: 26px;
-  font-size: 0.72rem;
-  letter-spacing: 0.15px;
+.assignment-tab-btn:hover:not(.assignment-tab-btn--active) {
+  background-color: var(--surface);
+  color: var(--ink);
+}
+
+.assignment-tab-btn--active {
+  background-color: var(--surface) !important;
+  color: var(--accent) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+.assignment-tab-count {
+  font-size: 0.65rem;
+  padding: 0 5px;
   border-radius: 999px;
+  font-weight: 700;
+  background-color: var(--border-soft);
+  color: var(--ink-soft);
+  line-height: 1.3;
+}
+
+.assignment-tab-btn--active .assignment-tab-count {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+.room-meta-pill {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  line-height: 1.25;
+  letter-spacing: 0.1px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .room-card {
@@ -3591,9 +3669,9 @@ onUnmounted(() => {
 
 /* ================= PANEL 3: CONTACT 360 & TROUBLE TICKET ================= */
 .customer-info-panel {
-  width: 360px;
-  min-width: 320px;
-  max-width: 420px;
+  width: 310px;
+  min-width: 290px;
+  max-width: 330px;
   flex-shrink: 0;
   height: 100%;
   background-color: var(--surface);
