@@ -67,7 +67,24 @@
           ></v-text-field>
         </div>
 
-        <!-- Mekari Qontak Style Assignment Filter Tabs -->
+        <!-- Omnichannel Status Tabs (All | Open | Resolved) -->
+        <div class="px-3 pb-2">
+          <div class="omnichannel-status-tabs">
+            <button
+              v-for="tab in statusTabs"
+              :key="tab.value"
+              type="button"
+              class="omnichannel-tab-btn"
+              :class="{ 'omnichannel-tab-btn--active': selectedStatusTab === tab.value }"
+              @click="selectedStatusTab = tab.value"
+            >
+              <span>{{ tab.label }}</span>
+              <span class="omnichannel-tab-count">{{ tab.count }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Assignment Filter Sub-bar -->
         <div class="px-3 pb-2 assignment-filter-bar d-flex gap-1 overflow-x-auto">
           <v-btn
             v-for="tab in assignmentTabs"
@@ -82,7 +99,7 @@
             <v-icon size="13" class="me-1">{{ tab.icon }}</v-icon>
             {{ tab.label }}
             <span
-              v-if="tab.count > 0"
+              v-if="tab.count !== undefined && tab.count > 0"
               class="ms-1 px-1.5 py-0.2 rounded-pill font-weight-bold"
               :class="selectedAssignment === tab.value ? 'bg-white text-dark' : 'bg-grey-lighten-2 text-dark'"
               style="font-size: 0.65rem;"
@@ -120,7 +137,7 @@
             <v-icon size="36" color="grey-lighten-1" class="mb-2">mdi-message-text-outline</v-icon>
             <div class="text-body-2 font-weight-medium">Tidak ada percakapan</div>
             <div class="text-caption">
-              {{ selectedStatus === 'closed' ? 'Belum ada percakapan yang selesai' : 'Belum ada obrolan aktif' }}
+              {{ selectedStatusTab === 'resolved' ? 'Belum ada percakapan yang selesai' : (selectedStatusTab === 'open' ? 'Belum ada obrolan aktif' : 'Belum ada riwayat percakapan') }}
             </div>
           </div>
 
@@ -133,12 +150,19 @@
               @click="selectRoom(room)"
             >
               <div class="d-flex align-start gap-3">
-                <!-- Customer Avatar with Brand Color -->
-                <v-avatar :color="getBrandColor(room.brand)" size="38" class="elevation-1 rounded-circle flex-shrink-0 mt-0.5">
-                  <span class="text-caption font-weight-bold text-white">
-                    {{ getInitials(room.pelanggan?.nama || 'Pelanggan') }}
-                  </span>
-                </v-avatar>
+                <!-- Customer Avatar with Status Dot -->
+                <div class="position-relative flex-shrink-0 mt-0.5">
+                  <v-avatar :color="getBrandColor(room.brand)" size="38" class="elevation-1 rounded-circle">
+                    <span class="text-caption font-weight-bold text-white">
+                      {{ getInitials(room.pelanggan?.nama || 'Pelanggan') }}
+                    </span>
+                  </v-avatar>
+                  <span
+                    class="position-absolute rounded-circle border border-white"
+                    :class="room.status === 'closed' ? 'bg-grey' : 'bg-success'"
+                    style="width: 10px; height: 10px; bottom: 0; right: 0;"
+                  ></span>
+                </div>
 
                 <!-- Details -->
                 <div class="flex-grow-1 min-w-0">
@@ -152,7 +176,7 @@
                     </span>
                   </div>
 
-                  <!-- Brand Pill, Assignment & Phone Row -->
+                  <!-- Brand Pill, Status & Assignment Row -->
                   <div class="d-flex align-center gap-1.5 mb-1.5 flex-wrap">
                     <v-chip
                       :color="getBrandColor(room.brand)"
@@ -164,19 +188,31 @@
                       {{ normalizeBrandName(room.brand) }}
                     </v-chip>
 
-                    <!-- Assignment Badge (Mekari Qontak style) -->
+                    <!-- Status Badge (Omnichannel style) -->
                     <v-chip
                       v-if="room.status === 'closed'"
                       size="x-small"
                       variant="tonal"
-                      color="grey"
+                      color="success"
                       class="px-1.5 font-weight-bold"
                       style="font-size: 0.62rem; height: 18px;"
                     >
-                      Selesai
+                      Resolved
                     </v-chip>
                     <v-chip
-                      v-else-if="room.assigned_admin_id"
+                      v-else
+                      size="x-small"
+                      variant="tonal"
+                      color="primary"
+                      class="px-1.5 font-weight-bold"
+                      style="font-size: 0.62rem; height: 18px;"
+                    >
+                      Open
+                    </v-chip>
+
+                    <!-- Assignment Badge -->
+                    <v-chip
+                      v-if="room.assigned_admin_id"
                       size="x-small"
                       variant="flat"
                       :color="room.assigned_admin_id === authStore.user?.id ? 'info' : 'deep-purple'"
@@ -204,23 +240,13 @@
                     </span>
                   </div>
 
-                  <!-- Last message snippet & status/unread badge Row -->
+                  <!-- Last message snippet & unread badge Row -->
                   <div class="d-flex align-center justify-space-between">
                     <span class="text-caption text-truncate text-medium-emphasis flex-grow-1 me-2" style="font-size: 0.75rem;">
                       {{ room.last_message_text || 'Mulai obrolan...' }}
                     </span>
-                    <v-chip
-                      v-if="room.status === 'closed'"
-                      size="x-small"
-                      variant="tonal"
-                      color="grey"
-                      class="font-weight-medium flex-shrink-0 px-1.5"
-                      style="font-size: 0.65rem; height: 18px;"
-                    >
-                      Selesai
-                    </v-chip>
                     <v-badge
-                      v-else-if="room.unread_count_admin > 0"
+                      v-if="room.unread_count_admin > 0"
                       :content="room.unread_count_admin"
                       color="error"
                       inline
@@ -230,6 +256,18 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Omnichannel Sidebar Bottom Summary Footer -->
+        <div class="sidebar-footer px-4 py-2 border-t bg-surface d-flex align-center justify-space-between text-caption font-weight-medium text-medium-emphasis">
+          <div class="d-flex align-center gap-1.5">
+            <v-icon size="13" color="deep-purple">mdi-account-check</v-icon>
+            <span>Assigned: <strong class="text-high-emphasis">{{ assignedRoomsCount }}</strong></span>
+          </div>
+          <div class="d-flex align-center gap-1.5">
+            <v-icon size="13" color="amber-darken-3">mdi-account-clock-outline</v-icon>
+            <span>Unassigned: <strong class="text-high-emphasis">{{ unassignedRoomsCount }}</strong></span>
           </div>
         </div>
       </aside>
@@ -409,28 +447,28 @@
                 Trouble Ticket
               </v-btn>
 
-              <!-- Close / Selesai Conversation Button -->
+              <!-- Resolve / Selesaikan Conversation Button (Omnichannel Style) -->
               <v-btn
                 v-if="activeRoom.status !== 'closed'"
-                variant="tonal"
-                color="success"
+                variant="flat"
+                color="deep-purple"
                 size="small"
-                prepend-icon="mdi-check-circle-outline"
-                class="text-none font-weight-bold rounded-pill"
+                prepend-icon="mdi-check-circle"
+                class="text-none font-weight-bold rounded-pill shadow-sm"
                 :loading="isUpdatingStatus"
                 @click="openCloseRoomDialog"
               >
-                Tutup Percakapan
+                Resolve
               </v-btn>
               <div v-else class="d-flex align-center gap-1.5">
                 <v-chip
-                  color="grey"
-                  variant="tonal"
+                  color="success"
+                  variant="flat"
                   size="small"
-                  class="font-weight-bold"
+                  class="font-weight-bold text-white"
                   prepend-icon="mdi-check-all"
                 >
-                  Selesai
+                  Resolved
                 </v-chip>
                 <v-btn
                   variant="tonal"
@@ -674,8 +712,58 @@
             </v-btn>
           </div>
 
+          <!-- Reopen Notice Banner when Room is Resolved -->
+          <div
+            v-if="activeRoom.status === 'closed'"
+            class="px-4 py-2 bg-amber-lighten-5 border-t d-flex align-center justify-space-between text-caption text-amber-darken-4"
+          >
+            <div class="d-flex align-center gap-2">
+              <v-icon size="16" color="amber-darken-3">mdi-information-outline</v-icon>
+              <span>Percakapan ini berstatus <strong>Resolved (Selesai)</strong>. Mengirim pesan akan membuka kembali obrolan ini secara otomatis.</span>
+            </div>
+            <v-btn
+              variant="tonal"
+              size="x-small"
+              color="primary"
+              class="text-none font-weight-bold rounded-pill"
+              prepend-icon="mdi-lock-open-outline"
+              :loading="isUpdatingStatus"
+              @click="reopenActiveRoom"
+            >
+              Buka Kembali
+            </v-btn>
+          </div>
+
           <!-- Bottom Chat Input Bar -->
           <footer class="chat-input-bar px-4 py-3 bg-surface border-t" style="position: relative;">
+            <!-- Omnichannel Reply / Note Mode Toggle -->
+            <div class="d-flex align-center justify-space-between mb-2">
+              <div class="d-flex align-center gap-1 bg-grey-lighten-4 pa-1 rounded-pill">
+                <v-btn
+                  size="x-small"
+                  :variant="inputMode === 'reply' ? 'flat' : 'text'"
+                  :color="inputMode === 'reply' ? 'primary' : 'medium-emphasis'"
+                  class="text-none font-weight-bold rounded-pill px-3"
+                  style="font-size: 0.72rem; height: 24px;"
+                  @click="inputMode = 'reply'"
+                >
+                  <v-icon size="12" class="me-1">mdi-reply</v-icon>
+                  Balas Pelanggan
+                </v-btn>
+                <v-btn
+                  size="x-small"
+                  :variant="inputMode === 'note' ? 'flat' : 'text'"
+                  :color="inputMode === 'note' ? 'amber-darken-3' : 'medium-emphasis'"
+                  class="text-none font-weight-bold rounded-pill px-3"
+                  style="font-size: 0.72rem; height: 24px;"
+                  @click="inputMode = 'note'"
+                >
+                  <v-icon size="12" class="me-1">mdi-note-text-outline</v-icon>
+                  Catatan Internal
+                </v-btn>
+              </div>
+            </div>
+
             <!-- Slash Command Floating Autocomplete Popover -->
             <div v-if="showSlashMenu && filteredSlashTemplates.length > 0" class="slash-popup-menu elevation-4">
               <div class="slash-popup-header d-flex align-center justify-space-between px-3 py-1.5 border-b bg-slate-50">
@@ -1523,12 +1611,19 @@ const isLoadingRooms = ref(false);
 const isLoadingMessages = ref(false);
 const searchQuery = ref('');
 const selectedBrand = ref('ALL');
-const selectedStatus = ref<'open' | 'closed' | 'ALL'>('open');
 const isUpdatingStatus = ref(false);
 
-// Mekari Qontak style Assignment Filter
-type AssignmentFilter = 'all' | 'mine' | 'unassigned' | 'assigned' | 'closed';
+// Omnichannel Status Tabs: 'all' | 'open' | 'resolved'
+type StatusFilter = 'all' | 'open' | 'resolved';
+const selectedStatusTab = ref<StatusFilter>('all');
+
+// Assignment Filter: 'all' | 'mine' | 'unassigned' | 'assigned'
+type AssignmentFilter = 'all' | 'mine' | 'unassigned' | 'assigned';
 const selectedAssignment = ref<AssignmentFilter>('all');
+
+// Chat Input Mode: 'reply' | 'note'
+const inputMode = ref<'reply' | 'note'>('reply');
+
 const roomCounts = ref({
   all: 0,
   mine: 0,
@@ -1574,49 +1669,65 @@ const ticketPriorities = [
   { title: 'Kritis (Critical)', value: 'critical' },
 ];
 
+interface StatusTabItem {
+  label: string;
+  value: StatusFilter;
+  count: number;
+}
+
+const statusTabs = computed<StatusTabItem[]>(() => [
+  {
+    label: 'Semua',
+    value: 'all',
+    count: rooms.value.length,
+  },
+  {
+    label: 'Terbuka',
+    value: 'open',
+    count: openRoomsCount.value,
+  },
+  {
+    label: 'Selesai',
+    value: 'resolved',
+    count: closedRoomsCount.value,
+  },
+]);
+
 interface AssignmentTabItem {
   label: string;
   value: AssignmentFilter;
   icon: string;
   color: string;
-  count: number;
+  count?: number;
 }
 
 const assignmentTabs = computed<AssignmentTabItem[]>(() => [
   {
-    label: 'Semua',
+    label: 'Semua Tim',
     value: 'all',
-    icon: 'mdi-inbox-outline',
-    color: 'primary',
-    count: roomCounts.value.all,
+    icon: 'mdi-account-group-outline',
+    color: 'default',
   },
   {
     label: 'Saya',
     value: 'mine',
     icon: 'mdi-account-outline',
-    color: 'info',
-    count: roomCounts.value.mine,
+    color: 'primary',
+    count: mineRoomsCount.value,
   },
   {
     label: 'Unassigned',
     value: 'unassigned',
     icon: 'mdi-account-clock-outline',
     color: 'amber-darken-3',
-    count: roomCounts.value.unassigned,
+    count: unassignedRoomsCount.value,
   },
   {
     label: 'Assigned',
     value: 'assigned',
     icon: 'mdi-account-check-outline',
     color: 'deep-purple',
-    count: roomCounts.value.assigned,
-  },
-  {
-    label: 'Selesai',
-    value: 'closed',
-    icon: 'mdi-check-all',
-    color: 'grey-darken-1',
-    count: roomCounts.value.closed,
+    count: assignedRoomsCount.value,
   },
 ]);
 
@@ -1757,7 +1868,7 @@ const totalUnreadCount = computed(() => {
   return rooms.value.reduce((acc, r) => acc + (r.unread_count_admin || 0), 0);
 });
 
-// Computed open and closed room counts
+// Computed open, closed, mine, unassigned, assigned counts
 const openRoomsCount = computed(() => {
   return rooms.value.filter((r) => !r.status || r.status === 'open').length;
 });
@@ -1766,30 +1877,46 @@ const closedRoomsCount = computed(() => {
   return rooms.value.filter((r) => r.status === 'closed').length;
 });
 
+const mineRoomsCount = computed(() => {
+  const currentUserId = authStore.user?.id;
+  return rooms.value.filter((r) => r.assigned_admin_id === currentUserId).length;
+});
+
+const unassignedRoomsCount = computed(() => {
+  return rooms.value.filter((r) => !r.assigned_admin_id || r.assigned_admin_id === 0).length;
+});
+
+const assignedRoomsCount = computed(() => {
+  return rooms.value.filter((r) => !!r.assigned_admin_id && r.assigned_admin_id > 0).length;
+});
+
 // Filtered rooms
 const filteredRooms = computed(() => {
   let list = rooms.value;
 
-  // Filter Assignment & Status
-  const currentUserId = authStore.user?.id;
-  if (selectedAssignment.value === 'all') {
+  // 1. Filter Status (All, Open, Resolved)
+  if (selectedStatusTab.value === 'open') {
     list = list.filter((r) => !r.status || r.status === 'open');
-  } else if (selectedAssignment.value === 'mine') {
-    list = list.filter((r) => (!r.status || r.status === 'open') && r.assigned_admin_id === currentUserId);
-  } else if (selectedAssignment.value === 'unassigned') {
-    list = list.filter((r) => (!r.status || r.status === 'open') && !r.assigned_admin_id);
-  } else if (selectedAssignment.value === 'assigned') {
-    list = list.filter((r) => (!r.status || r.status === 'open') && !!r.assigned_admin_id);
-  } else if (selectedAssignment.value === 'closed') {
+  } else if (selectedStatusTab.value === 'resolved') {
     list = list.filter((r) => r.status === 'closed');
   }
 
-  // Filter Brand
+  // 2. Filter Assignment
+  const currentUserId = authStore.user?.id;
+  if (selectedAssignment.value === 'mine') {
+    list = list.filter((r) => r.assigned_admin_id === currentUserId);
+  } else if (selectedAssignment.value === 'unassigned') {
+    list = list.filter((r) => !r.assigned_admin_id || r.assigned_admin_id === 0);
+  } else if (selectedAssignment.value === 'assigned') {
+    list = list.filter((r) => !!r.assigned_admin_id && r.assigned_admin_id > 0);
+  }
+
+  // 3. Filter Brand
   if (selectedBrand.value !== 'ALL') {
     list = list.filter((r) => normalizeBrandName(r.brand) === selectedBrand.value);
   }
 
-  // Search Filter
+  // 4. Search Filter
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim();
     list = list.filter((r) => {
@@ -1920,7 +2047,7 @@ async function selectRoom(room: any) {
   };
 
   try {
-    const res = await apiClient.get(`/chat/messages/${room.id}?limit=100`);
+    const res = await apiClient.get(`/chat/messages/${room.id}?limit=200`);
     if (res.data?.data) {
       activeMessages.value = res.data.data;
     }
@@ -1942,8 +2069,12 @@ async function selectRoom(room: any) {
 
 // Send Admin Message
 function sendAdminMessage() {
-  const text = inputMessage.value.trim();
+  let text = inputMessage.value.trim();
   if (!text || !activeRoom.value) return;
+
+  if (inputMode.value === 'note') {
+    text = `📝 [Catatan Internal] ${text}`;
+  }
 
   // Auto reopen room if it was closed
   if (activeRoom.value.status === 'closed') {
@@ -3511,5 +3642,67 @@ onUnmounted(() => {
 .v-theme--dark .messages-container::-webkit-scrollbar-thumb,
 .v-theme--dark .customer-info-panel::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ================= OMNICHANNEL SINGLE INBOX STYLING ================= */
+.omnichannel-status-tabs {
+  background-color: var(--panel);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  display: flex;
+  gap: 4px;
+  border: 1px solid var(--border-soft);
+}
+
+.omnichannel-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.omnichannel-tab-btn:hover:not(.omnichannel-tab-btn--active) {
+  background-color: var(--surface);
+  color: var(--ink);
+}
+
+.omnichannel-tab-btn--active {
+  background-color: var(--accent) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(14, 124, 140, 0.25);
+}
+
+.omnichannel-tab-count {
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.omnichannel-tab-btn--active .omnichannel-tab-count {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.omnichannel-tab-btn:not(.omnichannel-tab-btn--active) .omnichannel-tab-count {
+  background-color: var(--border-soft);
+  color: var(--ink-soft);
+}
+
+.sidebar-footer {
+  border-color: var(--border-soft) !important;
+  background-color: var(--panel) !important;
+  height: 38px;
 }
 </style>

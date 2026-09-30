@@ -18,7 +18,58 @@ type chatRepository struct {
 }
 
 func NewChatRepository(db *gorm.DB) domain.ChatRepository {
-	return &chatRepository{db: db}
+	repo := &chatRepository{db: db}
+	go repo.ConsolidateDuplicateRooms(context.Background())
+	return repo
+}
+
+// ConsolidateDuplicateRooms mengonsolidasikan chat room ganda milik pelanggan yang sama
+// (misal akibat pemisahan sesi 48 jam sebelumnya) agar seluruh histori pesan menyatu kembali.
+func (r *chatRepository) ConsolidateDuplicateRooms(ctx context.Context) {
+	type DupCust struct {
+		PelangganID uint64 `gorm:"column:pelanggan_id"`
+		Cnt         int    `gorm:"column:cnt"`
+	}
+	var dups []DupCust
+	err := r.db.WithContext(ctx).
+		Model(&domain.ChatRoom{}).
+		Select("pelanggan_id, COUNT(*) as cnt").
+		Group("pelanggan_id").
+		Having("cnt > 1").
+		Scan(&dups).Error
+	if err != nil || len(dups) == 0 {
+		return
+	}
+
+	for _, d := range dups {
+		if d.PelangganID == 0 {
+			continue
+		}
+		var rooms []domain.ChatRoom
+		if err := r.db.WithContext(ctx).
+			Where("pelanggan_id = ?", d.PelangganID).
+			Order("last_message_at DESC, id DESC").
+			Find(&rooms).Error; err != nil || len(rooms) <= 1 {
+			continue
+		}
+
+		targetRoomID := rooms[0].ID
+		var oldIDs []uint64
+		for i := 1; i < len(rooms); i++ {
+			oldIDs = append(oldIDs, rooms[i].ID)
+		}
+
+		// Pindahkan semua pesan historis ke room utama
+		_ = r.db.WithContext(ctx).
+			Model(&domain.ChatMessage{}).
+			Where("room_id IN ?", oldIDs).
+			Update("room_id", targetRoomID).Error
+
+		// Hapus room duplikat yang sudah dikonsolidasikan
+		_ = r.db.WithContext(ctx).
+			Where("id IN ?", oldIDs).
+			Delete(&domain.ChatRoom{}).Error
+	}
 }
 
 func detectExactBrand(brandHint string, p *domain.Pelanggan) string {
@@ -54,7 +105,7 @@ func (r *chatRepository) GetOrCreateRoomByPelangganID(ctx context.Context, pelan
 		Preload("Pelanggan").
 		Preload("Pelanggan.HargaLayanan").
 		Preload("Pelanggan.Langganan").
-		Where("pelanggan_id = ? AND status = ?", pelangganID, "open").
+		Where("pelanggan_id = ?", pelangganID).
 		Order("last_message_at DESC, id DESC").
 		Find(&rooms).Error
 
@@ -64,56 +115,36 @@ func (r *chatRepository) GetOrCreateRoomByPelangganID(ctx context.Context, pelan
 
 	now := time.Now()
 
-	// Jika ada room berstatus open
+	// Jika pelanggan sudah memiliki obrolan (baik open maupun closed/resolved)
 	if len(rooms) > 0 {
 		latestRoom := rooms[0]
 
-		// Jika ada duplikasi room open lebih dari 1, otomatis tutup room-room lama
+		// Jika ada duplikasi room, konsolidasikan seluruh pesan lama ke dalam latestRoom
 		if len(rooms) > 1 {
 			var dupIDs []uint64
 			for i := 1; i < len(rooms); i++ {
 				dupIDs = append(dupIDs, rooms[i].ID)
 			}
 			_ = r.db.WithContext(ctx).
-				Model(&domain.ChatRoom{}).
+				Model(&domain.ChatMessage{}).
+				Where("room_id IN ?", dupIDs).
+				Update("room_id", latestRoom.ID).Error
+
+			_ = r.db.WithContext(ctx).
 				Where("id IN ?", dupIDs).
-				Updates(map[string]interface{}{
-					"status":    "closed",
-					"closed_at": &now,
-				}).Error
+				Delete(&domain.ChatRoom{}).Error
 		}
 
-		// Periksa periode masa aktif obrolan (2 hari = 48 jam)
-		// Jika percakapan terakhir sudah lebih dari 48 jam yang lalu, tutup room lama dan buat room baru!
-		isExpired := false
-		if latestRoom.LastMessageAt != nil {
-			if now.Sub(*latestRoom.LastMessageAt) > 48*time.Hour {
-				isExpired = true
-			}
-		} else if now.Sub(latestRoom.CreatedAt) > 48*time.Hour {
-			isExpired = true
+		// Histori percakapan bersifat abadi (tidak dihapus atau dipisah setelah 2 hari)
+		exact := detectExactBrand(latestRoom.Brand, latestRoom.Pelanggan)
+		if latestRoom.Brand != exact {
+			latestRoom.Brand = exact
+			_ = r.db.WithContext(ctx).Model(&latestRoom).Update("brand", exact).Error
 		}
-
-		if !isExpired {
-			// Room masih aktif dalam periode 2 hari, gunakan room ini
-			exact := detectExactBrand(latestRoom.Brand, latestRoom.Pelanggan)
-			if latestRoom.Brand != exact {
-				latestRoom.Brand = exact
-				_ = r.db.WithContext(ctx).Model(&latestRoom).Update("brand", exact).Error
-			}
-			return &latestRoom, nil
-		}
-
-		// Jika sudah kedaluwarsa (> 2 hari), tutup room lama
-		_ = r.db.WithContext(ctx).
-			Model(&latestRoom).
-			Updates(map[string]interface{}{
-				"status":    "closed",
-				"closed_at": &now,
-			}).Error
+		return &latestRoom, nil
 	}
 
-	// Deteksi brand presisi dari data pelanggan
+	// Deteksi brand presisi dari data pelanggan jika percakapan pertama kali dibuat
 	var p domain.Pelanggan
 	if err := r.db.WithContext(ctx).Preload("HargaLayanan").First(&p, pelangganID).Error; err == nil {
 		brand = detectExactBrand(brand, &p)
@@ -121,7 +152,6 @@ func (r *chatRepository) GetOrCreateRoomByPelangganID(ctx context.Context, pelan
 		brand = detectExactBrand(brand, nil)
 	}
 
-	// Buat room baru jika belum ada atau sesi sebelumnya sudah lewat 2 hari
 	newRoom := domain.ChatRoom{
 		PelangganID:     pelangganID,
 		Brand:           brand,
@@ -134,7 +164,6 @@ func (r *chatRepository) GetOrCreateRoomByPelangganID(ctx context.Context, pelan
 		return nil, err
 	}
 
-	// Reload with relations
 	_ = r.db.WithContext(ctx).
 		Preload("Pelanggan").
 		Preload("Pelanggan.HargaLayanan").
@@ -166,23 +195,34 @@ func (r *chatRepository) ListRooms(ctx context.Context, filter domain.ChatRoomFi
 
 	query := r.db.WithContext(ctx).Model(&domain.ChatRoom{})
 
-	if filter.Brand != "" {
+	if filter.Brand != "" && filter.Brand != "ALL" {
 		query = query.Where("chat_rooms.brand = ?", filter.Brand)
 	}
-	if filter.Status != "" {
+	if filter.Status != "" && filter.Status != "all" && filter.Status != "ALL" {
 		query = query.Where("chat_rooms.status = ?", filter.Status)
 	}
 
 	// Assignment-based filtering
 	switch filter.Assignment {
 	case "unassigned":
-		query = query.Where("chat_rooms.assigned_admin_id IS NULL AND chat_rooms.status = 'open'")
+		query = query.Where("chat_rooms.assigned_admin_id IS NULL OR chat_rooms.assigned_admin_id = 0")
+		if filter.Status == "" {
+			query = query.Where("chat_rooms.status = 'open'")
+		}
 	case "assigned":
-		query = query.Where("chat_rooms.assigned_admin_id IS NOT NULL AND chat_rooms.status = 'open'")
+		query = query.Where("chat_rooms.assigned_admin_id IS NOT NULL AND chat_rooms.assigned_admin_id > 0")
+		if filter.Status == "" {
+			query = query.Where("chat_rooms.status = 'open'")
+		}
 	case "mine":
 		if filter.AdminID > 0 {
-			query = query.Where("chat_rooms.assigned_admin_id = ? AND chat_rooms.status = 'open'", filter.AdminID)
+			query = query.Where("chat_rooms.assigned_admin_id = ?", filter.AdminID)
+			if filter.Status == "" {
+				query = query.Where("chat_rooms.status = 'open'")
+			}
 		}
+	case "closed", "resolved":
+		query = query.Where("chat_rooms.status = 'closed'")
 	}
 
 	if filter.Search != "" {
@@ -227,7 +267,7 @@ func (r *chatRepository) SaveMessage(ctx context.Context, msg *domain.ChatMessag
 func (r *chatRepository) GetMessagesByRoomID(ctx context.Context, roomID uint64, limit, offset int) ([]domain.ChatMessage, error) {
 	var messages []domain.ChatMessage
 	if limit <= 0 {
-		limit = 50
+		limit = 200
 	}
 
 	err := r.db.WithContext(ctx).
@@ -343,29 +383,26 @@ func (r *chatRepository) UnassignRoom(ctx context.Context, roomID uint64) error 
 
 func (r *chatRepository) GetRoomCounts(ctx context.Context, adminID uint64, brand string) (*domain.RoomCounts, error) {
 	counts := &domain.RoomCounts{}
-	base := r.db.WithContext(ctx).Model(&domain.ChatRoom{})
-	if brand != "" {
-		base = base.Where("brand = ?", brand)
-	}
+	brandCond := r.brandClause(brand)
 
 	// All open
-	base.Where("status = 'open'").Count(&counts.All)
+	r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(brandCond).Where("status = 'open'").Count(&counts.All)
 	// Unassigned & open
-	r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(r.brandClause(brand)).Where("status = 'open' AND assigned_admin_id IS NULL").Count(&counts.Unassigned)
+	r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(brandCond).Where("status = 'open' AND (assigned_admin_id IS NULL OR assigned_admin_id = 0)").Count(&counts.Unassigned)
 	// Assigned & open
-	r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(r.brandClause(brand)).Where("status = 'open' AND assigned_admin_id IS NOT NULL").Count(&counts.Assigned)
+	r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(brandCond).Where("status = 'open' AND assigned_admin_id IS NOT NULL AND assigned_admin_id > 0").Count(&counts.Assigned)
 	// Mine
 	if adminID > 0 {
-		r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(r.brandClause(brand)).Where("status = 'open' AND assigned_admin_id = ?", adminID).Count(&counts.Mine)
+		r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(brandCond).Where("status = 'open' AND assigned_admin_id = ?", adminID).Count(&counts.Mine)
 	}
-	// Closed
-	r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(r.brandClause(brand)).Where("status = 'closed'").Count(&counts.Closed)
+	// Closed / Resolved
+	r.db.WithContext(ctx).Model(&domain.ChatRoom{}).Where(brandCond).Where("status = 'closed'").Count(&counts.Closed)
 
 	return counts, nil
 }
 
 func (r *chatRepository) brandClause(brand string) string {
-	if brand != "" {
+	if brand != "" && brand != "ALL" {
 		return "brand = '" + brand + "'"
 	}
 	return "1 = 1"
