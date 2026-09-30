@@ -75,21 +75,27 @@
     <v-navigation-drawer
       v-model="drawer"
       app
-      :rail="rail && !isMobile"
+      :rail="!isSidebarExpanded"
       :rail-width="70"
       :temporary="isMobile"
       :permanent="!isMobile"
       class="modern-drawer elevation-3"
+      :class="{
+        'sidebar-floating-hover': isHovered && rail && !isMobile,
+        'sidebar-pinned': isPinned && !isMobile
+      }"
       width="300"
       :key="forceRender"
+      @mouseenter="handleMouseEnter"
+      @mouseleave="handleMouseLeave"
     >
       <!-- Header Section -->
-      <div class="sidebar-header-modern" :class="{'rail-mode': rail && !isMobile}">
+      <div class="sidebar-header-modern" :class="{'rail-mode': !isSidebarExpanded}">
         <div class="header-content">
           <!-- Logo -->
-          <div class="logo-wrapper d-flex align-center justify-center" @click="handleLogoClick" :style="rail && !isMobile ? 'width: 100%; height: 100%;' : ''">
+          <div class="logo-wrapper d-flex align-center justify-center" @click="handleLogoClick" :style="!isSidebarExpanded ? 'width: 100%; height: 100%;' : ''">
             <img
-              v-if="!rail || isMobile"
+              v-if="isSidebarExpanded"
               :src="logoSrc"
               alt="Jelantik Logo"
               class="sidebar-logo"
@@ -100,26 +106,33 @@
           </div>
 
           <!-- Title -->
-          <div v-if="!rail || isMobile" class="title-wrapper">
+          <div v-if="isSidebarExpanded" class="title-wrapper">
             <h1 class="app-title">ARTACOM FTTH</h1>
             <p class="app-subtitle">Portal Customer V5</p>
           </div>
 
-          <!-- Toggle Button -->
-          <v-btn
-            v-if="!isMobile"
-            variant="text"
-            size="small"
-            class="toggle-btn"
-            @click.stop="rail = !rail"
-          ></v-btn>
+          <!-- Pin/Unpin Toggle Button (Desktop) -->
+          <v-tooltip v-if="isSidebarExpanded && !isMobile" location="bottom">
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                :icon="isPinned ? 'mdi-pin' : 'mdi-pin-outline'"
+                variant="text"
+                size="small"
+                class="pin-toggle-btn ms-auto"
+                :class="{ 'pinned-active': isPinned }"
+                @click.stop="togglePin"
+              ></v-btn>
+            </template>
+            <span>{{ isPinned ? 'Lepas pin (Aktifkan Auto-Hide)' : 'Kunci sidebar terbuka (Pin)' }}</span>
+          </v-tooltip>
           
           <v-btn
             v-if="isMobile"
             icon="mdi-close"
             variant="text"
             size="small"
-            class="close-btn"
+            class="close-btn ms-auto"
             @click.stop="drawer = false"
           ></v-btn>
         </div>
@@ -131,7 +144,7 @@
           <template v-for="group in filteredMenuGroups" :key="group.title + '-' + menuKey">
             <!-- Group Header -->
             <div 
-              v-if="!rail || isMobile" 
+              v-if="isSidebarExpanded" 
               class="menu-group-header"
               :key="'header-' + group.title"
             >
@@ -175,7 +188,7 @@
                   </v-list-item-title>
 
                   <!-- Badge Section for Sub Items -->
-                  <template v-slot:append v-if="!rail || isMobile">
+                  <template v-slot:append v-if="isSidebarExpanded">
                     <div class="badges-wrapper">
                       <!-- Langganan Badges -->
                       <template v-if="(subItem as any).value === 'langganan'">
@@ -323,21 +336,21 @@
           <!-- Logout Button -->
           <div class="logout-wrapper px-4 pb-4">
             <v-btn
-              :block="!rail || isMobile"
+              :block="isSidebarExpanded"
               variant="outlined"
-              :prepend-icon="!rail || isMobile ? 'mdi-logout' : ''"
-              :icon="rail && !isMobile"
+              :prepend-icon="isSidebarExpanded ? 'mdi-logout' : ''"
+              :icon="!isSidebarExpanded"
               class="logout-btn-custom"
               height="38"
               @click="handleLogout"
             >
-              <v-icon v-if="rail && !isMobile">mdi-logout</v-icon>
-              <span v-if="!rail || isMobile">Keluar</span>
+              <v-icon v-if="!isSidebarExpanded">mdi-logout</v-icon>
+              <span v-if="isSidebarExpanded">Keluar</span>
             </v-btn>
           </div>
 
           <!-- Divider Sejajar -->
-          <v-divider v-if="!rail || isMobile" class="mx-4 mb-4 sidebar-divider-bottom"></v-divider>          
+          <v-divider v-if="isSidebarExpanded" class="mx-4 mb-4 sidebar-divider-bottom"></v-divider>          
         </div>
       </template>
     </v-navigation-drawer>
@@ -606,10 +619,47 @@ import GlobalSearch from '@/components/GlobalSearch.vue';
 const theme = useTheme();
 const { mobile } = useDisplay();
 const drawer = ref(true);
-const rail = ref(false);
 const router = useRouter();
 const route = useRoute();
 const activeBottomNav = ref('dashboard');
+
+// --- Sidebar Interactive Auto-Hide & Expand on Hover ---
+const isHovered = ref(false);
+let hoverLeaveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// Read pinned preference from localStorage (default: unpinned / auto-hide on desktop)
+const isPinned = ref(localStorage.getItem('sidebar_pinned') === 'true');
+const rail = ref(!isPinned.value);
+
+const isSidebarExpanded = computed(() => {
+  if (mobile.value) return drawer.value;
+  return !rail.value || isHovered.value;
+});
+
+function handleMouseEnter() {
+  if (mobile.value) return;
+  if (hoverLeaveTimeout) {
+    clearTimeout(hoverLeaveTimeout);
+    hoverLeaveTimeout = null;
+  }
+  isHovered.value = true;
+}
+
+function handleMouseLeave() {
+  if (mobile.value) return;
+  hoverLeaveTimeout = setTimeout(() => {
+    isHovered.value = false;
+  }, 120);
+}
+
+function togglePin() {
+  isPinned.value = !isPinned.value;
+  rail.value = !isPinned.value;
+  localStorage.setItem('sidebar_pinned', isPinned.value ? 'true' : 'false');
+  if (!rail.value) {
+    isHovered.value = false;
+  }
+}
 
 const notifications = ref<any[]>([]);
 const wsSnackbar = ref({ show: false, text: '', title: '', color: 'info', icon: 'mdi-bell-ring' });
@@ -761,7 +811,7 @@ function toggleDrawer() {
   if (isMobile.value) {
     drawer.value = !drawer.value;
   } else {
-    rail.value = !rail.value;
+    togglePin();
   }
 }
 
@@ -1795,6 +1845,8 @@ onMounted(async () => {
   if (isMobile.value) {
     drawer.value = false;
     rail.value = false;
+  } else {
+    rail.value = !isPinned.value;
   }
 
   updateActiveBottomNav(route.path);
@@ -1908,7 +1960,12 @@ onUnmounted(() => {
   background: #f8f9fc !important;
   border-right: 1px solid rgba(99, 102, 241, 0.08) !important;
   box-shadow: 2px 0 20px rgba(0, 0, 0, 0.04) !important;
-  transition: width 0.25s ease;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease !important;
+}
+
+.modern-drawer.sidebar-floating-hover {
+  box-shadow: 6px 0 28px rgba(0, 0, 0, 0.12) !important;
+  z-index: 1005 !important;
 }
 
 .modern-drawer :deep(.v-navigation-drawer__content) {
@@ -1988,17 +2045,55 @@ onUnmounted(() => {
   text-transform: uppercase;
 }
 
-/* Toggle Button */
+/* Toggle & Pin Button */
 .toggle-btn,
+.pin-toggle-btn,
 .close-btn {
-  opacity: 0.5;
-  transition: opacity 0.15s ease;
+  opacity: 0.6;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px;
+}
+
+.pin-toggle-btn {
+  width: 32px !important;
+  height: 32px !important;
+  color: #64748b !important;
+}
+
+.pin-toggle-btn:hover {
+  opacity: 1;
+  background-color: rgba(99, 102, 241, 0.08) !important;
+  color: #6366f1 !important;
+}
+
+.pin-toggle-btn.pinned-active {
+  opacity: 1;
+  color: #6366f1 !important;
+  transform: rotate(-45deg);
 }
 
 .toggle-btn:hover,
 .close-btn:hover {
   opacity: 1;
   background-color: rgba(99, 102, 241, 0.06) !important;
+}
+
+/* Sidebar Text Fade-In Animation */
+.title-wrapper,
+.menu-group-header,
+.badges-wrapper {
+  animation: sidebarFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes sidebarFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* Navigation Container */
@@ -3165,6 +3260,23 @@ onUnmounted(() => {
 
 .v-theme--dark .app-subtitle {
   color: #818cf8;
+}
+
+.v-theme--dark .modern-drawer.sidebar-floating-hover {
+  box-shadow: 6px 0 32px rgba(0, 0, 0, 0.6) !important;
+}
+
+.v-theme--dark .pin-toggle-btn {
+  color: #94a3b8 !important;
+}
+
+.v-theme--dark .pin-toggle-btn:hover {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  color: #818cf8 !important;
+}
+
+.v-theme--dark .pin-toggle-btn.pinned-active {
+  color: #818cf8 !important;
 }
 
 .v-theme--dark .toggle-btn:hover,
