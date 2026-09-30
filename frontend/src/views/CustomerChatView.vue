@@ -437,15 +437,14 @@
                 <template v-slot:activator="{ props }">
                   <v-btn
                     v-bind="props"
+                    icon="mdi-ticket-confirmation-outline"
                     variant="tonal"
-                    color="warning"
+                    color="amber-darken-3"
                     size="small"
                     density="compact"
                     style="height: 28px; width: 28px;"
                     @click="openTroubleTicketPanel"
-                  >
-                    <v-icon size="16">mdi-ticket-alert-outline</v-icon>
-                  </v-btn>
+                  ></v-btn>
                 </template>
               </v-tooltip>
 
@@ -918,7 +917,7 @@
               Profil 360
             </v-btn>
             <v-btn value="ticket" size="small" class="text-none font-weight-bold px-3" style="height: 28px; font-size: 0.75rem;">
-              <v-icon size="15" class="me-1">mdi-ticket-alert-outline</v-icon>
+              <v-icon size="15" class="me-1">mdi-ticket-confirmation-outline</v-icon>
               Trouble Ticket
               <v-badge
                 v-if="customerTickets.length > 0"
