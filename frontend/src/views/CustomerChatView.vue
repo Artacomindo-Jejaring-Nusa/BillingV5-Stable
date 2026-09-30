@@ -440,11 +440,12 @@
                     variant="tonal"
                     color="warning"
                     size="small"
-                    icon="mdi-ticket-alert-outline"
                     density="compact"
                     style="height: 28px; width: 28px;"
                     @click="openTroubleTicketPanel"
-                  ></v-btn>
+                  >
+                    <v-icon size="16">mdi-ticket-alert-outline</v-icon>
+                  </v-btn>
                 </template>
               </v-tooltip>
 
@@ -2108,6 +2109,20 @@ function sendAdminMessage() {
     }
   }
 
+  // Auto assign room to me if not yet assigned to an admin
+  if (!activeRoom.value.assigned_admin_id && authStore.user?.id) {
+    activeRoom.value.assigned_admin_id = authStore.user.id;
+    activeRoom.value.assigned_admin = {
+      id: authStore.user.id,
+      nama: authStore.user.name || authStore.user.username || 'Saya',
+    };
+    const rIdx = rooms.value.findIndex((r) => r.id === activeRoom.value.id);
+    if (rIdx !== -1) {
+      rooms.value[rIdx].assigned_admin_id = authStore.user.id;
+      rooms.value[rIdx].assigned_admin = activeRoom.value.assigned_admin;
+    }
+  }
+
   const tempId = `admin_temp_${Date.now()}`;
   const localMsg = {
     id: null,
@@ -3571,6 +3586,8 @@ onUnmounted(() => {
 
 /* ================= QUICK REPLIES BAR ================= */
 .quick-replies-bar {
+  flex-shrink: 0 !important;
+  min-height: 40px !important;
   border-color: var(--border) !important;
 }
 

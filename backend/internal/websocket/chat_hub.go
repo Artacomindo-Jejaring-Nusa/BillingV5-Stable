@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -306,26 +307,101 @@ func (c *ChatClient) ReadPump() {
 			// 3. Broadcast ke lawan bicara: NEW MESSAGE
 			c.Hub.BroadcastToRoomExcept(targetRoomID, c, "new_message", savedMsg)
 
-			// 4. Jika pesan dikirim oleh PELANGGAN (Mobile / Web Portal), proses via AI Assistant
+			// 4. Jika pesan dikirim oleh ADMIN / HUMAN CS:
+			// Otomatis ambil alih (assign) room ke admin ini jika belum ditugaskan!
+			if c.Role == "admin" && c.SenderID > 0 {
+				go func(roomID uint64, adminID uint64) {
+					ctxRoom, cancelRoom := context.WithTimeout(context.Background(), 2*time.Second)
+					rCheck, _ := c.Hub.chatUsecase.GetRoomByID(ctxRoom, roomID)
+					cancelRoom()
+					if rCheck != nil && (rCheck.AssignedAdminID == nil || *rCheck.AssignedAdminID == 0) {
+						ctxAssign, cancelAssign := context.WithTimeout(context.Background(), 2*time.Second)
+						_ = c.Hub.chatUsecase.AssignRoom(ctxAssign, roomID, adminID)
+						cancelAssign()
+
+						ctxReload, cancelReload := context.WithTimeout(context.Background(), 2*time.Second)
+						updatedRoom, _ := c.Hub.chatUsecase.GetRoomByID(ctxReload, roomID)
+						cancelReload()
+
+						c.Hub.BroadcastToRoom(roomID, "room_assigned", map[string]interface{}{
+							"room_id":  roomID,
+							"admin_id": adminID,
+							"room":     updatedRoom,
+						})
+					}
+				}(targetRoomID, c.SenderID)
+			}
+
+			// 5. Jika pesan dikirim oleh PELANGGAN (Mobile / Web Portal), proses via AI Assistant
 			if c.Role == "customer" && c.Hub.aiService != nil && msgText != "" {
 				// A. Periksa apakah pelanggan meminta CS/agen manusia
 				if c.Hub.aiService.IsHumanHandoverRequested(msgText) {
+					// Cari apakah ada admin/CS yang sedang online di WebSocket Hub
+					var onlineAdminID uint64
+					var onlineAdminName string
+					c.Hub.mu.RLock()
+					for cl := range c.Hub.adminListeners {
+						if cl.Role == "admin" && cl.SenderID > 0 {
+							onlineAdminID = cl.SenderID
+							onlineAdminName = cl.SenderName
+							break
+						}
+					}
+					if onlineAdminID == 0 {
+						for _, clientMap := range c.Hub.rooms {
+							for cl := range clientMap {
+								if cl.Role == "admin" && cl.SenderID > 0 {
+									onlineAdminID = cl.SenderID
+									onlineAdminName = cl.SenderName
+									break
+								}
+							}
+							if onlineAdminID > 0 {
+								break
+							}
+						}
+					}
+					c.Hub.mu.RUnlock()
+
+					// Jika ada admin online, otomatis sambungkan & assign ke admin tersebut
+					if onlineAdminID > 0 {
+						ctxAssign, cancelAssign := context.WithTimeout(context.Background(), 2*time.Second)
+						_ = c.Hub.chatUsecase.AssignRoom(ctxAssign, targetRoomID, onlineAdminID)
+						cancelAssign()
+
+						ctxReload, cancelReload := context.WithTimeout(context.Background(), 2*time.Second)
+						updatedRoom, _ := c.Hub.chatUsecase.GetRoomByID(ctxReload, targetRoomID)
+						cancelReload()
+
+						c.Hub.BroadcastToRoom(targetRoomID, "room_assigned", map[string]interface{}{
+							"room_id":  targetRoomID,
+							"admin_id": onlineAdminID,
+							"room":     updatedRoom,
+						})
+					}
+
 					// Beritahu admin/CS via broadcast bahwa pelanggan meminta CS manusia
 					c.Hub.BroadcastToRoom(targetRoomID, "human_handover_requested", map[string]interface{}{
 						"room_id":        targetRoomID,
 						"pelanggan_id":   c.SenderID,
 						"pelanggan_name": c.SenderName,
+						"admin_id":       onlineAdminID,
 						"message":        "Pelanggan meminta terhubung dengan Customer Support manusia",
 					})
 
-					// Kirim konfirmasi sistem yang sangat sopan kepada pelanggan
-					go func(roomID uint64, custName string) {
-						time.Sleep(350 * time.Millisecond)
+					// Kirim konfirmasi pengalihan sesi ke pelanggan
+					go func(roomID uint64, custName string, hasOnlineAdmin bool, adminName string) {
+						time.Sleep(300 * time.Millisecond)
 						greetingName := custName
 						if greetingName == "" {
-							greetingName = "Bapak/Ibu"
+							greetingName = "Kakak"
 						}
-						confirmText := fmt.Sprintf("Baik Kak %s, permintaan Anda telah kami teruskan ke tim Customer Support kami. Mohon kesediaannya menunggu sebentar, staf kami akan segera bergabung dan melayani Anda secara langsung dalam obrolan ini.\n\n---\n🤖 Dibalas otomatis oleh Asisten Virtual AI", greetingName)
+						var confirmText string
+						if hasOnlineAdmin && adminName != "" {
+							confirmText = fmt.Sprintf("Halo Kak %s, percakapan Anda telah tersambung dengan staf Customer Support kami (%s). Staf kami siap melayani Anda secara langsung dalam obrolan ini.\n\n---\n👤 Sesi dialihkan ke Agen Manusia", greetingName, adminName)
+						} else {
+							confirmText = fmt.Sprintf("Baik Kak %s, percakapan Anda telah dialihkan ke antrian Customer Support. Staf kami akan segera bergabung dan melayani Anda secara langsung dalam obrolan ini.\n\n---\n👤 Sesi dialihkan ke Agen Manusia", greetingName)
+						}
 
 						sysMsg := &domain.ChatMessage{
 							RoomID:      roomID,
@@ -342,12 +418,12 @@ func (c *ChatClient) ReadPump() {
 						if errSys == nil {
 							c.Hub.BroadcastToRoom(roomID, "new_message", savedSysMsg)
 						}
-					}(targetRoomID, c.SenderName)
+					}(targetRoomID, c.SenderName, onlineAdminID > 0, onlineAdminName)
 
 					continue
 				}
 
-				// B. Jika bukan permintaan CS manusia, proses otomatis dengan 9Router AI Agent
+				// B. Jika bukan permintaan CS manusia, proses otomatis dengan AI Agent
 				go func(roomID uint64, userText string, client *ChatClient) {
 					// 1. Dapatkan info room & data pelanggan
 					ctxRoom, cancelRoom := context.WithTimeout(context.Background(), 4*time.Second)
@@ -357,16 +433,52 @@ func (c *ChatClient) ReadPump() {
 						return
 					}
 
-					// Jika room sudah dipegang oleh admin CS manusia (assigned_admin_id != nil),
-					// AI tidak perlu membalas agar percakapan manusia tidak terinterupsi
-					if room.AssignedAdminID != nil {
+					// SYARAT MUTLAK: Jika room sudah dipegang oleh human agent/CS, AI DILARANG menjawab
+					if room.AssignedAdminID != nil && *room.AssignedAdminID > 0 {
+						log.Printf("[ChatHub] AI skipped: Room %d already assigned to human admin #%d", roomID, *room.AssignedAdminID)
 						return
 					}
 
-					// 2. Ambil riwayat percakapan terakhir untuk konteks
+					// Cek apakah ada admin/CS yang sedang aktif berada di room saat ini
+					hasActiveAdminPeer := false
+					client.Hub.mu.RLock()
+					if clients, ok := client.Hub.rooms[roomID]; ok {
+						for peer := range clients {
+							if peer.Role == "admin" {
+								hasActiveAdminPeer = true
+								break
+							}
+						}
+					}
+					client.Hub.mu.RUnlock()
+					if hasActiveAdminPeer {
+						log.Printf("[ChatHub] AI skipped: Room %d has active human admin peer", roomID)
+						return
+					}
+
+					// 2. Ambil riwayat percakapan untuk mengecek apakah obrolan pernah dijawab manusia
+					// atau pelanggan sudah dialihkan ke agen manusia
 					ctxHist, cancelHist := context.WithTimeout(context.Background(), 4*time.Second)
-					history, _ := client.Hub.chatUsecase.GetRoomMessages(ctxHist, roomID, 6, 0)
+					history, _ := client.Hub.chatUsecase.GetRoomMessages(ctxHist, roomID, 40, 0)
 					cancelHist()
+
+					for _, hMsg := range history {
+						// Jika pernah ada pesan dari CS manusia (sender_type == 'admin'), AI dilarang menyela!
+						if hMsg.SenderType == "admin" {
+							log.Printf("[ChatHub] AI skipped: Room %d already answered by human admin in msg #%d", roomID, hMsg.ID)
+							return
+						}
+						// Jika pernah ada status pengalihan ke agen manusia, AI tidak boleh menjawab
+						if hMsg.SenderType == "system" && (strings.Contains(hMsg.Message, "Customer Support") || strings.Contains(hMsg.Message, "Agen Manusia") || strings.Contains(hMsg.Message, "staf kami akan segera")) {
+							log.Printf("[ChatHub] AI skipped: Room %d has human handover notice in history", roomID)
+							return
+						}
+						// Jika pelanggan pernah meminta handover di pesan sebelumnya
+						if hMsg.SenderType == "customer" && client.Hub.aiService.IsHumanHandoverRequested(hMsg.Message) {
+							log.Printf("[ChatHub] AI skipped: Room %d has previous handover request in history", roomID)
+							return
+						}
+					}
 
 					// 3. Tampilkan indikator "sedang mengetik..." ke pelanggan
 					client.Hub.BroadcastToRoom(roomID, "typing", map[string]interface{}{

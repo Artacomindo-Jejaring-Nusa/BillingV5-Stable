@@ -41,7 +41,7 @@ func (s *aiService) IsHumanHandoverRequested(message string) bool {
 	cleaned := strings.ToLower(strings.TrimSpace(message))
 
 	exactMatches := []string{
-		"2", "cs", "agent", "admin", "operator", "manusia", "orang",
+		"2", "2.", "cs", "agent", "agen", "admin", "operator", "manusia", "orang", "teknisi",
 	}
 	for _, match := range exactMatches {
 		if cleaned == match {
@@ -50,10 +50,13 @@ func (s *aiService) IsHumanHandoverRequested(message string) bool {
 	}
 
 	phraseMatches := []string{
-		"hubungkan ke cs", "hubungkan cs", "sambungkan ke cs", "sambungkan cs",
-		"bicara dengan cs", "bicara dengan admin", "bicara dengan orang", "bicara dengan manusia",
+		"terhubung cs", "hubungkan ke cs", "hubungkan cs", "sambungkan ke cs", "sambungkan cs",
+		"terhubung dengan teknisi", "hubungi teknisi", "bantuan teknisi",
+		"bicara dengan cs", "bicara dengan admin", "bicara dengan orang", "bicara dengan manusia", "bicara dengan teknisi",
 		"mau cs", "minta cs", "panggil cs", "operator manusia", "komplain ke cs",
-		"mau orang", "bukan bot", "jangan bot", "customer support",
+		"mau orang", "bukan bot", "jangan bot", "customer support", "customer care", "customer service",
+		"hubungkan saya", "sambungkan saya", "chat cs", "chat admin", "halo cs", "halo admin",
+		"hubungkan dengan cs", "sambungkan dengan cs",
 	}
 	for _, phrase := range phraseMatches {
 		if strings.Contains(cleaned, phrase) {
