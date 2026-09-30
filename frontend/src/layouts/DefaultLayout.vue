@@ -562,22 +562,18 @@
     <v-footer 
       v-if="!isMobile"
       app 
-      height="70"
+      height="60"
       class="modern-footer"
     >
       <div class="footer-content">
         <span class="text-body-2">
-          &copy; {{ new Date().getFullYear() }} 
-          <strong> Artacom Billing System</strong>. 
-          All Rights Reserved. Designed by 
+          &copy; {{ new Date().getFullYear() }} <strong>Artacom Billing System</strong>. All Rights Reserved. Designed by 
           <a 
             href="https://www.instagram.com/amad.dyk/" 
             target="_blank" 
             rel="noopener noreferrer"
-            class="footer-link"
-          >
-            amad.dyk
-          </a>
+            class="footer-link ms-1"
+          >amad.dyk</a>
         </span>
       </div>
     </v-footer>
@@ -3014,25 +3010,35 @@ onUnmounted(() => {
 /* ==================== FOOTER ==================== */
 
 .modern-footer {
-  height: 70px !important;
-  min-height: 70px !important;
-  max-height: 70px !important;
+  height: 60px !important;
+  min-height: 60px !important;
+  max-height: 60px !important;
   border-top: 1px solid rgba(var(--v-border-color), 0.08);
-  background: #ffffff;
+  background: #ffffff !important;
   display: flex !important;
   align-items: center !important;
+  justify-content: center !important;
   padding: 0 !important;
   box-sizing: border-box;
-  z-index: 1000;
+  z-index: 990;
   box-shadow: none;
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* Biarkan Vuetify app mengelola posisi otomatis */
-.v-navigation-drawer--not-rail ~ .modern-footer,
-.v-navigation-drawer--rail ~ .modern-footer,
+/* Penyesuaian posisi footer terhadap status sidebar */
+.v-navigation-drawer--rail ~ .modern-footer {
+  left: 70px !important;
+  width: calc(100% - 70px) !important;
+}
+
+.v-navigation-drawer--not-rail ~ .modern-footer {
+  left: 300px !important;
+  width: calc(100% - 300px) !important;
+}
+
 .v-navigation-drawer--temporary ~ .modern-footer {
-  left: auto !important;
-  width: auto !important;
+  left: 0 !important;
+  width: 100% !important;
 }
 
 .footer-content {
@@ -3055,6 +3061,8 @@ onUnmounted(() => {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  flex-wrap: wrap;
+  gap: 2px;
 }
 
 .footer-link {
@@ -3070,7 +3078,21 @@ onUnmounted(() => {
 }
 
 .v-theme--dark .modern-footer {
+  background: #0f172a !important;
+  border-top: 1px solid rgba(99, 102, 241, 0.1) !important;
   box-shadow: none;
+}
+
+.v-theme--dark .footer-content {
+  color: #94a3b8 !important;
+}
+
+.v-theme--dark .footer-link {
+  color: #818cf8 !important;
+}
+
+.v-theme--dark .footer-link:hover {
+  color: #a5b4fc !important;
 }
 
 /* ==================== MAINTENANCE BANNER ==================== */
@@ -3490,7 +3512,7 @@ onUnmounted(() => {
     width: 280px !important;
   }
 
-  .v-navigation-drawer--not-rail ~ .v-main .modern-footer {
+  .v-navigation-drawer--not-rail ~ .modern-footer {
     left: 280px !important;
     width: calc(100% - 280px) !important;
   }
@@ -3501,7 +3523,7 @@ onUnmounted(() => {
     width: 280px !important;
   }
 
-  .v-navigation-drawer--not-rail ~ .v-main .modern-footer {
+  .v-navigation-drawer--not-rail ~ .modern-footer {
     left: 280px !important;
     width: calc(100% - 280px) !important;
   }
