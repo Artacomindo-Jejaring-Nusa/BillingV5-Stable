@@ -437,9 +437,9 @@
                 <template v-slot:activator="{ props }">
                   <v-btn
                     v-bind="props"
-                    icon="mdi-ticket-confirmation-outline"
+                    icon="mdi-ticket-alert-outline"
                     variant="tonal"
-                    color="amber-darken-3"
+                    color="primary"
                     size="small"
                     density="compact"
                     style="height: 28px; width: 28px;"
@@ -451,12 +451,12 @@
               <!-- Resolve / Selesaikan Conversation Button -->
               <v-btn
                 v-if="activeRoom.status !== 'closed'"
-                variant="flat"
+                variant="tonal"
                 color="deep-purple"
                 size="small"
-                prepend-icon="mdi-check-circle"
-                class="text-none font-weight-bold rounded-pill px-3 shadow-sm"
-                style="height: 28px; font-size: 0.74rem;"
+                prepend-icon="mdi-check-circle-outline"
+                class="text-none font-weight-bold rounded-lg px-2.5"
+                style="height: 28px; font-size: 0.72rem;"
                 :loading="isUpdatingStatus"
                 @click="openCloseRoomDialog"
               >
@@ -468,8 +468,8 @@
                 color="primary"
                 size="small"
                 prepend-icon="mdi-lock-open-outline"
-                class="text-none font-weight-bold rounded-pill px-3"
-                style="height: 28px; font-size: 0.74rem;"
+                class="text-none font-weight-bold rounded-lg px-2.5"
+                style="height: 28px; font-size: 0.72rem;"
                 :loading="isUpdatingStatus"
                 @click="reopenActiveRoom"
               >
@@ -574,11 +574,9 @@
               </div>
 
               <template v-for="(msg, idx) in activeMessages" :key="msg.id || msg.temp_id || idx">
-                <!-- Date Pill Separator -->
-                <div v-if="shouldShowDateHeader(idx)" class="text-center my-3">
-                  <span class="date-pill px-3 py-1 rounded-pill text-caption font-weight-medium">
-                    {{ formatDateHeader(msg.created_at) }}
-                  </span>
+                <!-- Date Separator -->
+                <div v-if="shouldShowDateHeader(idx)" class="date-divider my-3">
+                  <span class="date-divider-text">{{ formatDateHeader(msg.created_at) }}</span>
                 </div>
 
                 <!-- Message Bubble Row -->
@@ -902,55 +900,57 @@
         class="customer-info-panel border-s d-flex flex-column bg-surface overflow-y-auto"
       >
         <!-- Panel Header with Tab Switcher -->
-        <div class="px-3 py-2.5 border-b d-flex align-center justify-space-between flex-shrink-0 bg-surface">
-          <v-btn-toggle
-            v-model="rightPanelTab"
-            mandatory
-            density="compact"
-            color="primary"
-            rounded="lg"
-            variant="flat"
-            class="elevation-0 border"
-          >
-            <v-btn value="profile" size="small" class="text-none font-weight-bold px-3" style="height: 28px; font-size: 0.75rem;">
+        <div class="right-panel-header px-4 border-b d-flex align-center justify-space-between flex-shrink-0 bg-surface">
+          <div class="right-panel-tabs d-flex align-center gap-4">
+            <button
+              type="button"
+              class="panel-tab-btn"
+              :class="{ 'panel-tab-btn--active': rightPanelTab === 'profile' }"
+              @click="rightPanelTab = 'profile'"
+            >
               <v-icon size="15" class="me-1">mdi-account-details-outline</v-icon>
-              Profil 360
-            </v-btn>
-            <v-btn value="ticket" size="small" class="text-none font-weight-bold px-3" style="height: 28px; font-size: 0.75rem;">
-              <v-icon size="15" class="me-1">mdi-ticket-confirmation-outline</v-icon>
-              Trouble Ticket
-              <v-badge
+              <span>Profil 360</span>
+            </button>
+            <button
+              type="button"
+              class="panel-tab-btn"
+              :class="{ 'panel-tab-btn--active': rightPanelTab === 'ticket' }"
+              @click="rightPanelTab = 'ticket'"
+            >
+              <v-icon size="15" class="me-1">mdi-ticket-alert-outline</v-icon>
+              <span>Trouble Ticket</span>
+              <span
                 v-if="customerTickets.length > 0"
-                :content="customerTickets.length"
-                color="error"
-                inline
-                class="ms-1"
-              ></v-badge>
-            </v-btn>
-          </v-btn-toggle>
+                class="tab-count-badge ms-1"
+              >
+                {{ customerTickets.length }}
+              </span>
+            </button>
+          </div>
 
           <v-btn
             icon="mdi-close"
             variant="text"
             size="small"
             density="compact"
+            color="medium-emphasis"
             @click="showInfoPanel = false"
           ></v-btn>
         </div>
 
         <!-- TAB 1: CUSTOMER PROFILE 360 -->
-        <div v-if="rightPanelTab === 'profile'" class="pa-4 d-flex flex-column gap-4">
+        <div v-if="rightPanelTab === 'profile'" class="pa-4 d-flex flex-column gap-3.5">
           <!-- Profile Hero -->
           <div class="text-center pb-1">
-            <v-avatar :color="getBrandColor(activeRoom.brand)" size="56" class="elevation-2 mb-2">
-              <span class="text-h6 font-weight-bold text-white">
+            <v-avatar :color="getBrandColor(activeRoom.brand)" size="52" class="elevation-1 mb-2">
+              <span class="text-subtitle-1 font-weight-bold text-white">
                 {{ getInitials(activeRoom.pelanggan?.nama || 'Pelanggan') }}
               </span>
             </v-avatar>
-            <h3 class="text-subtitle-1 font-weight-bold text-high-emphasis mb-0">
+            <h3 class="text-subtitle-2 font-weight-bold text-high-emphasis mb-0">
               {{ activeRoom.pelanggan?.nama || '-' }}
             </h3>
-            <div class="text-caption text-medium-emphasis">
+            <div class="text-caption text-medium-emphasis mt-0.5" style="font-size: 0.72rem;">
               ID: <strong>{{ activeRoom.pelanggan?.customer_id || ('#' + activeRoom.pelanggan_id) }}</strong>
             </div>
             <div class="mt-2">
@@ -964,12 +964,12 @@
 
           <!-- Section: Kontak & Lokasi -->
           <div>
-            <div class="text-overline text-medium-emphasis mb-2 font-weight-bold">Kontak & Lokasi</div>
-            <v-card variant="tonal" class="pa-3 rounded-lg d-flex flex-column gap-2.5">
+            <div class="text-overline text-medium-emphasis mb-1.5 font-weight-bold" style="font-size: 0.68rem; letter-spacing: 0.8px;">KONTAK & LOKASI</div>
+            <div class="info-group-box pa-3 rounded-lg border d-flex flex-column gap-2 bg-surface">
               <!-- Phone -->
               <div class="d-flex align-center justify-space-between">
-                <div class="d-flex align-center gap-2 text-body-2">
-                  <v-icon size="16" color="primary">mdi-phone-outline</v-icon>
+                <div class="d-flex align-center gap-2 text-body-2" style="font-size: 0.82rem;">
+                  <v-icon size="15" color="primary">mdi-phone-outline</v-icon>
                   <span class="font-weight-medium">{{ activeRoom.pelanggan?.no_telp || '-' }}</span>
                 </div>
                 <v-btn
@@ -978,6 +978,7 @@
                   size="x-small"
                   variant="text"
                   density="compact"
+                  color="medium-emphasis"
                   title="Salin Nomor"
                   @click="copyToClipboard(activeRoom.pelanggan.no_telp)"
                 ></v-btn>
@@ -987,30 +988,30 @@
 
               <!-- Alamat -->
               <div>
-                <div class="d-flex align-center gap-2 text-caption text-medium-emphasis mb-1">
-                  <v-icon size="14">mdi-map-marker-outline</v-icon>
+                <div class="d-flex align-center gap-1.5 text-caption text-medium-emphasis mb-1" style="font-size: 0.72rem;">
+                  <v-icon size="13">mdi-map-marker-outline</v-icon>
                   <span>Alamat Pemasangan:</span>
                 </div>
-                <div class="text-caption text-high-emphasis font-weight-medium ps-5">
+                <div class="text-caption text-high-emphasis font-weight-medium ps-4" style="font-size: 0.75rem; line-height: 1.4;">
                   {{ activeRoom.pelanggan?.alamat || '-' }}
                   <span v-if="activeRoom.pelanggan?.blok || activeRoom.pelanggan?.unit" class="text-primary font-weight-bold d-block mt-0.5">
                     Blok {{ activeRoom.pelanggan?.blok || '-' }} / Unit {{ activeRoom.pelanggan?.unit || '-' }}
                   </span>
                 </div>
               </div>
-            </v-card>
+            </div>
           </div>
 
           <!-- Section: Layanan FTTH -->
           <div>
-            <div class="text-overline text-medium-emphasis mb-2 font-weight-bold">Layanan FTTH</div>
-            <v-card variant="tonal" class="pa-3 rounded-lg d-flex flex-column gap-2.5">
+            <div class="text-overline text-medium-emphasis mb-1.5 font-weight-bold" style="font-size: 0.68rem; letter-spacing: 0.8px;">LAYANAN FTTH</div>
+            <div class="info-group-box pa-3 rounded-lg border d-flex flex-column gap-2 bg-surface">
               <div class="d-flex align-center justify-space-between">
-                <div class="d-flex align-center gap-2 text-caption text-medium-emphasis">
-                  <v-icon size="16" color="primary">mdi-speedometer</v-icon>
+                <div class="d-flex align-center gap-1.5 text-caption text-medium-emphasis" style="font-size: 0.72rem;">
+                  <v-icon size="15" color="primary">mdi-speedometer</v-icon>
                   <span>Paket:</span>
                 </div>
-                <span class="text-caption font-weight-bold text-primary">
+                <span class="text-caption font-weight-bold text-primary" style="font-size: 0.76rem;">
                   {{ getCustomerPackage(activeRoom.pelanggan) }}
                 </span>
               </div>
@@ -1018,8 +1019,8 @@
               <v-divider></v-divider>
 
               <div class="d-flex align-center justify-space-between">
-                <div class="d-flex align-center gap-2 text-caption text-medium-emphasis">
-                  <v-icon size="16" color="primary">mdi-shield-check-outline</v-icon>
+                <div class="d-flex align-center gap-1.5 text-caption text-medium-emphasis" style="font-size: 0.72rem;">
+                  <v-icon size="15" color="primary">mdi-shield-check-outline</v-icon>
                   <span>Status:</span>
                 </div>
                 <v-chip
@@ -1027,6 +1028,7 @@
                   size="x-small"
                   variant="flat"
                   class="font-weight-bold"
+                  style="height: 20px; font-size: 0.68rem;"
                 >
                   {{ getCustomerStatus(activeRoom.pelanggan) }}
                 </v-chip>
@@ -1035,16 +1037,16 @@
               <template v-if="activeRoom.pelanggan?.data_teknis?.id_pelanggan">
                 <v-divider></v-divider>
                 <div class="d-flex align-center justify-space-between">
-                  <div class="d-flex align-center gap-2 text-caption text-medium-emphasis">
-                    <v-icon size="16" color="primary">mdi-account-key-outline</v-icon>
+                  <div class="d-flex align-center gap-1.5 text-caption text-medium-emphasis" style="font-size: 0.72rem;">
+                    <v-icon size="15" color="primary">mdi-account-key-outline</v-icon>
                     <span>PPPoE:</span>
                   </div>
-                  <code class="text-caption font-weight-bold px-1.5 py-0.5 rounded bg-surface">
+                  <code class="text-caption font-weight-bold px-1.5 py-0.5 rounded border bg-panel" style="font-size: 0.72rem;">
                     {{ activeRoom.pelanggan.data_teknis.id_pelanggan }}
                   </code>
                 </div>
               </template>
-            </v-card>
+            </div>
           </div>
 
           <!-- Action Buttons -->
@@ -1055,6 +1057,7 @@
               prepend-icon="mdi-whatsapp"
               variant="flat"
               class="text-none font-weight-bold rounded-lg"
+              style="height: 36px; font-size: 0.8rem;"
               @click="openWhatsApp(activeRoom.pelanggan?.no_telp)"
             >
               Chat via WhatsApp Web
@@ -1064,6 +1067,7 @@
               variant="tonal"
               prepend-icon="mdi-account-search-outline"
               class="text-none font-weight-medium rounded-lg"
+              style="height: 36px; font-size: 0.8rem;"
               @click="navigateToCustomer(activeRoom.pelanggan_id)"
             >
               Buka Data Pelanggan
@@ -1074,13 +1078,13 @@
         <!-- TAB 2: TROUBLE TICKET & AUTO-FILL -->
         <div v-else class="pa-4 d-flex flex-column gap-3.5">
           <!-- Asisten Pintar Auto-Fill Banner -->
-          <v-card variant="tonal" color="primary" class="pa-3 rounded-lg border">
+          <div class="smart-ticket-card pa-3 rounded-lg border">
             <div class="d-flex align-center gap-2 mb-2">
-              <v-avatar color="primary" size="28" variant="flat">
-                <v-icon size="16" color="white">mdi-creation</v-icon>
+              <v-avatar color="primary" size="26" variant="tonal" class="rounded-circle">
+                <v-icon size="14" color="primary">mdi-creation</v-icon>
               </v-avatar>
               <div>
-                <div class="text-caption font-weight-bold text-high-emphasis">Asisten Tiket Cerdas</div>
+                <div class="text-caption font-weight-bold text-high-emphasis" style="font-size: 0.78rem;">Asisten Tiket Cerdas</div>
                 <div class="text-caption text-medium-emphasis" style="font-size: 0.68rem;">Deteksi otomatis keluhan pelanggan dari percakapan</div>
               </div>
             </div>
@@ -1089,22 +1093,23 @@
               color="primary"
               variant="flat"
               size="small"
-              class="text-none font-weight-bold rounded-pill"
+              class="text-none font-weight-bold rounded-lg"
+              style="height: 30px; font-size: 0.74rem;"
               prepend-icon="mdi-lightning-bolt"
               :loading="isAutoFilling"
               @click="autoFillTicketFromChat"
             >
               ⚡ Auto-Fill dari Chat
             </v-btn>
-          </v-card>
+          </div>
 
           <!-- Trouble Ticket Form -->
           <div class="d-flex flex-column gap-2.5">
-            <div class="text-overline text-medium-emphasis font-weight-bold">Formulir Trouble Ticket</div>
+            <div class="text-overline text-medium-emphasis font-weight-bold" style="font-size: 0.68rem; letter-spacing: 0.8px;">FORMULIR TROUBLE TICKET</div>
 
             <!-- Kategori Kendala -->
             <div>
-              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block">
+              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block" style="font-size: 0.72rem;">
                 Kategori Gangguan *
               </label>
               <v-select
@@ -1121,7 +1126,7 @@
 
             <!-- Judul Tiket -->
             <div>
-              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block">
+              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block" style="font-size: 0.72rem;">
                 Judul Tiket *
               </label>
               <v-text-field
@@ -1136,7 +1141,7 @@
 
             <!-- Tingkat Prioritas -->
             <div>
-              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block">
+              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block" style="font-size: 0.72rem;">
                 Tingkat Prioritas *
               </label>
               <v-select
@@ -1153,13 +1158,13 @@
 
             <!-- Rincian Keluhan -->
             <div>
-              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block">
+              <label class="text-caption font-weight-bold text-medium-emphasis mb-1 d-block" style="font-size: 0.72rem;">
                 Rincian / Deskripsi Keluhan *
               </label>
               <v-textarea
                 v-model="ticketForm.description"
                 placeholder="Tuliskan keluhan atau laporan gangguan pelanggan..."
-                rows="4"
+                rows="3"
                 density="compact"
                 variant="outlined"
                 rounded="lg"
@@ -1169,7 +1174,7 @@
             </div>
 
             <!-- Ringkasan Info Pelanggan -->
-            <v-card variant="tonal" class="pa-2.5 rounded-lg border">
+            <div class="info-group-box pa-2.5 rounded-lg border bg-surface">
               <div class="d-flex align-center justify-space-between mb-1">
                 <span class="text-caption text-medium-emphasis font-weight-medium">Pelanggan:</span>
                 <span class="text-caption font-weight-bold text-high-emphasis">{{ activeRoom.pelanggan?.nama }}</span>
@@ -1178,20 +1183,21 @@
                 <span class="text-caption text-medium-emphasis font-weight-medium">Paket:</span>
                 <span class="text-caption font-weight-bold text-primary">{{ getCustomerPackage(activeRoom.pelanggan) }}</span>
               </div>
-              <div v-if="activeRoom.pelanggan?.alamat" class="text-caption text-medium-emphasis">
+              <div v-if="activeRoom.pelanggan?.alamat" class="text-caption text-medium-emphasis d-flex align-center">
                 <v-icon size="12" class="me-1">mdi-map-marker-outline</v-icon>
-                {{ activeRoom.pelanggan.alamat }}
+                <span>{{ activeRoom.pelanggan.alamat }}</span>
               </div>
-            </v-card>
+            </div>
 
             <!-- Submit Button -->
             <v-btn
               block
-              color="error"
+              color="primary"
               variant="flat"
               size="default"
-              prepend-icon="mdi-ticket-confirmation-outline"
-              class="text-none font-weight-bold rounded-pill mt-1"
+              prepend-icon="mdi-ticket-alert-outline"
+              class="text-none font-weight-bold rounded-lg mt-1"
+              style="height: 38px; font-size: 0.82rem;"
               :loading="isSubmittingTicket"
               @click="submitTroubleTicket"
             >
@@ -1204,7 +1210,7 @@
           <!-- Riwayat Tiket Pelanggan -->
           <div>
             <div class="d-flex align-center justify-space-between mb-2">
-              <span class="text-overline font-weight-bold text-medium-emphasis">Riwayat Tiket Pelanggan</span>
+              <span class="text-overline font-weight-bold text-medium-emphasis" style="font-size: 0.68rem; letter-spacing: 0.8px;">RIWAYAT TIKET PELANGGAN</span>
               <span class="text-caption text-medium-emphasis">({{ customerTickets.length }})</span>
             </div>
 
@@ -1217,24 +1223,25 @@
             </div>
 
             <div v-else class="d-flex flex-column gap-2">
-              <v-card
+              <div
                 v-for="t in customerTickets"
                 :key="t.id"
-                variant="outlined"
-                class="pa-2.5 rounded-lg"
+                class="ticket-history-card pa-2.5 rounded-lg border bg-surface"
               >
                 <div class="d-flex align-center justify-space-between mb-1">
-                  <span class="text-caption font-weight-bold text-primary">{{ t.ticket_number }}</span>
-                  <v-chip size="x-small" :color="getTicketStatusColor(t.status)" variant="flat" class="font-weight-bold text-white px-1.5" style="height: 18px;">
+                  <span class="text-caption font-weight-bold text-primary" style="font-size: 0.76rem;">{{ t.ticket_number }}</span>
+                  <v-chip size="x-small" :color="getTicketStatusColor(t.status)" variant="tonal" class="font-weight-bold px-1.5" style="height: 18px; font-size: 0.65rem;">
                     {{ formatTicketStatus(t.status) }}
                   </v-chip>
                 </div>
-                <div class="text-caption font-weight-medium text-truncate mb-1">{{ t.title }}</div>
+                <div class="text-caption font-weight-medium text-truncate text-high-emphasis mb-1" style="font-size: 0.78rem;">
+                  {{ t.title }}
+                </div>
                 <div class="d-flex align-center justify-space-between text-caption text-medium-emphasis" style="font-size: 0.68rem;">
                   <span>{{ t.category }}</span>
                   <span>{{ formatDate(t.created_at) }}</span>
                 </div>
-              </v-card>
+              </div>
             </div>
           </div>
         </div>
@@ -3287,31 +3294,31 @@ onUnmounted(() => {
 
 <style scoped>
 /* =====================================================================
-   DESIGN TOKENS — grounded in fiber-optic / signal theme for an ISP
-   customer-care console (Artacom: Jakinet / Jelantik / Jelantik Nagrak).
-   Accent is a signal-teal (the color of light traveling through fiber),
-   paired with a warm terracotta-free amber reserved only for tickets.
+   DESIGN TOKENS — Minimalist SaaS Enterprise Communication System
+   Palette: Clean slate neutrals, precise borders, solid signal-teal accent (#0e7c8c),
+   and functional status colors. No heavy gradients, no bloated cards.
    ===================================================================== */
 .customer-chat-wrapper {
-  --ink: #101827;
-  --ink-soft: #47566e;
-  --muted: #8994a6;
+  --ink: #0f172a;
+  --ink-soft: #475569;
+  --muted: #94a3b8;
   --surface: #ffffff;
-  --panel: #f5f7f9;
-  --panel-alt: #eaf3f4;
-  --border: #e2e7eb;
-  --border-soft: #edf1f3;
+  --panel: #f8fafc;
+  --panel-alt: #f1f5f9;
+  --border: #e2e8f0;
+  --border-soft: #edf2f7;
   --accent: #0e7c8c;
   --accent-deep: #0a5866;
   --accent-soft: #e2f3f4;
-  --amber: #b6540f;
-  --amber-soft: #fbebdd;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --shadow-sm: 0 1px 2px rgba(16, 24, 39, 0.06);
-  --shadow-md: 0 6px 20px rgba(16, 24, 39, 0.07);
-  --shadow-ring: 0 0 0 3px var(--accent-soft);
+  --accent-hover: #0c6977;
+  --amber: #d97706;
+  --amber-soft: #fef3c7;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-ring: 0 0 0 2px rgba(14, 124, 140, 0.16);
 
   height: calc(100vh - 150px);
   max-height: calc(100vh - 150px);
@@ -3329,12 +3336,13 @@ onUnmounted(() => {
   box-shadow: var(--shadow-md) !important;
 }
 
-/* Gap Utilities for Vuetify Flexbox */
+/* Gap Utilities */
 .gap-1 { gap: 4px; }
 .gap-1\.5 { gap: 6px; }
 .gap-2 { gap: 8px; }
 .gap-2\.5 { gap: 10px; }
 .gap-3 { gap: 12px; }
+.gap-3\.5 { gap: 14px; }
 .gap-4 { gap: 16px; }
 
 /* ================= PANEL 1: SIDEBAR ================= */
@@ -3369,7 +3377,60 @@ onUnmounted(() => {
   color: var(--accent);
 }
 
-/* Segmented assignment bar reads as 1 connected control with 3 equal segments */
+/* Omnichannel Status Tabs (Terbuka | Selesai | Semua) */
+.omnichannel-status-tabs {
+  background-color: var(--panel);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  display: flex;
+  gap: 3px;
+  border: 1px solid var(--border-soft);
+}
+
+.omnichannel-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.omnichannel-tab-btn:hover:not(.omnichannel-tab-btn--active) {
+  background-color: var(--surface);
+  color: var(--ink);
+}
+
+.omnichannel-tab-btn--active {
+  background-color: var(--surface) !important;
+  color: var(--accent) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+.omnichannel-tab-count {
+  font-size: 0.65rem;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-weight: 700;
+  background-color: var(--border-soft);
+  color: var(--ink-soft);
+  line-height: 1.3;
+}
+
+.omnichannel-tab-btn--active .omnichannel-tab-count {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Segmented assignment bar */
 .assignment-filter-bar {
   background-color: var(--panel);
   border-radius: var(--radius-md);
@@ -3402,7 +3463,7 @@ onUnmounted(() => {
   padding: 5px 2px;
   border-radius: var(--radius-sm);
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--ink-soft);
   background: transparent;
   border: none;
@@ -3439,6 +3500,22 @@ onUnmounted(() => {
   color: var(--accent);
 }
 
+/* Room Items */
+.room-card {
+  transition: background-color 0.12s ease;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.room-card:hover {
+  background-color: var(--panel);
+}
+
+.room-card--active {
+  background-color: var(--accent-soft) !important;
+  border-left-color: var(--accent) !important;
+}
+
 .room-meta-pill {
   font-size: 0.62rem;
   font-weight: 700;
@@ -3450,20 +3527,10 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.room-card {
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-  border: 1px solid transparent;
-  border-left: 3px solid transparent;
-}
-
-.room-card:hover {
-  background-color: var(--panel);
-}
-
-.room-card--active {
-  background-color: var(--accent-soft) !important;
-  border-color: rgba(14, 124, 140, 0.18) !important;
-  border-left-color: var(--accent) !important;
+.sidebar-footer {
+  border-color: var(--border-soft) !important;
+  background-color: var(--panel) !important;
+  height: 38px;
 }
 
 /* ================= PANEL 2: CONVERSATION ================= */
@@ -3476,10 +3543,6 @@ onUnmounted(() => {
   background-color: var(--panel);
 }
 
-.v-theme--dark .chat-conversation-panel {
-  background-color: #0b1120;
-}
-
 .chat-room-header {
   border-color: var(--border) !important;
   box-shadow: var(--shadow-sm);
@@ -3487,116 +3550,91 @@ onUnmounted(() => {
   z-index: 2;
 }
 
-.chat-room-header :deep(.v-avatar) {
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.chat-room-header :deep(.v-btn) {
-  letter-spacing: 0.1px;
-}
-
-/* Fine dotted texture reminiscent of a fiber signal grid — quiet, low-contrast */
 .chat-messages-stream {
-  padding: 22px 26px;
+  padding: 18px 22px;
   background-color: var(--panel);
-  background-image: radial-gradient(circle at 1px 1px, var(--border-soft) 1px, transparent 0);
-  background-size: 24px 24px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.v-theme--dark .chat-messages-stream {
-  background-image: none;
+/* Clean Line-Through Date Divider */
+.date-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+}
+
+.date-divider::before,
+.date-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+.date-divider-text {
+  padding: 0 12px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
 }
 
 .message-row {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   width: 100%;
 }
 
 .message-bubble {
   max-width: 66%;
-  min-width: 140px;
+  min-width: 130px;
   position: relative;
   word-break: break-word;
   overflow-wrap: anywhere;
-  padding: 10px 16px;
+  padding: 9px 14px;
   box-shadow: var(--shadow-sm);
 }
 
+/* Customer message: crisp white card with subtle 1px border */
 .bubble-customer {
   background-color: var(--surface);
   color: var(--ink);
-  border-radius: 4px 16px 16px 16px !important;
+  border-radius: 4px 14px 14px 14px !important;
   border: 1px solid var(--border);
-  margin-left: 6px;
+  margin-left: 4px;
 }
 
+/* System / AI message: subtle teal tint */
 .bubble-system {
   background-color: var(--accent-soft);
   color: var(--ink);
-  border-radius: 4px 16px 16px 16px !important;
+  border-radius: 4px 14px 14px 14px !important;
   border: 1px dashed rgba(14, 124, 140, 0.35);
-  margin-left: 6px;
+  margin-left: 4px;
 }
 
-.v-theme--dark .bubble-customer {
-  background-color: #18181b;
-  color: #fafafa;
-  border-color: #27272a;
-  box-shadow: none;
-}
-
-.v-theme--dark .bubble-system {
-  background-color: #123239;
-  color: #e6f6f7;
-  border-color: #1c5e68;
-  box-shadow: none;
-}
-
+/* Admin / CS message: solid flat signal-teal (no heavy gradient) */
 .bubble-admin {
-  background: linear-gradient(155deg, var(--accent) 0%, var(--accent-deep) 100%);
+  background-color: var(--accent) !important;
   color: #ffffff;
-  border-radius: 16px 4px 16px 16px !important;
-  margin-right: 6px;
-  box-shadow: 0 4px 14px rgba(10, 88, 102, 0.22);
-}
-
-.v-theme--dark .bubble-admin {
-  background: linear-gradient(155deg, var(--accent) 0%, var(--accent-deep) 100%);
-  color: #ffffff;
-}
-
-.date-pill {
-  background-color: var(--surface);
-  color: var(--ink-soft);
-  border: 1px solid var(--border);
-  font-size: 0.7rem;
-  letter-spacing: 0.15px;
-  box-shadow: var(--shadow-sm);
-}
-
-.v-theme--dark .date-pill {
-  background-color: #1e293b;
-  color: #94a3b8;
-  border-color: #334155;
+  border-radius: 14px 4px 14px 14px !important;
+  margin-right: 4px;
 }
 
 /* ================= QUICK REPLIES BAR ================= */
 .quick-replies-bar {
   flex-shrink: 0 !important;
-  min-height: 40px !important;
+  min-height: 38px !important;
   border-color: var(--border) !important;
 }
 
 .quick-chip {
-  transition: transform 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
   border-radius: 999px;
 }
 
 .quick-chip:hover {
-  transform: translateY(-1px);
   border-color: var(--accent) !important;
 }
 
@@ -3611,7 +3649,7 @@ onUnmounted(() => {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: 0 14px 32px -8px rgba(16, 24, 39, 0.18), 0 4px 10px -4px rgba(16, 24, 39, 0.1);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 4px 8px -2px rgba(15, 23, 42, 0.06);
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -3645,7 +3683,7 @@ onUnmounted(() => {
 }
 
 .chat-input-textarea :deep(.v-field) {
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   background-color: var(--panel);
 }
 
@@ -3662,13 +3700,16 @@ onUnmounted(() => {
   color: var(--accent);
 }
 
+/* Solid Flat Accent Send Button */
 .chat-send-btn {
-  background: linear-gradient(155deg, var(--accent) 0%, var(--accent-deep) 100%) !important;
-  transition: transform 0.12s ease;
+  background-color: var(--accent) !important;
+  color: #ffffff !important;
+  transition: opacity 0.12s ease, transform 0.12s ease;
 }
 
 .chat-send-btn:hover:not(.v-btn--disabled) {
-  transform: translateY(-1px) scale(1.03);
+  background-color: var(--accent-hover) !important;
+  transform: translateY(-1px);
 }
 
 /* ================= EMOJI PICKER ================= */
@@ -3677,7 +3718,7 @@ onUnmounted(() => {
   bottom: 48px;
   left: 0;
   z-index: 100;
-  box-shadow: 0 14px 34px rgba(16, 24, 39, 0.2);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.18);
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
@@ -3685,22 +3726,95 @@ onUnmounted(() => {
 
 /* ================= PANEL 3: CONTACT 360 & TROUBLE TICKET ================= */
 .customer-info-panel {
-  width: 310px;
-  min-width: 290px;
-  max-width: 330px;
+  width: 320px;
+  min-width: 300px;
+  max-width: 340px;
   flex-shrink: 0;
   height: 100%;
   background-color: var(--surface);
   border-color: var(--border) !important;
 }
 
-.customer-info-panel :deep(.v-card--variant-tonal) {
-  background-color: var(--panel) !important;
-  border-color: var(--border-soft) !important;
+.right-panel-header {
+  height: 44px;
+  border-color: var(--border) !important;
 }
 
-.assignment-filter-bar::-webkit-scrollbar {
-  display: none;
+/* Minimalist Underline Tabs for Right Panel */
+.panel-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.panel-tab-btn:hover {
+  color: var(--ink);
+}
+
+.panel-tab-btn--active {
+  color: var(--accent) !important;
+  border-bottom-color: var(--accent) !important;
+}
+
+.tab-count-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background-color: #ef4444;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 999px;
+  line-height: 1.2;
+}
+
+/* Reusable clean border card container for info rows */
+.info-group-box {
+  border-color: var(--border) !important;
+  background-color: var(--surface);
+}
+
+/* Smart Auto-fill Ticket Assistant Card */
+.smart-ticket-card {
+  background-color: rgba(14, 124, 140, 0.05);
+  border-color: rgba(14, 124, 140, 0.22) !important;
+}
+
+/* Ticket History Card */
+.ticket-history-card {
+  border-color: var(--border) !important;
+  background-color: var(--surface);
+  transition: background-color 0.12s ease;
+}
+
+.ticket-history-card:hover {
+  background-color: var(--panel);
+}
+
+/* Slim scrollbars */
+.rooms-list-scroll::-webkit-scrollbar,
+.messages-container::-webkit-scrollbar,
+.customer-info-panel::-webkit-scrollbar {
+  width: 5px;
+}
+
+.rooms-list-scroll::-webkit-scrollbar-thumb,
+.messages-container::-webkit-scrollbar-thumb,
+.customer-info-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(14, 124, 140, 0.2);
+  border-radius: 4px;
+}
+
+.rooms-list-scroll::-webkit-scrollbar-thumb:hover,
+.messages-container::-webkit-scrollbar-thumb:hover,
+.customer-info-panel::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(14, 124, 140, 0.38);
 }
 
 .animate-pulse {
@@ -3712,91 +3826,53 @@ onUnmounted(() => {
   50% { opacity: 0.3; }
 }
 
-/* Slim, tinted scrollbars in the accent color rather than plain grey */
-.rooms-list-scroll::-webkit-scrollbar,
-.messages-container::-webkit-scrollbar,
-.customer-info-panel::-webkit-scrollbar {
-  width: 5px;
+/* ================= DARK THEME OVERRIDES ================= */
+.v-theme--dark .customer-chat-wrapper {
+  --ink: #f8fafc;
+  --ink-soft: #cbd5e1;
+  --muted: #64748b;
+  --surface: #0f172a;
+  --panel: #0b1120;
+  --panel-alt: #1e293b;
+  --border: #1e293b;
+  --border-soft: #172033;
 }
 
-.rooms-list-scroll::-webkit-scrollbar-thumb,
-.messages-container::-webkit-scrollbar-thumb,
-.customer-info-panel::-webkit-scrollbar-thumb {
-  background-color: rgba(14, 124, 140, 0.22);
-  border-radius: 4px;
+.v-theme--dark .chat-conversation-panel {
+  background-color: #0b1120;
 }
 
-.rooms-list-scroll::-webkit-scrollbar-thumb:hover,
-.messages-container::-webkit-scrollbar-thumb:hover,
-.customer-info-panel::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(14, 124, 140, 0.4);
+.v-theme--dark .bubble-customer {
+  background-color: #1e293b;
+  color: #f8fafc;
+  border-color: #334155;
+}
+
+.v-theme--dark .bubble-system {
+  background-color: #123239;
+  color: #e6f6f7;
+  border-color: #1c5e68;
+}
+
+.v-theme--dark .bubble-admin {
+  background-color: var(--accent) !important;
+  color: #ffffff;
+}
+
+.v-theme--dark .date-divider::before,
+.v-theme--dark .date-divider::after {
+  border-color: #334155;
+}
+
+.v-theme--dark .info-group-box,
+.v-theme--dark .ticket-history-card {
+  background-color: #0f172a;
+  border-color: #1e293b !important;
 }
 
 .v-theme--dark .rooms-list-scroll::-webkit-scrollbar-thumb,
 .v-theme--dark .messages-container::-webkit-scrollbar-thumb,
 .v-theme--dark .customer-info-panel::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.15);
-}
-
-/* ================= OMNICHANNEL SINGLE INBOX STYLING ================= */
-.omnichannel-status-tabs {
-  background-color: var(--panel);
-  border-radius: var(--radius-md);
-  padding: 3px;
-  display: flex;
-  gap: 4px;
-  border: 1px solid var(--border-soft);
-}
-
-.omnichannel-tab-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: var(--ink-soft);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.omnichannel-tab-btn:hover:not(.omnichannel-tab-btn--active) {
-  background-color: var(--surface);
-  color: var(--ink);
-}
-
-.omnichannel-tab-btn--active {
-  background-color: var(--accent) !important;
-  color: #ffffff !important;
-  box-shadow: 0 2px 6px rgba(14, 124, 140, 0.25);
-}
-
-.omnichannel-tab-count {
-  font-size: 0.68rem;
-  padding: 1px 6px;
-  border-radius: 999px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.omnichannel-tab-btn--active .omnichannel-tab-count {
-  background-color: rgba(255, 255, 255, 0.25);
-  color: #ffffff;
-}
-
-.omnichannel-tab-btn:not(.omnichannel-tab-btn--active) .omnichannel-tab-count {
-  background-color: var(--border-soft);
-  color: var(--ink-soft);
-}
-
-.sidebar-footer {
-  border-color: var(--border-soft) !important;
-  background-color: var(--panel) !important;
-  height: 38px;
 }
 </style>
