@@ -336,72 +336,22 @@ func (c *ChatClient) ReadPump() {
 			if c.Role == "customer" && c.Hub.aiService != nil && msgText != "" {
 				// A. Periksa apakah pelanggan meminta CS/agen manusia
 				if c.Hub.aiService.IsHumanHandoverRequested(msgText) {
-					// Cari apakah ada admin/CS yang sedang online di WebSocket Hub
-					var onlineAdminID uint64
-					var onlineAdminName string
-					c.Hub.mu.RLock()
-					for cl := range c.Hub.adminListeners {
-						if cl.Role == "admin" && cl.SenderID > 0 {
-							onlineAdminID = cl.SenderID
-							onlineAdminName = cl.SenderName
-							break
-						}
-					}
-					if onlineAdminID == 0 {
-						for _, clientMap := range c.Hub.rooms {
-							for cl := range clientMap {
-								if cl.Role == "admin" && cl.SenderID > 0 {
-									onlineAdminID = cl.SenderID
-									onlineAdminName = cl.SenderName
-									break
-								}
-							}
-							if onlineAdminID > 0 {
-								break
-							}
-						}
-					}
-					c.Hub.mu.RUnlock()
-
-					// Jika ada admin online, otomatis sambungkan & assign ke admin tersebut
-					if onlineAdminID > 0 {
-						ctxAssign, cancelAssign := context.WithTimeout(context.Background(), 2*time.Second)
-						_ = c.Hub.chatUsecase.AssignRoom(ctxAssign, targetRoomID, onlineAdminID)
-						cancelAssign()
-
-						ctxReload, cancelReload := context.WithTimeout(context.Background(), 2*time.Second)
-						updatedRoom, _ := c.Hub.chatUsecase.GetRoomByID(ctxReload, targetRoomID)
-						cancelReload()
-
-						c.Hub.BroadcastToRoom(targetRoomID, "room_assigned", map[string]interface{}{
-							"room_id":  targetRoomID,
-							"admin_id": onlineAdminID,
-							"room":     updatedRoom,
-						})
-					}
-
-					// Beritahu admin/CS via broadcast bahwa pelanggan meminta CS manusia
+					// Beritahu admin/CS via broadcast bahwa ada pelanggan di antrean CS (Unassigned)
 					c.Hub.BroadcastToRoom(targetRoomID, "human_handover_requested", map[string]interface{}{
 						"room_id":        targetRoomID,
 						"pelanggan_id":   c.SenderID,
 						"pelanggan_name": c.SenderName,
-						"admin_id":       onlineAdminID,
-						"message":        "Pelanggan meminta terhubung dengan Customer Support manusia",
+						"message":        "Pelanggan meminta terhubung dengan Customer Support (Unassigned)",
 					})
 
-					// Kirim konfirmasi pengalihan sesi ke pelanggan
-					go func(roomID uint64, custName string, hasOnlineAdmin bool, adminName string) {
+					// Kirim konfirmasi pengalihan sesi ke pelanggan (masuk antrean, status tetap unassigned)
+					go func(roomID uint64, custName string) {
 						time.Sleep(300 * time.Millisecond)
 						greetingName := custName
 						if greetingName == "" {
 							greetingName = "Kakak"
 						}
-						var confirmText string
-						if hasOnlineAdmin && adminName != "" {
-							confirmText = fmt.Sprintf("Halo Kak %s, percakapan Anda telah tersambung dengan staf Customer Support kami (%s). Staf kami siap melayani Anda secara langsung dalam obrolan ini.\n\n---\n👤 Sesi dialihkan ke Agen Manusia", greetingName, adminName)
-						} else {
-							confirmText = fmt.Sprintf("Baik Kak %s, percakapan Anda telah dialihkan ke antrian Customer Support. Staf kami akan segera bergabung dan melayani Anda secara langsung dalam obrolan ini.\n\n---\n👤 Sesi dialihkan ke Agen Manusia", greetingName)
-						}
+						confirmText := fmt.Sprintf("Baik Kak %s, percakapan Anda telah dialihkan ke antrean Customer Support. Staf kami akan segera bergabung dan melayani Anda dalam obrolan ini.\n\n---\n👤 Sesi dialihkan ke Antrean Agen Manusia", greetingName)
 
 						sysMsg := &domain.ChatMessage{
 							RoomID:      roomID,
@@ -418,7 +368,7 @@ func (c *ChatClient) ReadPump() {
 						if errSys == nil {
 							c.Hub.BroadcastToRoom(roomID, "new_message", savedSysMsg)
 						}
-					}(targetRoomID, c.SenderName, onlineAdminID > 0, onlineAdminName)
+					}(targetRoomID, c.SenderName)
 
 					continue
 				}
@@ -525,59 +475,15 @@ func (c *ChatClient) ReadPump() {
 					}
 
 					// 7. Jika pertanyaan tidak terselesaikan oleh ML (fallback, komplain, kata kasar, atau butuh CS),
-					// teruskan otomatis ke agen manusia (CS/Admin)
+					// siarkan notifikasi ke antrean Customer Support (status tetap Unassigned sampai diambil alih oleh admin)
 					if needsHandover {
-						log.Printf("[ChatHub] Automatic handover to human CS triggered for room %d", roomID)
-
-						var onlineAdminID uint64
-						var onlineAdminName string
-						client.Hub.mu.RLock()
-						for cl := range client.Hub.adminListeners {
-							if cl.Role == "admin" && cl.SenderID > 0 {
-								onlineAdminID = cl.SenderID
-								onlineAdminName = cl.SenderName
-								break
-							}
-						}
-						if onlineAdminID == 0 {
-							for _, clientMap := range client.Hub.rooms {
-								for cl := range clientMap {
-									if cl.Role == "admin" && cl.SenderID > 0 {
-										onlineAdminID = cl.SenderID
-										onlineAdminName = cl.SenderName
-										break
-									}
-								}
-								if onlineAdminID > 0 {
-									break
-								}
-							}
-						}
-						client.Hub.mu.RUnlock()
-
-						if onlineAdminID > 0 {
-							ctxAssign, cancelAssign := context.WithTimeout(context.Background(), 2*time.Second)
-							_ = client.Hub.chatUsecase.AssignRoom(ctxAssign, roomID, onlineAdminID)
-							cancelAssign()
-
-							ctxReload, cancelReload := context.WithTimeout(context.Background(), 2*time.Second)
-							updatedRoom, _ := client.Hub.chatUsecase.GetRoomByID(ctxReload, roomID)
-							cancelReload()
-
-							client.Hub.BroadcastToRoom(roomID, "room_assigned", map[string]interface{}{
-								"room_id":  roomID,
-								"admin_id": onlineAdminID,
-								"room":     updatedRoom,
-							})
-						}
+						log.Printf("[ChatHub] Handover to human CS queue triggered for room %d (Unassigned)", roomID)
 
 						client.Hub.BroadcastToRoom(roomID, "human_handover_requested", map[string]interface{}{
 							"room_id":        roomID,
 							"pelanggan_id":   client.SenderID,
 							"pelanggan_name": client.SenderName,
-							"admin_id":       onlineAdminID,
-							"admin_name":     onlineAdminName,
-							"message":        "Pertanyaan dialihkan oleh sistem AI ke Customer Support manusia",
+							"message":        "Pertanyaan dialihkan oleh sistem AI ke antrean Customer Support (Unassigned)",
 						})
 					}
 				}(targetRoomID, msgText, c)

@@ -5,7 +5,7 @@
     "bahasa": "id",
     "deskripsi": "Dataset intent classification untuk chatbot customer service ISP FTTH (versi diperluas). Struktur: tag (label Y / kode intent), patterns (data latih X / kata kunci & variasi kalimat pelanggan, termasuk bahasa gaul/singkatan/typo), responses (template jawaban bot).",
     "total_intents": 37,
-    "total_patterns": 4996
+    "total_patterns": 5020
   },
   "intents": [
     {
@@ -115,7 +115,31 @@
         "tv streaming muter terus",
         "smart tv buffering",
         "wifi lemot di kamar",
-        "wifi lambat kalau jauh dari modem"
+        "wifi lambat kalau jauh dari modem",
+        "woy wifi ngelag",
+        "wifi ngelag",
+        "ngelag",
+        "ngelag banget",
+        "ngelag parah",
+        "koneksi ngelag",
+        "internet ngelag",
+        "kenapa ngelag",
+        "kok ngelag",
+        "ngelag terus",
+        "woy lemot",
+        "woy lelet",
+        "woy lelet banget",
+        "woy wifi lemot",
+        "woy",
+        "woi",
+        "woi wifi lemot",
+        "woi ngelag",
+        "lagging",
+        "wifi nge-lag banget",
+        "kok ngelag gini",
+        "jaringan ngelag",
+        "kenapa koneksi ngelag",
+        "game ngelag mulu"
       ],
       "responses": [
         "**Solusi Cepat Mengatasi WiFi Lambat:**\n\n1. **Restart Modem (ONT)**: Cabut adaptor daya listrik di belakang modem selama 30 detik, lalu tancapkan kembali.\n2. **Gunakan Frekuensi 5 GHz**: Jika perangkat Anda dan modem mendukung pita 5 GHz, sambungkan ke nama WiFi berakhiran `_5G` untuk kecepatan maksimal.\n3. **Periksa Perangkat Terhubung**: Matikan sementara sambungan WiFi pada perangkat yang sedang mengunduh file besar atau pembaruan otomatis (update game/OS).\n4. **Uji Kecepatan**: Lakukan pengujian ulang kecepatan di dekat modem melalui situs speedtest.net.\n\nMasih mengalami kendala? Ketik 2 atau tekan tombol di bawah untuk terhubung dengan Teknisi."
