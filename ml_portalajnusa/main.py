@@ -23,11 +23,21 @@ app.add_middleware(
 stemmer = StemmerFactory().create_stemmer()
 stopword = StopWordRemoverFactory().create_stop_word_remover()
 
-def preprocess_text(text):
+word_stem_cache = {}
+cache_file = os.path.join(BASE_DIR, 'word_stem_cache.json')
+if os.path.exists(cache_file):
+    try:
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            word_stem_cache = json.load(f)
+    except Exception as e:
+        print(f"[WARN] Failed to load word_stem_cache.json: {e}")
+
+def preprocess_text(text: str) -> str:
     text = text.lower()
     text = re.sub(r'[^a-z0-9\s]', '', text)
     text = stopword.remove(text)
-    return stemmer.stem(text)
+    words = [word_stem_cache.get(w, stemmer.stem(w)) for w in text.split()]
+    return " ".join(words)
 
 model = joblib.load(os.path.join(BASE_DIR, 'chatbot_model.pkl'))
 with open(os.path.join(BASE_DIR, 'dataset.json'), 'r', encoding='utf-8') as f:
@@ -36,15 +46,23 @@ with open(os.path.join(BASE_DIR, 'dataset.json'), 'r', encoding='utf-8') as f:
 def get_bot_response(tag_name):
     for intent in dataset['intents']:
         if intent['tag'] == tag_name:
-            return intent['responses'][0]
-    return "Mohon maaf, sistem sedang mengalami kendala."
+            responses = intent.get('responses', [])
+            if responses:
+                return responses[0]
+    return "Mohon maaf, sistem sedang mengalami kendala. Silakan coba kembali sesaat lagi atau hubungi CS kami."
 
 class ChatRequest(BaseModel):
     message: str
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "ml_portalajnusa", "model_loaded": model is not None}
+    return {
+        "status": "ok",
+        "service": "ml_portalajnusa",
+        "model_loaded": model is not None,
+        "total_intents": len(dataset.get('intents', [])),
+        "cached_words": len(word_stem_cache)
+    }
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
@@ -53,10 +71,22 @@ async def chat_endpoint(request: ChatRequest):
     probabilities = model.predict_proba([clean_input])[0]
     max_prob = max(probabilities)
 
-    if max_prob < 0.50:
+    CONFIDENCE_THRESHOLD = 0.50
+    if max_prob < CONFIDENCE_THRESHOLD:
         predicted_tag = "fallback"
     else:
         predicted_tag = model.classes_[list(probabilities).index(max_prob)]
+
+    # Intent yang tidak terselesaikan oleh ML atau memerlukan penanganan manusia langsung
+    handover_tags = {
+        "fallback",
+        "0.5_minta_dihubungkan_ke_cs",
+        "keluhan_eskalasi",
+        "0.6_kata_kasar_emosi"
+    }
+
+    needs_human_handover = (predicted_tag in handover_tags) or (max_prob < CONFIDENCE_THRESHOLD)
+    is_solved_by_ml = not needs_human_handover
 
     bot_reply = get_bot_response(predicted_tag)
 
@@ -64,7 +94,9 @@ async def chat_endpoint(request: ChatRequest):
         "user_message": request.message,
         "predicted_intent": predicted_tag,
         "confidence_score": round(float(max_prob), 3),
-        "bot_reply": bot_reply
+        "bot_reply": bot_reply,
+        "needs_human_handover": needs_human_handover,
+        "is_solved_by_ml": is_solved_by_ml
     }
 
 # ==============================================================================

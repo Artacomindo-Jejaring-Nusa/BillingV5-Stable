@@ -487,9 +487,9 @@ func (c *ChatClient) ReadPump() {
 						"sender":    "Asisten Virtual AI",
 					})
 
-					// 4. Panggil 9Router AI Service
+					// 4. Panggil AI Service (9Router atau ML Local)
 					ctxAI, cancelAI := context.WithTimeout(context.Background(), 25*time.Second)
-					aiReply, errAI := client.Hub.aiService.GenerateReply(ctxAI, room, history, userText)
+					aiReply, needsHandover, errAI := client.Hub.aiService.GenerateReplyWithHandover(ctxAI, room, history, userText)
 					cancelAI()
 
 					// Matikan indikator mengetik
@@ -522,6 +522,63 @@ func (c *ChatClient) ReadPump() {
 					if errSave == nil {
 						// 6. Broadcast balasan AI ke room (pelanggan & admin)
 						client.Hub.BroadcastToRoom(roomID, "new_message", savedAIMsg)
+					}
+
+					// 7. Jika pertanyaan tidak terselesaikan oleh ML (fallback, komplain, kata kasar, atau butuh CS),
+					// teruskan otomatis ke agen manusia (CS/Admin)
+					if needsHandover {
+						log.Printf("[ChatHub] Automatic handover to human CS triggered for room %d", roomID)
+
+						var onlineAdminID uint64
+						var onlineAdminName string
+						client.Hub.mu.RLock()
+						for cl := range client.Hub.adminListeners {
+							if cl.Role == "admin" && cl.SenderID > 0 {
+								onlineAdminID = cl.SenderID
+								onlineAdminName = cl.SenderName
+								break
+							}
+						}
+						if onlineAdminID == 0 {
+							for _, clientMap := range client.Hub.rooms {
+								for cl := range clientMap {
+									if cl.Role == "admin" && cl.SenderID > 0 {
+										onlineAdminID = cl.SenderID
+										onlineAdminName = cl.SenderName
+										break
+									}
+								}
+								if onlineAdminID > 0 {
+									break
+								}
+							}
+						}
+						client.Hub.mu.RUnlock()
+
+						if onlineAdminID > 0 {
+							ctxAssign, cancelAssign := context.WithTimeout(context.Background(), 2*time.Second)
+							_ = client.Hub.chatUsecase.AssignRoom(ctxAssign, roomID, onlineAdminID)
+							cancelAssign()
+
+							ctxReload, cancelReload := context.WithTimeout(context.Background(), 2*time.Second)
+							updatedRoom, _ := client.Hub.chatUsecase.GetRoomByID(ctxReload, roomID)
+							cancelReload()
+
+							client.Hub.BroadcastToRoom(roomID, "room_assigned", map[string]interface{}{
+								"room_id":  roomID,
+								"admin_id": onlineAdminID,
+								"room":     updatedRoom,
+							})
+						}
+
+						client.Hub.BroadcastToRoom(roomID, "human_handover_requested", map[string]interface{}{
+							"room_id":        roomID,
+							"pelanggan_id":   client.SenderID,
+							"pelanggan_name": client.SenderName,
+							"admin_id":       onlineAdminID,
+							"admin_name":     onlineAdminName,
+							"message":        "Pertanyaan dialihkan oleh sistem AI ke Customer Support manusia",
+						})
 					}
 				}(targetRoomID, msgText, c)
 			}

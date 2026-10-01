@@ -17,6 +17,7 @@ import (
 
 type AIService interface {
 	GenerateReply(ctx context.Context, room *domain.ChatRoom, history []domain.ChatMessage, userMessage string) (string, error)
+	GenerateReplyWithHandover(ctx context.Context, room *domain.ChatRoom, history []domain.ChatMessage, userMessage string) (string, bool, error)
 	IsHumanHandoverRequested(message string) bool
 }
 
@@ -36,7 +37,7 @@ func NewAIService(cfg *config.Config, paketRepo domain.PaketLayananRepository) A
 	}
 }
 
-// IsHumanHandoverRequested memeriksa apakah pelanggan meminta berbicara dengan CS/agen manusia
+// IsHumanHandoverRequested memeriksa apakah pelanggan meminta berbicara dengan CS/agen manusia atau menggunakan kata kasar/emosi
 func (s *aiService) IsHumanHandoverRequested(message string) bool {
 	cleaned := strings.ToLower(strings.TrimSpace(message))
 
@@ -57,6 +58,9 @@ func (s *aiService) IsHumanHandoverRequested(message string) bool {
 		"mau orang", "bukan bot", "jangan bot", "customer support", "customer care", "customer service",
 		"hubungkan saya", "sambungkan saya", "chat cs", "chat admin", "halo cs", "halo admin",
 		"hubungkan dengan cs", "sambungkan dengan cs",
+		// Deteksi kata kasar & emosi tinggi untuk dialihkan ke CS
+		"anjing", "babi", "bangsat", "goblok", "tolol", "kampret", "kontol", "brengsek",
+		"sialan", "bajingan", "jancuk", "pantek", "bego", "asu", "tai",
 	}
 	for _, phrase := range phraseMatches {
 		if strings.Contains(cleaned, phrase) {
@@ -65,6 +69,17 @@ func (s *aiService) IsHumanHandoverRequested(message string) bool {
 	}
 
 	return false
+}
+
+func (s *aiService) GenerateReplyWithHandover(ctx context.Context, room *domain.ChatRoom, history []domain.ChatMessage, userMessage string) (string, bool, error) {
+	reply, err := s.GenerateReply(ctx, room, history, userMessage)
+	if err != nil {
+		return "", false, err
+	}
+	needsHandover := s.IsHumanHandoverRequested(userMessage) ||
+		strings.Contains(strings.ToLower(reply), "menghubungkan anda dengan tim customer support") ||
+		strings.Contains(strings.ToLower(reply), "hubungkan ke cs")
+	return reply, needsHandover, nil
 }
 
 // GenerateReply memanggil 9Router OpenAI-compatible endpoint dengan SOP CS ketat & data pelanggan
