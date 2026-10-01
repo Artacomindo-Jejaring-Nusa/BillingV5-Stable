@@ -147,7 +147,7 @@
         <v-divider></v-divider>
 
         <!-- Rooms List -->
-        <div class="rooms-list-scroll flex-grow-1 overflow-y-auto pa-2">
+        <div class="rooms-list-scroll flex-grow-1 overflow-y-auto">
           <div v-if="isLoadingRooms" class="pa-8 text-center">
             <v-progress-circular indeterminate color="primary" size="26"></v-progress-circular>
             <div class="text-caption text-medium-emphasis mt-2">Memuat percakapan...</div>
@@ -161,92 +161,87 @@
             </div>
           </div>
 
-          <div v-else class="d-flex flex-column gap-1.5">
+          <div v-else class="d-flex flex-column">
             <div
               v-for="room in filteredRooms"
               :key="room.id"
-              class="room-card px-3 py-2.5 rounded-lg cursor-pointer"
+              class="room-card px-3 py-3 cursor-pointer"
               :class="{ 'room-card--active': activeRoom?.id === room.id }"
               @click="selectRoom(room)"
             >
               <div class="d-flex align-start gap-3">
-                <!-- Customer Avatar with Status Dot -->
+                <!-- Customer Avatar -->
                 <div class="position-relative flex-shrink-0 mt-0.5">
-                  <v-avatar :color="getBrandColor(room.brand)" size="38" class="elevation-1 rounded-circle">
+                  <v-avatar :color="getBrandColor(room.brand)" size="38" class="rounded-circle">
                     <span class="text-caption font-weight-bold text-white">
                       {{ getInitials(room.pelanggan?.nama || 'Pelanggan') }}
                     </span>
                   </v-avatar>
                   <span
-                    class="position-absolute rounded-circle border border-white"
-                    :class="room.status === 'closed' ? 'bg-grey' : 'bg-success'"
-                    style="width: 10px; height: 10px; bottom: 0; right: 0;"
+                    v-if="room.status !== 'closed'"
+                    class="position-absolute rounded-circle border border-white bg-success"
+                    style="width: 9px; height: 9px; bottom: 0; right: 0;"
                   ></span>
                 </div>
 
                 <!-- Details -->
                 <div class="flex-grow-1 min-w-0">
                   <!-- Row 1: Name & Timestamp -->
-                  <div class="d-flex align-center justify-space-between mb-0.5">
-                    <span class="font-weight-bold text-truncate text-body-2 text-high-emphasis flex-grow-1 me-2" style="font-size: 0.84rem;">
+                  <div class="d-flex align-baseline justify-space-between mb-1">
+                    <span class="room-title text-truncate flex-grow-1 me-2 font-weight-bold text-high-emphasis" style="font-size: 0.85rem; line-height: 1.25;">
                       {{ room.pelanggan?.nama || 'Pelanggan #' + room.pelanggan_id }}
                     </span>
-                    <span class="text-caption text-medium-emphasis flex-shrink-0" style="font-size: 0.68rem;">
+                    <span class="room-time text-caption text-medium-emphasis flex-shrink-0" style="font-size: 0.7rem; font-variant-numeric: tabular-nums;">
                       {{ formatTimestamp(room.last_message_at) }}
                     </span>
                   </div>
 
                   <!-- Row 2: Last message snippet & unread badge -->
                   <div class="d-flex align-center justify-space-between mb-1.5">
-                    <span class="text-caption text-truncate text-medium-emphasis flex-grow-1 me-2" style="font-size: 0.76rem; line-height: 1.35;">
+                    <span class="room-snippet text-caption text-truncate flex-grow-1 me-2 text-medium-emphasis" style="font-size: 0.77rem; line-height: 1.35;">
                       {{ room.last_message_text || 'Mulai obrolan...' }}
                     </span>
-                    <v-badge
+                    <span
                       v-if="room.unread_count_admin > 0"
-                      :content="room.unread_count_admin"
-                      color="error"
-                      inline
-                      class="flex-shrink-0"
-                    ></v-badge>
+                      class="room-unread-badge flex-shrink-0"
+                    >
+                      {{ room.unread_count_admin > 99 ? '99+' : room.unread_count_admin }}
+                    </span>
                   </div>
 
-                  <!-- Row 3: Meta Badges (Micro-pills that never overlap) -->
-                  <div class="d-flex align-center gap-1 flex-nowrap overflow-hidden">
+                  <!-- Row 3: Unified Meta Row -->
+                  <div class="d-flex align-center gap-1.5 flex-nowrap overflow-hidden">
                     <!-- Brand Pill -->
-                    <span
-                      class="room-meta-pill text-white flex-shrink-0"
-                      :class="getBrandBgClass(room.brand)"
-                    >
+                    <span class="room-brand-chip">
                       {{ getBrandShortLabel(room.brand) }}
                     </span>
 
-                    <!-- Resolved Tag (Only shown if closed) -->
+                    <!-- Resolved Tag (Muted text tag) -->
                     <span
                       v-if="room.status === 'closed'"
-                      class="room-meta-pill bg-grey-lighten-2 text-grey-darken-3 flex-shrink-0"
+                      class="room-subtle-tag text-caption"
                     >
-                      Resolved
+                      &bull; Resolved
                     </span>
 
                     <!-- Assignment Tag -->
                     <span
                       v-if="room.assigned_admin_id === authStore.user?.id"
-                      class="room-meta-pill bg-primary-lighten-4 text-primary flex-shrink-0 d-inline-flex align-center gap-0.5"
+                      class="room-assign-chip room-assign-chip--me d-inline-flex align-center gap-0.5"
                     >
                       <v-icon size="10">mdi-account-check</v-icon>
                       Saya
                     </span>
                     <span
                       v-else-if="!room.assigned_admin_id"
-                      class="room-meta-pill bg-amber-lighten-4 text-amber-darken-4 flex-shrink-0 d-inline-flex align-center gap-0.5"
+                      class="room-assign-chip room-assign-chip--unassigned"
                     >
-                      <v-icon size="10">mdi-clock-outline</v-icon>
                       Unassigned
                     </span>
                     <span
                       v-else
-                      class="room-meta-pill bg-purple-lighten-4 text-deep-purple flex-shrink-0 text-truncate"
-                      style="max-width: 75px;"
+                      class="room-assign-chip room-assign-chip--other text-truncate"
+                      style="max-width: 80px;"
                     >
                       {{ room.assigned_admin?.nama || 'Admin' }}
                     </span>
@@ -3347,9 +3342,9 @@ onUnmounted(() => {
 
 /* ================= PANEL 1: SIDEBAR ================= */
 .rooms-sidebar {
-  width: 300px;
-  min-width: 280px;
-  max-width: 320px;
+  width: 320px;
+  min-width: 300px;
+  max-width: 340px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -3502,9 +3497,11 @@ onUnmounted(() => {
 
 /* Room Items */
 .room-card {
+  padding: 12px 14px;
   transition: background-color 0.12s ease;
   border-left: 3px solid transparent;
   border-bottom: 1px solid var(--border-soft);
+  background-color: var(--surface);
 }
 
 .room-card:hover {
@@ -3512,19 +3509,92 @@ onUnmounted(() => {
 }
 
 .room-card--active {
-  background-color: var(--accent-soft) !important;
+  background-color: #eaf6f7 !important;
   border-left-color: var(--accent) !important;
 }
 
-.room-meta-pill {
-  font-size: 0.62rem;
+.v-theme--dark .room-card--active {
+  background-color: #123239 !important;
+  border-left-color: var(--accent) !important;
+}
+
+.room-title {
+  color: var(--ink);
+}
+
+.room-time {
+  color: var(--muted);
+}
+
+.room-snippet {
+  color: var(--ink-soft);
+}
+
+.room-unread-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background-color: #ef4444;
+  color: #ffffff;
+  border-radius: 999px;
+  font-size: 0.65rem;
   font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  line-height: 1.25;
-  letter-spacing: 0.1px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.room-brand-chip {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  background-color: #475569;
+  color: #ffffff;
+  letter-spacing: 0.15px;
+  line-height: 1.25;
+}
+
+.v-theme--dark .room-brand-chip {
+  background-color: #334155;
+  color: #f1f5f9;
+}
+
+.room-subtle-tag {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.room-assign-chip {
+  font-size: 0.64rem;
+  font-weight: 600;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.room-assign-chip--me {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+.room-assign-chip--unassigned {
+  background-color: var(--amber-soft);
+  color: var(--amber);
+}
+
+.room-assign-chip--other {
+  background-color: #f3e8ff;
+  color: #7e22ce;
+}
+
+.v-theme--dark .room-assign-chip--other {
+  background-color: #3b0764;
+  color: #d8b4fe;
 }
 
 .sidebar-footer {
