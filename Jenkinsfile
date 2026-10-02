@@ -49,7 +49,8 @@ pipeline {
         stage('Build & Deploy') {
             steps {
                 sh '''
-                    docker compose up -d --build
+                    docker rm -f billing-mysql-exporter || true
+                    docker compose up -d --build --remove-orphans
                     docker compose restart nginx-proxy
                 '''
             }
