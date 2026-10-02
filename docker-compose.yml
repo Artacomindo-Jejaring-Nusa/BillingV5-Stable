@@ -1,3 +1,5 @@
+name: billingsystem-cicd
+
 services:
   mysql-master:
     image: mysql:8.0

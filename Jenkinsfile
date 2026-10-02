@@ -2,6 +2,7 @@ pipeline {
     agent { label 'billing-agent' }
 
     environment {
+        COMPOSE_PROJECT_NAME = 'billingsystem-cicd'
         SKIP_DATA_IMPORT = 'true'
         PERSISTENT_ENV = "${HOME}/.billing-env/backend.env"
     }
