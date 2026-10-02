@@ -438,26 +438,34 @@ function backToLogin() {
           <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent shimmer-animation"></div>
         </div>
 
-        <div class="flex items-center justify-center px-6 sm:px-8 md:px-12 lg:px-16 py-5 sm:py-6 space-x-2 sm:space-x-4 md:space-x-6">
+        <div class="flex flex-wrap items-center justify-center px-4 sm:px-8 md:px-12 lg:px-16 py-4 sm:py-5 gap-x-2 sm:gap-x-4 gap-y-2 text-xs sm:text-sm md:text-base">
           <a
             href="https://www.ajnusa.com"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-gray-600 font-bold text-sm sm:text-base py-2 px-3 rounded-lg"
+            class="text-gray-600 font-bold hover:text-blue-600 transition-colors py-1 px-2 rounded-lg"
           >
             www.ajnusa.com
           </a>
-          <span class="text-gray-600 text-sm sm:text-base">|</span>
+          <span class="text-gray-400">|</span>
           <a
             href="https://www.jelantik.com"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-gray-600 font-bold text-sm sm:text-base py-2 px-3 rounded-lg"
+            class="text-gray-600 font-bold hover:text-blue-600 transition-colors py-1 px-2 rounded-lg"
           >
             www.jelantik.com
           </a>
-              <span class="hidden sm:inline text-gray-600 font-bold text-sm sm:text-base">
-               |  © Copyright by PT. Artacomindo Jejaring Nusa
+          <span class="text-gray-400">|</span>
+          <router-link
+            to="/privacy-policy"
+            class="text-blue-600 font-bold hover:text-blue-800 transition-colors py-1 px-2 rounded-lg underline"
+          >
+            Kebijakan Privasi
+          </router-link>
+          <span class="hidden md:inline text-gray-400">|</span>
+          <span class="hidden md:inline text-gray-500 font-medium py-1 px-2">
+            © PT. Artacomindo Jejaring Nusa
           </span>
         </div>
       </div>

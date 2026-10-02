@@ -234,6 +234,20 @@ const router = createRouter({
       meta: { guest: true }
     },
 
+    // Rute Publik Kebijakan Privasi (Google Play Store & Compliance)
+    {
+      path: '/privacy-policy',
+      name: 'privacy-policy',
+      component: () => import('../views/PrivacyPolicyView.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
+      path: '/kebijakan-privasi',
+      name: 'kebijakan-privasi',
+      component: () => import('../views/PrivacyPolicyView.vue'),
+      meta: { requiresAuth: false }
+    },
+
     // Rute untuk 404 - Page Not Found (DITARUH PALING AKHIR)
     {
       path: '/404',
