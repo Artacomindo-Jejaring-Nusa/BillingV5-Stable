@@ -50,6 +50,7 @@ pipeline {
             steps {
                 sh '''
                     docker rm -f billing-mysql-exporter || true
+                    docker compose build --no-cache frontend
                     docker compose up -d --build --remove-orphans
                     docker compose restart nginx-proxy
                 '''
