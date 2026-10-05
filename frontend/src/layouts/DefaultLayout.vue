@@ -74,17 +74,19 @@
     <!-- Navigation Drawer (Sidebar) -->
     <v-navigation-drawer
       v-model="drawer"
-      app
-      :rail="!isSidebarExpanded"
-      :rail-width="70"
+      :rail="!isMobile && !isSidebarExpanded"
+      :rail-width="isMobile ? 0 : 70"
       :temporary="isMobile"
       :permanent="!isMobile"
-      class="modern-drawer elevation-3"
+      :scrim="isMobile"
+      class="modern-drawer"
       :class="{
         'sidebar-floating-hover': isHovered && rail && !isMobile,
-        'sidebar-pinned': isPinned && !isMobile
+        'sidebar-pinned': isPinned && !isMobile,
+        'mobile-drawer': isMobile
       }"
-      width="300"
+      :elevation="isMobile ? 16 : 3"
+      :width="isMobile ? 285 : 300"
       :key="forceRender"
       @mouseenter="handleMouseEnter"
       @mouseleave="handleMouseLeave"
@@ -614,7 +616,7 @@ import GlobalSearch from '@/components/GlobalSearch.vue';
 // --- State ---
 const theme = useTheme();
 const { mobile } = useDisplay();
-const drawer = ref(true);
+const drawer = ref(!mobile.value);
 const router = useRouter();
 const route = useRoute();
 const activeBottomNav = ref('dashboard');
@@ -628,7 +630,7 @@ const isPinned = ref(localStorage.getItem('sidebar_pinned') === 'true');
 const rail = ref(!isPinned.value);
 
 const isSidebarExpanded = computed(() => {
-  if (mobile.value) return drawer.value;
+  if (mobile.value) return true; // Di mobile selalu tampil penuh saat drawer terbuka
   return !rail.value || isHovered.value;
 });
 
@@ -783,6 +785,19 @@ watch(userPermissions, () => {
 
 watch(() => route.path, (newPath) => {
   updateActiveBottomNav(newPath);
+  if (isMobile.value) {
+    drawer.value = false;
+  }
+});
+
+watch(mobile, (newMobile) => {
+  if (newMobile) {
+    drawer.value = false;
+    rail.value = false;
+  } else {
+    drawer.value = true;
+    rail.value = !isPinned.value;
+  }
 });
 
 function updateActiveBottomNav(path: string) {
@@ -1956,7 +1971,7 @@ onUnmounted(() => {
   background: #f8f9fc !important;
   border-right: 1px solid rgba(99, 102, 241, 0.08) !important;
   box-shadow: 2px 0 20px rgba(0, 0, 0, 0.04) !important;
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease !important;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease !important;
 }
 
 .modern-drawer.sidebar-floating-hover {
@@ -3509,7 +3524,13 @@ onUnmounted(() => {
 
 @media (max-width: 960px) {
   .modern-drawer {
-    width: 280px !important;
+    width: 285px !important;
+    max-width: 85vw !important;
+    z-index: 1006 !important;
+  }
+
+  .modern-drawer.mobile-drawer {
+    box-shadow: 6px 0 28px rgba(0, 0, 0, 0.22) !important;
   }
 
   .v-navigation-drawer--not-rail ~ .modern-footer {
@@ -3520,7 +3541,8 @@ onUnmounted(() => {
 
 @media (max-width: 600px) {
   .modern-drawer {
-    width: 280px !important;
+    width: 285px !important;
+    max-width: 85vw !important;
   }
 
   .v-navigation-drawer--not-rail ~ .modern-footer {
@@ -3531,11 +3553,11 @@ onUnmounted(() => {
   /* Footer tidak perlu positioning khusus di mobile karena sidebar temporary */
   
   .sidebar-logo {
-    height: 50px;
+    height: 42px;
   }
   
   .app-title {
-    font-size: 1.125rem;
+    font-size: 1.05rem;
   }
   
   .app-subtitle {
@@ -3557,15 +3579,16 @@ onUnmounted(() => {
 
 @media (max-width: 400px) {
   .modern-drawer {
-    width: 260px !important;
+    width: 280px !important;
+    max-width: 88vw !important;
   }
   
   .sidebar-logo {
-    height: 46px;
+    height: 40px;
   }
   
   .app-title {
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
   
   .app-subtitle {
