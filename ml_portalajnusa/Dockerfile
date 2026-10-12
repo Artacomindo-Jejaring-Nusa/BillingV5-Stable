@@ -2,9 +2,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies with extended timeout and retry tolerance
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --default-timeout=1000 --retries=10 --no-cache-dir -r requirements.txt
 
 # Copy application files (dataset, model, code)
 COPY . .
