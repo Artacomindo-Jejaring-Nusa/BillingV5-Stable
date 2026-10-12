@@ -13,6 +13,7 @@ type InvoiceRepository interface {
 	Create(ctx context.Context, invoice *Invoice) error
 	Update(ctx context.Context, invoice *Invoice) error
 	Delete(ctx context.Context, id uint64) error
+	Restore(ctx context.Context, id uint64) error
 	
 	// Payment Webhooks & Callbacks
 	GetCallbackLog(ctx context.Context, xenditID, externalID, idempotencyKey string) (*PaymentCallbackLog, error)
@@ -70,6 +71,7 @@ type BillingUsecase interface {
 	GetInvoice(ctx context.Context, id uint64) (*Invoice, error)
 	CreateInvoice(ctx context.Context, invoice *Invoice) error
 	UpdateInvoiceStatus(ctx context.Context, id uint64, status string) error
+	MarkInvoiceAsPaid(ctx context.Context, id uint64, paymentMethod string) error
 	GetInvoiceSummary(ctx context.Context) (*InvoiceSummaryStats, error)
 	GenerateManualInvoice(ctx context.Context, langgananID uint64) (*Invoice, error)
 	DeleteInvoice(ctx context.Context, id uint64) error

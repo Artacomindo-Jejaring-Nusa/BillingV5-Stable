@@ -40,6 +40,7 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 		invoiceGroup.POST("", middleware.PermissionMiddleware("create_invoices"), handler.CreateInvoice)
 		invoiceGroup.POST("/generate", middleware.PermissionMiddleware("create_invoices"), handler.GenerateManualInvoice)
 		invoiceGroup.PATCH("/:id/status", middleware.PermissionMiddleware("edit_invoices"), handler.UpdateInvoiceStatus)
+		invoiceGroup.POST("/:id/mark-as-paid", middleware.PermissionMiddleware("edit_invoices"), handler.MarkInvoiceAsPaid)
 		invoiceGroup.DELETE("/:id", middleware.PermissionMiddleware("delete_invoices"), handler.DeleteInvoice)
 		invoiceGroup.POST("/:id/resend-wa", middleware.PermissionMiddleware("edit_invoices"), handler.ResendWA)
 		invoiceGroup.POST("/:id/retry-xendit", middleware.PermissionMiddleware("edit_invoices"), handler.RetryXenditInvoice)
@@ -174,6 +175,26 @@ func (h *BillingHandler) UpdateInvoiceStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Invoice status updated successfully"})
+}
+
+func (h *BillingHandler) MarkInvoiceAsPaid(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format", "detail": "Invalid ID format"})
+		return
+	}
+
+	var req struct {
+		MetodePembayaran string `json:"metode_pembayaran"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	if err := h.billingUsecase.MarkInvoiceAsPaid(c.Request.Context(), id, req.MetodePembayaran); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "detail": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Invoice berhasil ditandai lunas", "detail": "Invoice berhasil ditandai lunas"})
 }
 
 func (h *BillingHandler) GenerateManualInvoice(c *gin.Context) {

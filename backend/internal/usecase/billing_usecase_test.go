@@ -9,6 +9,8 @@ import (
 
 	"billing-backend/config"
 	"billing-backend/internal/domain"
+
+	"gorm.io/gorm"
 )
 
 func TestCalculatePrice(t *testing.T) {
@@ -323,6 +325,122 @@ func TestProcessXenditCallback(t *testing.T) {
 
 	if invoice.StatusInvoice != "Lunas" {
 		t.Errorf("expected invoice status to be Lunas, got %s", invoice.StatusInvoice)
+	}
+
+	if invoice.Pelanggan.Langganan[0].Status != "Aktif" {
+		t.Errorf("expected langganan status to be Aktif, got %s", invoice.Pelanggan.Langganan[0].Status)
+	}
+}
+
+func TestProcessXenditCallback_SoftDeletedInvoice(t *testing.T) {
+	cfg := &config.Config{
+		XenditCallbackTokenArtacomindo: "artacom_token_123",
+		XenditCallbackTokenJelantik:    "jelantik_token_123",
+	}
+
+	invoice := &domain.Invoice{
+		ID:            2,
+		InvoiceNumber: "JELANTIK/INV/002-DELETED",
+		StatusInvoice: "Belum Bayar",
+		TotalHarga:    200000.0,
+		DeletedAt:     gorm.DeletedAt{Time: time.Now(), Valid: true}, // Soft-deleted
+		Pelanggan: &domain.Pelanggan{
+			ID:   2,
+			Nama: "Jane Doe",
+			Langganan: []domain.Langganan{
+				{
+					ID:               2,
+					Status:           "Suspended",
+					MetodePembayaran: "Otomatis",
+				},
+			},
+		},
+	}
+
+	invRepo := &mockInvoiceRepoCallback{
+		invoices: map[string]*domain.Invoice{
+			"JELANTIK/INV/002-DELETED": invoice,
+		},
+	}
+
+	langgRepo := &mockLanggananRepo{
+		data: map[uint64]*domain.Langganan{
+			2: &invoice.Pelanggan.Langganan[0],
+		},
+	}
+
+	u := NewBillingUsecase(invRepo, langgRepo, nil, nil, nil, nil, nil, nil, nil, cfg)
+
+	payload := map[string]interface{}{
+		"id":          "xendit_456",
+		"external_id": "JELANTIK/INV/002-DELETED",
+		"status":      "PAID",
+		"paid_amount": 200000.0,
+		"paid_at":     "2026-10-12T10:00:00Z",
+	}
+
+	err := u.ProcessXenditCallback(context.Background(), "jelantik_token_123", payload, "idempotency_restore_1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if invoice.StatusInvoice != "Lunas" {
+		t.Errorf("expected invoice status to be Lunas, got %s", invoice.StatusInvoice)
+	}
+
+	if invoice.DeletedAt.Valid {
+		t.Errorf("expected invoice DeletedAt.Valid to be false (restored), got true")
+	}
+
+	if invoice.Pelanggan.Langganan[0].Status != "Aktif" {
+		t.Errorf("expected langganan status to be Aktif, got %s", invoice.Pelanggan.Langganan[0].Status)
+	}
+}
+
+func TestMarkInvoiceAsPaid(t *testing.T) {
+	invoice := &domain.Invoice{
+		ID:            3,
+		InvoiceNumber: "JAKINET/INV/003",
+		StatusInvoice: "Belum Bayar",
+		TotalHarga:    150000.0,
+		Pelanggan: &domain.Pelanggan{
+			ID:   3,
+			Nama: "Lusiana Esther",
+			Langganan: []domain.Langganan{
+				{
+					ID:               3,
+					Status:           "Suspended",
+					MetodePembayaran: "Otomatis",
+				},
+			},
+		},
+	}
+
+	invRepo := &mockInvoiceRepoCallback{
+		invoices: map[string]*domain.Invoice{
+			"JAKINET/INV/003": invoice,
+		},
+	}
+
+	langgRepo := &mockLanggananRepo{
+		data: map[uint64]*domain.Langganan{
+			3: &invoice.Pelanggan.Langganan[0],
+		},
+	}
+
+	u := NewBillingUsecase(invRepo, langgRepo, nil, nil, nil, nil, nil, nil, nil, nil)
+
+	err := u.MarkInvoiceAsPaid(context.Background(), 3, "Cash")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if invoice.StatusInvoice != "Lunas" {
+		t.Errorf("expected status Lunas, got %s", invoice.StatusInvoice)
+	}
+
+	if invoice.MetodePembayaran == nil || *invoice.MetodePembayaran != "Cash" {
+		t.Errorf("expected MetodePembayaran Cash, got %v", invoice.MetodePembayaran)
 	}
 
 	if invoice.Pelanggan.Langganan[0].Status != "Aktif" {

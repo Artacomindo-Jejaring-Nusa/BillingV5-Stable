@@ -1949,7 +1949,7 @@ async function confirmMarkAsPaid() {
     fetchInvoices();
     closeMarkAsPaidDialog();
   } catch (error: any) {
-    const detail = error.response?.data?.detail || 'Gagal menandai lunas.';
+    const detail = error.response?.data?.detail || error.response?.data?.error || error.response?.data?.message || 'Gagal menandai lunas.';
     showSnackbar(detail, 'error');
   } finally {
     markingAsPaid.value = false;

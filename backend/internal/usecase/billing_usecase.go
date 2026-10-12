@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-routeros/routeros"
 	"github.com/xuri/excelize/v2"
+	"gorm.io/gorm"
 )
 
 type billingUsecase struct {
@@ -298,6 +299,57 @@ func (u *billingUsecase) UpdateInvoiceStatus(ctx context.Context, id uint64, sta
 	return err
 }
 
+func (u *billingUsecase) MarkInvoiceAsPaid(ctx context.Context, id uint64, paymentMethod string) error {
+	invoice, err := u.invoiceRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if invoice == nil {
+		return errors.New("invoice tidak ditemukan")
+	}
+
+	if invoice.StatusInvoice == "Lunas" {
+		return errors.New("invoice sudah berstatus Lunas")
+	}
+
+	if paymentMethod != "" {
+		invoice.MetodePembayaran = &paymentMethod
+	} else if invoice.MetodePembayaran == nil || *invoice.MetodePembayaran == "" {
+		defaultMethod := "Cash"
+		invoice.MetodePembayaran = &defaultMethod
+	}
+
+	paidAmount := invoice.TotalHarga
+	if invoice.PaidAmount != nil && *invoice.PaidAmount > 0 {
+		paidAmount = *invoice.PaidAmount
+	}
+	paidAt := time.Now()
+	if invoice.PaidAt != nil && !invoice.PaidAt.IsZero() {
+		paidAt = *invoice.PaidAt
+	}
+
+	// Auto-expire di Xendit jika ada active xendit_id agar tidak terjadi double pay oleh pelanggan
+	if invoice.XenditID != nil && *invoice.XenditID != "" {
+		go func(xID string, pel *domain.Pelanggan, invNum string) {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			_ = u.expireXenditInvoice(bgCtx, xID, pel)
+		}(*invoice.XenditID, invoice.Pelanggan, invoice.InvoiceNumber)
+	}
+
+	if err := u.processSuccessfulPayment(ctx, invoice, paidAmount, paidAt); err != nil {
+		return err
+	}
+
+	methodStr := "Cash"
+	if invoice.MetodePembayaran != nil {
+		methodStr = *invoice.MetodePembayaran
+	}
+	u.logActivity(ctx, "Mark Invoice As Paid", fmt.Sprintf("Invoice %s ditandai lunas manual via %s", invoice.InvoiceNumber, methodStr))
+	websocket.InvalidateDashboardCache(ctx)
+	return nil
+}
+
 func (u *billingUsecase) GetInvoiceSummary(ctx context.Context) (*domain.InvoiceSummaryStats, error) {
 	return u.invoiceRepo.GetInvoiceSummary(ctx)
 }
@@ -555,12 +607,77 @@ func (u *billingUsecase) DeleteInvoice(ctx context.Context, id uint64) error {
 	if err != nil {
 		return err
 	}
+	if invoice == nil {
+		return errors.New("invoice tidak ditemukan")
+	}
+
+	// Auto-expire invoice di Xendit jika belum lunas agar pelanggan tidak bisa membayar link yang sudah dihapus
+	if invoice.XenditID != nil && *invoice.XenditID != "" && invoice.StatusInvoice != "Lunas" {
+		go func(xID string, pel *domain.Pelanggan, invNum string) {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if errExp := u.expireXenditInvoice(bgCtx, xID, pel); errExp != nil {
+				logger.Warn("Gagal auto-expire invoice Xendit %s (%s): %v", invNum, xID, errExp)
+			} else {
+				logger.Info("Berhasil auto-expire invoice Xendit %s (%s) karena invoice dihapus di billing portal", invNum, xID)
+			}
+		}(*invoice.XenditID, invoice.Pelanggan, invoice.InvoiceNumber)
+	}
+
 	err = u.invoiceRepo.Delete(ctx, id)
 	if err == nil {
 		u.logActivity(ctx, "Delete Invoice", fmt.Sprintf("Deleted invoice %s (ID: %d)", invoice.InvoiceNumber, id))
 		websocket.InvalidateDashboardCache(ctx)
 	}
 	return err
+}
+
+func (u *billingUsecase) expireXenditInvoice(ctx context.Context, xenditID string, pelanggan *domain.Pelanggan) error {
+	if u.cfg == nil {
+		return errors.New("xendit config is nil (unit testing)")
+	}
+	if xenditID == "" {
+		return errors.New("xendit ID is empty")
+	}
+
+	var keyName, idBrand, brandName string
+	if pelanggan != nil {
+		if pelanggan.IDBrand != nil {
+			idBrand = *pelanggan.IDBrand
+		}
+		if pelanggan.HargaLayanan != nil {
+			keyName = pelanggan.HargaLayanan.XenditKeyName
+			brandName = pelanggan.HargaLayanan.Brand
+		}
+	}
+	xenditApiKey := u.cfg.GetXenditApiKey(keyName, idBrand, brandName)
+	if xenditApiKey == "" {
+		return errors.New("xendit API key not configured")
+	}
+
+	url := fmt.Sprintf("https://api.xendit.co/invoices/%s/expire", xenditID)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer([]byte("{}")))
+	if err != nil {
+		return err
+	}
+
+	auth := base64.StdEncoding.EncodeToString([]byte(xenditApiKey + ":"))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Basic "+auth)
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("xendit expire API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
 
 func (u *billingUsecase) ResendWhatsAppNotification(ctx context.Context, id uint64) error {
@@ -2765,6 +2882,14 @@ func (u *billingUsecase) ProcessXenditCallback(ctx context.Context, xCallbackTok
 	if err != nil || invoice == nil {
 		saveLog("FAILED_INVOICE_NOT_FOUND")
 		return errors.New("invoice not found")
+	}
+
+	// Jika invoice berstatus soft-deleted (pernah dihapus di portal) tetapi dibayar oleh pelanggan di Xendit
+	if invoice.DeletedAt.Valid {
+		u.logSystem(ctx, "WARN", fmt.Sprintf("ProcessXenditCallback: Invoice %s (ID: %d) berstatus soft-deleted, memulihkan invoice ke status aktif...", externalID, invoice.ID))
+		_ = u.invoiceRepo.Restore(ctx, invoice.ID)
+		invoice.DeletedAt = gorm.DeletedAt{}
+		u.logActivity(ctx, "Restore Invoice via Xendit Callback", fmt.Sprintf("Invoice %s dipulihkan otomatis karena pembayaran sukses diterima dari Xendit", invoice.InvoiceNumber))
 	}
 
 	// Check for duplicate callbacks (idempotency or Xendit ID)

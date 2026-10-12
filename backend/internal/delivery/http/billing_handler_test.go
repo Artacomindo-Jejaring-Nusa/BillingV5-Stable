@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"billing-backend/internal/domain"
@@ -52,6 +53,10 @@ func (m *mockBillingUsecase) GetRevenueReportDetails(ctx context.Context, params
 
 func (m *mockBillingUsecase) GetMLRevenueInsights(ctx context.Context, brand string, location string) (*domain.MLRevenueInsightResponse, error) {
 	return &domain.MLRevenueInsightResponse{Status: "success"}, nil
+}
+
+func (m *mockBillingUsecase) MarkInvoiceAsPaid(ctx context.Context, id uint64, paymentMethod string) error {
+	return nil
 }
 
 func TestBillingHandler_GetRevenueReportDetails(t *testing.T) {
@@ -162,5 +167,22 @@ func TestBillingHandler_GetRevenueReport(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestBillingHandler_MarkInvoiceAsPaid(t *testing.T) {
+	router := setupRouter()
+	mockUsecase := &mockBillingUsecase{}
+	authMiddleware := func(c *gin.Context) { c.Next() }
+	NewBillingHandler(router.Group("/api/v1"), mockUsecase, authMiddleware)
+
+	w := httptest.NewRecorder()
+	reqBody := strings.NewReader(`{"metode_pembayaran":"Cash"}`)
+	req, _ := http.NewRequest("POST", "/api/v1/invoices/123/mark-as-paid", reqBody)
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d, body: %s", w.Code, w.Body.String())
 	}
 }

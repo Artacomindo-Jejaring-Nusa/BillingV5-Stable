@@ -95,11 +95,15 @@ func (r *invoiceRepository) Create(ctx context.Context, invoice *domain.Invoice)
 }
 
 func (r *invoiceRepository) Update(ctx context.Context, invoice *domain.Invoice) error {
-	return r.db.WithContext(ctx).Omit("Pelanggan").Save(invoice).Error
+	return r.db.WithContext(ctx).Unscoped().Omit("Pelanggan").Save(invoice).Error
 }
 
 func (r *invoiceRepository) Delete(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&domain.Invoice{}).Error
+}
+
+func (r *invoiceRepository) Restore(ctx context.Context, id uint64) error {
+	return r.db.WithContext(ctx).Unscoped().Model(&domain.Invoice{}).Where("id = ?", id).Update("deleted_at", nil).Error
 }
 
 func (r *invoiceRepository) GetCallbackLog(ctx context.Context, xenditID, externalID, idempotencyKey string) (*domain.PaymentCallbackLog, error) {
@@ -143,6 +147,7 @@ func (r *invoiceRepository) CreateCallbackLog(ctx context.Context, log *domain.P
 func (r *invoiceRepository) GetInvoiceWithRelations(ctx context.Context, externalID string) (*domain.Invoice, error) {
 	var inv domain.Invoice
 	err := r.db.WithContext(ctx).
+		Unscoped().
 		Preload("Pelanggan").
 		Preload("Pelanggan.HargaLayanan").
 		Preload("Pelanggan.Langganan").

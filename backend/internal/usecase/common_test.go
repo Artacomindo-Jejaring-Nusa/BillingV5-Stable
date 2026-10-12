@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"billing-backend/internal/domain"
 )
 
@@ -157,6 +158,25 @@ func (m *mockInvoiceRepoCallback) GetInvoiceWithRelations(ctx context.Context, e
 	return m.invoices[externalID], nil
 }
 
+func (m *mockInvoiceRepoCallback) GetByID(ctx context.Context, id uint64) (*domain.Invoice, error) {
+	for _, inv := range m.invoices {
+		if inv.ID == id {
+			return inv, nil
+		}
+	}
+	return nil, errors.New("invoice not found")
+}
+
+func (m *mockInvoiceRepoCallback) Delete(ctx context.Context, id uint64) error {
+	for k, inv := range m.invoices {
+		if inv.ID == id {
+			delete(m.invoices, k)
+			return nil
+		}
+	}
+	return nil
+}
+
 func (m *mockInvoiceRepoCallback) Update(ctx context.Context, invoice *domain.Invoice) error {
 	m.updatedInvoices = append(m.updatedInvoices, invoice)
 	if m.invoices != nil {
@@ -166,6 +186,10 @@ func (m *mockInvoiceRepoCallback) Update(ctx context.Context, invoice *domain.In
 			}
 		}
 	}
+	return nil
+}
+
+func (m *mockInvoiceRepoCallback) Restore(ctx context.Context, id uint64) error {
 	return nil
 }
 
