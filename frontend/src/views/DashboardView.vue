@@ -10,6 +10,17 @@
           <p class="dashboard-subtitle">Monitoring Customer Fiber To The Home Artacom Portal Systems</p>
         </div>
         <div class="header-actions">
+          <v-btn
+            size="small"
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-television-ambient-light"
+            class="mr-2 text-none font-weight-medium"
+            to="/tv-monitoring"
+            target="_blank"
+          >
+            Layar TV Monitoring
+          </v-btn>
           <v-chip class="status-chip" color="success" size="small">
             <v-icon start size="12">mdi-circle</v-icon>
             System Active

@@ -31,6 +31,7 @@ func NewDashboardHandler(r *gin.RouterGroup, du domain.DashboardUsecase, uu doma
 		dashboard.GET("/paket-details", handler.GetPaketDetails)
 		dashboard.GET("/invoice-generation-monitor", handler.GetInvoiceGenerationMonitor)
 		dashboard.GET("/future-invoice-projection", handler.GetFutureInvoiceProjection)
+		dashboard.GET("/tv-monitoring", handler.GetTVMonitoringData)
 	}
 }
 
@@ -146,3 +147,15 @@ func (h *DashboardHandler) GetFutureInvoiceProjection(c *gin.Context) {
 
 	c.JSON(http.StatusOK, res)
 }
+
+func (h *DashboardHandler) GetTVMonitoringData(c *gin.Context) {
+	c.Header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	lokasi := c.Query("lokasi")
+	data, err := h.dashboardUsecase.GetTVMonitoringData(c.Request.Context(), lokasi)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+

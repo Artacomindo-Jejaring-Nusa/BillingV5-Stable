@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"time"
 )
 
 type BrandRevenueItem struct {
@@ -115,6 +116,59 @@ type DashboardPelangganResponse struct {
 	RevenueChart *ChartData     `json:"revenue_chart"`
 }
 
+type TVBrandStats struct {
+	Brand          string `json:"brand"`
+	TotalUsers     int    `json:"total_users"`
+	ActiveUsers    int    `json:"active_users"`
+	SuspendedUsers int    `json:"suspended_users"`
+}
+
+type TVLocationStats struct {
+	Lokasi         string `json:"lokasi"`
+	TotalUsers     int    `json:"total_users"`
+	ActiveUsers    int    `json:"active_users"`
+	SuspendedUsers int    `json:"suspended_users"`
+	JakinetUsers   int    `json:"jakinet_users"`
+	JelantikUsers  int    `json:"jelantik_users"`
+	NagrakUsers    int    `json:"nagrak_users"`
+	TotalInvoices  int    `json:"total_invoices"`
+	PaidInvoices   int    `json:"paid_invoices"`
+	UnpaidInvoices int    `json:"unpaid_invoices"`
+}
+
+type TVInvoiceStats struct {
+	TotalCount   int     `json:"total_count"`
+	PaidCount    int     `json:"paid_count"`
+	UnpaidCount  int     `json:"unpaid_count"`
+	ExpiredCount int     `json:"expired_count"`
+	TotalAmount  float64 `json:"total_amount"`
+	PaidAmount   float64 `json:"paid_amount"`
+	UnpaidAmount float64 `json:"unpaid_amount"`
+}
+
+type TVSuspendedUser struct {
+	ID          uint64 `json:"id"`
+	IDPelanggan string `json:"id_pelanggan"`
+	Nama        string `json:"nama"`
+	Alamat      string `json:"alamat"`
+	Brand       string `json:"brand"`
+	Paket       string `json:"paket"`
+	NoTelp      string `json:"no_telp"`
+}
+
+type TVMonitoringData struct {
+	TotalUsers     int               `json:"total_users"`
+	ActiveUsers    int               `json:"active_users"`
+	SuspendedUsers int               `json:"suspended_users"`
+	StoppedUsers   int               `json:"stopped_users"`
+	Brands         []TVBrandStats    `json:"brands"`
+	Invoices       TVInvoiceStats    `json:"invoices"`
+	Locations      []TVLocationStats `json:"locations"`
+	SuspendedList  []TVSuspendedUser `json:"suspended_list"`
+	ActiveLocation string            `json:"active_location"`
+	UpdatedAt      time.Time         `json:"updated_at"`
+}
+
 // DashboardRepository defines database queries for the dashboard.
 type DashboardRepository interface {
 	GetRevenueSummary(ctx context.Context) (*RevenueSummary, error)
@@ -134,6 +188,7 @@ type DashboardRepository interface {
 	GetMainStats(ctx context.Context) (*MainStatsData, error)
 	GetGrowthChartData(ctx context.Context, months int) (*ChartData, error)
 	GetRevenueChartData(ctx context.Context, months int) (*ChartData, error)
+	GetTVMonitoringData(ctx context.Context, lokasi string) (*TVMonitoringData, error)
 }
 
 // DashboardUsecase defines business logic for dashboard data.
@@ -144,4 +199,5 @@ type DashboardUsecase interface {
 	GetPaketDetails(ctx context.Context) (map[string]PaketDetail, error)
 	GetInvoiceGenerationMonitor(ctx context.Context, targetDate string, userRole string) (*InvoiceGenerationMonitorResponse, error)
 	GetFutureInvoiceProjection(ctx context.Context, targetDate string, userRole string) (*FutureInvoiceProjectionResponse, error)
+	GetTVMonitoringData(ctx context.Context, lokasi string) (*TVMonitoringData, error)
 }

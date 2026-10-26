@@ -853,6 +853,14 @@ const menuGroups = ref([
             permission: 'view_dashboard_pelanggan',
             description: 'Portal pelanggan Jakinet',
             value: 'dashboard-jakinet'
+          },
+          { 
+            title: 'Monitoring TV / NOC', 
+            icon: 'mdi-television-ambient-light', 
+            to: '/tv-monitoring', 
+            permission: 'view_dashboard',
+            description: 'Layar monitoring wallboard TV',
+            value: 'monitoring-tv'
           }
         ]
       },

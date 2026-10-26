@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -346,3 +347,16 @@ func (u *dashboardUsecase) GetFutureInvoiceProjection(ctx context.Context, targe
 	}
 	return res, err
 }
+
+func (u *dashboardUsecase) GetTVMonitoringData(ctx context.Context, lokasi string) (*domain.TVMonitoringData, error) {
+	key := "dashboard:cache:tv_monitoring:" + strings.ToLower(strings.TrimSpace(lokasi))
+	if cached, found := getCache[domain.TVMonitoringData](ctx, key); found {
+		return cached, nil
+	}
+	res, err := u.repo.GetTVMonitoringData(ctx, lokasi)
+	if err == nil && res != nil {
+		setCache(ctx, key, res, 15*time.Second)
+	}
+	return res, err
+}
+

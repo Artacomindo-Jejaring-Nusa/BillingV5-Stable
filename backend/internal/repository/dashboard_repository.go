@@ -1065,3 +1065,241 @@ func (r *dashboardRepository) GetRevenueChartData(ctx context.Context, months in
 		Data:   data,
 	}, nil
 }
+
+func (r *dashboardRepository) GetTVMonitoringData(ctx context.Context, lokasi string) (*domain.TVMonitoringData, error) {
+	cleanLokasi := strings.TrimSpace(lokasi)
+	isAllLokasi := cleanLokasi == "" || strings.EqualFold(cleanLokasi, "all") || strings.EqualFold(cleanLokasi, "semua") || strings.EqualFold(cleanLokasi, "semua lokasi")
+
+	// 1. User Summary
+	type UserSummaryResult struct {
+		TotalUsers     int
+		ActiveUsers    int
+		SuspendedUsers int
+		StoppedUsers   int
+	}
+	var userSummary UserSummaryResult
+
+	userQuery := r.db.WithContext(ctx).Table("pelanggan p").
+		Select(`
+			COUNT(DISTINCT p.id) as total_users,
+			SUM(CASE WHEN l.status = 'Aktif' THEN 1 ELSE 0 END) as active_users,
+			SUM(CASE WHEN l.status = 'Suspended' THEN 1 ELSE 0 END) as suspended_users,
+			SUM(CASE WHEN l.status = 'Berhenti' THEN 1 ELSE 0 END) as stopped_users
+		`).
+		Joins("LEFT JOIN langganan l ON p.id = l.pelanggan_id").
+		Where("p.deleted_at IS NULL")
+
+	if !isAllLokasi {
+		userQuery = userQuery.Where("p.alamat = ?", cleanLokasi)
+	}
+	if err := userQuery.Scan(&userSummary).Error; err != nil {
+		return nil, err
+	}
+
+	// 2. Brand Summary
+	type BrandResult struct {
+		Brand          string
+		TotalUsers     int
+		ActiveUsers    int
+		SuspendedUsers int
+	}
+	var brandResults []BrandResult
+	brandQuery := r.db.WithContext(ctx).Table("pelanggan p").
+		Select(`
+			COALESCE(hl.brand, 'Tanpa Brand') as brand,
+			COUNT(DISTINCT p.id) as total_users,
+			SUM(CASE WHEN l.status = 'Aktif' THEN 1 ELSE 0 END) as active_users,
+			SUM(CASE WHEN l.status = 'Suspended' THEN 1 ELSE 0 END) as suspended_users
+		`).
+		Joins("LEFT JOIN harga_layanan hl ON p.id_brand = hl.id_brand").
+		Joins("LEFT JOIN langganan l ON p.id = l.pelanggan_id").
+		Where("p.deleted_at IS NULL")
+
+	if !isAllLokasi {
+		brandQuery = brandQuery.Where("p.alamat = ?", cleanLokasi)
+	}
+	brandQuery = brandQuery.Group("hl.brand").Order("total_users DESC")
+	if err := brandQuery.Scan(&brandResults).Error; err != nil {
+		return nil, err
+	}
+
+	// Standardize brand map (Jakinet, Jelantik, Jelantik Nagrak)
+	brandMap := make(map[string]domain.TVBrandStats)
+	for _, b := range brandResults {
+		brandUpper := strings.ToUpper(b.Brand)
+		key := b.Brand
+		if strings.Contains(brandUpper, "NAGRAK") {
+			key = "Jelantik Nagrak"
+		} else if strings.Contains(brandUpper, "JAKINET") {
+			key = "Jakinet"
+		} else if strings.Contains(brandUpper, "JELANTIK") {
+			key = "Jelantik"
+		}
+
+		existing := brandMap[key]
+		existing.Brand = key
+		existing.TotalUsers += b.TotalUsers
+		existing.ActiveUsers += b.ActiveUsers
+		existing.SuspendedUsers += b.SuspendedUsers
+		brandMap[key] = existing
+	}
+
+	// Guarantee the 3 primary brands appear in consistent order
+	primaryBrands := []string{"Jakinet", "Jelantik", "Jelantik Nagrak"}
+	finalBrands := []domain.TVBrandStats{}
+	for _, pb := range primaryBrands {
+		if stat, ok := brandMap[pb]; ok {
+			finalBrands = append(finalBrands, stat)
+			delete(brandMap, pb)
+		} else {
+			finalBrands = append(finalBrands, domain.TVBrandStats{
+				Brand:          pb,
+				TotalUsers:     0,
+				ActiveUsers:    0,
+				SuspendedUsers: 0,
+			})
+		}
+	}
+	// Append any remaining brands
+	for _, stat := range brandMap {
+		finalBrands = append(finalBrands, stat)
+	}
+
+	// 3. Invoice Summary
+	var invStats domain.TVInvoiceStats
+	invQuery := r.db.WithContext(ctx).Table("invoices i").
+		Select(`
+			COUNT(i.id) as total_count,
+			SUM(CASE WHEN i.status_invoice = 'Lunas' THEN 1 ELSE 0 END) as paid_count,
+			SUM(CASE WHEN i.status_invoice = 'Belum Bayar' THEN 1 ELSE 0 END) as unpaid_count,
+			SUM(CASE WHEN i.status_invoice = 'Expired' THEN 1 ELSE 0 END) as expired_count,
+			COALESCE(SUM(i.total_harga), 0) as total_amount,
+			COALESCE(SUM(CASE WHEN i.status_invoice = 'Lunas' THEN i.total_harga ELSE 0 END), 0) as paid_amount,
+			COALESCE(SUM(CASE WHEN i.status_invoice = 'Belum Bayar' THEN i.total_harga ELSE 0 END), 0) as unpaid_amount
+		`).
+		Joins("LEFT JOIN pelanggan p ON i.pelanggan_id = p.id").
+		Where("i.deleted_at IS NULL")
+
+	if !isAllLokasi {
+		invQuery = invQuery.Where("p.alamat = ?", cleanLokasi)
+	}
+	if err := invQuery.Scan(&invStats).Error; err != nil {
+		return nil, err
+	}
+
+	// 4. Locations Breakdown (Always fetch top locations for comparison & selector)
+	type RawLocUsers struct {
+		Lokasi         string
+		TotalUsers     int
+		ActiveUsers    int
+		SuspendedUsers int
+		JakinetUsers   int
+		JelantikUsers  int
+		NagrakUsers    int
+	}
+	var rawLocUsers []RawLocUsers
+	err := r.db.WithContext(ctx).Table("pelanggan p").
+		Select(`
+			COALESCE(p.alamat, 'Tanpa Alamat') as lokasi,
+			COUNT(DISTINCT p.id) as total_users,
+			SUM(CASE WHEN l.status = 'Aktif' THEN 1 ELSE 0 END) as active_users,
+			SUM(CASE WHEN l.status = 'Suspended' THEN 1 ELSE 0 END) as suspended_users,
+			SUM(CASE WHEN UPPER(hl.brand) LIKE '%JAKINET%' THEN 1 ELSE 0 END) as jakinet_users,
+			SUM(CASE WHEN UPPER(hl.brand) LIKE '%JELANTIK%' AND UPPER(hl.brand) NOT LIKE '%NAGRAK%' THEN 1 ELSE 0 END) as jelantik_users,
+			SUM(CASE WHEN UPPER(hl.brand) LIKE '%NAGRAK%' THEN 1 ELSE 0 END) as nagrak_users
+		`).
+		Joins("LEFT JOIN harga_layanan hl ON p.id_brand = hl.id_brand").
+		Joins("LEFT JOIN langganan l ON p.id = l.pelanggan_id").
+		Where("p.deleted_at IS NULL AND p.alamat IS NOT NULL AND p.alamat != ''").
+		Group("p.alamat").
+		Order("total_users DESC").
+		Limit(25).
+		Scan(&rawLocUsers).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Invoices per location
+	type RawLocInvoices struct {
+		Lokasi         string
+		TotalInvoices  int
+		PaidInvoices   int
+		UnpaidInvoices int
+	}
+	var rawLocInvoices []RawLocInvoices
+	_ = r.db.WithContext(ctx).Table("invoices i").
+		Select(`
+			COALESCE(p.alamat, 'Tanpa Alamat') as lokasi,
+			COUNT(i.id) as total_invoices,
+			SUM(CASE WHEN i.status_invoice = 'Lunas' THEN 1 ELSE 0 END) as paid_invoices,
+			SUM(CASE WHEN i.status_invoice = 'Belum Bayar' THEN 1 ELSE 0 END) as unpaid_invoices
+		`).
+		Joins("JOIN pelanggan p ON i.pelanggan_id = p.id").
+		Where("i.deleted_at IS NULL AND p.alamat IS NOT NULL AND p.alamat != ''").
+		Group("p.alamat").
+		Scan(&rawLocInvoices).Error
+
+	invLocMap := make(map[string]RawLocInvoices)
+	for _, invL := range rawLocInvoices {
+		invLocMap[strings.ToLower(strings.TrimSpace(invL.Lokasi))] = invL
+	}
+
+	locations := make([]domain.TVLocationStats, 0, len(rawLocUsers))
+	for _, loc := range rawLocUsers {
+		invInfo := invLocMap[strings.ToLower(strings.TrimSpace(loc.Lokasi))]
+		locations = append(locations, domain.TVLocationStats{
+			Lokasi:         loc.Lokasi,
+			TotalUsers:     loc.TotalUsers,
+			ActiveUsers:    loc.ActiveUsers,
+			SuspendedUsers: loc.SuspendedUsers,
+			JakinetUsers:   loc.JakinetUsers,
+			JelantikUsers:  loc.JelantikUsers,
+			NagrakUsers:    loc.NagrakUsers,
+			TotalInvoices:  invInfo.TotalInvoices,
+			PaidInvoices:   invInfo.PaidInvoices,
+			UnpaidInvoices: invInfo.UnpaidInvoices,
+		})
+	}
+
+	// 5. Suspended Users List
+	var suspendedList []domain.TVSuspendedUser
+	suspQuery := r.db.WithContext(ctx).Table("pelanggan p").
+		Select(`
+			p.id,
+			COALESCE(dt.id_pelanggan, CONCAT('PLG-', p.id)) as id_pelanggan,
+			p.nama,
+			COALESCE(p.alamat, '-') as alamat,
+			COALESCE(hl.brand, '-') as brand,
+			COALESCE(pkt.nama_paket, '-') as paket,
+			COALESCE(p.no_telp, '-') as no_telp
+		`).
+		Joins("JOIN langganan l ON p.id = l.pelanggan_id AND l.status = 'Suspended'").
+		Joins("LEFT JOIN harga_layanan hl ON p.id_brand = hl.id_brand").
+		Joins("LEFT JOIN paket_layanan pkt ON l.paket_layanan_id = pkt.id").
+		Joins("LEFT JOIN data_teknis dt ON p.id = dt.pelanggan_id").
+		Where("p.deleted_at IS NULL")
+
+	if !isAllLokasi {
+		suspQuery = suspQuery.Where("p.alamat = ?", cleanLokasi)
+	}
+	suspQuery = suspQuery.Order("p.id DESC").Limit(50)
+	_ = suspQuery.Scan(&suspendedList).Error
+
+	activeLoc := "Semua Lokasi"
+	if !isAllLokasi {
+		activeLoc = cleanLokasi
+	}
+
+	return &domain.TVMonitoringData{
+		TotalUsers:     userSummary.TotalUsers,
+		ActiveUsers:    userSummary.ActiveUsers,
+		SuspendedUsers: userSummary.SuspendedUsers,
+		StoppedUsers:   userSummary.StoppedUsers,
+		Brands:         finalBrands,
+		Invoices:       invStats,
+		Locations:      locations,
+		SuspendedList:  suspendedList,
+		ActiveLocation: activeLoc,
+		UpdatedAt:      time.Now(),
+	}, nil
+}

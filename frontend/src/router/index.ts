@@ -222,10 +222,29 @@ const router = createRouter({
             requiresAuth: true
           },
         },
+        {
+          path: 'monitoring-tv',
+          name: 'monitoring-tv-standard',
+          component: () => import('@/views/TVMonitoringView.vue'),
+          meta: {
+            requiresAuth: true
+          }
+        },
       ],
     },
-    
 
+    // Standalone TV Monitoring / NOC Wallboard (Full screen without layout navigation)
+    {
+      path: '/tv-monitoring',
+      name: 'tv-monitoring',
+      component: () => import('@/views/TVMonitoringView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/tv',
+      redirect: '/tv-monitoring'
+    },
+    
     // Rute untuk halaman login (TIDAK ADA LAYOUT)
     {
       path: '/login',
