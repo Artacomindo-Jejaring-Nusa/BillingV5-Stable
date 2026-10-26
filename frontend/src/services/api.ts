@@ -82,7 +82,7 @@ apiClient.interceptors.response.use(
         removeEncryptedToken('refresh_token');
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        if (router.currentRoute.value.path !== '/login') {
+        if (router.currentRoute.value.path !== '/login' && router.currentRoute.value.meta?.requiresAuth !== false) {
           router.push('/login');
         }
         return Promise.reject(error);

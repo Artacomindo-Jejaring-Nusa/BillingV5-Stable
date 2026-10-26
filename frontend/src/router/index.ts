@@ -233,16 +233,17 @@ const router = createRouter({
       ],
     },
 
-    // Standalone TV Monitoring / NOC Wallboard (Full screen without layout navigation)
+    // Standalone TV Monitoring / NOC Wallboard (Dapat diakses publik tanpa login)
     {
       path: '/tv-monitoring',
       name: 'tv-monitoring',
       component: () => import('@/views/TVMonitoringView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false }
     },
     {
       path: '/tv',
-      redirect: '/tv-monitoring'
+      redirect: '/tv-monitoring',
+      meta: { requiresAuth: false }
     },
     
     // Rute untuk halaman login (TIDAK ADA LAYOUT)

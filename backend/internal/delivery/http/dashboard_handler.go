@@ -21,6 +21,9 @@ func NewDashboardHandler(r *gin.RouterGroup, du domain.DashboardUsecase, uu doma
 		userUsecase:      uu,
 	}
 
+	// Public TV Wallboard Route (Dapat diakses tanpa login untuk layar monitor TV NOC)
+	r.GET("/dashboard/tv-monitoring", handler.GetTVMonitoringData)
+
 	dashboard := r.Group("/dashboard")
 	dashboard.Use(authMiddleware)
 	{
@@ -31,7 +34,6 @@ func NewDashboardHandler(r *gin.RouterGroup, du domain.DashboardUsecase, uu doma
 		dashboard.GET("/paket-details", handler.GetPaketDetails)
 		dashboard.GET("/invoice-generation-monitor", handler.GetInvoiceGenerationMonitor)
 		dashboard.GET("/future-invoice-projection", handler.GetFutureInvoiceProjection)
-		dashboard.GET("/tv-monitoring", handler.GetTVMonitoringData)
 	}
 }
 
