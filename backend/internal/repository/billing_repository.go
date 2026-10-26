@@ -68,7 +68,7 @@ func (r *invoiceRepository) GetAll(ctx context.Context, limit, offset int, searc
 
 func (r *invoiceRepository) GetByID(ctx context.Context, id uint64) (*domain.Invoice, error) {
 	var inv domain.Invoice
-	err := r.db.WithContext(ctx).Preload("Pelanggan").First(&inv, id).Error
+	err := r.db.WithContext(ctx).Preload("Pelanggan.HargaLayanan").Preload("Pelanggan").First(&inv, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("invoice not found")
@@ -80,7 +80,7 @@ func (r *invoiceRepository) GetByID(ctx context.Context, id uint64) (*domain.Inv
 
 func (r *invoiceRepository) GetByInvoiceNumber(ctx context.Context, invNumber string) (*domain.Invoice, error) {
 	var inv domain.Invoice
-	err := r.db.WithContext(ctx).Unscoped().Preload("Pelanggan").Where("invoice_number = ?", invNumber).First(&inv).Error
+	err := r.db.WithContext(ctx).Unscoped().Preload("Pelanggan.HargaLayanan").Preload("Pelanggan").Where("invoice_number = ?", invNumber).First(&inv).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("invoice not found")

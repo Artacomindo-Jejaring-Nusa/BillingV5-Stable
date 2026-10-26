@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -1337,5 +1339,107 @@ func TestGenerateInvoices_DirtyHargaAwalWithoutTax(t *testing.T) {
 		t.Errorf("expected langganan.HargaAwal to be healed to %f, got %v", expectedPrice, langRepo.data[0].HargaAwal)
 	}
 }
+
+func TestDeleteInvoice(t *testing.T) {
+	xID := "xendit_12345"
+	invoice := &domain.Invoice{
+		ID:            10,
+		InvoiceNumber: "JELANTIKNAGRAK/ftth/AHMADRIZKISILALAHI/OCTOBER-2026/RUSUNNAGRA/XSS-1",
+		Brand:         "JELANTIK NAGRAK",
+		StatusInvoice: "Belum Bayar",
+		TotalHarga:    166500.0,
+		XenditID:      &xID,
+		Pelanggan: &domain.Pelanggan{
+			ID:   10,
+			Nama: "Ahmad Rizki Silalahi",
+		},
+	}
+
+	invRepo := &mockInvoiceRepoCallback{
+		invoices: map[string]*domain.Invoice{
+			"JELANTIKNAGRAK/ftth/AHMADRIZKISILALAHI/OCTOBER-2026/RUSUNNAGRA/XSS-1": invoice,
+		},
+	}
+	sysRepo := &mockSystemRepo{}
+	u := NewBillingUsecase(invRepo, nil, nil, nil, nil, nil, nil, nil, sysRepo, nil).(*billingUsecase)
+
+	// Test deleting existing invoice
+	err := u.DeleteInvoice(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("expected successful delete, got error: %v", err)
+	}
+
+	// Verify invoice is removed from mock repo
+	if _, ok := invRepo.invoices["JELANTIKNAGRAK/ftth/AHMADRIZKISILALAHI/OCTOBER-2026/RUSUNNAGRA/XSS-1"]; ok {
+		t.Errorf("expected invoice to be deleted from repo")
+	}
+
+	// Test deleting non-existent invoice returns error
+	err = u.DeleteInvoice(context.Background(), 999)
+	if err == nil {
+		t.Errorf("expected error deleting non-existent invoice, got nil")
+	}
+}
+
+func TestExpireXenditInvoice_WithMockServer(t *testing.T) {
+	expiredCalled := false
+	queryExternalIDCalled := false
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		// Check if it's the expire endpoint
+		if strings.Contains(r.URL.Path, "/expire") {
+			// If authorization header matches Jakinet key, return 200
+			if strings.Contains(auth, "Basic") {
+				expiredCalled = true
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"id":"discovered_xid_999","status":"EXPIRED"}`))
+				return
+			}
+		}
+
+		// Check if it's external_id query
+		if strings.Contains(r.URL.Path, "/v2/invoices") && r.URL.Query().Get("external_id") != "" {
+			queryExternalIDCalled = true
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`[{"id":"discovered_xid_999","external_id":"` + r.URL.Query().Get("external_id") + `","status":"PENDING"}]`))
+			return
+		}
+
+		http.NotFound(w, r)
+	}))
+	defer mockServer.Close()
+
+	cfg := &config.Config{
+		XenditApiUrl:          mockServer.URL + "/v2/invoices",
+		XenditApiKeyJakinet:   "mock_jakinet_key",
+		XenditApiKeyJelantik:  "mock_jelantik_key",
+	}
+
+	sysRepo := &mockSystemRepo{}
+	u := NewBillingUsecase(nil, nil, nil, nil, nil, nil, nil, nil, sysRepo, cfg).(*billingUsecase)
+
+	// Case 1: Invoice has no XenditID, but has InvoiceNumber (e.g. JELANTIK NAGRAK)
+	inv := &domain.Invoice{
+		ID:            20,
+		InvoiceNumber: "JELANTIKNAGRAK/ftth/AHMADRIZKISILALAHI/OCTOBER-2026/RUSUNNAGRA/XSS-1",
+		Brand:         "JELANTIK NAGRAK",
+		StatusInvoice: "Belum Bayar",
+	}
+
+	err := u.expireXenditInvoice(context.Background(), inv, nil)
+	if err != nil {
+		t.Fatalf("expected successful expire via external_id discovery, got: %v", err)
+	}
+
+	if !queryExternalIDCalled {
+		t.Errorf("expected query by external_id to be called when XenditID is empty")
+	}
+	if !expiredCalled {
+		t.Errorf("expected expire endpoint to be called")
+	}
+}
+
+
 
 

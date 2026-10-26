@@ -11,6 +11,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -328,14 +329,12 @@ func (u *billingUsecase) MarkInvoiceAsPaid(ctx context.Context, id uint64, payme
 		paidAt = *invoice.PaidAt
 	}
 
-	// Auto-expire di Xendit jika ada active xendit_id agar tidak terjadi double pay oleh pelanggan
-	if invoice.XenditID != nil && *invoice.XenditID != "" {
-		go func(xID string, pel *domain.Pelanggan, invNum string) {
-			bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			_ = u.expireXenditInvoice(bgCtx, xID, pel)
-		}(*invoice.XenditID, invoice.Pelanggan, invoice.InvoiceNumber)
-	}
+	// Auto-expire di Xendit jika ada tagihan aktif agar tidak terjadi double pay oleh pelanggan
+	go func(inv *domain.Invoice, pel *domain.Pelanggan) {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		_ = u.expireXenditInvoice(bgCtx, inv, pel)
+	}(invoice, invoice.Pelanggan)
 
 	if err := u.processSuccessfulPayment(ctx, invoice, paidAmount, paidAt); err != nil {
 		return err
@@ -612,16 +611,16 @@ func (u *billingUsecase) DeleteInvoice(ctx context.Context, id uint64) error {
 	}
 
 	// Auto-expire invoice di Xendit jika belum lunas agar pelanggan tidak bisa membayar link yang sudah dihapus
-	if invoice.XenditID != nil && *invoice.XenditID != "" && invoice.StatusInvoice != "Lunas" {
-		go func(xID string, pel *domain.Pelanggan, invNum string) {
-			bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			if errExp := u.expireXenditInvoice(bgCtx, xID, pel); errExp != nil {
-				logger.Warn("Gagal auto-expire invoice Xendit %s (%s): %v", invNum, xID, errExp)
-			} else {
-				logger.Info("Berhasil auto-expire invoice Xendit %s (%s) karena invoice dihapus di billing portal", invNum, xID)
-			}
-		}(*invoice.XenditID, invoice.Pelanggan, invoice.InvoiceNumber)
+	if invoice.StatusInvoice != "Lunas" {
+		expCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		if errExp := u.expireXenditInvoice(expCtx, invoice, invoice.Pelanggan); errExp != nil {
+			logger.Warn("Gagal auto-expire invoice Xendit %s: %v", invoice.InvoiceNumber, errExp)
+			u.logSystem(ctx, "WARN", fmt.Sprintf("DeleteInvoice: Gagal auto-expire invoice Xendit %s: %v", invoice.InvoiceNumber, errExp))
+		} else {
+			logger.Info("Berhasil auto-expire invoice Xendit %s karena invoice dihapus di billing portal", invoice.InvoiceNumber)
+			u.logSystem(ctx, "INFO", fmt.Sprintf("DeleteInvoice: Berhasil auto-expire invoice Xendit %s di dashboard Xendit", invoice.InvoiceNumber))
+		}
+		cancel()
 	}
 
 	err = u.invoiceRepo.Delete(ctx, id)
@@ -632,14 +631,15 @@ func (u *billingUsecase) DeleteInvoice(ctx context.Context, id uint64) error {
 	return err
 }
 
-func (u *billingUsecase) expireXenditInvoice(ctx context.Context, xenditID string, pelanggan *domain.Pelanggan) error {
+func (u *billingUsecase) expireXenditInvoice(ctx context.Context, inv *domain.Invoice, pelanggan *domain.Pelanggan) error {
 	if u.cfg == nil {
 		return errors.New("xendit config is nil (unit testing)")
 	}
-	if xenditID == "" {
-		return errors.New("xendit ID is empty")
+	if inv == nil {
+		return errors.New("invoice is nil")
 	}
 
+	// 1. Resolve Brand & API Key
 	var keyName, idBrand, brandName string
 	if pelanggan != nil {
 		if pelanggan.IDBrand != nil {
@@ -650,34 +650,160 @@ func (u *billingUsecase) expireXenditInvoice(ctx context.Context, xenditID strin
 			brandName = pelanggan.HargaLayanan.Brand
 		}
 	}
-	xenditApiKey := u.cfg.GetXenditApiKey(keyName, idBrand, brandName)
-	if xenditApiKey == "" {
+	if brandName == "" && inv.Brand != "" {
+		brandName = inv.Brand
+	}
+	// Fallback detection from invoice number
+	invNumUpper := strings.ToUpper(inv.InvoiceNumber)
+	if strings.Contains(invNumUpper, "NAGRAK") {
+		brandName = "JELANTIK NAGRAK"
+	} else if strings.Contains(invNumUpper, "JAKINET") || strings.Contains(invNumUpper, "ARTACOMINDO") {
+		brandName = "ARTACOMINDO"
+	} else if strings.Contains(invNumUpper, "JELANTIK") && brandName == "" {
+		brandName = "JELANTIK"
+	}
+
+	primaryApiKey := u.cfg.GetXenditApiKey(keyName, idBrand, brandName)
+	var alternateApiKey string
+	if primaryApiKey == u.cfg.XenditApiKeyJakinet {
+		alternateApiKey = u.cfg.XenditApiKeyJelantik
+	} else {
+		alternateApiKey = u.cfg.XenditApiKeyJakinet
+	}
+
+	apiKeys := []string{}
+	if primaryApiKey != "" {
+		apiKeys = append(apiKeys, primaryApiKey)
+	}
+	if alternateApiKey != "" && alternateApiKey != primaryApiKey {
+		apiKeys = append(apiKeys, alternateApiKey)
+	}
+	if len(apiKeys) == 0 {
 		return errors.New("xendit API key not configured")
 	}
 
-	url := fmt.Sprintf("https://api.xendit.co/invoices/%s/expire", xenditID)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer([]byte("{}")))
-	if err != nil {
-		return err
+	// 2. Resolve Xendit ID & External ID
+	xenditID := ""
+	if inv.XenditID != nil && *inv.XenditID != "" {
+		xenditID = strings.TrimSpace(*inv.XenditID)
 	}
 
-	auth := base64.StdEncoding.EncodeToString([]byte(xenditApiKey + ":"))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Basic "+auth)
-
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("xendit expire API returned status %d: %s", resp.StatusCode, string(body))
+	externalID := strings.TrimSpace(inv.InvoiceNumber)
+	if inv.XenditExternalID != nil && *inv.XenditExternalID != "" {
+		externalID = strings.TrimSpace(*inv.XenditExternalID)
 	}
 
-	return nil
+	baseUrl := "https://api.xendit.co"
+	if u.cfg.XenditApiUrl != "" {
+		if parsed, err := url.Parse(u.cfg.XenditApiUrl); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+			baseUrl = fmt.Sprintf("%s://%s", parsed.Scheme, parsed.Host)
+		}
+	}
+
+	tryExpire := func(xID, apiKey string) (bool, error) {
+		endpoints := []string{
+			fmt.Sprintf("%s/invoices/%s/expire!", baseUrl, xID),
+			fmt.Sprintf("%s/invoices/%s/expire", baseUrl, xID),
+		}
+
+		auth := base64.StdEncoding.EncodeToString([]byte(apiKey + ":"))
+		client := &http.Client{Timeout: 6 * time.Second}
+
+		var lastErr error
+		for _, uStr := range endpoints {
+			req, err := http.NewRequestWithContext(ctx, "POST", uStr, bytes.NewBuffer([]byte("{}")))
+			if err != nil {
+				return false, err
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Basic "+auth)
+
+			resp, err := client.Do(req)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+
+			if resp.StatusCode == http.StatusOK {
+				return true, nil
+			}
+
+			bodyStr := string(body)
+			if resp.StatusCode == http.StatusBadRequest && (strings.Contains(bodyStr, "ALREADY_EXPIRED") || strings.Contains(strings.ToLower(bodyStr), "already expired")) {
+				return true, nil
+			}
+
+			if resp.StatusCode == http.StatusNotFound {
+				lastErr = fmt.Errorf("xendit invoice %s not found (status 404): %s", xID, bodyStr)
+				continue
+			}
+
+			lastErr = fmt.Errorf("status %d: %s", resp.StatusCode, bodyStr)
+		}
+		return false, lastErr
+	}
+
+	findXenditIDByExternalID := func(extID, apiKey string) string {
+		if extID == "" {
+			return ""
+		}
+		endpoint := fmt.Sprintf("%s/v2/invoices?external_id=%s", baseUrl, url.QueryEscape(extID))
+		req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+		if err != nil {
+			return ""
+		}
+		auth := base64.StdEncoding.EncodeToString([]byte(apiKey + ":"))
+		req.Header.Set("Authorization", "Basic "+auth)
+		client := &http.Client{Timeout: 6 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			if resp != nil {
+				resp.Body.Close()
+			}
+			return ""
+		}
+		defer resp.Body.Close()
+
+		var results []map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&results); err == nil && len(results) > 0 {
+			if idStr, ok := results[0]["id"].(string); ok {
+				return idStr
+			}
+		}
+		return ""
+	}
+
+	var expireErr error
+	for _, apiKey := range apiKeys {
+		targetID := xenditID
+
+		if targetID != "" {
+			success, err := tryExpire(targetID, apiKey)
+			if success {
+				return nil
+			}
+			expireErr = err
+		}
+
+		// If direct xenditID failed or wasn't present, lookup by external_id
+		if externalID != "" {
+			discoveredID := findXenditIDByExternalID(externalID, apiKey)
+			if discoveredID != "" && discoveredID != targetID {
+				success, err := tryExpire(discoveredID, apiKey)
+				if success {
+					return nil
+				}
+				expireErr = err
+			}
+		}
+	}
+
+	if expireErr != nil {
+		return expireErr
+	}
+	return fmt.Errorf("tidak dapat menemukan invoice Xendit yang cocok untuk %s (ID: %s, External ID: %s)", inv.InvoiceNumber, xenditID, externalID)
 }
 
 func (u *billingUsecase) ResendWhatsAppNotification(ctx context.Context, id uint64) error {
