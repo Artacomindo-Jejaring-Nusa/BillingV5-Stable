@@ -1,6 +1,9 @@
 <template>
   <div class="tv-monitoring-root" :class="{ 'is-fullscreen': isFullscreen }">
-    <!-- Top Bar / Header for NOC Wallboard (Clean Light Theme) -->
+    <!-- Fireworks Overlay Canvas (Petasan Meledak) -->
+    <canvas ref="fireworksCanvasRef" class="fireworks-canvas"></canvas>
+
+    <!-- Top Bar / Header for NOC Wallboard -->
     <header class="tv-header">
       <div class="tv-header-left">
         <div class="brand-badge">
@@ -39,6 +42,16 @@
           <v-icon size="15" class="mr-1">mdi-autorenew</v-icon>
           <span>Auto Rotate</span>
           <span v-if="autoCycleEnabled" class="cycle-indicator">{{ cycleCountdown }}s</span>
+        </button>
+
+        <!-- Petasan / Celebrate Button -->
+        <button
+          class="celebrate-btn"
+          @click="triggerFireworksBurst"
+          title="Nyalakan Efek Petasan Kembang Api"
+        >
+          <v-icon size="16" color="#f59e0b" class="mr-1">mdi-party-popper</v-icon>
+          <span>Petasan</span>
         </button>
       </div>
 
@@ -94,7 +107,7 @@
       <div v-if="selectedLocation && selectedLocation !== 'Semua Lokasi'" class="active-location-banner">
         <div class="banner-left">
           <v-icon size="16" color="#0284c7" class="mr-2">mdi-filter-check</v-icon>
-          <span>Menampilkan data wilayah: <strong>{{ selectedLocation }}</strong></span>
+          <span>Menampilkan data khusus wilayah: <strong>{{ selectedLocation }}</strong></span>
         </div>
         <button class="reset-filter-btn" @click="resetToAllLocations">
           <v-icon size="14" class="mr-1">mdi-close-circle-outline</v-icon>
@@ -102,234 +115,97 @@
         </button>
       </div>
 
-      <!-- ROW 1: 4 Key Metric Cards (No filler text, No currency nominals) -->
-      <section class="metrics-grid">
-        <!-- CARD 1: TOTAL USERS -->
-        <div class="metric-card card-users">
+      <!-- ROW 1: 3 METRIC CARDS (TOTAL KESELURUHAN, AKTIF, SUSPENDED) WITH COUNTING ANIMATION -->
+      <section class="metrics-grid-3">
+        <!-- CARD 1: TOTAL KESELURUHAN -->
+        <div class="metric-card card-total" @click="triggerFireworksBurst" title="Klik untuk memicu petasan">
           <div class="metric-header">
-            <span class="metric-tag">TOTAL PELANGGAN</span>
-            <v-icon size="20" color="#0284c7">mdi-account-group</v-icon>
+            <span class="metric-tag">TOTAL KESELURUHAN</span>
+            <div class="icon-circle bg-sky-light">
+              <v-icon size="22" color="#0284c7">mdi-account-group</v-icon>
+            </div>
           </div>
           <div class="metric-body">
-            <div class="metric-big-number">{{ formatNumber(data?.total_users || 0) }}</div>
-            <div class="metric-stats-row">
-              <div class="stat-pill pill-active">
-                <span class="pill-dot green"></span>
-                <span class="pill-label">Aktif:</span>
-                <strong>{{ formatNumber(data?.active_users || 0) }}</strong>
-              </div>
-              <div class="stat-pill pill-suspended">
-                <span class="pill-dot red"></span>
-                <span class="pill-label">Suspended:</span>
-                <strong>{{ formatNumber(data?.suspended_users || 0) }}</strong>
-              </div>
-              <div class="stat-pill pill-stopped">
-                <span class="pill-dot gray"></span>
-                <span class="pill-label">Berhenti:</span>
-                <strong>{{ formatNumber(data?.stopped_users || 0) }}</strong>
-              </div>
+            <div class="metric-big-number text-primary">
+              {{ formatNumber(displayTotalUsers) }}
+            </div>
+            <div class="metric-sub-badge">
+              <span class="badge-dot blue"></span>
+              <span>Seluruh Pelanggan FTTH Terdaftar</span>
             </div>
           </div>
         </div>
 
-        <!-- CARD 2: BRAND BREAKDOWN (JAKINET, JELANTIK, NAGRAK) -->
-        <div class="metric-card card-brands">
+        <!-- CARD 2: AKTIF -->
+        <div class="metric-card card-active" @click="triggerFireworksBurst" title="Klik untuk memicu petasan">
           <div class="metric-header">
-            <span class="metric-tag">DISTRIBUSI BRAND</span>
-            <v-icon size="20" color="#7c3aed">mdi-domain</v-icon>
-          </div>
-          <div class="metric-body brands-body">
-            <!-- Mini Segmented Bar -->
-            <div class="brand-bar-track">
-              <div
-                class="brand-bar-segment seg-jakinet"
-                :style="{ width: `${getBrandPercentage(brandMetrics[0].total)}%` }"
-                title="Jakinet"
-              ></div>
-              <div
-                class="brand-bar-segment seg-jelantik"
-                :style="{ width: `${getBrandPercentage(brandMetrics[1].total)}%` }"
-                title="Jelantik"
-              ></div>
-              <div
-                class="brand-bar-segment seg-nagrak"
-                :style="{ width: `${getBrandPercentage(brandMetrics[2].total)}%` }"
-                title="Jelantik Nagrak"
-              ></div>
+            <span class="metric-tag text-success">AKTIF</span>
+            <div class="icon-circle bg-green-light">
+              <v-icon size="22" color="#059669">mdi-account-check</v-icon>
             </div>
-
-            <div class="brand-columns-row">
-              <div
-                v-for="brand in brandMetrics"
-                :key="brand.name"
-                class="brand-col"
-              >
-                <div class="brand-col-header">
-                  <span class="brand-col-name">{{ brand.name }}</span>
-                  <span class="brand-col-share">{{ getBrandPercentage(brand.total) }}%</span>
-                </div>
-                <div class="brand-col-val">{{ formatNumber(brand.total) }}</div>
-                <div class="brand-col-sub">
-                  <span>Aktif: <strong>{{ formatNumber(brand.active) }}</strong></span>
-                  <span v-if="brand.suspended > 0" class="brand-col-susp"> • Susp: {{ brand.suspended }}</span>
-                </div>
-              </div>
+          </div>
+          <div class="metric-body">
+            <div class="metric-big-number text-success">
+              {{ formatNumber(displayActiveUsers) }}
+            </div>
+            <div class="metric-sub-badge">
+              <span class="badge-dot green"></span>
+              <span><strong>{{ activePercentage }}%</strong> Pelanggan Online & Aktif</span>
             </div>
           </div>
         </div>
 
-        <!-- CARD 3: INVOICES (TOTAL, PAID, PENDING - QUANTITY ONLY, NO RUPIAH) -->
-        <div class="metric-card card-invoices">
+        <!-- CARD 3: SUSPENDED -->
+        <div class="metric-card card-suspended" @click="triggerFireworksBurst" title="Klik untuk memicu petasan">
           <div class="metric-header">
-            <span class="metric-tag">STATUS INVOICE TAGIHAN</span>
-            <v-icon size="20" color="#059669">mdi-receipt-text-outline</v-icon>
+            <span class="metric-tag text-danger">SUSPENDED</span>
+            <div class="icon-circle bg-red-light">
+              <v-icon size="22" color="#dc2626">mdi-account-alert</v-icon>
+            </div>
           </div>
           <div class="metric-body">
-            <div class="invoice-primary-row">
-              <div class="invoice-col">
-                <span class="inv-col-label">Total Tagihan</span>
-                <span class="inv-col-number">{{ formatNumber(data?.invoices?.total_count || 0) }}</span>
-              </div>
-              <div class="invoice-divider"></div>
-              <div class="invoice-col">
-                <span class="inv-col-label text-success">Lunas (Paid)</span>
-                <span class="inv-col-number text-success">{{ formatNumber(data?.invoices?.paid_count || 0) }}</span>
-              </div>
-              <div class="invoice-divider"></div>
-              <div class="invoice-col">
-                <span class="inv-col-label" :class="(data?.invoices?.unpaid_count || 0) > 0 ? 'text-warning' : 'text-muted'">
-                  Pending (Unpaid)
-                </span>
-                <span class="inv-col-number" :class="(data?.invoices?.unpaid_count || 0) > 0 ? 'text-warning' : 'text-muted'">
-                  {{ formatNumber(data?.invoices?.unpaid_count || 0) }}
-                </span>
-              </div>
+            <div class="metric-big-number text-danger">
+              {{ formatNumber(displaySuspendedUsers) }}
             </div>
-
-            <!-- Progress bar lunas vs pending -->
-            <div class="invoice-progress-container">
-              <div class="progress-labels">
-                <span>Pelunasan: <strong>{{ paidPercentage }}%</strong></span>
-                <span v-if="(data?.invoices?.expired_count || 0) > 0" class="text-danger">
-                  Expired: {{ data?.invoices?.expired_count }}
-                </span>
-              </div>
-              <div class="progress-track">
-                <div class="progress-fill" :style="{ width: `${paidPercentage}%` }"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- CARD 4: USER SUSPENDED (TERISOLIR) -->
-        <div class="metric-card card-suspended" :class="{ 'has-alerts': (data?.suspended_users || 0) > 0 }">
-          <div class="metric-header">
-            <span class="metric-tag text-danger">PELANGGAN TERISOLIR</span>
-            <v-icon size="20" color="#dc2626">mdi-account-alert-outline</v-icon>
-          </div>
-          <div class="metric-body">
-            <div class="suspended-metric-container">
-              <div class="metric-big-number text-danger">
-                {{ formatNumber(data?.suspended_users || 0) }}
-              </div>
-              <div class="suspended-meta-tag">
-                <span v-if="(data?.suspended_users || 0) > 0" class="status-chip-alert">
-                  {{ suspendedPercentage }}% Pelanggan
-                </span>
-                <span v-else class="status-chip-clean">
-                  100% Normal
-                </span>
-              </div>
-            </div>
-
-            <div class="suspended-note">
-              <span v-if="(data?.suspended_users || 0) > 0">
-                Menunggu pelunasan melewati jatuh tempo
-              </span>
-              <span v-else class="text-success">
-                Tidak ada koneksi modem yang diisolir
-              </span>
+            <div class="metric-sub-badge">
+              <span class="badge-dot red"></span>
+              <span><strong>{{ suspendedPercentage }}%</strong> Modem Terisolir (Tunggakan)</span>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- ROW 2: DETAILED DATA (FULL WIDTH: LOCATIONS TABLE) -->
-      <section class="details-grid">
-        <!-- BREAKDOWN PER LOKASI -->
-        <div class="detail-card locations-card">
-          <div class="detail-card-header">
+      <!-- ROW 2: FULL-WIDTH BAR CHART (DIAGRAM BATANG STATISTIK LOKASI) -->
+      <section class="chart-section">
+        <div class="chart-card">
+          <div class="chart-card-header">
             <div class="header-left">
-              <v-icon size="18" color="#0284c7" class="mr-2">mdi-map-marker-multiple</v-icon>
-              <h2 class="detail-title">Statistik Berdasarkan Lokasi</h2>
+              <div class="chart-icon-box">
+                <v-icon size="20" color="#0284c7">mdi-chart-bar</v-icon>
+              </div>
+              <div>
+                <h2 class="chart-title">Statistik Berdasarkan Lokasi</h2>
+                <p class="chart-subtitle">
+                  Urutan Dari Terkecil (Kiri) ke Terbesar (Kanan) • Klik Batang untuk Filter Wilayah
+                </p>
+              </div>
             </div>
 
-            <div class="table-search-box">
-              <v-icon size="16" color="#64748b">mdi-magnify</v-icon>
-              <input
-                v-model="locationSearch"
-                type="text"
-                placeholder="Cari lokasi..."
-                class="search-input"
-              />
-              <button v-if="locationSearch" class="clear-search-btn" @click="locationSearch = ''">
-                <v-icon size="14">mdi-close</v-icon>
-              </button>
+            <!-- Chart Legend -->
+            <div class="chart-legend">
+              <div class="legend-item">
+                <span class="legend-color-box bg-legend-active"></span>
+                <span class="legend-label">Aktif</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color-box bg-legend-suspended"></span>
+                <span class="legend-label">Suspended</span>
+              </div>
             </div>
           </div>
 
-          <div class="table-responsive">
-            <table class="tv-table">
-              <thead>
-                <tr>
-                  <th class="text-left">LOKASI / WILAYAH</th>
-                  <th class="text-center">TOTAL USER</th>
-                  <th class="text-center">AKTIF</th>
-                  <th class="text-center">SUSPEND</th>
-                  <th class="text-center">JAKINET</th>
-                  <th class="text-center">JELANTIK</th>
-                  <th class="text-center">NAGRAK</th>
-                  <th class="text-center">INVOICE PAID</th>
-                  <th class="text-center">UNPAID</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="loc in filteredLocations"
-                  :key="loc.lokasi"
-                  :class="{ selected: selectedLocation === loc.lokasi }"
-                  @click="selectLocationRow(loc.lokasi)"
-                >
-                  <td class="text-left font-weight-medium">
-                    <div class="loc-cell">
-                      <v-icon size="15" color="#0284c7" class="mr-1">mdi-map-marker</v-icon>
-                      <span class="loc-name">{{ loc.lokasi }}</span>
-                    </div>
-                  </td>
-                  <td class="text-center font-weight-bold text-slate">{{ loc.total_users }}</td>
-                  <td class="text-center text-success font-weight-semibold">{{ loc.active_users }}</td>
-                  <td class="text-center">
-                    <span :class="loc.suspended_users > 0 ? 'badge-danger-pill' : 'text-muted'">
-                      {{ loc.suspended_users }}
-                    </span>
-                  </td>
-                  <td class="text-center text-sky">{{ loc.jakinet_users }}</td>
-                  <td class="text-center text-violet">{{ loc.jelantik_users }}</td>
-                  <td class="text-center text-amber">{{ loc.nagrak_users }}</td>
-                  <td class="text-center text-success">{{ loc.paid_invoices }}</td>
-                  <td class="text-center">
-                    <span :class="loc.unpaid_invoices > 0 ? 'badge-amber-pill' : 'text-muted'">
-                      {{ loc.unpaid_invoices }}
-                    </span>
-                  </td>
-                </tr>
-                <tr v-if="filteredLocations.length === 0">
-                  <td colspan="9" class="text-center py-8 text-muted">
-                    Tidak ada lokasi yang cocok dengan kata kunci "{{ locationSearch }}"
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="chart-container">
+            <div ref="barChartRef" class="echarts-dom"></div>
           </div>
         </div>
       </section>
@@ -351,8 +227,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import * as echarts from 'echarts';
 import apiClient from '@/services/api';
 
 interface TVBrandStats {
@@ -414,8 +291,20 @@ const router = useRouter();
 const data = ref<TVMonitoringData | null>(null);
 const loading = ref(false);
 const selectedLocation = ref<string>('Semua Lokasi');
-const locationSearch = ref('');
 const isFullscreen = ref(false);
+
+// Animated Counters
+const displayTotalUsers = ref(0);
+const displayActiveUsers = ref(0);
+const displaySuspendedUsers = ref(0);
+
+// Chart DOM Reference
+const barChartRef = ref<HTMLDivElement | null>(null);
+let myChart: echarts.ECharts | null = null;
+
+// Fireworks Canvas Reference
+const fireworksCanvasRef = ref<HTMLCanvasElement | null>(null);
+let fireworksAnimationId: number | null = null;
 
 // Auto-Refresh (30s)
 const refreshIntervalSeconds = 30;
@@ -446,55 +335,19 @@ const availableLocations = computed(() => {
   return list;
 });
 
-// Brand Metrics organized for Jakinet, Jelantik, and Jelantik Nagrak
-const brandMetrics = computed(() => {
-  const brands = data.value?.brands || [];
-  const findBrand = (keyword: string) => {
-    return brands.find((b) => b.brand.toLowerCase().includes(keyword.toLowerCase()));
-  };
-
-  const jakinet = findBrand('jakinet');
-  const nagrak = findBrand('nagrak');
-  const jelantik = brands.find(
-    (b) => b.brand.toLowerCase().includes('jelantik') && !b.brand.toLowerCase().includes('nagrak')
-  );
-
-  return [
-    {
-      name: 'Jakinet',
-      total: jakinet?.total_users || 0,
-      active: jakinet?.active_users || 0,
-      suspended: jakinet?.suspended_users || 0,
-    },
-    {
-      name: 'Jelantik',
-      total: jelantik?.total_users || 0,
-      active: jelantik?.active_users || 0,
-      suspended: jelantik?.suspended_users || 0,
-    },
-    {
-      name: 'Jelantik Nagrak',
-      total: nagrak?.total_users || 0,
-      active: nagrak?.active_users || 0,
-      suspended: nagrak?.suspended_users || 0,
-    },
-  ];
-});
-
-// Filtered locations based on search box
-const filteredLocations = computed(() => {
-  const list = data.value?.locations || [];
-  if (!locationSearch.value.trim()) return list;
-  const q = locationSearch.value.toLowerCase().trim();
-  return list.filter((l) => l.lokasi.toLowerCase().includes(q));
+// Sorted locations from smallest (left) to largest (right)
+const sortedLocations = computed(() => {
+  const list = [...(data.value?.locations || [])];
+  // Urutkan dari jumlah total user terkecil ke terbesar
+  return list.sort((a, b) => (a.total_users || 0) - (b.total_users || 0));
 });
 
 // Percentages
-const paidPercentage = computed(() => {
-  const total = data.value?.invoices?.total_count || 0;
-  if (total === 0) return 0;
-  const paid = data.value?.invoices?.paid_count || 0;
-  return Math.round((paid / total) * 100);
+const activePercentage = computed(() => {
+  const total = data.value?.total_users || 0;
+  if (total === 0) return '0.0';
+  const active = data.value?.active_users || 0;
+  return ((active / total) * 100).toFixed(1);
 });
 
 const suspendedPercentage = computed(() => {
@@ -529,15 +382,362 @@ const lastUpdatedFormatted = computed(() => {
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
 });
 
-// Helper Formatters
+// Helper Formatter
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat('id-ID').format(num || 0);
 };
 
-const getBrandPercentage = (val: number) => {
-  const total = data.value?.total_users || 0;
-  if (total === 0) return 0;
-  return Math.round((val / total) * 100);
+// Counting Animation Logic (Cubic Out Easing)
+const animateCount = (start: number, end: number, duration: number, callback: (val: number) => void) => {
+  const startTime = performance.now();
+  const step = (now: number) => {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // Easing Out Expo
+    const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+    const current = Math.round(start + (end - start) * ease);
+    callback(current);
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    }
+  };
+  requestAnimationFrame(step);
+};
+
+const runCountersAnimation = (newData: TVMonitoringData) => {
+  animateCount(displayTotalUsers.value, newData.total_users || 0, 1500, (v) => {
+    displayTotalUsers.value = v;
+  });
+  animateCount(displayActiveUsers.value, newData.active_users || 0, 1500, (v) => {
+    displayActiveUsers.value = v;
+  });
+  animateCount(displaySuspendedUsers.value, newData.suspended_users || 0, 1500, (v) => {
+    displaySuspendedUsers.value = v;
+  });
+};
+
+// ==========================================
+// FIREWORKS (PETASAN MELEDAK) ENGINE
+// ==========================================
+interface FireworkParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  color: string;
+  alpha: number;
+  decay: number;
+  size: number;
+  flicker: boolean;
+}
+
+interface Rocket {
+  x: number;
+  y: number;
+  targetY: number;
+  vy: number;
+  color: string;
+  exploded: boolean;
+}
+
+let particles: FireworkParticle[] = [];
+let rockets: Rocket[] = [];
+
+const fireworkColors = [
+  '#0284c7', // Sky blue
+  '#10b981', // Emerald
+  '#f59e0b', // Gold / Amber
+  '#ef4444', // Red
+  '#a855f7', // Purple
+  '#38bdf8', // Cyan
+  '#ffffff', // White spark
+  '#ec4899', // Pink
+];
+
+const createExplosion = (x: number, y: number, color: string) => {
+  const count = 70 + Math.floor(Math.random() * 30);
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2 + Math.random() * 6;
+    particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      color: Math.random() > 0.3 ? color : fireworkColors[Math.floor(Math.random() * fireworkColors.length)],
+      alpha: 1,
+      decay: 0.015 + Math.random() * 0.015,
+      size: 2.5 + Math.random() * 2,
+      flicker: Math.random() > 0.5,
+    });
+  }
+};
+
+const triggerFireworksBurst = () => {
+  const canvas = fireworksCanvasRef.value;
+  if (!canvas) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // Launch 5 rockets from bottom towards cards and chart
+  const launchPoints = [
+    { x: w * 0.2, targetY: h * 0.25 },
+    { x: w * 0.35, targetY: h * 0.2 },
+    { x: w * 0.5, targetY: h * 0.18 },
+    { x: w * 0.65, targetY: h * 0.22 },
+    { x: w * 0.8, targetY: h * 0.25 },
+  ];
+
+  launchPoints.forEach((pt, index) => {
+    setTimeout(() => {
+      rockets.push({
+        x: pt.x + (Math.random() * 60 - 30),
+        y: h,
+        targetY: pt.targetY + (Math.random() * 50 - 25),
+        vy: -11 - Math.random() * 3,
+        color: fireworkColors[index % fireworkColors.length],
+        exploded: false,
+      });
+    }, index * 180);
+  });
+};
+
+const animateFireworks = () => {
+  const canvas = fireworksCanvasRef.value;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Update & Draw Rockets
+  for (let i = rockets.length - 1; i >= 0; i--) {
+    const r = rockets[i];
+    r.y += r.vy;
+    r.vy += 0.05; // slight deceleration
+
+    // Draw Rocket trail
+    ctx.save();
+    ctx.fillStyle = r.color;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sparkle tail
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(r.x, r.y - r.vy * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    if (r.y <= r.targetY || r.vy >= -1) {
+      createExplosion(r.x, r.y, r.color);
+      rockets.splice(i, 1);
+    }
+  }
+
+  // Update & Draw Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.08; // gravity
+    p.vx *= 0.98; // air drag
+    p.vy *= 0.98;
+    p.alpha -= p.decay;
+
+    if (p.alpha <= 0) {
+      particles.splice(i, 1);
+      continue;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = p.flicker && Math.random() > 0.5 ? p.alpha * 0.4 : p.alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  fireworksAnimationId = requestAnimationFrame(animateFireworks);
+};
+
+const resizeFireworksCanvas = () => {
+  if (fireworksCanvasRef.value) {
+    fireworksCanvasRef.value.width = window.innerWidth;
+    fireworksCanvasRef.value.height = window.innerHeight;
+  }
+};
+
+// ==========================================
+// ECHARTS BAR CHART (DIAGRAM BATANG)
+// ==========================================
+const renderBarChart = () => {
+  if (!barChartRef.value) return;
+
+  if (!myChart) {
+    myChart = echarts.init(barChartRef.value);
+    myChart.on('click', (params: any) => {
+      if (params.name) {
+        selectLocationRow(params.name);
+      }
+    });
+  }
+
+  const locs = sortedLocations.value;
+  const categories = locs.map((l) => l.lokasi);
+  const activeSeries = locs.map((l) => l.active_users);
+  const suspendedSeries = locs.map((l) => l.suspended_users);
+  const totalSeries = locs.map((l) => l.total_users);
+
+  const option: echarts.EChartsOption = {
+    animationDuration: 1400,
+    animationEasing: 'cubicOut',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow',
+      },
+      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+      borderColor: '#334155',
+      borderWidth: 1,
+      textStyle: {
+        color: '#f8fafc',
+        fontSize: 13,
+      },
+      formatter: (params: any) => {
+        if (!Array.isArray(params) || params.length === 0) return '';
+        const index = params[0].dataIndex;
+        const loc = locs[index];
+        if (!loc) return '';
+
+        return `
+          <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px; color: #38bdf8;">
+            📍 ${loc.lokasi}
+          </div>
+          <div style="display: flex; justify-content: space-between; gap: 20px; font-size: 12px; margin-bottom: 3px;">
+            <span style="color: #94a3b8;">Total User:</span>
+            <strong style="color: #ffffff;">${formatNumber(loc.total_users)}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; gap: 20px; font-size: 12px; margin-bottom: 3px;">
+            <span style="color: #10b981;">● Aktif:</span>
+            <strong style="color: #10b981;">${formatNumber(loc.active_users)}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; gap: 20px; font-size: 12px; margin-bottom: 6px;">
+            <span style="color: #ef4444;">● Suspended:</span>
+            <strong style="color: #ef4444;">${formatNumber(loc.suspended_users)}</strong>
+          </div>
+          <div style="border-top: 1px solid #334155; padding-top: 4px; font-size: 11px; color: #cbd5e1;">
+            Jakinet: ${loc.jakinet_users} • Jelantik: ${loc.jelantik_users} • Nagrak: ${loc.nagrak_users}
+          </div>
+        `;
+      },
+    },
+    grid: {
+      left: '2%',
+      right: '2%',
+      bottom: '12%',
+      top: '12%',
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      data: categories,
+      axisLine: {
+        lineStyle: {
+          color: '#cbd5e1',
+        },
+      },
+      axisTick: {
+        alignWithLabel: true,
+      },
+      axisLabel: {
+        color: '#334155',
+        fontWeight: 600,
+        fontSize: 12,
+        interval: 0,
+        rotate: categories.length > 7 ? 22 : 0,
+      },
+    },
+    yAxis: {
+      type: 'value',
+      name: 'Jumlah Pelanggan',
+      nameTextStyle: {
+        color: '#64748b',
+        fontSize: 12,
+        padding: [0, 0, 8, 0],
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#f1f5f9',
+          type: 'dashed',
+        },
+      },
+      axisLabel: {
+        color: '#64748b',
+        fontSize: 12,
+      },
+    },
+    series: [
+      {
+        name: 'Aktif',
+        type: 'bar',
+        stack: 'total',
+        barMaxWidth: 56,
+        data: activeSeries,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#0284c7' },
+            { offset: 1, color: '#38bdf8' },
+          ]),
+          borderRadius: [0, 0, 4, 4],
+        },
+      },
+      {
+        name: 'Suspended',
+        type: 'bar',
+        stack: 'total',
+        barMaxWidth: 56,
+        data: suspendedSeries,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#dc2626' },
+            { offset: 1, color: '#f87171' },
+          ]),
+          borderRadius: [4, 4, 0, 0],
+        },
+      },
+      // Invisible series solely to render the total number boldly on top of the stacked bar
+      {
+        name: 'Total Label',
+        type: 'bar',
+        barMaxWidth: 56,
+        data: totalSeries,
+        itemStyle: {
+          color: 'transparent',
+        },
+        tooltip: {
+          show: false,
+        },
+        label: {
+          show: true,
+          position: 'top',
+          distance: 6,
+          color: '#0f172a',
+          fontWeight: 'bold',
+          fontSize: 14,
+          formatter: (params: any) => formatNumber(params.value),
+        },
+        barGap: '-100%',
+      },
+    ],
+  };
+
+  myChart.setOption(option);
 };
 
 // Data Fetching
@@ -549,6 +749,11 @@ const fetchData = async (showLoading = false) => {
     const response = await apiClient.get<TVMonitoringData>(url);
     if (response?.data) {
       data.value = response.data;
+      runCountersAnimation(response.data);
+      await nextTick();
+      renderBarChart();
+      // Trigger Petasan Meledak celebration burst
+      triggerFireworksBurst();
     }
   } catch (err) {
     console.error('Failed to load TV monitoring data:', err);
@@ -581,6 +786,10 @@ const toggleFullscreen = () => {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().then(() => {
       isFullscreen.value = true;
+      setTimeout(() => {
+        resizeFireworksCanvas();
+        myChart?.resize();
+      }, 300);
     }).catch((err) => {
       console.warn('Error attempting fullscreen:', err);
     });
@@ -588,6 +797,10 @@ const toggleFullscreen = () => {
     if (document.exitFullscreen) {
       document.exitFullscreen().then(() => {
         isFullscreen.value = false;
+        setTimeout(() => {
+          resizeFireworksCanvas();
+          myChart?.resize();
+        }, 300);
       });
     }
   }
@@ -607,9 +820,18 @@ const navigateBack = () => {
   router.push('/dashboard');
 };
 
+const handleWindowResize = () => {
+  resizeFireworksCanvas();
+  myChart?.resize();
+};
+
 // Lifecycle
 onMounted(() => {
   fetchData(true);
+  resizeFireworksCanvas();
+  animateFireworks();
+
+  window.addEventListener('resize', handleWindowResize);
 
   // Clock Timer
   clockTimer = setInterval(() => {
@@ -642,6 +864,10 @@ onMounted(() => {
   // Handle Fullscreen change events
   document.addEventListener('fullscreenchange', () => {
     isFullscreen.value = !!document.fullscreenElement;
+    setTimeout(() => {
+      resizeFireworksCanvas();
+      myChart?.resize();
+    }, 200);
   });
 });
 
@@ -649,11 +875,17 @@ onUnmounted(() => {
   if (clockTimer) clearInterval(clockTimer);
   if (refreshTimer) clearInterval(refreshTimer);
   if (cycleTimer) clearInterval(cycleTimer);
+  if (fireworksAnimationId) cancelAnimationFrame(fireworksAnimationId);
+  window.removeEventListener('resize', handleWindowResize);
+  if (myChart) {
+    myChart.dispose();
+    myChart = null;
+  }
 });
 </script>
 
 <style scoped>
-/* Base: Clean, Modern, Crisp Light Enterprise Theme (No forced dark mode) */
+/* Base: Clean, Modern, Crisp Light Enterprise Theme */
 .tv-monitoring-root {
   min-height: 100vh;
   background-color: #f1f5f9;
@@ -665,6 +897,18 @@ onUnmounted(() => {
   margin: 0;
   overflow-x: hidden;
   box-sizing: border-box;
+  position: relative;
+}
+
+/* Fullscreen Transparent Fireworks Canvas */
+.fireworks-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
 }
 
 /* Header */
@@ -715,7 +959,7 @@ onUnmounted(() => {
 .tv-header-center {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .location-control {
@@ -775,6 +1019,26 @@ onUnmounted(() => {
   border-radius: 4px;
   margin-left: 6px;
   font-size: 0.7rem;
+}
+
+/* Celebrate Petasan Button */
+.celebrate-btn {
+  display: flex;
+  align-items: center;
+  background-color: #fef3c7;
+  border: 1px solid #fde68a;
+  color: #b45309;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.celebrate-btn:hover {
+  background-color: #fde68a;
+  transform: scale(1.03);
 }
 
 /* Header Right */
@@ -861,10 +1125,10 @@ onUnmounted(() => {
 /* Main TV Content */
 .tv-main-content {
   flex: 1;
-  padding: 16px 20px;
+  padding: 18px 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   position: relative;
 }
 
@@ -905,22 +1169,29 @@ onUnmounted(() => {
   background-color: #0369a1;
 }
 
-/* ROW 1: METRICS GRID */
-.metrics-grid {
+/* ROW 1: 3 METRICS GRID (TOTAL, AKTIF, SUSPENDED) */
+.metrics-grid-3 {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
 }
 
 .metric-card {
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 14px 16px;
+  border-radius: 10px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
 }
 
 .metric-header {
@@ -931,235 +1202,79 @@ onUnmounted(() => {
 }
 
 .metric-tag {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: #64748b;
-}
-
-.metric-big-number {
-  font-size: 2.1rem;
+  font-size: 0.8rem;
   font-weight: 800;
-  line-height: 1.1;
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-  margin-bottom: 8px;
-}
-
-/* Card 1: Users Breakdown */
-.metric-stats-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.stat-pill {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 5px;
-  padding: 3px 8px;
-  font-size: 0.74rem;
+  letter-spacing: 0.06em;
   color: #475569;
 }
 
-.pill-dot {
-  width: 6px;
-  height: 6px;
+.icon-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bg-sky-light { background-color: #e0f2fe; }
+.bg-green-light { background-color: #d1fae5; }
+.bg-red-light { background-color: #fee2e2; }
+
+.metric-big-number {
+  font-size: 2.7rem;
+  font-weight: 900;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+  transition: all 0.2s ease;
+}
+
+.metric-sub-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.badge-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
 }
 
-.pill-dot.green { background-color: #10b981; }
-.pill-dot.red { background-color: #ef4444; }
-.pill-dot.gray { background-color: #94a3b8; }
+.badge-dot.blue { background-color: #0284c7; }
+.badge-dot.green { background-color: #10b981; }
+.badge-dot.red { background-color: #ef4444; }
 
-/* Card 2: Brands Breakdown */
-.brand-bar-track {
-  width: 100%;
-  height: 6px;
-  background-color: #e2e8f0;
-  border-radius: 3px;
-  display: flex;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
+/* Colors */
+.text-primary { color: #0284c7 !important; }
+.text-success { color: #059669 !important; }
+.text-danger { color: #dc2626 !important; }
 
-.brand-bar-segment {
-  height: 100%;
-  transition: width 0.3s ease;
-}
-
-.seg-jakinet { background-color: #0284c7; }
-.seg-jelantik { background-color: #7c3aed; }
-.seg-nagrak { background-color: #d97706; }
-
-.brand-columns-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.brand-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.brand-col-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.7rem;
-  color: #64748b;
-  font-weight: 600;
-}
-
-.brand-col-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.brand-col-share {
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.brand-col-val {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-
-.brand-col-sub {
-  font-size: 0.68rem;
-  color: #64748b;
-}
-
-.brand-col-susp {
-  color: #dc2626;
-  font-weight: 600;
-}
-
-/* Card 3: Invoices (Quantities only) */
-.invoice-primary-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.invoice-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.inv-col-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #64748b;
-}
-
-.inv-col-number {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-
-.invoice-divider {
-  width: 1px;
-  height: 32px;
-  background-color: #e2e8f0;
-}
-
-.invoice-progress-container {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.progress-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.72rem;
-  color: #64748b;
-}
-
-.progress-track {
-  width: 100%;
-  height: 6px;
-  background-color: #e2e8f0;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background-color: #059669;
-  transition: width 0.4s ease;
-}
-
-/* Card 4: Suspended */
-.card-suspended.has-alerts {
-  border-color: #fca5a5;
-  background-color: #fffafb;
-}
-
-.suspended-metric-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.status-chip-alert {
-  background-color: #fee2e2;
-  color: #dc2626;
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 4px;
-}
-
-.status-chip-clean {
-  background-color: #ecfdf5;
-  color: #059669;
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 4px;
-}
-
-.suspended-note {
-  font-size: 0.74rem;
-  color: #64748b;
-  margin-top: 4px;
-}
-
-/* ROW 2: DETAILS GRID */
-/* ROW 2: DETAILS GRID (Full Width Table) */
-.details-grid {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
+/* ROW 2: FULL WIDTH DIAGRAM BATANG */
+.chart-section {
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.detail-card {
+.chart-card {
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
+  flex: 1;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.detail-card-header {
-  padding: 12px 18px;
+.chart-card-header {
+  padding: 14px 20px;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
@@ -1167,120 +1282,77 @@ onUnmounted(() => {
   background-color: #f8fafc;
 }
 
-.detail-card-header .header-left {
+.chart-card-header .header-left {
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 
-.detail-title {
-  font-size: 0.95rem;
-  font-weight: 700;
+.chart-icon-box {
+  width: 34px;
+  height: 34px;
+  background-color: #e0f2fe;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-title {
+  font-size: 1.05rem;
+  font-weight: 800;
   color: #0f172a;
   margin: 0;
+  line-height: 1.2;
 }
 
-/* Table */
-.table-search-box {
+.chart-subtitle {
+  font-size: 0.74rem;
+  color: #64748b;
+  margin: 2px 0 0 0;
+}
+
+.chart-legend {
   display: flex;
   align-items: center;
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  padding: 4px 10px;
-  width: 220px;
+  gap: 16px;
 }
 
-.search-input {
-  background: none;
-  border: none;
-  color: #0f172a;
-  font-size: 0.78rem;
-  margin-left: 6px;
-  outline: none;
-  width: 100%;
-}
-
-.clear-search-btn {
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 0;
-}
-
-.table-responsive {
-  flex: 1;
-  overflow-y: auto;
-  max-height: calc(100vh - 280px);
-}
-
-.tv-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-  background-color: #ffffff;
-}
-
-.tv-table th {
-  background-color: #f8fafc;
-  color: #475569;
-  font-weight: 700;
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-}
-
-.tv-table td {
-  padding: 11px 16px;
-  border-bottom: 1px solid #f1f5f9;
-  color: #334155;
-  font-variant-numeric: tabular-nums;
-}
-
-.tv-table tbody tr {
-  background-color: #ffffff;
-  cursor: pointer;
-  transition: background-color 0.1s ease;
-}
-
-.tv-table tbody tr:hover {
-  background-color: #f8fafc;
-}
-
-.tv-table tbody tr.selected {
-  background-color: #e0f2fe;
-}
-
-.loc-cell {
+.legend-item {
   display: flex;
   align-items: center;
-}
-
-.loc-name {
-  color: #0f172a;
+  gap: 6px;
+  font-size: 0.8rem;
   font-weight: 600;
+  color: #334155;
 }
 
-.badge-danger-pill {
-  background-color: #fee2e2;
-  color: #dc2626;
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 4px;
+.legend-color-box {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
 }
 
-.badge-amber-pill {
-  background-color: #fef3c7;
-  color: #d97706;
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 4px;
+.bg-legend-active {
+  background: linear-gradient(180deg, #0284c7, #38bdf8);
+}
+
+.bg-legend-suspended {
+  background: linear-gradient(180deg, #dc2626, #f87171);
+}
+
+.chart-container {
+  flex: 1;
+  min-height: 440px;
+  width: 100%;
+  position: relative;
+  padding: 10px 14px;
+}
+
+.echarts-dom {
+  width: 100%;
+  height: 100%;
+  min-height: 440px;
 }
 
 /* Footer */
@@ -1314,28 +1386,14 @@ onUnmounted(() => {
   color: #cbd5e1;
 }
 
-/* Color classes */
-.text-slate { color: #0f172a !important; }
-.text-success { color: #059669 !important; }
-.text-warning { color: #d97706 !important; }
-.text-danger { color: #dc2626 !important; }
-.text-muted { color: #94a3b8 !important; }
-.text-sky { color: #0284c7 !important; }
-.text-violet { color: #7c3aed !important; }
-.text-amber { color: #d97706 !important; }
-
 /* Fullscreen adjustments */
 .is-fullscreen {
   width: 100vw;
   height: 100vh;
 }
 
-/* Responsive adjustments */
-@media (max-width: 1200px) {
-  .metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .details-grid {
+@media (max-width: 900px) {
+  .metrics-grid-3 {
     grid-template-columns: 1fr;
   }
 }
