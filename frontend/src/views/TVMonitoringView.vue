@@ -641,7 +641,7 @@ const renderBarChart = () => {
       left: '2%',
       right: '2%',
       bottom: '12%',
-      top: '12%',
+      top: '18%',
       containLabel: true,
     },
     xAxis: {
@@ -689,6 +689,14 @@ const renderBarChart = () => {
         stack: 'total',
         barMaxWidth: 56,
         data: activeSeries,
+        label: {
+          show: true,
+          position: 'inside',
+          color: '#ffffff',
+          fontWeight: 'bold',
+          fontSize: 12,
+          formatter: (params: any) => (params.value >= 12 ? formatNumber(params.value) : ''),
+        },
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: '#0284c7' },
@@ -703,6 +711,14 @@ const renderBarChart = () => {
         stack: 'total',
         barMaxWidth: 56,
         data: suspendedSeries,
+        label: {
+          show: true,
+          position: 'inside',
+          color: '#ffffff',
+          fontWeight: 'bold',
+          fontSize: 11,
+          formatter: (params: any) => (params.value >= 12 ? formatNumber(params.value) : ''),
+        },
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: '#dc2626' },
@@ -711,7 +727,7 @@ const renderBarChart = () => {
           borderRadius: [4, 4, 0, 0],
         },
       },
-      // Invisible series solely to render the total number boldly on top of the stacked bar
+      // Invisible series solely to render the total, active, and suspended directly above the bar without hovering
       {
         name: 'Total Label',
         type: 'bar',
@@ -727,10 +743,41 @@ const renderBarChart = () => {
           show: true,
           position: 'top',
           distance: 6,
-          color: '#0f172a',
-          fontWeight: 'bold',
-          fontSize: 14,
-          formatter: (params: any) => formatNumber(params.value),
+          formatter: (params: any) => {
+            const loc = locs[params.dataIndex];
+            if (!loc) return `${formatNumber(params.value)}`;
+            if (loc.suspended_users > 0) {
+              return `{total|${formatNumber(loc.total_users)}}\n{aktif|${formatNumber(loc.active_users)}} {susp|${formatNumber(loc.suspended_users)}}`;
+            }
+            return `{total|${formatNumber(loc.total_users)}}\n{aktif|${formatNumber(loc.active_users)}}`;
+          },
+          rich: {
+            total: {
+              color: '#0f172a',
+              fontWeight: 'bold',
+              fontSize: 14,
+              align: 'center',
+              lineHeight: 18,
+            },
+            aktif: {
+              color: '#0284c7',
+              fontWeight: 'bold',
+              fontSize: 11,
+              align: 'center',
+              backgroundColor: '#e0f2fe',
+              padding: [2, 4],
+              borderRadius: 3,
+            },
+            susp: {
+              color: '#dc2626',
+              fontWeight: 'bold',
+              fontSize: 11,
+              align: 'center',
+              backgroundColor: '#fee2e2',
+              padding: [2, 4],
+              borderRadius: 3,
+            },
+          },
         },
         barGap: '-100%',
       },
