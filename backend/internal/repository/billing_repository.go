@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -52,6 +53,7 @@ func (r *invoiceRepository) GetAll(ctx context.Context, limit, offset int, searc
 
 	err := buildFilter(r.db.WithContext(ctx).Model(&domain.Invoice{})).
 		Preload("Pelanggan").
+		Preload("Langganan.PaketLayanan").
 		Limit(limit).
 		Offset(offset).
 		Order("invoices.id desc").
@@ -462,7 +464,7 @@ func (r *invoiceRepository) GetRevenueReportDetails(ctx context.Context, params 
 
 func (r *invoiceRepository) ExportPaymentLinksExcel(ctx context.Context, filters map[string]string) ([]byte, error) {
 	var invoices []domain.Invoice
-	query := r.db.WithContext(ctx).Preload("Pelanggan").Where("deleted_at IS NULL")
+	query := r.db.WithContext(ctx).Preload("Pelanggan").Preload("Langganan.PaketLayanan").Where("deleted_at IS NULL")
 
 	if s, ok := filters["search"]; ok && s != "" {
 		query = query.Joins("Pelanggan").Where("pelanggan.nama LIKE ? OR invoices.invoice_number LIKE ?", "%"+s+"%", "%"+s+"%")
@@ -485,7 +487,7 @@ func (r *invoiceRepository) ExportPaymentLinksExcel(ctx context.Context, filters
 	sheet := "Payment Links"
 	f.SetSheetName("Sheet1", sheet)
 
-	headers := []string{"No", "Pelanggan", "No. Telepon", "Invoice Number", "Alamat", "Total", "Status", "Link Pembayaran"}
+	headers := []string{"No", "Pelanggan", "No. Telepon", "Invoice Number", "Deskripsi", "Alamat", "Total", "Status", "Link Pembayaran"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheet, cell, h)
@@ -498,7 +500,12 @@ func (r *invoiceRepository) ExportPaymentLinksExcel(ctx context.Context, filters
 		addr := ""; if inv.Pelanggan != nil { addr = inv.Pelanggan.Alamat }
 		link := ""; if inv.PaymentLink != nil { link = *inv.PaymentLink }
 
-		vals := []interface{}{r + 1, pName, pPhone, inv.InvoiceNumber, addr, inv.TotalHarga, inv.StatusInvoice, link}
+		desc := "Biaya berlangganan internet"
+		if inv.Langganan != nil && inv.Langganan.PaketLayanan != nil && inv.Langganan.PaketLayanan.Kecepatan > 0 {
+			desc = fmt.Sprintf("Biaya berlangganan internet up to %d Mbps", inv.Langganan.PaketLayanan.Kecepatan)
+		}
+
+		vals := []interface{}{r + 1, pName, pPhone, inv.InvoiceNumber, desc, addr, inv.TotalHarga, inv.StatusInvoice, link}
 		for c, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(c+1, row)
 			f.SetCellValue(sheet, cell, v)

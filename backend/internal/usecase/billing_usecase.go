@@ -141,7 +141,15 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 	invoice.Email = pelanggan.Email
 	pajak := invoice.TotalHarga - math.Round(invoice.TotalHarga/(1.0+(brand.Pajak/100.0)))
 	noTelpXendit := utils.NormalizePhoneForXendit(pelanggan.NoTelp)
-	deskripsi := fmt.Sprintf("Biaya berlangganan internet jatuh tempo pembayaran tanggal %s", invoice.TglJatuhTempo.Format("02/01/2006"))
+	itemPrefix := "Biaya berlangganan internet"
+	if invoice.LanggananID != nil {
+		if lang, _ := u.langgananRepo.GetByID(ctx, *invoice.LanggananID); lang != nil {
+			if pkt, _ := u.paketRepo.GetByID(ctx, lang.PaketLayananID); pkt != nil && pkt.Kecepatan > 0 {
+				itemPrefix = fmt.Sprintf("Biaya berlangganan internet up to %d Mbps", pkt.Kecepatan)
+			}
+		}
+	}
+	deskripsi := fmt.Sprintf("%s jatuh tempo pembayaran tanggal %s", itemPrefix, invoice.TglJatuhTempo.Format("02/01/2006"))
 	invoice.StatusInvoice = "Belum Bayar"
 	invoice.InvoiceType = "manual"
 	if err := u.invoiceRepo.Create(ctx, invoice); err != nil {
@@ -862,7 +870,15 @@ func (u *billingUsecase) RetryXenditInvoice(ctx context.Context, id uint64) (*do
 
 	noTelpXendit := utils.NormalizePhoneForXendit(pelanggan.NoTelp)
 	pajak := invoice.TotalHarga - math.Round(invoice.TotalHarga/(1.0+(brand.Pajak/100.0)))
-	deskripsi := fmt.Sprintf("Biaya berlangganan internet jatuh tempo pembayaran tanggal %s", invoice.TglJatuhTempo.Format("02/01/2006"))
+	itemPrefix := "Biaya berlangganan internet"
+	if invoice.LanggananID != nil {
+		if lang, _ := u.langgananRepo.GetByID(ctx, *invoice.LanggananID); lang != nil {
+			if pkt, _ := u.paketRepo.GetByID(ctx, lang.PaketLayananID); pkt != nil && pkt.Kecepatan > 0 {
+				itemPrefix = fmt.Sprintf("Biaya berlangganan internet up to %d Mbps", pkt.Kecepatan)
+			}
+		}
+	}
+	deskripsi := fmt.Sprintf("%s jatuh tempo pembayaran tanggal %s", itemPrefix, invoice.TglJatuhTempo.Format("02/01/2006"))
 
 	u.logSystem(ctx, "INFO", fmt.Sprintf("RetryXenditInvoice: Mencoba menerbitkan ulang invoice %s untuk pelanggan %s ke Xendit...", invoice.InvoiceNumber, pelanggan.Nama))
 
@@ -2536,7 +2552,7 @@ func (u *billingUsecase) ImportLanggananFromCSV(ctx context.Context, content str
 }
 
 func (u *billingUsecase) ExportInvoices(ctx context.Context, format string, search, status string, pelangganID *uint64) ([]byte, string, error) {
-	headers := []string{"ID", "Invoice Number", "Pelanggan", "No. Telepon", "Alamat", "Total", "Status", "Tgl Invoice", "Tgl Lunas"}
+	headers := []string{"ID", "Invoice Number", "Pelanggan", "Deskripsi", "No. Telepon", "Alamat", "Total", "Status", "Tgl Invoice", "Tgl Lunas"}
 	limit := 1000
 	offset := 0
 
@@ -2566,13 +2582,17 @@ func (u *billingUsecase) ExportInvoices(ctx context.Context, format string, sear
 					pPhone = inv.Pelanggan.NoTelp
 					addr = inv.Pelanggan.Alamat
 				}
+				desc := "Biaya berlangganan internet"
+				if inv.Langganan != nil && inv.Langganan.PaketLayanan != nil && inv.Langganan.PaketLayanan.Kecepatan > 0 {
+					desc = fmt.Sprintf("Biaya berlangganan internet up to %d Mbps", inv.Langganan.PaketLayanan.Kecepatan)
+				}
 				tglInv := inv.TglInvoice.Format("2006-01-02")
 				tglLunas := ""
 				if inv.PaidAt != nil {
 					tglLunas = inv.PaidAt.Format("2006-01-02")
 				}
 
-				vals := []interface{}{inv.ID, inv.InvoiceNumber, pName, pPhone, addr, inv.TotalHarga, inv.StatusInvoice, tglInv, tglLunas}
+				vals := []interface{}{inv.ID, inv.InvoiceNumber, pName, desc, pPhone, addr, inv.TotalHarga, inv.StatusInvoice, tglInv, tglLunas}
 				for c, v := range vals {
 					cell, _ := excelize.CoordinatesToCellName(c+1, row)
 					f.SetCellValue(sheet, cell, v)
@@ -2610,6 +2630,10 @@ func (u *billingUsecase) ExportInvoices(ctx context.Context, format string, sear
 					pPhone = inv.Pelanggan.NoTelp
 					addr = inv.Pelanggan.Alamat
 				}
+				desc := "Biaya berlangganan internet"
+				if inv.Langganan != nil && inv.Langganan.PaketLayanan != nil && inv.Langganan.PaketLayanan.Kecepatan > 0 {
+					desc = fmt.Sprintf("Biaya berlangganan internet up to %d Mbps", inv.Langganan.PaketLayanan.Kecepatan)
+				}
 				tglInv := inv.TglInvoice.Format("2006-01-02")
 				tglLunas := ""
 				if inv.PaidAt != nil {
@@ -2620,6 +2644,7 @@ func (u *billingUsecase) ExportInvoices(ctx context.Context, format string, sear
 					fmt.Sprintf("%d", inv.ID),
 					inv.InvoiceNumber,
 					pName,
+					desc,
 					pPhone,
 					addr,
 					fmt.Sprintf("%.0f", inv.TotalHarga),
@@ -2827,11 +2852,16 @@ func (u *billingUsecase) createXenditInvoice(ctx context.Context, inv *domain.In
 		durationDays = u.cfg.XenditInvoiceDurationDays
 	}
 
+	descInvoice := desc
+	if descInvoice == "" {
+		descInvoice = fmt.Sprintf("Invoice #: %s", inv.InvoiceNumber)
+	}
+
 	hargaDasar := inv.TotalHarga - tax
 	payload := map[string]interface{}{
 		"external_id":      inv.InvoiceNumber,
 		"amount":           inv.TotalHarga,
-		"description":      fmt.Sprintf("Invoice #: %s", inv.InvoiceNumber),
+		"description":      descInvoice,
 		"invoice_duration": 86400 * durationDays,
 		"customer": map[string]interface{}{
 			"given_names":   p.Nama,
