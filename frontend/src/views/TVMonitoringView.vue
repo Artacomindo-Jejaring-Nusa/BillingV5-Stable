@@ -254,9 +254,9 @@
         </div>
       </section>
 
-      <!-- ROW 2: DETAILED DATA (LEFT: LOCATIONS TABLE, RIGHT: SUSPENDED FEED) -->
+      <!-- ROW 2: DETAILED DATA (FULL WIDTH: LOCATIONS TABLE) -->
       <section class="details-grid">
-        <!-- LEFT: BREAKDOWN PER LOKASI -->
+        <!-- BREAKDOWN PER LOKASI -->
         <div class="detail-card locations-card">
           <div class="detail-card-header">
             <div class="header-left">
@@ -330,50 +330,6 @@
                 </tr>
               </tbody>
             </table>
-          </div>
-        </div>
-
-        <!-- RIGHT: SUSPENDED USERS FEED -->
-        <div class="detail-card suspended-feed-card">
-          <div class="detail-card-header">
-            <div class="header-left">
-              <v-icon size="18" color="#dc2626" class="mr-2">mdi-account-alert</v-icon>
-              <h2 class="detail-title">Daftar Pelanggan Terisolir ({{ data?.suspended_list?.length || 0 }})</h2>
-            </div>
-            <span class="live-pill">
-              <span class="live-pulse"></span>
-              LIVE
-            </span>
-          </div>
-
-          <div class="suspended-list-container">
-            <div v-if="data?.suspended_list && data.suspended_list.length > 0" class="suspended-items">
-              <div
-                v-for="user in data.suspended_list"
-                :key="user.id"
-                class="suspended-item"
-              >
-                <div class="item-left">
-                  <span class="user-id-code">{{ user.id_pelanggan || `PLG-${user.id}` }}</span>
-                  <div class="user-details">
-                    <span class="user-fullname">{{ user.nama }}</span>
-                    <span class="user-address">
-                      <v-icon size="12" class="mr-1" color="#94a3b8">mdi-map-marker</v-icon>
-                      {{ user.alamat }}
-                    </span>
-                  </div>
-                </div>
-                <div class="item-right">
-                  <span class="brand-tag-clean">{{ user.brand }}</span>
-                  <span class="plan-tag-clean">{{ user.paket }}</span>
-                </div>
-              </div>
-            </div>
-            <div v-else class="empty-suspended-state">
-              <v-icon size="42" color="#059669" class="mb-2">mdi-check-circle-outline</v-icon>
-              <p class="empty-title">Semua Koneksi Normal</p>
-              <p class="empty-desc">Tidak ada pelanggan berstatus terisolir pada filter ini</p>
-            </div>
           </div>
         </div>
       </section>
@@ -1184,10 +1140,11 @@ onUnmounted(() => {
 }
 
 /* ROW 2: DETAILS GRID */
+/* ROW 2: DETAILS GRID (Full Width Table) */
 .details-grid {
-  display: grid;
-  grid-template-columns: 63% 37%;
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   flex: 1;
 }
 
@@ -1202,7 +1159,7 @@ onUnmounted(() => {
 }
 
 .detail-card-header {
-  padding: 12px 16px;
+  padding: 12px 18px;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
@@ -1216,31 +1173,10 @@ onUnmounted(() => {
 }
 
 .detail-title {
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
-}
-
-.live-pill {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background-color: #fee2e2;
-  color: #dc2626;
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 2px 7px;
-  border-radius: 4px;
-  letter-spacing: 0.05em;
-}
-
-.live-pulse {
-  width: 6px;
-  height: 6px;
-  background-color: #dc2626;
-  border-radius: 50%;
-  box-shadow: 0 0 4px #dc2626;
 }
 
 /* Table */
@@ -1250,15 +1186,15 @@ onUnmounted(() => {
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 5px;
-  padding: 3px 8px;
-  width: 180px;
+  padding: 4px 10px;
+  width: 220px;
 }
 
 .search-input {
   background: none;
   border: none;
   color: #0f172a;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   margin-left: 6px;
   outline: none;
   width: 100%;
@@ -1275,13 +1211,13 @@ onUnmounted(() => {
 .table-responsive {
   flex: 1;
   overflow-y: auto;
-  max-height: 490px;
+  max-height: calc(100vh - 280px);
 }
 
 .tv-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   background-color: #ffffff;
 }
 
@@ -1289,9 +1225,9 @@ onUnmounted(() => {
   background-color: #f8fafc;
   color: #475569;
   font-weight: 700;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   letter-spacing: 0.04em;
-  padding: 10px 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid #e2e8f0;
   position: sticky;
   top: 0;
@@ -1299,7 +1235,7 @@ onUnmounted(() => {
 }
 
 .tv-table td {
-  padding: 9px 12px;
+  padding: 11px 16px;
   border-bottom: 1px solid #f1f5f9;
   color: #334155;
   font-variant-numeric: tabular-nums;
@@ -1332,131 +1268,19 @@ onUnmounted(() => {
 .badge-danger-pill {
   background-color: #fee2e2;
   color: #dc2626;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: 4px;
 }
 
 .badge-amber-pill {
   background-color: #fef3c7;
   color: #d97706;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* Suspended Feed */
-.suspended-list-container {
-  flex: 1;
-  overflow-y: auto;
-  max-height: 490px;
-  padding: 10px 12px;
-}
-
-.suspended-items {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.suspended-item {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-left: 3px solid #dc2626;
-  border-radius: 6px;
-  padding: 8px 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.15s ease;
-}
-
-.suspended-item:hover {
-  background-color: #fffafb;
-  border-color: #fca5a5;
-  border-left-color: #dc2626;
-}
-
-.suspended-item .item-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.user-id-code {
-  background-color: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  color: #0284c7;
-  font-family: monospace;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.user-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-fullname {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.user-address {
-  font-size: 0.7rem;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-}
-
-.item-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.brand-tag-clean {
-  font-size: 0.65rem;
-  font-weight: 700;
-  background-color: #f1f5f9;
-  color: #334155;
-  padding: 1px 5px;
-  border-radius: 3px;
-  border: 1px solid #e2e8f0;
-}
-
-.plan-tag-clean {
-  font-size: 0.68rem;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.empty-suspended-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 260px;
-  text-align: center;
-}
-
-.empty-title {
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #059669;
-  margin: 0;
-}
-
-.empty-desc {
   font-size: 0.74rem;
-  color: #64748b;
-  margin: 4px 0 0 0;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
 }
 
 /* Footer */
