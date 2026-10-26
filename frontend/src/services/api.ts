@@ -150,8 +150,13 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Skip if it's already a network error request
-    if (originalRequest.headers?.['X-Skip-Network-Interceptor']) {
+    // Skip if it's explicitly bypassed or if currently on TV Wallboard / Monitoring screen (do not interrupt wallboard display)
+    const currentRoute = router.currentRoute.value;
+    if (
+      originalRequest.headers?.['X-Skip-Network-Interceptor'] ||
+      currentRoute?.name === 'tv-monitoring' ||
+      currentRoute?.path?.includes('/tv')
+    ) {
       return Promise.reject(error);
     }
 

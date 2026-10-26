@@ -214,8 +214,9 @@
     <!-- TV Footer Information -->
     <footer class="tv-footer">
       <div class="footer-left">
-        <span class="status-dot-active"></span>
-        <span>Sistem Monitoring Aktif</span>
+        <span :class="isReconnecting ? 'status-dot-warning' : 'status-dot-active'"></span>
+        <span v-if="!isReconnecting">Sistem Monitoring Aktif</span>
+        <span v-else class="status-reconnecting-text">Menghubungkan Ulang ke Server...</span>
         <span class="footer-separator">•</span>
         <span>Pembaruan Data: <strong>{{ lastUpdatedFormatted }}</strong></span>
       </div>
@@ -292,6 +293,7 @@ const data = ref<TVMonitoringData | null>(null);
 const loading = ref(false);
 const selectedLocation = ref<string>('Semua Lokasi');
 const isFullscreen = ref(false);
+const isReconnecting = ref(false);
 
 // Animated Counters
 const displayTotalUsers = ref(0);
@@ -793,17 +795,24 @@ const fetchData = async (showLoading = false) => {
   try {
     const locParam = selectedLocation.value === 'Semua Lokasi' ? '' : selectedLocation.value;
     const url = `/dashboard/tv-monitoring${locParam ? `?lokasi=${encodeURIComponent(locParam)}` : ''}`;
-    const response = await apiClient.get<TVMonitoringData>(url);
+    const response = await apiClient.get<TVMonitoringData>(url, {
+      headers: { 'X-Skip-Network-Interceptor': 'true' },
+      timeout: 15000,
+    });
     if (response?.data) {
       data.value = response.data;
+      isReconnecting.value = false;
       runCountersAnimation(response.data);
       await nextTick();
       renderBarChart();
-      // Trigger Petasan Meledak celebration burst
-      triggerFireworksBurst();
+      // Trigger Petasan Meledak celebration burst hanya saat awal buka / refresh manual
+      if (showLoading) {
+        triggerFireworksBurst();
+      }
     }
   } catch (err) {
-    console.error('Failed to load TV monitoring data:', err);
+    console.warn('[TV Monitoring] Jaringan tertunda/timeout, data monitor tetap dipertahankan:', err);
+    isReconnecting.value = true;
   } finally {
     loading.value = false;
     refreshCountdown.value = refreshIntervalSeconds;
@@ -1427,6 +1436,25 @@ onUnmounted(() => {
   background-color: #10b981;
   border-radius: 50%;
   box-shadow: 0 0 4px #10b981;
+}
+
+.status-dot-warning {
+  width: 7px;
+  height: 7px;
+  background-color: #f59e0b;
+  border-radius: 50%;
+  box-shadow: 0 0 4px #f59e0b;
+  animation: pulse-dot 1.5s infinite;
+}
+
+.status-reconnecting-text {
+  color: #d97706;
+  font-weight: 600;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 .footer-separator {
