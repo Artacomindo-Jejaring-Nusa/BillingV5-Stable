@@ -152,11 +152,13 @@ apiClient.interceptors.response.use(
 
     // Skip if it's explicitly bypassed or if currently on TV Wallboard / Monitoring screen (do not interrupt wallboard display)
     const currentRoute = router.currentRoute.value;
-    if (
+    const isTVPage =
       originalRequest.headers?.['X-Skip-Network-Interceptor'] ||
       currentRoute?.name === 'tv-monitoring' ||
-      currentRoute?.path?.includes('/tv')
-    ) {
+      currentRoute?.path?.includes('/tv') ||
+      (typeof window !== 'undefined' && (window.location.pathname.includes('/tv') || window.location.href.includes('/tv')));
+
+    if (isTVPage) {
       return Promise.reject(error);
     }
 
