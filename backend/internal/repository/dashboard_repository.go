@@ -1081,12 +1081,12 @@ func (r *dashboardRepository) GetTVMonitoringData(ctx context.Context, lokasi st
 
 	userQuery := r.db.WithContext(ctx).Table("pelanggan p").
 		Select(`
-			COUNT(DISTINCT p.id) as total_users,
+			SUM(CASE WHEN l.status IN ('Aktif', 'Suspended') THEN 1 ELSE 0 END) as total_users,
 			SUM(CASE WHEN l.status = 'Aktif' THEN 1 ELSE 0 END) as active_users,
 			SUM(CASE WHEN l.status = 'Suspended' THEN 1 ELSE 0 END) as suspended_users,
 			SUM(CASE WHEN l.status = 'Berhenti' THEN 1 ELSE 0 END) as stopped_users
 		`).
-		Joins("LEFT JOIN langganan l ON p.id = l.pelanggan_id").
+		Joins("JOIN langganan l ON p.id = l.pelanggan_id AND l.deleted_at IS NULL").
 		Where("p.deleted_at IS NULL")
 
 	if !isAllLokasi {
@@ -1107,13 +1107,13 @@ func (r *dashboardRepository) GetTVMonitoringData(ctx context.Context, lokasi st
 	brandQuery := r.db.WithContext(ctx).Table("pelanggan p").
 		Select(`
 			COALESCE(hl.brand, 'Tanpa Brand') as brand,
-			COUNT(DISTINCT p.id) as total_users,
+			SUM(CASE WHEN l.status IN ('Aktif', 'Suspended') THEN 1 ELSE 0 END) as total_users,
 			SUM(CASE WHEN l.status = 'Aktif' THEN 1 ELSE 0 END) as active_users,
 			SUM(CASE WHEN l.status = 'Suspended' THEN 1 ELSE 0 END) as suspended_users
 		`).
 		Joins("LEFT JOIN harga_layanan hl ON p.id_brand = hl.id_brand").
-		Joins("LEFT JOIN langganan l ON p.id = l.pelanggan_id").
-		Where("p.deleted_at IS NULL")
+		Joins("JOIN langganan l ON p.id = l.pelanggan_id AND l.deleted_at IS NULL").
+		Where("p.deleted_at IS NULL AND l.status IN ('Aktif', 'Suspended')")
 
 	if !isAllLokasi {
 		brandQuery = brandQuery.Where("p.alamat = ?", cleanLokasi)
@@ -1201,7 +1201,7 @@ func (r *dashboardRepository) GetTVMonitoringData(ctx context.Context, lokasi st
 	err := r.db.WithContext(ctx).Table("pelanggan p").
 		Select(`
 			COALESCE(p.alamat, 'Tanpa Alamat') as lokasi,
-			COUNT(DISTINCT p.id) as total_users,
+			SUM(CASE WHEN l.status IN ('Aktif', 'Suspended') THEN 1 ELSE 0 END) as total_users,
 			SUM(CASE WHEN l.status = 'Aktif' THEN 1 ELSE 0 END) as active_users,
 			SUM(CASE WHEN l.status = 'Suspended' THEN 1 ELSE 0 END) as suspended_users,
 			SUM(CASE WHEN UPPER(hl.brand) LIKE '%JAKINET%' THEN 1 ELSE 0 END) as jakinet_users,
@@ -1209,8 +1209,8 @@ func (r *dashboardRepository) GetTVMonitoringData(ctx context.Context, lokasi st
 			SUM(CASE WHEN UPPER(hl.brand) LIKE '%NAGRAK%' THEN 1 ELSE 0 END) as nagrak_users
 		`).
 		Joins("LEFT JOIN harga_layanan hl ON p.id_brand = hl.id_brand").
-		Joins("LEFT JOIN langganan l ON p.id = l.pelanggan_id").
-		Where("p.deleted_at IS NULL AND p.alamat IS NOT NULL AND p.alamat != ''").
+		Joins("JOIN langganan l ON p.id = l.pelanggan_id AND l.deleted_at IS NULL").
+		Where("p.deleted_at IS NULL AND p.alamat IS NOT NULL AND p.alamat != '' AND l.status IN ('Aktif', 'Suspended')").
 		Group("p.alamat").
 		Order("total_users DESC").
 		Limit(25).

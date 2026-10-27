@@ -131,7 +131,7 @@
             </div>
             <div class="metric-sub-badge">
               <span class="badge-dot blue"></span>
-              <span>Seluruh Pelanggan FTTH Terdaftar</span>
+              <span>Pelanggan FTTH Berjalan (Aktif & Terisolir)</span>
             </div>
           </div>
         </div>
