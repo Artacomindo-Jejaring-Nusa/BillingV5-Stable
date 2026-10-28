@@ -119,57 +119,78 @@
       <section class="metrics-grid-3">
         <!-- CARD 1: TOTAL KESELURUHAN -->
         <div class="metric-card card-total" @click="triggerFireworksBurst" title="Klik untuk memicu petasan">
-          <div class="metric-header">
-            <span class="metric-tag">TOTAL KESELURUHAN</span>
-            <div class="icon-circle bg-sky-light">
-              <v-icon size="22" color="#0284c7">mdi-account-group</v-icon>
+          <div class="metric-card-inner">
+            <div class="metric-content">
+              <div class="metric-header">
+                <span class="metric-tag">TOTAL KESELURUHAN</span>
+                <div class="icon-circle bg-sky-light">
+                  <v-icon size="22" color="#0284c7">mdi-account-group</v-icon>
+                </div>
+              </div>
+              <div class="metric-body">
+                <div class="metric-big-number text-primary">
+                  {{ formatNumber(displayTotalUsers) }}
+                </div>
+                <div class="metric-sub-badge">
+                  <span class="badge-dot blue"></span>
+                  <span>Pelanggan FTTH Berjalan (Aktif & Terisolir)</span>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="metric-body">
-            <div class="metric-big-number text-primary">
-              {{ formatNumber(displayTotalUsers) }}
-            </div>
-            <div class="metric-sub-badge">
-              <span class="badge-dot blue"></span>
-              <span>Pelanggan FTTH Berjalan (Aktif & Terisolir)</span>
+            <div class="metric-anim">
+              <img src="/anim-total.gif" alt="Total animation" class="metric-gif" />
             </div>
           </div>
         </div>
 
         <!-- CARD 2: AKTIF -->
         <div class="metric-card card-active" @click="triggerFireworksBurst" title="Klik untuk memicu petasan">
-          <div class="metric-header">
-            <span class="metric-tag text-success">AKTIF</span>
-            <div class="icon-circle bg-green-light">
-              <v-icon size="22" color="#059669">mdi-account-check</v-icon>
+          <div class="metric-card-inner">
+            <div class="metric-content">
+              <div class="metric-header">
+                <span class="metric-tag text-success">AKTIF</span>
+                <div class="icon-circle bg-green-light">
+                  <v-icon size="22" color="#059669">mdi-account-check</v-icon>
+                </div>
+              </div>
+              <div class="metric-body">
+                <div class="metric-big-number text-success">
+                  {{ formatNumber(displayActiveUsers) }}
+                </div>
+                <div class="metric-sub-badge">
+                  <span class="badge-dot green"></span>
+                  <span><strong>{{ activePercentage }}%</strong> Pelanggan Online & Aktif</span>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="metric-body">
-            <div class="metric-big-number text-success">
-              {{ formatNumber(displayActiveUsers) }}
-            </div>
-            <div class="metric-sub-badge">
-              <span class="badge-dot green"></span>
-              <span><strong>{{ activePercentage }}%</strong> Pelanggan Online & Aktif</span>
+            <div class="metric-anim">
+              <img src="/anim-aktif.gif" alt="Aktif animation" class="metric-gif" />
             </div>
           </div>
         </div>
 
         <!-- CARD 3: SUSPENDED -->
         <div class="metric-card card-suspended" @click="triggerFireworksBurst" title="Klik untuk memicu petasan">
-          <div class="metric-header">
-            <span class="metric-tag text-danger">SUSPENDED</span>
-            <div class="icon-circle bg-red-light">
-              <v-icon size="22" color="#dc2626">mdi-account-alert</v-icon>
+          <div class="metric-card-inner">
+            <div class="metric-content">
+              <div class="metric-header">
+                <span class="metric-tag text-danger">SUSPENDED</span>
+                <div class="icon-circle bg-red-light">
+                  <v-icon size="22" color="#dc2626">mdi-account-alert</v-icon>
+                </div>
+              </div>
+              <div class="metric-body">
+                <div class="metric-big-number text-danger">
+                  {{ formatNumber(displaySuspendedUsers) }}
+                </div>
+                <div class="metric-sub-badge">
+                  <span class="badge-dot red"></span>
+                  <span><strong>{{ suspendedPercentage }}%</strong> Modem Terisolir (Tunggakan)</span>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="metric-body">
-            <div class="metric-big-number text-danger">
-              {{ formatNumber(displaySuspendedUsers) }}
-            </div>
-            <div class="metric-sub-badge">
-              <span class="badge-dot red"></span>
-              <span><strong>{{ suspendedPercentage }}%</strong> Modem Terisolir (Tunggakan)</span>
+            <div class="metric-anim">
+              <img src="/anim-suspended.gif" alt="Suspended animation" class="metric-gif" />
             </div>
           </div>
         </div>
@@ -1248,6 +1269,35 @@ onUnmounted(() => {
 .metric-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+}
+
+.metric-card-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+}
+
+.metric-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.metric-anim {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.metric-gif {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
 }
 
 .metric-header {
