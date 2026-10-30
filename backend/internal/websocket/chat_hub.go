@@ -11,6 +11,8 @@ import (
 
 	"billing-backend/internal/domain"
 	"billing-backend/internal/service"
+	"billing-backend/pkg/database"
+	"billing-backend/pkg/fcm"
 
 	"github.com/gorilla/websocket"
 )
@@ -307,6 +309,11 @@ func (c *ChatClient) ReadPump() {
 			// 3. Broadcast ke lawan bicara: NEW MESSAGE
 			c.Hub.BroadcastToRoomExcept(targetRoomID, c, "new_message", savedMsg)
 
+			// 3b. Jika pesan dikirim oleh ADMIN / CS, kirim Push Notification FCM ke pelanggan
+			if c.Role == "admin" {
+				go c.Hub.sendFCMToCustomer(targetRoomID, savedMsg)
+			}
+
 			// 4. Jika pesan dikirim oleh ADMIN / HUMAN CS:
 			// Otomatis ambil alih (assign) room ke admin ini jika belum ditugaskan!
 			if c.Role == "admin" && c.SenderID > 0 {
@@ -351,7 +358,7 @@ func (c *ChatClient) ReadPump() {
 						if greetingName == "" {
 							greetingName = "Kakak"
 						}
-						confirmText := fmt.Sprintf("Baik Kak %s, percakapan Anda telah dialihkan ke antrean Customer Support. Staf kami akan segera bergabung dan melayani Anda dalam obrolan ini.\n\n---\n👤 Sesi dialihkan ke Antrean Agen Manusia", greetingName)
+						confirmText := fmt.Sprintf("Baik Kak %s, percakapan Anda telah dialihkan ke antrean Customer Support. Staf kami akan segera bergabung dan melayani Anda dalam obrolan ini.\n\n---\nðŸ‘¤ Sesi dialihkan ke Antrean Agen Manusia", greetingName)
 
 						sysMsg := &domain.ChatMessage{
 							RoomID:      roomID,
@@ -620,3 +627,60 @@ func (c *ChatClient) WritePump() {
 		}
 	}
 }
+
+// sendFCMToCustomer sends an FCM Push Notification to customer's mobile app when CS replies
+func (h *ChatHub) sendFCMToCustomer(roomID uint64, msg *domain.ChatMessage) {
+	if roomID == 0 || msg == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	room, err := h.chatUsecase.GetRoomByID(ctx, roomID)
+	cancel()
+	if err != nil || room == nil || room.PelangganID == 0 {
+		return
+	}
+
+	db := database.GetDB()
+	if db == nil {
+		return
+	}
+
+	var tokens []domain.PelangganFcmToken
+	if err := db.Where("pelanggan_id = ?", room.PelangganID).Find(&tokens).Error; err != nil || len(tokens) == 0 {
+		return
+	}
+
+	tokenStrings := make([]string, 0, len(tokens))
+	for _, t := range tokens {
+		if t.Token != "" {
+			tokenStrings = append(tokenStrings, t.Token)
+		}
+	}
+
+	if len(tokenStrings) == 0 {
+		return
+	}
+
+	senderTitle := msg.SenderName
+	if senderTitle == "" || senderTitle == "admin" {
+		senderTitle = "Customer Support"
+	}
+
+	bodyText := msg.Message
+	if msg.MessageType == "image" {
+		bodyText = "📷 Mengirim foto"
+	}
+
+	data := map[string]string{
+		"type":        "chat",
+		"room_id":     fmt.Sprintf("%d", roomID),
+		"sender_name": senderTitle,
+	}
+
+	sendCtx, sendCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer sendCancel()
+
+	fcm.SendToCustomerTokens(sendCtx, tokenStrings, senderTitle, bodyText, data)
+}
+
