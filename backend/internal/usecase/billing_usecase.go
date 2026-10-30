@@ -21,6 +21,7 @@ import (
 	"billing-backend/internal/domain"
 	"billing-backend/internal/websocket"
 	"billing-backend/pkg/database"
+	"billing-backend/pkg/fcm"
 	"billing-backend/pkg/logger"
 	"billing-backend/pkg/mikrotik"
 	"billing-backend/pkg/utils"
@@ -969,7 +970,7 @@ func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langgana
 			hargaAwal += hargaNormal
 		}
 	} else {
-		// Otomatis — Tanggal berakhir langganan adalah hari terakhir bulan berjalan (misal 31/08/2026 atau 30)
+		// Otomatis â€” Tanggal berakhir langganan adalah hari terakhir bulan berjalan (misal 31/08/2026 atau 30)
 		tglMulai = startDate
 		dueDate = time.Date(startDate.Year(), startDate.Month()+1, 0, 0, 0, 0, 0, startDate.Location())
 		payDate = startDate
@@ -1104,7 +1105,7 @@ func (u *billingUsecase) CalculatePrice(ctx context.Context, req *domain.Langgan
 		harga = (pk.Harga / float64(jt.Day()) * float64(jt.Day()-startDate.Day()+1)) * (1.0 + (br.Pajak / 100.0))
 		jtp = startDate
 	} else {
-		// Otomatis — Tanggal berakhir langganan adalah hari terakhir bulan berjalan (misal 31/08/2026 atau 30)
+		// Otomatis â€” Tanggal berakhir langganan adalah hari terakhir bulan berjalan (misal 31/08/2026 atau 30)
 		tml = startDate
 		jt = time.Date(startDate.Year(), startDate.Month()+1, 0, 0, 0, 0, 0, startDate.Location())
 		jtp = startDate
@@ -1566,6 +1567,9 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 						} else {
 							u.logSystem(ctx, "WARN", fmt.Sprintf("GenerateInvoices: Invoice %s disimpan sebagai draft failed (tanpa link) untuk pelanggan %s", inv.InvoiceNumber, pelanggan.Nama))
 						}
+
+						// Kirim FCM Push Notification ke aplikasi mobile pelanggan
+						go u.sendCustomerInvoicePush(inv, *pelanggan)
 					}
 					// Tambahkan jeda 200ms untuk membatasi rate limit Xendit (max 5 request per detik)
 					time.Sleep(200 * time.Millisecond)
@@ -1622,7 +1626,7 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 
 			for _, inv := range invoices {
 				// Ketentuan Manajemen:
-				// 1. Masa Pembayaran: Tanggal 1 – 10 setiap bulannya (meskipun jatuh tempo tercatat tgl 1).
+				// 1. Masa Pembayaran: Tanggal 1 â€“ 10 setiap bulannya (meskipun jatuh tempo tercatat tgl 1).
 				// 2. Isolir / Suspend: Tanggal 11 pukul 00:00:00 WIB (jika belum lunas hingga tgl 10 pukul 23:59).
 				var suspendCutoffDate time.Time
 				invDueDate := inv.TglJatuhTempo.In(loc)
@@ -3549,5 +3553,49 @@ func (u *billingUsecase) generateFallbackMLInsights(customers []domain.MLCustome
 	}
 
 	return resp
+}
+
+// sendCustomerInvoicePush sends real-time FCM Push Notification to customer's mobile app
+func (u *billingUsecase) sendCustomerInvoicePush(inv *domain.Invoice, pelanggan domain.Pelanggan) {
+	if inv == nil || pelanggan.ID == 0 {
+		return
+	}
+
+	db := database.GetDB()
+	if db == nil {
+		return
+	}
+
+	var tokens []domain.PelangganFcmToken
+	if err := db.Where("pelanggan_id = ?", pelanggan.ID).Find(&tokens).Error; err != nil || len(tokens) == 0 {
+		return
+	}
+
+	tokenStrings := make([]string, 0, len(tokens))
+	for _, t := range tokens {
+		if t.Token != "" {
+			tokenStrings = append(tokenStrings, t.Token)
+		}
+	}
+
+	if len(tokenStrings) == 0 {
+		return
+	}
+
+	title := "Tagihan Baru Telah Terbit"
+	body := fmt.Sprintf("Halo %s, invoice %s sebesar Rp %d telah diterbitkan. Silakan cek menu tagihan.",
+		pelanggan.Nama, inv.InvoiceNumber, int(inv.TotalHarga))
+
+	data := map[string]string{
+		"type":           "invoice",
+		"invoice_id":     fmt.Sprintf("%d", inv.ID),
+		"invoice_number": inv.InvoiceNumber,
+		"pelanggan_id":   fmt.Sprintf("%d", pelanggan.ID),
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+
+	fcm.SendToCustomerTokens(ctx, tokenStrings, title, body, data)
 }
 

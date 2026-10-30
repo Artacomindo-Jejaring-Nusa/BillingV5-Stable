@@ -175,6 +175,7 @@ func main() {
 		&domain.WhatsAppOutbox{},
 		&domain.APIKey{},
 		&domain.UserFcmToken{},
+		&domain.PelangganFcmToken{},
 		&domain.ChatRoom{},
 		&domain.ChatMessage{},
 		&domain.QuickReplyTemplate{},
@@ -399,7 +400,7 @@ func main() {
 		log.Println("[AI] Provider: 9Router (LLM Agent)")
 	} else {
 		aiSvc = service.NewMLService(cfg)
-		log.Printf("[AI] Provider: ML Local (FastAPI Chatbot) → %s", cfg.MLLocalURL)
+		log.Printf("[AI] Provider: ML Local (FastAPI Chatbot) â†’ %s", cfg.MLLocalURL)
 	}
 
 	websocket.GlobalChatHub = websocket.NewChatHub(chatUsecase, aiSvc)
@@ -409,6 +410,8 @@ func main() {
 	// Portal Pelanggan High-Performance Lookup
 	portalHandler := httpDelivery.NewPortalHandler(db)
 	api.GET("/portal/customer/lookup", authMw, portalHandler.CustomerLookup)
+	api.POST("/customer/fcm-token", portalHandler.RegisterCustomerFCMToken)
+	api.POST("/portal/customer/fcm-token", portalHandler.RegisterCustomerFCMToken)
 
 	// General Uploads
 	httpDelivery.NewUploadsHandler(api, authMw)

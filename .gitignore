@@ -79,4 +79,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
-venv/
+venv/
+# Firebase Credentials
+backend/config/firebase-service-account.json
