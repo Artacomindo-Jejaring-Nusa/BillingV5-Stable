@@ -132,8 +132,8 @@ func (s *aiService) GenerateReply(ctx context.Context, room *domain.ChatRoom, hi
 	reqBody := map[string]interface{}{
 		"model":       s.cfg.AIRouterModel,
 		"messages":    messages,
-		"max_tokens":  220, // Membatasi output agar tidak bertele-tele dan to the point
-		"temperature": 0.1, // Rendah agar deterministik, anti-halusinasi, dan konsisten
+		"max_tokens":  350, // Cukup untuk jawaban komprehensif dan solutif
+		"temperature": 0.3, // Hangat, luwes, dan ramah namun tetap konsisten
 		"stream":      false,
 	}
 
@@ -171,7 +171,9 @@ func (s *aiService) GenerateReply(ctx context.Context, room *domain.ChatRoom, hi
 	var chatResp struct {
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content          string `json:"content"`
+				Reasoning        string `json:"reasoning"`
+				ReasoningContent string `json:"reasoning_content"`
 			} `json:"message"`
 		} `json:"choices"`
 	}
@@ -180,11 +182,23 @@ func (s *aiService) GenerateReply(ctx context.Context, room *domain.ChatRoom, hi
 		return "", fmt.Errorf("gagal parsing JSON 9Router: %w", err)
 	}
 
-	if len(chatResp.Choices) == 0 || strings.TrimSpace(chatResp.Choices[0].Message.Content) == "" {
+	if len(chatResp.Choices) == 0 {
 		return "", fmt.Errorf("balasan AI kosong")
 	}
 
 	replyContent := strings.TrimSpace(chatResp.Choices[0].Message.Content)
+	if replyContent == "" {
+		// Fallback jika model adalah reasoning model
+		if strings.TrimSpace(chatResp.Choices[0].Message.ReasoningContent) != "" {
+			replyContent = strings.TrimSpace(chatResp.Choices[0].Message.ReasoningContent)
+		} else if strings.TrimSpace(chatResp.Choices[0].Message.Reasoning) != "" {
+			replyContent = strings.TrimSpace(chatResp.Choices[0].Message.Reasoning)
+		}
+	}
+
+	if replyContent == "" {
+		return "", fmt.Errorf("balasan AI kosong")
+	}
 
 	// 4. Sematkan Penanda Resmi AI di bagian bawah pesan
 	footer := fmt.Sprintf("\n\n---\n🤖 Dibalas otomatis oleh Asisten Virtual AI %s", brand)

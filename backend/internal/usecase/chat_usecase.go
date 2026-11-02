@@ -62,7 +62,7 @@ func (u *chatUsecase) SendMessage(ctx context.Context, msg *domain.ChatMessage) 
 	unreadCust := 0
 	if msg.SenderType == "customer" {
 		unreadAdmin = 1
-	} else if msg.SenderType == "admin" {
+	} else if msg.SenderType == "admin" || msg.SenderType == "system" {
 		unreadCust = 1
 	}
 

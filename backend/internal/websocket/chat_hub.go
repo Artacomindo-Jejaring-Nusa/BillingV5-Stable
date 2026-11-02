@@ -358,7 +358,7 @@ func (c *ChatClient) ReadPump() {
 						if greetingName == "" {
 							greetingName = "Kakak"
 						}
-						confirmText := fmt.Sprintf("Baik Kak %s, percakapan Anda telah dialihkan ke antrean Customer Support. Staf kami akan segera bergabung dan melayani Anda dalam obrolan ini.\n\n---\nðŸ‘¤ Sesi dialihkan ke Antrean Agen Manusia", greetingName)
+						confirmText := fmt.Sprintf("Baik Kak %s, percakapan Anda telah dialihkan ke antrean Customer Support. Staf kami akan segera bergabung dan melayani Anda dalam obrolan ini.\n\n---\n👤 Sesi dialihkan ke Antrean Agen Manusia", greetingName)
 
 						sysMsg := &domain.ChatMessage{
 							RoomID:      roomID,
@@ -390,13 +390,7 @@ func (c *ChatClient) ReadPump() {
 						return
 					}
 
-					// SYARAT MUTLAK: Jika room sudah dipegang oleh human agent/CS, AI DILARANG menjawab
-					if room.AssignedAdminID != nil && *room.AssignedAdminID > 0 {
-						log.Printf("[ChatHub] AI skipped: Room %d already assigned to human admin #%d", roomID, *room.AssignedAdminID)
-						return
-					}
-
-					// Cek apakah ada admin/CS yang sedang aktif berada di room saat ini
+					// Cek apakah ada admin/CS yang sedang aktif berada di room WebSocket saat ini
 					hasActiveAdminPeer := false
 					client.Hub.mu.RLock()
 					if clients, ok := client.Hub.rooms[roomID]; ok {
@@ -409,31 +403,27 @@ func (c *ChatClient) ReadPump() {
 					}
 					client.Hub.mu.RUnlock()
 					if hasActiveAdminPeer {
-						log.Printf("[ChatHub] AI skipped: Room %d has active human admin peer", roomID)
+						log.Printf("[ChatHub] AI skipped: Room %d has active human admin peer in websocket", roomID)
 						return
 					}
 
-					// 2. Ambil riwayat percakapan untuk mengecek apakah obrolan pernah dijawab manusia
-					// atau pelanggan sudah dialihkan ke agen manusia
+					// 2. Ambil riwayat percakapan untuk mengecek apakah obrolan sedang aktif ditangani CS manusia
 					ctxHist, cancelHist := context.WithTimeout(context.Background(), 4*time.Second)
 					history, _ := client.Hub.chatUsecase.GetRoomMessages(ctxHist, roomID, 40, 0)
 					cancelHist()
 
+					// Hanya lewati AI jika admin baru saja membalas dalam 30 menit terakhir
+					// atau baru saja ada handover ke antrean CS dalam 30 menit terakhir
 					for _, hMsg := range history {
-						// Jika pernah ada pesan dari CS manusia (sender_type == 'admin'), AI dilarang menyela!
-						if hMsg.SenderType == "admin" {
-							log.Printf("[ChatHub] AI skipped: Room %d already answered by human admin in msg #%d", roomID, hMsg.ID)
-							return
-						}
-						// Jika pernah ada status pengalihan ke agen manusia, AI tidak boleh menjawab
-						if hMsg.SenderType == "system" && (strings.Contains(hMsg.Message, "Customer Support") || strings.Contains(hMsg.Message, "Agen Manusia") || strings.Contains(hMsg.Message, "staf kami akan segera")) {
-							log.Printf("[ChatHub] AI skipped: Room %d has human handover notice in history", roomID)
-							return
-						}
-						// Jika pelanggan pernah meminta handover di pesan sebelumnya
-						if hMsg.SenderType == "customer" && client.Hub.aiService.IsHumanHandoverRequested(hMsg.Message) {
-							log.Printf("[ChatHub] AI skipped: Room %d has previous handover request in history", roomID)
-							return
+						if time.Since(hMsg.CreatedAt) < 30*time.Minute {
+							if hMsg.SenderType == "admin" {
+								log.Printf("[ChatHub] AI skipped: Room %d recently handled by human admin #%s (%v ago)", roomID, hMsg.SenderName, time.Since(hMsg.CreatedAt).Round(time.Second))
+								return
+							}
+							if hMsg.SenderType == "system" && (strings.Contains(hMsg.Message, "Antrean Agen Manusia") || strings.Contains(hMsg.Message, "Customer Support") || strings.Contains(hMsg.Message, "staf kami akan segera")) {
+								log.Printf("[ChatHub] AI skipped: Room %d recently handed over to human queue (%v ago)", roomID, time.Since(hMsg.CreatedAt).Round(time.Second))
+								return
+							}
 						}
 					}
 
@@ -479,6 +469,8 @@ func (c *ChatClient) ReadPump() {
 					if errSave == nil {
 						// 6. Broadcast balasan AI ke room (pelanggan & admin)
 						client.Hub.BroadcastToRoom(roomID, "new_message", savedAIMsg)
+						// Kirim FCM Push Notification ke aplikasi mobile pelanggan jika sedang tidak di room / background
+						go client.Hub.sendFCMToCustomer(roomID, savedAIMsg)
 					}
 
 					// 7. Jika pertanyaan tidak terselesaikan oleh ML (fallback, komplain, kata kasar, atau butuh CS),

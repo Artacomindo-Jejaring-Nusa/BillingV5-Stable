@@ -99,11 +99,11 @@ func LoadConfig() *Config {
 		SchedulerEnabled:                getEnv("SCHEDULER_ENABLED", "true") == "true",
 		ZteOltApiURL:                    getEnv("ZTE_OLT_API_URL", "http://localhost:8081"),
 		ZteOltApiKey:                    getEnv("ZTE_OLT_API_KEY", ""),
-		AIRouterURL:                     getEnv("AI_ROUTER_URL", "https://ai.ajnusa.com/v1"),
+		AIRouterURL:                     getEnv("AI_ROUTER_URL", "http://192.168.200.77:20128/v1"),
 		AIRouterKey:                     getEnv("AI_ROUTER_KEY", ""),
 		AIRouterModel:                   getEnv("AI_ROUTER_MODEL", "cf/@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
 		AIRouterEnabled:                 getEnvAsBool("AI_ROUTER_ENABLED", true),
-		AIProvider:                      getEnv("AI_PROVIDER", "ml_local"),
+		AIProvider:                      getEnv("AI_PROVIDER", "9router"),
 		MLLocalURL:                      getEnv("ML_LOCAL_URL", "http://127.0.0.1:8001"),
 		
 		Menus: []string{
