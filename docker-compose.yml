@@ -91,7 +91,7 @@ services:
       - SCHEDULER_ENABLED=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
       - ZTE_OLT_API_URL=${ZTE_OLT_API_URL:-http://snmp-olt-zte:8081}
-      - AI_PROVIDER=${AI_PROVIDER:-ml_local}
+      - AI_PROVIDER=${AI_PROVIDER:-9router}
       - ML_LOCAL_URL=${ML_LOCAL_URL:-http://ml-chatbot:8001}
     volumes:
       - ./backend/uploads:/app/uploads
@@ -121,7 +121,7 @@ services:
       - SCHEDULER_ENABLED=false
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
       - ZTE_OLT_API_URL=${ZTE_OLT_API_URL:-http://snmp-olt-zte:8081}
-      - AI_PROVIDER=${AI_PROVIDER:-ml_local}
+      - AI_PROVIDER=${AI_PROVIDER:-9router}
       - ML_LOCAL_URL=${ML_LOCAL_URL:-http://ml-chatbot:8001}
     volumes:
       - ./backend/uploads:/app/uploads
