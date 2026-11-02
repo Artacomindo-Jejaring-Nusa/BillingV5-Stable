@@ -178,6 +178,11 @@ func (s *aiService) GenerateReply(ctx context.Context, room *domain.ChatRoom, hi
 		} `json:"choices"`
 	}
 
+	// Bersihkan trailing data: [DONE] atau SSE marker jika ada di akhir respons 9Router
+	if lastBrace := bytes.LastIndexByte(bodyBytes, '}'); lastBrace != -1 {
+		bodyBytes = bodyBytes[:lastBrace+1]
+	}
+
 	if err := json.Unmarshal(bodyBytes, &chatResp); err != nil {
 		return "", fmt.Errorf("gagal parsing JSON 9Router: %w", err)
 	}
