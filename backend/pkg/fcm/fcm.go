@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -50,26 +51,58 @@ var (
 // GetClient returns a singleton PushClient instance initialized with service account
 func GetClient() *PushClient {
 	clientOnce.Do(func() {
-		candidatePaths := []string{
-			"config/firebase-service-account.json",
-			"../config/firebase-service-account.json",
-			"../../config/firebase-service-account.json",
-			"portal-ajnusa-firebase-adminsdk-fbsvc-07b0313b9c.json",
-			"c:/laragon/www/portal-jakinet/portal-ajnusa-firebase-adminsdk-fbsvc-07b0313b9c.json",
-		}
-
 		var fileBytes []byte
 		var err error
-		for _, p := range candidatePaths {
-			fileBytes, err = os.ReadFile(p)
-			if err == nil {
-				logger.Info("[FCM] Loaded Firebase Service Account from: %s", p)
-				break
+
+		// 1. Check environment variable for direct JSON
+		if envJSON := os.Getenv("FIREBASE_SERVICE_ACCOUNT_JSON"); envJSON != "" {
+			fileBytes = []byte(envJSON)
+			logger.Info("[FCM] Loaded Firebase Service Account from FIREBASE_SERVICE_ACCOUNT_JSON env")
+		}
+
+		// 2. Check environment variable for custom path
+		if len(fileBytes) == 0 {
+			if envPath := os.Getenv("FIREBASE_CREDENTIALS_PATH"); envPath != "" {
+				fileBytes, err = os.ReadFile(envPath)
+				if err == nil {
+					logger.Info("[FCM] Loaded Firebase Service Account from env path: %s", envPath)
+				}
 			}
 		}
 
-		if err != nil || len(fileBytes) == 0 {
-			logger.Warn("[FCM] Service account file not found in candidates, FCM direct sending will be disabled: %v", err)
+		// 3. Check candidate file paths
+		if len(fileBytes) == 0 {
+			candidatePaths := []string{
+				"config/firebase-service-account.json",
+				"../config/firebase-service-account.json",
+				"../../config/firebase-service-account.json",
+				"/var/www/billing/backend/config/firebase-service-account.json",
+				"/var/www/billing/config/firebase-service-account.json",
+				"portal-ajnusa-firebase-adminsdk-fbsvc-07b0313b9c.json",
+				"c:/laragon/www/portal-jakinet/portal-ajnusa-firebase-adminsdk-fbsvc-07b0313b9c.json",
+			}
+
+			// Add path relative to current executable
+			if exePath, exeErr := os.Executable(); exeErr == nil {
+				exeDir := filepath.Dir(exePath)
+				candidatePaths = append(candidatePaths,
+					filepath.Join(exeDir, "config", "firebase-service-account.json"),
+					filepath.Join(exeDir, "..", "config", "firebase-service-account.json"),
+					filepath.Join(exeDir, "firebase-service-account.json"),
+				)
+			}
+
+			for _, p := range candidatePaths {
+				fileBytes, err = os.ReadFile(p)
+				if err == nil && len(fileBytes) > 0 {
+					logger.Info("[FCM] Loaded Firebase Service Account from: %s", p)
+					break
+				}
+			}
+		}
+
+		if len(fileBytes) == 0 {
+			logger.Warn("[FCM] Service account configuration not found, FCM direct sending will be disabled: %v", err)
 			return
 		}
 

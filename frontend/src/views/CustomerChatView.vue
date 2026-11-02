@@ -2003,6 +2003,9 @@ async function fetchRooms(silent = false) {
         page: 1,
         page_size: 100,
       },
+      headers: {
+        'X-Skip-Network-Interceptor': 'true',
+      },
     });
     if (res.data?.data) {
       rooms.value = res.data.data;
@@ -2023,7 +2026,9 @@ async function pollActiveRoomSilent() {
 
   if (activeRoom.value && !isLoadingMessages.value) {
     try {
-      const res = await apiClient.get(`/chat/messages/${activeRoom.value.id}?limit=50`);
+      const res = await apiClient.get(`/chat/messages/${activeRoom.value.id}?limit=50`, {
+        headers: { 'X-Skip-Network-Interceptor': 'true' },
+      });
       if (res.data?.data && Array.isArray(res.data.data)) {
         const latest = res.data.data;
         let hasNew = false;

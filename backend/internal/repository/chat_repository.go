@@ -270,9 +270,10 @@ func (r *chatRepository) GetMessagesByRoomID(ctx context.Context, roomID uint64,
 		limit = 200
 	}
 
+	// Ambil pesan terbaru terlebih dahulu (Order DESC) agar limit selalu mengambil pesan mutakhir
 	err := r.db.WithContext(ctx).
 		Where("room_id = ?", roomID).
-		Order("id ASC").
+		Order("id DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&messages).Error
@@ -280,6 +281,12 @@ func (r *chatRepository) GetMessagesByRoomID(ctx context.Context, roomID uint64,
 	if err != nil {
 		return nil, err
 	}
+
+	// Balikkan urutan menjadi ASC agar ditampilkan kronologis dari atas ke bawah
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+
 	return messages, nil
 }
 

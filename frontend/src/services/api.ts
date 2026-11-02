@@ -150,15 +150,26 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Skip if it's explicitly bypassed or if currently on TV Wallboard / Monitoring screen (do not interrupt wallboard display)
+    // Skip if it's explicitly bypassed or if currently on TV Wallboard / Monitoring screen or Chat screen (do not interrupt chat/wallboard display)
     const currentRoute = router.currentRoute.value;
-    const isTVPage =
+    const isBypassed =
       originalRequest.headers?.['X-Skip-Network-Interceptor'] ||
+      originalRequest.headers?.['X-Silent'] ||
       currentRoute?.name === 'tv-monitoring' ||
+      currentRoute?.name === 'CustomerChat' ||
       currentRoute?.path?.includes('/tv') ||
-      (typeof window !== 'undefined' && (window.location.pathname.includes('/tv') || window.location.href.includes('/tv')));
+      currentRoute?.path?.includes('/customer-chat') ||
+      currentRoute?.path?.includes('/chat') ||
+      (typeof window !== 'undefined' && (
+        window.location.pathname.includes('/tv') ||
+        window.location.pathname.includes('/customer-chat') ||
+        window.location.pathname.includes('/chat') ||
+        window.location.href.includes('/tv') ||
+        window.location.href.includes('/customer-chat') ||
+        window.location.href.includes('/chat')
+      ));
 
-    if (isTVPage) {
+    if (isBypassed) {
       return Promise.reject(error);
     }
 

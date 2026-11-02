@@ -176,6 +176,7 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 		if shortURL != "" {
 			go u.sendQontakInvoiceBroadcast(context.Background(), pelanggan, invoice, shortURL)
 		}
+		go u.sendCustomerInvoicePush(invoice, *pelanggan)
 	} else {
 		u.logSystem(ctx, "ERROR", fmt.Sprintf("CreateInvoice: Gagal membuat Xendit invoice untuk pelanggan %s (ID: %d): %v", pelanggan.Nama, invoice.PelangganID, xErr))
 		errMsg := xErr.Error()
@@ -594,6 +595,7 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 		if shortURL != "" {
 			go u.sendQontakInvoiceBroadcast(context.Background(), pelanggan, invoice, shortURL)
 		}
+		go u.sendCustomerInvoicePush(invoice, *pelanggan)
 	} else {
 		u.logSystem(ctx, "ERROR", fmt.Sprintf("GenerateManualInvoice: Gagal membuat Xendit invoice untuk pelanggan %s (ID: %d): %v", pelanggan.Nama, invoice.PelangganID, xErr))
 		errMsg := xErr.Error()
