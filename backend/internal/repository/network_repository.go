@@ -103,6 +103,46 @@ func (r *oltRepository) Delete(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Delete(&domain.OLT{}, id).Error
 }
 
+// ODC Repository implementation
+type odcRepository struct {
+	db *gorm.DB
+}
+
+func NewODCRepository(db *gorm.DB) domain.ODCRepository {
+	return &odcRepository{db: db}
+}
+
+func (r *odcRepository) GetAll(ctx context.Context) ([]domain.ODC, error) {
+	var odcs []domain.ODC
+	err := r.db.WithContext(ctx).Preload("Olt").Order("id desc").Find(&odcs).Error
+	return odcs, err
+}
+
+func (r *odcRepository) GetByID(ctx context.Context, id uint64) (*domain.ODC, error) {
+	var odc domain.ODC
+	err := r.db.WithContext(ctx).Preload("Olt").First(&odc, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("ODC not found")
+		}
+		return nil, err
+	}
+	return &odc, nil
+}
+
+func (r *odcRepository) Create(ctx context.Context, odc *domain.ODC) error {
+	return r.db.WithContext(ctx).Create(odc).Error
+}
+
+func (r *odcRepository) Update(ctx context.Context, odc *domain.ODC) error {
+	return r.db.WithContext(ctx).Save(odc).Error
+}
+
+func (r *odcRepository) Delete(ctx context.Context, id uint64) error {
+	return r.db.WithContext(ctx).Delete(&domain.ODC{}, id).Error
+}
+
+// ODP Repository implementation
 type odpRepository struct {
 	db *gorm.DB
 }
@@ -115,6 +155,7 @@ func (r *odpRepository) GetAll(ctx context.Context) ([]domain.ODP, error) {
 	var odps []domain.ODP
 	err := r.db.WithContext(ctx).
 		Preload("Olt").
+		Preload("Odc").
 		Preload("ParentOdp").
 		Order("id desc").
 		Find(&odps).Error
@@ -153,7 +194,7 @@ func (r *odpRepository) GetAll(ctx context.Context) ([]domain.ODP, error) {
 
 func (r *odpRepository) GetByID(ctx context.Context, id uint64) (*domain.ODP, error) {
 	var odp domain.ODP
-	err := r.db.WithContext(ctx).Preload("Olt").Preload("ParentOdp").First(&odp, id).Error
+	err := r.db.WithContext(ctx).Preload("Olt").Preload("Odc").Preload("ParentOdp").First(&odp, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("ODP not found")
@@ -180,3 +221,164 @@ func (r *odpRepository) Delete(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Delete(&domain.ODP{}, id).Error
 }
 
+func (r *odpRepository) BatchUpsert(ctx context.Context, odps []domain.ODP) (int, error) {
+	saved := 0
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, item := range odps {
+			var existing domain.ODP
+			err := tx.Where("kode_odp = ?", item.KodeOdp).First(&existing).Error
+			if err == nil {
+				// Update existing coordinates & info
+				if item.Alamat != nil && *item.Alamat != "" {
+					existing.Alamat = item.Alamat
+				}
+				if item.Latitude != nil {
+					existing.Latitude = item.Latitude
+				}
+				if item.Longitude != nil {
+					existing.Longitude = item.Longitude
+				}
+				if item.KapasitasPort > 0 {
+					existing.KapasitasPort = item.KapasitasPort
+				}
+				if item.OltID > 0 {
+					existing.OltID = item.OltID
+				}
+				if item.OdcID != nil {
+					existing.OdcID = item.OdcID
+				}
+				if err := tx.Save(&existing).Error; err != nil {
+					return err
+				}
+				saved++
+			} else if errors.Is(err, gorm.ErrRecordNotFound) {
+				// Create new ODP
+				newItem := item
+				if err := tx.Create(&newItem).Error; err != nil {
+					return err
+				}
+				saved++
+			} else {
+				return err
+			}
+		}
+		return nil
+	})
+	return saved, err
+}
+
+func (r *odpRepository) UpdateCoordinates(ctx context.Context, id uint64, lat, lng float64) error {
+	return r.db.WithContext(ctx).Model(&domain.ODP{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"latitude":  lat,
+			"longitude": lng,
+		}).Error
+}
+
+func (r *odpRepository) UpdateNodeCoordinate(ctx context.Context, nodeType string, id uint64, lat, lng float64) error {
+	switch nodeType {
+	case "server":
+		return r.db.WithContext(ctx).Model(&domain.MikrotikServer{}).Where("id = ?", id).
+			Updates(map[string]interface{}{"latitude": lat, "longitude": lng}).Error
+	case "olt":
+		return r.db.WithContext(ctx).Model(&domain.OLT{}).Where("id = ?", id).
+			Updates(map[string]interface{}{"latitude": lat, "longitude": lng}).Error
+	case "odc":
+		return r.db.WithContext(ctx).Model(&domain.ODC{}).Where("id = ?", id).
+			Updates(map[string]interface{}{"latitude": lat, "longitude": lng}).Error
+	case "odp":
+		return r.db.WithContext(ctx).Model(&domain.ODP{}).Where("id = ?", id).
+			Updates(map[string]interface{}{"latitude": lat, "longitude": lng}).Error
+	case "pelanggan":
+		return r.db.WithContext(ctx).Model(&domain.Pelanggan{}).Where("id = ?", id).
+			Updates(map[string]interface{}{"latitude": lat, "longitude": lng}).Error
+	default:
+		return errors.New("invalid node type for coordinate update")
+	}
+}
+
+func (r *odpRepository) GetNetworkMapData(ctx context.Context) (*domain.NetworkMapData, error) {
+	var servers []domain.MikrotikServer
+	_ = r.db.WithContext(ctx).Order("name asc").Find(&servers).Error
+	for i := range servers {
+		servers[i].Password = "" // Hide sensitive password
+	}
+
+	var olts []domain.OLT
+	_ = r.db.WithContext(ctx).Order("nama_olt asc").Find(&olts).Error
+	for i := range olts {
+		olts[i].Password = nil
+	}
+
+	var odcs []domain.ODC
+	_ = r.db.WithContext(ctx).Order("nama_odc asc").Find(&odcs).Error
+
+	odps, err := r.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load customers with data teknis & status
+	type PelangganMapRow struct {
+		ID            uint64   `gorm:"column:id"`
+		Nama          string   `gorm:"column:nama"`
+		Alamat        string   `gorm:"column:alamat"`
+		NoTelp        string   `gorm:"column:no_telp"`
+		Latitude      *float64 `gorm:"column:latitude"`
+		Longitude     *float64 `gorm:"column:longitude"`
+		OdpID         *uint64  `gorm:"column:odp_id"`
+		KodeOdp       *string  `gorm:"column:kode_odp"`
+		PortOdp       *int     `gorm:"column:port_odp"`
+		UsernamePppoe *string  `gorm:"column:id_pelanggan"`
+		Status        *string  `gorm:"column:status"`
+	}
+	var rows []PelangganMapRow
+	_ = r.db.WithContext(ctx).Table("pelanggan p").
+		Select(`p.id, p.nama, p.alamat, p.no_telp, p.latitude, p.longitude,
+				dt.odp_id, odp.kode_odp, dt.port_odp, dt.id_pelanggan,
+				COALESCE(l.status, 'Unknown') as status`).
+		Joins("LEFT JOIN data_teknis dt ON dt.pelanggan_id = p.id").
+		Joins("LEFT JOIN odp ON odp.id = dt.odp_id").
+		Joins("LEFT JOIN langganan l ON l.pelanggan_id = p.id AND l.deleted_at IS NULL").
+		Where("p.deleted_at IS NULL").
+		Find(&rows).Error
+
+	var pelanggans []domain.NetworkMapPelanggan
+	for _, row := range rows {
+		kodeOdp := ""
+		if row.KodeOdp != nil {
+			kodeOdp = *row.KodeOdp
+		}
+		pppoe := ""
+		if row.UsernamePppoe != nil {
+			pppoe = *row.UsernamePppoe
+		}
+		status := "Aktif"
+		if row.Status != nil && *row.Status != "" {
+			status = *row.Status
+		}
+
+		pelanggans = append(pelanggans, domain.NetworkMapPelanggan{
+			ID:            row.ID,
+			Nama:          row.Nama,
+			Alamat:        row.Alamat,
+			NoTelp:        row.NoTelp,
+			Latitude:      row.Latitude,
+			Longitude:     row.Longitude,
+			OdpID:         row.OdpID,
+			KodeOdp:       kodeOdp,
+			PortOdp:       row.PortOdp,
+			UsernamePppoe: pppoe,
+			Status:        status,
+		})
+	}
+
+	return &domain.NetworkMapData{
+		Servers:    servers,
+		Olts:       olts,
+		Odcs:       odcs,
+		Odps:       odps,
+		Pelanggans: pelanggans,
+	}, nil
+}

@@ -456,6 +456,99 @@ func (h *OLTHandler) ClearCache(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 200, "status": "success", "message": "Cache cleared successfully"})
 }
 
+type ODCHandler struct {
+	odcUsecase domain.ODCUsecase
+}
+
+func NewODCHandler(r *gin.RouterGroup, ou domain.ODCUsecase, authMiddleware gin.HandlerFunc) {
+	handler := &ODCHandler{
+		odcUsecase: ou,
+	}
+
+	odcGroup := r.Group("/odc")
+	odcGroup.Use(authMiddleware)
+	{
+		odcGroup.GET("", handler.FetchAll)
+		odcGroup.GET("/:id", handler.GetByID)
+		odcGroup.POST("", handler.Store)
+		odcGroup.PATCH("/:id", handler.Update)
+		odcGroup.PUT("/:id", handler.Update)
+		odcGroup.DELETE("/:id", handler.Delete)
+	}
+}
+
+func (h *ODCHandler) FetchAll(c *gin.Context) {
+	odcs, err := h.odcUsecase.FetchAll(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": odcs})
+}
+
+func (h *ODCHandler) GetByID(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	odc, err := h.odcUsecase.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": odc})
+}
+
+func (h *ODCHandler) Store(c *gin.Context) {
+	var odc domain.ODC
+	if err := c.ShouldBindJSON(&odc); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.odcUsecase.Store(c.Request.Context(), &odc); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": odc})
+}
+
+func (h *ODCHandler) Update(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	var odc domain.ODC
+	if err := c.ShouldBindJSON(&odc); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.odcUsecase.Update(c.Request.Context(), id, &odc); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "ODC updated successfully"})
+}
+
+func (h *ODCHandler) Delete(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	if err := h.odcUsecase.Delete(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "ODC deleted successfully"})
+}
+
 type ODPHandler struct {
 	odpUsecase domain.ODPUsecase
 }
@@ -469,11 +562,21 @@ func NewODPHandler(r *gin.RouterGroup, ou domain.ODPUsecase, authMiddleware gin.
 	odpGroup.Use(authMiddleware)
 	{
 		odpGroup.GET("", handler.FetchAll)
+		odpGroup.GET("/map-overview", handler.GetMapOverview)
 		odpGroup.GET("/:id", handler.GetByID)
 		odpGroup.POST("", handler.Store)
+		odpGroup.POST("/batch-import", handler.BatchImport)
 		odpGroup.PATCH("/:id", handler.Update)
 		odpGroup.PUT("/:id", handler.Update)
+		odpGroup.PUT("/:id/coordinates", handler.UpdateCoordinates)
 		odpGroup.DELETE("/:id", handler.Delete)
+	}
+
+	networkGroup := r.Group("/network")
+	networkGroup.Use(authMiddleware)
+	{
+		networkGroup.GET("/map-overview", handler.GetMapOverview)
+		networkGroup.PATCH("/coordinate", handler.UpdateNodeCoordinate)
 	}
 }
 
@@ -484,6 +587,15 @@ func (h *ODPHandler) FetchAll(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": odps})
+}
+
+func (h *ODPHandler) GetMapOverview(c *gin.Context) {
+	data, err := h.odpUsecase.GetNetworkMapData(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": data})
 }
 
 func (h *ODPHandler) GetByID(c *gin.Context) {
@@ -515,6 +627,21 @@ func (h *ODPHandler) Store(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"data": odp})
 }
 
+func (h *ODPHandler) BatchImport(c *gin.Context) {
+	var req domain.BatchImportODPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	count, err := h.odpUsecase.BatchImport(c.Request.Context(), req.Items)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Batch import completed successfully", "count": count})
+}
+
 func (h *ODPHandler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -533,6 +660,43 @@ func (h *ODPHandler) Update(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "ODP updated successfully"})
+}
+
+func (h *ODPHandler) UpdateCoordinates(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	var req struct {
+		Latitude  float64 `json:"latitude" binding:"required"`
+		Longitude float64 `json:"longitude" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.odpUsecase.UpdateCoordinates(c.Request.Context(), id, req.Latitude, req.Longitude); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Coordinates updated successfully"})
+}
+
+func (h *ODPHandler) UpdateNodeCoordinate(c *gin.Context) {
+	var req domain.UpdateCoordinateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.odpUsecase.UpdateNodeCoordinate(c.Request.Context(), req.Type, req.ID, req.Latitude, req.Longitude); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Coordinate updated successfully"})
 }
 
 func (h *ODPHandler) Delete(c *gin.Context) {

@@ -311,6 +311,50 @@ func (u *oltUsecase) ClearCache(ctx context.Context, id uint64, board int, pon i
 	return u.zteClient.ClearCache(ctx, u.getZTEOltID(olt), board, pon)
 }
 
+type odcUsecase struct {
+	odcRepo domain.ODCRepository
+}
+
+func NewODCUsecase(repo domain.ODCRepository) domain.ODCUsecase {
+	return &odcUsecase{
+		odcRepo: repo,
+	}
+}
+
+func (u *odcUsecase) FetchAll(ctx context.Context) ([]domain.ODC, error) {
+	return u.odcRepo.GetAll(ctx)
+}
+
+func (u *odcUsecase) GetByID(ctx context.Context, id uint64) (*domain.ODC, error) {
+	return u.odcRepo.GetByID(ctx, id)
+}
+
+func (u *odcUsecase) Store(ctx context.Context, odc *domain.ODC) error {
+	if odc.KodeOdc == "" || odc.NamaOdc == "" {
+		return errors.New("kode_odc and nama_odc are required")
+	}
+	return u.odcRepo.Create(ctx, odc)
+}
+
+func (u *odcUsecase) Update(ctx context.Context, id uint64, req *domain.ODC) error {
+	existing, err := u.odcRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	existing.KodeOdc = req.KodeOdc
+	existing.NamaOdc = req.NamaOdc
+	existing.Alamat = req.Alamat
+	existing.KapasitasPort = req.KapasitasPort
+	existing.Latitude = req.Latitude
+	existing.Longitude = req.Longitude
+	existing.OltID = req.OltID
+	return u.odcRepo.Update(ctx, existing)
+}
+
+func (u *odcUsecase) Delete(ctx context.Context, id uint64) error {
+	return u.odcRepo.Delete(ctx, id)
+}
+
 type odpUsecase struct {
 	odpRepo domain.ODPRepository
 }
@@ -349,6 +393,7 @@ func (u *odpUsecase) Update(ctx context.Context, id uint64, req *domain.ODP) err
 	existing.Longitude = req.Longitude
 	existing.ParentOdpID = req.ParentOdpID
 	existing.OltID = req.OltID
+	existing.OdcID = req.OdcID
 
 	return u.odpRepo.Update(ctx, existing)
 }
@@ -359,5 +404,44 @@ func (u *odpUsecase) Delete(ctx context.Context, id uint64) error {
 		return err
 	}
 	return u.odpRepo.Delete(ctx, id)
+}
+
+func (u *odpUsecase) BatchImport(ctx context.Context, items []domain.BatchODPItem) (int, error) {
+	if len(items) == 0 {
+		return 0, nil
+	}
+	var odps []domain.ODP
+	for _, item := range items {
+		if item.KodeOdp == "" {
+			continue
+		}
+		kapasitas := item.KapasitasPort
+		if kapasitas <= 0 {
+			kapasitas = 8
+		}
+		alamat := item.Alamat
+		odps = append(odps, domain.ODP{
+			KodeOdp:       item.KodeOdp,
+			Alamat:        &alamat,
+			KapasitasPort: kapasitas,
+			Latitude:      item.Latitude,
+			Longitude:     item.Longitude,
+			OltID:         item.OltID,
+			OdcID:         item.OdcID,
+		})
+	}
+	return u.odpRepo.BatchUpsert(ctx, odps)
+}
+
+func (u *odpUsecase) UpdateCoordinates(ctx context.Context, id uint64, lat, lng float64) error {
+	return u.odpRepo.UpdateCoordinates(ctx, id, lat, lng)
+}
+
+func (u *odpUsecase) GetNetworkMapData(ctx context.Context) (*domain.NetworkMapData, error) {
+	return u.odpRepo.GetNetworkMapData(ctx)
+}
+
+func (u *odpUsecase) UpdateNodeCoordinate(ctx context.Context, nodeType string, id uint64, lat, lng float64) error {
+	return u.odpRepo.UpdateNodeCoordinate(ctx, nodeType, id, lat, lng)
 }
 

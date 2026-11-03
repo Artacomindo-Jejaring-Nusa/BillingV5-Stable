@@ -26,6 +26,8 @@ type Pelanggan struct {
 	Layanan          *string        `gorm:"type:varchar(191)" json:"layanan"`
 	BrandDefault     *string        `gorm:"type:varchar(191)" json:"brand_default"`
 	MikrotikServerID *uint64        `gorm:"index" json:"mikrotik_server_id"`
+	Latitude         *float64       `json:"latitude"`
+	Longitude        *float64       `json:"longitude"`
 	CreatedAt        *time.Time     `gorm:"type:datetime;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt        *time.Time     `gorm:"type:datetime;default:CURRENT_TIMESTAMP;autoUpdateTime" json:"updated_at"`
 	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`

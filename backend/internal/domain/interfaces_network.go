@@ -126,6 +126,24 @@ type OLTUsecase interface {
 	ClearCache(ctx context.Context, id uint64, board int, pon int) error
 }
 
+// ODCRepository defines database operations for ODC
+type ODCRepository interface {
+	GetAll(ctx context.Context) ([]ODC, error)
+	GetByID(ctx context.Context, id uint64) (*ODC, error)
+	Create(ctx context.Context, odc *ODC) error
+	Update(ctx context.Context, odc *ODC) error
+	Delete(ctx context.Context, id uint64) error
+}
+
+// ODCUsecase defines business logic for ODC
+type ODCUsecase interface {
+	FetchAll(ctx context.Context) ([]ODC, error)
+	GetByID(ctx context.Context, id uint64) (*ODC, error)
+	Store(ctx context.Context, odc *ODC) error
+	Update(ctx context.Context, id uint64, odc *ODC) error
+	Delete(ctx context.Context, id uint64) error
+}
+
 // ODPRepository defines database operations for ODP
 type ODPRepository interface {
 	GetAll(ctx context.Context) ([]ODP, error)
@@ -133,6 +151,10 @@ type ODPRepository interface {
 	Create(ctx context.Context, odp *ODP) error
 	Update(ctx context.Context, odp *ODP) error
 	Delete(ctx context.Context, id uint64) error
+	BatchUpsert(ctx context.Context, odps []ODP) (int, error)
+	UpdateCoordinates(ctx context.Context, id uint64, lat, lng float64) error
+	GetNetworkMapData(ctx context.Context) (*NetworkMapData, error)
+	UpdateNodeCoordinate(ctx context.Context, nodeType string, id uint64, lat, lng float64) error
 }
 
 // ODPUsecase defines business logic for ODP
@@ -142,6 +164,10 @@ type ODPUsecase interface {
 	Store(ctx context.Context, odp *ODP) error
 	Update(ctx context.Context, id uint64, odp *ODP) error
 	Delete(ctx context.Context, id uint64) error
+	BatchImport(ctx context.Context, items []BatchODPItem) (int, error)
+	UpdateCoordinates(ctx context.Context, id uint64, lat, lng float64) error
+	GetNetworkMapData(ctx context.Context) (*NetworkMapData, error)
+	UpdateNodeCoordinate(ctx context.Context, nodeType string, id uint64, lat, lng float64) error
 }
 
 

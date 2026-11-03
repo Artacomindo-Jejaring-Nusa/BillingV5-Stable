@@ -98,6 +98,13 @@ func main() {
 	ensureColumn("trouble_ticket", "resolution_notes", "TEXT NULL DEFAULT NULL")
 	ensureColumn("trouble_ticket", "resolved_at", "DATETIME NULL DEFAULT NULL")
 	ensureColumn("trouble_ticket", "evidence", "TEXT NULL DEFAULT NULL")
+	ensureColumn("mikrotik_servers", "latitude", "DOUBLE NULL DEFAULT NULL")
+	ensureColumn("mikrotik_servers", "longitude", "DOUBLE NULL DEFAULT NULL")
+	ensureColumn("olt", "latitude", "DOUBLE NULL DEFAULT NULL")
+	ensureColumn("olt", "longitude", "DOUBLE NULL DEFAULT NULL")
+	ensureColumn("pelanggan", "latitude", "DOUBLE NULL DEFAULT NULL")
+	ensureColumn("pelanggan", "longitude", "DOUBLE NULL DEFAULT NULL")
+	ensureColumn("odp", "odc_id", "BIGINT UNSIGNED NULL DEFAULT NULL")
 
 	ensureColumn("action_taken", "action_description", "TEXT NULL DEFAULT NULL")
 	ensureColumn("action_taken", "summary_problem", "TEXT NULL DEFAULT NULL")
@@ -127,6 +134,7 @@ func main() {
 	ensureDeletedAt("users")
 	ensureDeletedAt("langganan")
 	ensureDeletedAt("odp")
+	ensureDeletedAt("odc")
 	ensureDeletedAt("olt")
 	ensureDeletedAt("diskon")
 	ensureDeletedAt("paket_layanan")
@@ -151,6 +159,7 @@ func main() {
 		&domain.PaketLayanan{},
 		&domain.MikrotikServer{},
 		&domain.OLT{},
+		&domain.ODC{},
 		&domain.ODP{},
 		&domain.Pelanggan{},
 		&domain.DataTeknis{},
@@ -336,6 +345,11 @@ func main() {
 	oltRepo := repository.NewOLTRepository(db)
 	oltUsecase := usecase.NewOLTUsecase(oltRepo, zteClient)
 	httpDelivery.NewOLTHandler(api, oltUsecase, authMw)
+
+	// ODC
+	odcRepo := repository.NewODCRepository(db)
+	odcUsecase := usecase.NewODCUsecase(odcRepo)
+	httpDelivery.NewODCHandler(api, odcUsecase, authMw)
 
 	// ODP
 	odpRepo := repository.NewODPRepository(db)
