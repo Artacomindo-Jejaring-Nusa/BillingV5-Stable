@@ -1530,3 +1530,13 @@ func TestProcessXenditCallback_TestWebhookSupport(t *testing.T) {
 	}
 }
 
+func TestSyncAllSuspendedToMikrotik_NilDbGraceful(t *testing.T) {
+	sysRepo := &mockSystemRepo{}
+	u := NewBillingUsecase(nil, nil, nil, nil, nil, nil, nil, nil, sysRepo, nil)
+
+	err := u.SyncAllSuspendedToMikrotik(context.Background())
+	if err != nil {
+		t.Errorf("expected SyncAllSuspendedToMikrotik to return nil when db is uninitialized, got: %v", err)
+	}
+}
+

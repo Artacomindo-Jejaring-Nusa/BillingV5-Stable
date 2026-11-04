@@ -95,6 +95,14 @@ func NewSchedulerManager(db *gorm.DB, su domain.SystemUsecase, bu domain.Billing
 		Func:        bu.RetryFailedMikrotikSync,
 	}
 
+	mgr.jobs["sync_suspended_mikrotik"] = &JobConfig{
+		Key:         "sync_suspended_mikrotik",
+		Name:        "Penegakan Isolir MikroTik (Suspended Audit)",
+		Description: "Memindai seluruh pelanggan yang berstatus Suspended/Berhenti di database dan memastikan modemnya terisolir serta sesi aktifnya diputus di MikroTik.",
+		DefaultCron: "0 3 * * *",
+		Func:        bu.SyncAllSuspendedToMikrotik,
+	}
+
 	mgr.jobs["retry_failed_whatsapp"] = &JobConfig{
 		Key:         "retry_failed_whatsapp",
 		Name:        "Retry Pengiriman WhatsApp Gagal",

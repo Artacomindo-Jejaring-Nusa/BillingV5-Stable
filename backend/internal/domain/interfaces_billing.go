@@ -115,6 +115,7 @@ type BillingUsecase interface {
 	ExportPaymentLinksExcel(ctx context.Context, filters map[string]string) ([]byte, error)
 	ArchiveOldInvoices(ctx context.Context) error
 	RetryFailedMikrotikSync(ctx context.Context) error
+	SyncAllSuspendedToMikrotik(ctx context.Context) error
 }
 
 

@@ -3359,6 +3359,126 @@ func (u *billingUsecase) RetryFailedMikrotikSync(ctx context.Context) error {
 	return nil
 }
 
+func (u *billingUsecase) SyncAllSuspendedToMikrotik(ctx context.Context) error {
+	u.logSystem(ctx, "INFO", "Scheduler 'job_sync_suspended_mikrotik' started. Memindai seluruh pelanggan berstatus Suspended/Berhenti...")
+
+	db := database.GetDB()
+	if db == nil {
+		u.logSystem(ctx, "WARN", "SyncAllSuspendedToMikrotik: database connection is nil (unit test/mock)")
+		return nil
+	}
+
+	limit := 200
+	offset := 0
+	totalProcessed := 0
+	totalSuccess := 0
+	totalFailed := 0
+	processedPelanggan := make(map[uint64]bool)
+
+	for {
+		var langganans []domain.Langganan
+		err := db.WithContext(ctx).
+			Preload("Pelanggan").
+			Preload("Pelanggan.DataTeknis").
+			Preload("Pelanggan.Langganan").
+			Where("status IN ?", []string{"Suspended", "Berhenti"}).
+			Limit(limit).
+			Offset(offset).
+			Order("id asc").
+			Find(&langganans).Error
+
+		if err != nil {
+			u.logSystem(ctx, "ERROR", fmt.Sprintf("SyncAllSuspendedToMikrotik: Gagal query langganan: %v", err))
+			return err
+		}
+
+		if len(langganans) == 0 {
+			break
+		}
+
+		for _, l := range langganans {
+			if l.PelangganID > 0 && processedPelanggan[l.PelangganID] {
+				continue
+			}
+			if l.PelangganID > 0 {
+				processedPelanggan[l.PelangganID] = true
+			}
+
+			// Periksa apakah pelanggan ini memiliki langganan lain yang berstatus Aktif
+			hasActiveSub := false
+			if l.Pelanggan != nil && len(l.Pelanggan.Langganan) > 0 {
+				for _, otherL := range l.Pelanggan.Langganan {
+					if otherL.ID != l.ID && otherL.Status == "Aktif" {
+						hasActiveSub = true
+						break
+					}
+				}
+			}
+			if hasActiveSub {
+				// Jangan isolir jika pelanggan masih memiliki langganan lain yang aktif
+				continue
+			}
+
+			totalProcessed++
+
+			var dt *domain.DataTeknis
+			if l.Pelanggan != nil && l.Pelanggan.DataTeknis != nil {
+				dt = l.Pelanggan.DataTeknis
+			} else if l.PelangganID > 0 && u.dataTeknisRepo != nil {
+				foundDT, errDT := u.dataTeknisRepo.GetByPelangganID(ctx, l.PelangganID)
+				if errDT == nil && foundDT != nil {
+					dt = foundDT
+				}
+			}
+
+			if dt == nil || strings.TrimSpace(dt.IDPelanggan) == "" {
+				continue
+			}
+
+			if dt.MikrotikServerID == nil {
+				if l.Pelanggan != nil && l.Pelanggan.MikrotikServerID != nil {
+					dt.MikrotikServerID = l.Pelanggan.MikrotikServerID
+				}
+			}
+			if dt.MikrotikServerID == nil || *dt.MikrotikServerID == 0 {
+				continue
+			}
+
+			pName := ""
+			if pName == "" && l.Pelanggan != nil {
+				pName = l.Pelanggan.Nama
+			}
+
+			// Eksekusi pembaruan status ke MikroTik (profil = SUSPENDED, disabled = yes, kick active session)
+			errSync := u.triggerMikrotikUpdate(ctx, dt.IDPelanggan, dt, l.Status)
+			if errSync != nil {
+				totalFailed++
+				u.logSystem(ctx, "ERROR", fmt.Sprintf("Penegakan Isolir MikroTik: Gagal isolir %s (PPPoE: %s): %v. Ditandai untuk retry.", pName, dt.IDPelanggan, errSync))
+			} else {
+				totalSuccess++
+			}
+		}
+
+		if len(langganans) < limit {
+			break
+		}
+		offset += limit
+	}
+
+	pLog := fmt.Sprintf("Scheduler 'job_sync_suspended_mikrotik' selesai. Total diproses: %d, Berhasil diisolir: %d, Gagal: %d.", totalProcessed, totalSuccess, totalFailed)
+	u.logSystem(ctx, "INFO", pLog)
+	u.logActivity(ctx, "Penegakan Isolir MikroTik", pLog)
+
+	if websocket.GlobalHub != nil {
+		websocket.GlobalHub.BroadcastNotification("scheduler_complete", map[string]interface{}{
+			"job_key": "sync_suspended_mikrotik",
+			"message": fmt.Sprintf("Penegakan Isolir MikroTik selesai: %d pelanggan berhasil diisolir.", totalSuccess),
+		})
+	}
+
+	return nil
+}
+
 func (u *billingUsecase) GetMLRevenueInsights(ctx context.Context, brand string, location string) (*domain.MLRevenueInsightResponse, error) {
 	customers, err := u.invoiceRepo.GetCustomerPaymentFeatures(ctx, brand, location)
 	if err != nil {
