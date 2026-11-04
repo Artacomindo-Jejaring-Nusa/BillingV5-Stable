@@ -1440,6 +1440,93 @@ func TestExpireXenditInvoice_WithMockServer(t *testing.T) {
 	}
 }
 
+type mockDataTeknisForPaymentTest struct {
+	domain.DataTeknisRepository
+	getByPelangganIDCalled bool
+	dt                     *domain.DataTeknis
+}
 
+func (m *mockDataTeknisForPaymentTest) GetByPelangganID(ctx context.Context, pelangganID uint64) (*domain.DataTeknis, error) {
+	m.getByPelangganIDCalled = true
+	if m.dt != nil {
+		return m.dt, nil
+	}
+	return nil, errors.New("data teknis not found")
+}
 
+func (m *mockDataTeknisForPaymentTest) Update(ctx context.Context, dt *domain.DataTeknis) error {
+	return nil
+}
+
+func TestProcessSuccessfulPayment_DataTeknisFallback(t *testing.T) {
+	inv := &domain.Invoice{
+		ID:            101,
+		InvoiceNumber: "INV/2026/TEST/001",
+		PelangganID:   55,
+		TotalHarga:    150000,
+		StatusInvoice: "Belum Bayar",
+		Pelanggan: &domain.Pelanggan{
+			ID:         55,
+			Nama:       "Djunaidi",
+			DataTeknis: nil, // Intentionally nil (e.g. from GetAll)
+		},
+	}
+
+	invRepo := &mockInvoiceRepoCallback{
+		invoices: map[string]*domain.Invoice{
+			"INV/2026/TEST/001": inv,
+		},
+	}
+
+	langRepo := &mockLanggananRepo{}
+
+	serverID := uint64(1)
+	dtRepo := &mockDataTeknisForPaymentTest{
+		dt: &domain.DataTeknis{
+			ID:               88,
+			PelangganID:      55,
+			IDPelanggan:      "PIN-A2-519-Djunaidi",
+			PasswordPppoe:    "secret123",
+			MikrotikServerID: &serverID,
+		},
+	}
+
+	sysRepo := &mockSystemRepo{}
+	u := NewBillingUsecase(invRepo, langRepo, nil, nil, nil, dtRepo, nil, nil, sysRepo, nil).(*billingUsecase)
+
+	paidAt := time.Now()
+	err := u.processSuccessfulPayment(context.Background(), inv, 150000, paidAt)
+	if err != nil {
+		t.Fatalf("processSuccessfulPayment failed: %v", err)
+	}
+
+	if !dtRepo.getByPelangganIDCalled {
+		t.Errorf("expected GetByPelangganID to be called as fallback when inv.Pelanggan.DataTeknis was nil")
+	}
+
+	if inv.StatusInvoice != "Lunas" {
+		t.Errorf("expected invoice status to be 'Lunas', got %s", inv.StatusInvoice)
+	}
+
+	if inv.Pelanggan.DataTeknis == nil {
+		t.Errorf("expected inv.Pelanggan.DataTeknis to be populated from fallback")
+	}
+}
+
+func TestProcessXenditCallback_TestWebhookSupport(t *testing.T) {
+	invRepo := &mockInvoiceRepoCallback{}
+	sysRepo := &mockSystemRepo{}
+	u := NewBillingUsecase(invRepo, nil, nil, nil, nil, nil, nil, nil, sysRepo, nil).(*billingUsecase)
+
+	payload := map[string]interface{}{
+		"id":          "test_callback_123",
+		"external_id": "invoice_123",
+		"status":      "PAID",
+	}
+
+	err := u.ProcessXenditCallback(context.Background(), "mock_token", payload, "")
+	if err != nil {
+		t.Errorf("expected test webhook payload to succeed without error, got: %v", err)
+	}
+}
 

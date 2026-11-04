@@ -1844,6 +1844,13 @@ func (u *billingUsecase) VerifyPayments(ctx context.Context) error {
 			p, err := u.pelangganRepo.GetByID(ctx, inv.PelangganID)
 			if err == nil {
 				pelanggan = p
+				inv.Pelanggan = p
+			}
+		} else if pelanggan != nil && pelanggan.DataTeknis == nil && u.dataTeknisRepo != nil {
+			dt, err := u.dataTeknisRepo.GetByPelangganID(ctx, inv.PelangganID)
+			if err == nil && dt != nil {
+				pelanggan.DataTeknis = dt
+				inv.Pelanggan.DataTeknis = dt
 			}
 		}
 
@@ -2776,28 +2783,40 @@ func (u *billingUsecase) triggerMikrotikUpdate(ctx context.Context, name string,
 	if dt.MikrotikServerID == nil {
 		if dt.Pelanggan != nil && dt.Pelanggan.MikrotikServerID != nil {
 			dt.MikrotikServerID = dt.Pelanggan.MikrotikServerID
-		} else {
-			return nil
+		} else if dt.PelangganID > 0 && u.pelangganRepo != nil {
+			p, err := u.pelangganRepo.GetByID(ctx, dt.PelangganID)
+			if err == nil && p != nil && p.MikrotikServerID != nil {
+				dt.MikrotikServerID = p.MikrotikServerID
+			}
 		}
 	}
+	if dt.MikrotikServerID == nil {
+		return errors.New("mikrotik server id is nil")
+	}
+
+	lookupName := strings.TrimSpace(name)
+	if lookupName == "" {
+		lookupName = strings.TrimSpace(dt.IDPelanggan)
+	}
+
 	err := u.executeRouterOS(ctx, *dt.MikrotikServerID, func(c *routeros.Client) error {
 		profile, disabled := "default", "no"
 		if status == "Suspended" || status == "Berhenti" {
 			profile, disabled = "SUSPENDED", "yes"
-		} else if dt.ProfilePppoe != nil {
-			profile = *dt.ProfilePppoe
+		} else if dt.ProfilePppoe != nil && strings.TrimSpace(*dt.ProfilePppoe) != "" {
+			profile = strings.TrimSpace(*dt.ProfilePppoe)
 		}
 		ip := ""
 		if dt.IPPelanggan != nil {
-			ip = *dt.IPPelanggan
+			ip = strings.TrimSpace(*dt.IPPelanggan)
 		}
-		err := mikrotik.UpdatePPPoESecret(c, name, dt.IDPelanggan, dt.PasswordPppoe, profile, ip, disabled)
+		err := mikrotik.UpdatePPPoESecret(c, lookupName, dt.IDPelanggan, dt.PasswordPppoe, profile, ip, disabled)
 		if err != nil {
 			return err
 		}
-		if status == "Suspended" || status == "Berhenti" {
-			_ = mikrotik.RemoveActiveConnection(c, dt.IDPelanggan)
-		}
+		// Selalu putuskan active connection di RouterOS (baik saat suspend maupun unsuspend/aktif)
+		// agar RouterOS memaksa CPE/modem pelanggan segera re-koneksi dan menggunakan profil & antrian bandwidth terbaru
+		_ = mikrotik.RemoveActiveConnection(c, dt.IDPelanggan)
 		return nil
 	})
 
@@ -2816,8 +2835,11 @@ func (u *billingUsecase) triggerMikrotikUpdate(ctx context.Context, name string,
 }
 
 func (u *billingUsecase) executeRouterOS(ctx context.Context, serverID uint64, op func(*routeros.Client) error) error {
+	if u.mikrotikRepo == nil {
+		return errors.New("mikrotik repository is nil")
+	}
 	server, err := u.mikrotikRepo.GetByID(ctx, serverID)
-	if err != nil || !server.IsActive {
+	if err != nil || server == nil || !server.IsActive {
 		return errors.New("mikrotik server error or inactive")
 	}
 	decryptedPassword := utils.GlobalEncryptionService.Decrypt(server.Password)
@@ -3013,6 +3035,12 @@ func (u *billingUsecase) ProcessXenditCallback(ctx context.Context, xCallbackTok
 		return errors.New("external_id not found")
 	}
 
+	// Dukung test payload dari Xendit Dashboard ("Test Webhook")
+	if externalID == "invoice_123" || strings.HasPrefix(externalID, "test_") {
+		saveLog("SUCCESS_TEST_WEBHOOK")
+		return nil
+	}
+
 	// 1. Validasi token konstan waktu (mencegah timing attack)
 	tokenValid := false
 	if u.cfg != nil {
@@ -3196,29 +3224,48 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 			}
 		}
 		_ = u.langgananRepo.Update(ctx, l)
-		if inv.Pelanggan != nil && inv.Pelanggan.DataTeknis != nil {
-			// Jalankan pembaruan Mikrotik secara asinkron di goroutine agar tidak memblokir HTTP response
-			go func(invoiceNo string, dt domain.DataTeknis, status string) {
-				// Gunakan context baru yang tidak terikat dengan lifetime HTTP request
-				bgCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-				defer cancel()
+	}
 
-				u.logSystem(bgCtx, "INFO", fmt.Sprintf("Asynchronous Mikrotik activation started for user: %s (Invoice: %s)", dt.IDPelanggan, invoiceNo))
-				err := u.triggerMikrotikUpdate(bgCtx, dt.IDPelanggan, &dt, status)
-				if err != nil {
-					u.logSystem(bgCtx, "ERROR", fmt.Sprintf("Asynchronous Mikrotik activation failed for user %s: %v. Marked for cron retry.", dt.IDPelanggan, err))
-				} else {
-					u.logSystem(bgCtx, "INFO", fmt.Sprintf("Asynchronous Mikrotik activation succeeded for user %s", dt.IDPelanggan))
-				}
-			}(inv.InvoiceNumber, *inv.Pelanggan.DataTeknis, "Aktif")
+	// Pastikan DataTeknis tersedia untuk unsuspend Mikrotik
+	var dt *domain.DataTeknis
+	if inv.Pelanggan != nil && inv.Pelanggan.DataTeknis != nil {
+		dt = inv.Pelanggan.DataTeknis
+	} else if inv.PelangganID > 0 && u.dataTeknisRepo != nil {
+		if foundDT, errDT := u.dataTeknisRepo.GetByPelangganID(ctx, inv.PelangganID); errDT == nil && foundDT != nil {
+			dt = foundDT
+			if inv.Pelanggan != nil {
+				inv.Pelanggan.DataTeknis = dt
+			}
 		}
 	}
+
+	if dt != nil {
+		// Jalankan pembaruan Mikrotik secara asinkron di goroutine agar tidak memblokir HTTP response
+		go func(invoiceNo string, dataTeknis domain.DataTeknis, status string) {
+			// Gunakan context baru yang tidak terikat dengan lifetime HTTP request
+			bgCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+
+			u.logSystem(bgCtx, "INFO", fmt.Sprintf("Asynchronous Mikrotik activation started for user: %s (Invoice: %s)", dataTeknis.IDPelanggan, invoiceNo))
+			err := u.triggerMikrotikUpdate(bgCtx, dataTeknis.IDPelanggan, &dataTeknis, status)
+			if err != nil {
+				u.logSystem(bgCtx, "ERROR", fmt.Sprintf("Asynchronous Mikrotik activation failed for user %s: %v. Marked for cron retry.", dataTeknis.IDPelanggan, err))
+			} else {
+				u.logSystem(bgCtx, "INFO", fmt.Sprintf("Asynchronous Mikrotik activation succeeded for user %s (Status: %s)", dataTeknis.IDPelanggan, status))
+			}
+		}(inv.InvoiceNumber, *dt, "Aktif")
+	} else {
+		u.logSystem(ctx, "WARN", fmt.Sprintf("Asynchronous Mikrotik activation skipped: DataTeknis not found for PelangganID %d (Invoice %s)", inv.PelangganID, inv.InvoiceNumber))
+	}
+
 	pName := inv.PelangganNama
 	if pName == "" && inv.Pelanggan != nil {
 		pName = inv.Pelanggan.Nama
 	}
 	pppoeID := inv.IDPelanggan
-	if pppoeID == "" && inv.Pelanggan != nil && inv.Pelanggan.DataTeknis != nil {
+	if pppoeID == "" && dt != nil {
+		pppoeID = dt.IDPelanggan
+	} else if pppoeID == "" && inv.Pelanggan != nil && inv.Pelanggan.DataTeknis != nil {
 		pppoeID = inv.Pelanggan.DataTeknis.IDPelanggan
 	}
 

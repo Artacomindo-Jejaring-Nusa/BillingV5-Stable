@@ -1,6 +1,7 @@
 package http
 
 import (
+	"time"
 	"bytes"
 	"context"
 	"fmt"
@@ -26,7 +27,7 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 	}
 
 	// Public Xendit callback endpoint (not protected by authMiddleware)
-	r.POST("/invoices/xendit-callback", middleware.RateLimitMiddleware(60), handler.ProcessXenditCallback)
+	r.POST("/invoices/xendit-callback", handler.ProcessXenditCallback)
 
 	invoiceGroup := r.Group("/invoices")
 	invoiceGroup.Use(authMiddleware)
@@ -548,7 +549,15 @@ func (h *BillingHandler) ProcessXenditCallback(c *gin.Context) {
 		idempotencyKey = c.GetHeader("idempotency-key")
 	}
 
-	err := h.billingUsecase.ProcessXenditCallback(c.Request.Context(), xCallbackToken, payload, idempotencyKey)
+	extID, _ := payload["external_id"].(string)
+	status, _ := payload["status"].(string)
+	fmt.Printf("[XENDIT WEBHOOK] Received callback for invoice %s (status: %s)\n", extID, status)
+
+	// Bounded context timeout of 4 seconds to guarantee response within Xendit's 5s SLA
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 4*time.Second)
+	defer cancel()
+
+	err := h.billingUsecase.ProcessXenditCallback(ctx, xCallbackToken, payload, idempotencyKey)
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid callback token") || strings.Contains(err.Error(), "invalid brand") {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
