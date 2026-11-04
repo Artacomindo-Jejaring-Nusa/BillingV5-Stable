@@ -407,14 +407,15 @@ func main() {
 	chatRepo := repository.NewChatRepository(db)
 	chatUsecase := usecase.NewChatUsecase(chatRepo)
 
-	// AI Provider: switch antara 9Router (LLM) dan ML Local (FastAPI Chatbot)
+	// AI Provider: 9Router (LLM Agent) dengan fallback otomatis ke ML Local (FastAPI Chatbot)
+	mlSvc := service.NewMLService(cfg)
 	var aiSvc service.AIService
 	if strings.ToLower(strings.TrimSpace(cfg.AIProvider)) == "9router" {
-		aiSvc = service.NewAIService(cfg, paketLayananRepo)
-		log.Println("[AI] Provider: 9Router (LLM Agent)")
+		aiSvc = service.NewAIServiceWithFallback(cfg, paketLayananRepo, mlSvc)
+		log.Println("[AI] Provider: 9Router (LLM Agent) with ML Local Fallback")
 	} else {
-		aiSvc = service.NewMLService(cfg)
-		log.Printf("[AI] Provider: ML Local (FastAPI Chatbot) â†’ %s", cfg.MLLocalURL)
+		aiSvc = mlSvc
+		log.Printf("[AI] Provider: ML Local (FastAPI Chatbot) -> %s", cfg.MLLocalURL)
 	}
 
 	websocket.GlobalChatHub = websocket.NewChatHub(chatUsecase, aiSvc)

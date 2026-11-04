@@ -45,7 +45,7 @@ func (s *mlService) IsHumanHandoverRequested(message string) bool {
 		"terhubung cs", "hubungkan ke cs", "hubungkan cs", "sambungkan ke cs", "sambungkan cs",
 		"terhubung dengan teknisi", "hubungi teknisi", "bantuan teknisi",
 		"bicara dengan cs", "bicara dengan admin", "bicara dengan orang", "bicara dengan manusia", "bicara dengan teknisi",
-		"mau cs", "minta cs", "panggil cs", "operator manusia", "komplain ke cs",
+		"mau cs", "minta cs", "panggil cs", "minta admin", "mau admin", "panggil admin", "hubungi admin", "hubungi cs", "chat dengan cs", "chat dengan admin", "operator manusia", "komplain ke cs",
 		"mau orang", "bukan bot", "jangan bot", "customer support", "customer care", "customer service",
 		"hubungkan saya", "sambungkan saya", "chat cs", "chat admin", "halo cs", "halo admin",
 		"hubungkan dengan cs", "sambungkan dengan cs",

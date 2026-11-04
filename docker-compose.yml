@@ -93,8 +93,10 @@ services:
       - ZTE_OLT_API_URL=${ZTE_OLT_API_URL:-http://snmp-olt-zte:8081}
       - AI_PROVIDER=${AI_PROVIDER:-9router}
       - ML_LOCAL_URL=${ML_LOCAL_URL:-http://ml-chatbot:8001}
+      - FIREBASE_CREDENTIALS_PATH=/app/config/firebase-service-account.json
     volumes:
       - ./backend/uploads:/app/uploads
+      - ./backend/config:/app/config:ro
       - ./Notif Sound:/app/Notif Sound
     depends_on:
       mysql-master:
@@ -123,8 +125,10 @@ services:
       - ZTE_OLT_API_URL=${ZTE_OLT_API_URL:-http://snmp-olt-zte:8081}
       - AI_PROVIDER=${AI_PROVIDER:-9router}
       - ML_LOCAL_URL=${ML_LOCAL_URL:-http://ml-chatbot:8001}
+      - FIREBASE_CREDENTIALS_PATH=/app/config/firebase-service-account.json
     volumes:
       - ./backend/uploads:/app/uploads
+      - ./backend/config:/app/config:ro
       - ./Notif Sound:/app/Notif Sound
     depends_on:
       mysql-master:

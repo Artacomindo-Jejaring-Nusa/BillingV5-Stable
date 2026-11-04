@@ -25,17 +25,25 @@ type aiService struct {
 	cfg        *config.Config
 	paketRepo  domain.PaketLayananRepository
 	httpClient *http.Client
+	mlFallback AIService
 }
 
 func NewAIService(cfg *config.Config, paketRepo domain.PaketLayananRepository) AIService {
+	return NewAIServiceWithFallback(cfg, paketRepo, nil)
+}
+
+func NewAIServiceWithFallback(cfg *config.Config, paketRepo domain.PaketLayananRepository, mlFallback AIService) AIService {
 	return &aiService{
-		cfg:       cfg,
-		paketRepo: paketRepo,
+		cfg:        cfg,
+		paketRepo:  paketRepo,
+		mlFallback: mlFallback,
 		httpClient: &http.Client{
-			Timeout: 20 * time.Second,
+			Timeout: 15 * time.Second,
 		},
 	}
 }
+
+
 
 // IsHumanHandoverRequested memeriksa apakah pelanggan meminta berbicara dengan CS/agen manusia atau menggunakan kata kasar/emosi
 func (s *aiService) IsHumanHandoverRequested(message string) bool {
@@ -54,7 +62,7 @@ func (s *aiService) IsHumanHandoverRequested(message string) bool {
 		"terhubung cs", "hubungkan ke cs", "hubungkan cs", "sambungkan ke cs", "sambungkan cs",
 		"terhubung dengan teknisi", "hubungi teknisi", "bantuan teknisi",
 		"bicara dengan cs", "bicara dengan admin", "bicara dengan orang", "bicara dengan manusia", "bicara dengan teknisi",
-		"mau cs", "minta cs", "panggil cs", "operator manusia", "komplain ke cs",
+		"mau cs", "minta cs", "panggil cs", "minta admin", "mau admin", "panggil admin", "hubungi admin", "hubungi cs", "chat dengan cs", "chat dengan admin", "operator manusia", "komplain ke cs",
 		"mau orang", "bukan bot", "jangan bot", "customer support", "customer care", "customer service",
 		"hubungkan saya", "sambungkan saya", "chat cs", "chat admin", "halo cs", "halo admin",
 		"hubungkan dengan cs", "sambungkan dengan cs",
@@ -71,19 +79,65 @@ func (s *aiService) IsHumanHandoverRequested(message string) bool {
 	return false
 }
 
-func (s *aiService) GenerateReplyWithHandover(ctx context.Context, room *domain.ChatRoom, history []domain.ChatMessage, userMessage string) (string, bool, error) {
-	reply, err := s.GenerateReply(ctx, room, history, userMessage)
-	if err != nil {
-		return "", false, err
-	}
-	needsHandover := s.IsHumanHandoverRequested(userMessage) ||
-		strings.Contains(strings.ToLower(reply), "menghubungkan anda dengan tim customer support") ||
-		strings.Contains(strings.ToLower(reply), "hubungkan ke cs")
-	return reply, needsHandover, nil
+func (s *aiService) GenerateReply(ctx context.Context, room *domain.ChatRoom, history []domain.ChatMessage, userMessage string) (string, error) {
+	reply, _, err := s.GenerateReplyWithHandover(ctx, room, history, userMessage)
+	return reply, err
 }
 
-// GenerateReply memanggil 9Router OpenAI-compatible endpoint dengan SOP CS ketat & data pelanggan
-func (s *aiService) GenerateReply(ctx context.Context, room *domain.ChatRoom, history []domain.ChatMessage, userMessage string) (string, error) {
+func (s *aiService) GenerateReplyWithHandover(ctx context.Context, room *domain.ChatRoom, history []domain.ChatMessage, userMessage string) (string, bool, error) {
+	brand := "Jakinet"
+	if room != nil && room.Brand != "" {
+		brand = room.Brand
+	}
+
+	// 1. Cek apakah user eksplisit minta CS / komplain kasar
+	if s.IsHumanHandoverRequested(userMessage) {
+		greetingName := "Kakak"
+		if room != nil && room.Pelanggan != nil && room.Pelanggan.Nama != "" {
+			greetingName = room.Pelanggan.Nama
+		}
+		reply := fmt.Sprintf("Baik Kak %s, percakapan Anda telah dialihkan ke antrean Customer Support %s. Staf kami akan segera membalas dan melayani Anda dalam obrolan ini.\n\n---\n👤 Sesi dialihkan ke Antrean Agen Manusia", greetingName, brand)
+		return reply, true, nil
+	}
+
+	// 2. Coba via 9Router (LLM) jika aktif
+	if s.cfg != nil && s.cfg.AIRouterEnabled && s.cfg.AIRouterURL != "" && s.cfg.AIRouterKey != "" {
+		reply, err9 := s.call9Router(ctx, room, history, userMessage)
+		if err9 == nil && strings.TrimSpace(reply) != "" {
+			needsHandover := strings.Contains(strings.ToLower(reply), "menghubungkan anda dengan tim customer support") ||
+				strings.Contains(strings.ToLower(reply), "hubungkan ke cs") ||
+				strings.Contains(strings.ToLower(reply), "antrean agen manusia")
+			return reply, needsHandover, nil
+		}
+		log.Printf("[AIService] 9Router error/unavailable: %v. Menggunakan fallback ke ML Local...", err9)
+	}
+
+	// 3. Fallback ke ML Local (FastAPI Chatbot) jika tersedia
+	if s.mlFallback != nil {
+		reply, needsHandover, errML := s.mlFallback.GenerateReplyWithHandover(ctx, room, history, userMessage)
+		if errML == nil && strings.TrimSpace(reply) != "" {
+			log.Printf("[AIService] Dijawab oleh ML Local fallback untuk room %d", func() uint64 {
+				if room != nil {
+					return room.ID
+				}
+				return 0
+			}())
+			return reply, needsHandover, nil
+		}
+		log.Printf("[AIService] ML Local fallback error: %v", errML)
+	}
+
+	// 4. Default Polite Emergency Fallback jika kedua engine tidak bisa dihubungi
+	greetingName := "Kakak"
+	if room != nil && room.Pelanggan != nil && room.Pelanggan.Nama != "" {
+		greetingName = room.Pelanggan.Nama
+	}
+	defaultReply := fmt.Sprintf("Halo Kak %s! Terima kasih sudah menghubungi Customer Support %s. Pesan Kakak sudah kami terima dan telah diteruskan ke tim kami. Staf kami akan segera membalas pesan ini sesaat lagi. Mohon kesediaannya menunggu ya Kak. 🙏\n\n---\n🤖 Diteruskan ke Antrean Agen CS", greetingName, brand)
+	return defaultReply, true, nil
+}
+
+// call9Router memanggil 9Router OpenAI-compatible endpoint dengan SOP CS ketat & data pelanggan
+func (s *aiService) call9Router(ctx context.Context, room *domain.ChatRoom, history []domain.ChatMessage, userMessage string) (string, error) {
 	if s.cfg == nil || !s.cfg.AIRouterEnabled || s.cfg.AIRouterURL == "" || s.cfg.AIRouterKey == "" {
 		return "", fmt.Errorf("ai router tidak aktif atau konfigurasi belum lengkap")
 	}

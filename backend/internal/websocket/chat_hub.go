@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 	"time"
 
@@ -412,18 +411,11 @@ func (c *ChatClient) ReadPump() {
 					history, _ := client.Hub.chatUsecase.GetRoomMessages(ctxHist, roomID, 40, 0)
 					cancelHist()
 
-					// Hanya lewati AI jika admin baru saja membalas dalam 30 menit terakhir
-					// atau baru saja ada handover ke antrean CS dalam 30 menit terakhir
+					// Hanya lewati AI jika admin manusia baru saja membalas dalam 15 menit terakhir
 					for _, hMsg := range history {
-						if time.Since(hMsg.CreatedAt) < 30*time.Minute {
-							if hMsg.SenderType == "admin" {
-								log.Printf("[ChatHub] AI skipped: Room %d recently handled by human admin #%s (%v ago)", roomID, hMsg.SenderName, time.Since(hMsg.CreatedAt).Round(time.Second))
-								return
-							}
-							if hMsg.SenderType == "system" && (strings.Contains(hMsg.Message, "Antrean Agen Manusia") || strings.Contains(hMsg.Message, "Customer Support") || strings.Contains(hMsg.Message, "staf kami akan segera")) {
-								log.Printf("[ChatHub] AI skipped: Room %d recently handed over to human queue (%v ago)", roomID, time.Since(hMsg.CreatedAt).Round(time.Second))
-								return
-							}
+						if hMsg.SenderType == "admin" && time.Since(hMsg.CreatedAt) < 15*time.Minute {
+							log.Printf("[ChatHub] AI skipped: Room %d recently handled by human admin #%s (%v ago)", roomID, hMsg.SenderName, time.Since(hMsg.CreatedAt).Round(time.Second))
+							return
 						}
 					}
 
@@ -447,8 +439,13 @@ func (c *ChatClient) ReadPump() {
 					})
 
 					if errAI != nil {
-						log.Printf("[ChatHub] AI GenerateReply error for room %d: %v", roomID, errAI)
-						return
+						log.Printf("[ChatHub] AI GenerateReply error for room %d: %v. Menggunakan balasan darurat...", roomID, errAI)
+						greetingName := "Kakak"
+						if room != nil && room.Pelanggan != nil && room.Pelanggan.Nama != "" {
+							greetingName = room.Pelanggan.Nama
+						}
+						aiReply = fmt.Sprintf("Halo Kak %s! Terima kasih sudah menghubungi kami. Pesan Kakak sudah kami terima dan staf Customer Care kami akan segera melayani Kakak. Mohon tunggu sebentar ya Kak. 🙏\n\n---\n🤖 Diteruskan ke Antrean Agen CS", greetingName)
+						needsHandover = true
 					}
 
 					// 5. Simpan balasan AI ke database
@@ -640,6 +637,7 @@ func (h *ChatHub) sendFCMToCustomer(roomID uint64, msg *domain.ChatMessage) {
 
 	var tokens []domain.PelangganFcmToken
 	if err := db.Where("pelanggan_id = ?", room.PelangganID).Find(&tokens).Error; err != nil || len(tokens) == 0 {
+		log.Printf("[ChatHub] sendFCMToCustomer: room %d, pelanggan %d has no registered FCM tokens", roomID, room.PelangganID)
 		return
 	}
 
@@ -653,6 +651,7 @@ func (h *ChatHub) sendFCMToCustomer(roomID uint64, msg *domain.ChatMessage) {
 	if len(tokenStrings) == 0 {
 		return
 	}
+	log.Printf("[ChatHub] sendFCMToCustomer: room %d, pelanggan %d, dispatching push to %d FCM device(s)", roomID, room.PelangganID, len(tokenStrings))
 
 	senderTitle := msg.SenderName
 	if senderTitle == "" || senderTitle == "admin" {

@@ -13,6 +13,7 @@ RUN apk add --no-cache tzdata
 WORKDIR /app
 COPY --from=builder /app/api /app/api
 COPY --from=builder /app/docs /app/docs
+COPY --from=builder /app/config /app/config
 # Create uploads directory
 RUN mkdir -p /app/uploads
 EXPOSE 8000

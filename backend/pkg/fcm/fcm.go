@@ -76,6 +76,8 @@ func GetClient() *PushClient {
 				"config/firebase-service-account.json",
 				"../config/firebase-service-account.json",
 				"../../config/firebase-service-account.json",
+				"/app/config/firebase-service-account.json",
+				"/app/firebase-service-account.json",
 				"/var/www/billing/backend/config/firebase-service-account.json",
 				"/var/www/billing/config/firebase-service-account.json",
 				"portal-ajnusa-firebase-adminsdk-fbsvc-07b0313b9c.json",

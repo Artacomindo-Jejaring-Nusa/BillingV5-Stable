@@ -49,6 +49,7 @@ type Config struct {
 	AIRouterEnabled                 bool
 	AIProvider                      string
 	MLLocalURL                      string
+	FirebaseCredentialsPath         string
 }
 
 var GlobalConfig *Config
@@ -105,6 +106,7 @@ func LoadConfig() *Config {
 		AIRouterEnabled:                 getEnvAsBool("AI_ROUTER_ENABLED", true),
 		AIProvider:                      getEnv("AI_PROVIDER", "9router"),
 		MLLocalURL:                      getEnv("ML_LOCAL_URL", "http://127.0.0.1:8001"),
+		FirebaseCredentialsPath:         getEnv("FIREBASE_CREDENTIALS_PATH", "config/firebase-service-account.json"),
 		
 		Menus: []string{
 			"Dashboard", "Pelanggan", "Langganan", "Teknis", "Paket", "Invoices", "Reports",
