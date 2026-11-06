@@ -271,6 +271,43 @@ func TestCreateLanggananValidation(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
+
+	t.Run("CreateLangganan prevents duplicate active subscription for same customer", func(t *testing.T) {
+		pelanggan := &domain.Pelanggan{
+			ID:         1,
+			Nama:       "Ahmad Rizki",
+			IDBrand:    &brandID,
+			DataTeknis: &domain.DataTeknis{ID: 1},
+		}
+
+		now := time.Now()
+		existingActive := &domain.Langganan{
+			ID:             10,
+			PelangganID:    1,
+			PaketLayananID: 1,
+			Status:         "Aktif",
+			CreatedAt:      &now,
+		}
+
+		pRepo := &mockPelangganRepo{data: map[uint64]*domain.Pelanggan{1: pelanggan}}
+		pkRepo := &mockPaketRepo{data: map[uint64]*domain.PaketLayanan{1: paket}}
+		bRepo := &mockBrandRepo{data: map[string]*domain.HargaLayanan{brandID: brand}}
+		lRepo := &mockLanggananRepo{data: map[uint64]*domain.Langganan{10: existingActive}}
+		u := NewBillingUsecase(nil, lRepo, pRepo, pkRepo, bRepo, nil, nil, nil, nil, nil)
+
+		newLangganan := &domain.Langganan{
+			PelangganID:    1,
+			PaketLayananID: 1,
+		}
+
+		err := u.CreateLangganan(context.Background(), newLangganan)
+		if err == nil {
+			t.Fatal("expected error preventing duplicate active subscription, got nil")
+		}
+		if !strings.Contains(err.Error(), "duplikasi dicegah") && !strings.Contains(err.Error(), "sudah memiliki langganan aktif") {
+			t.Errorf("unexpected error message: %v", err)
+		}
+	})
 }
 
 func TestProcessXenditCallback(t *testing.T) {

@@ -937,6 +937,36 @@ func (u *billingUsecase) CreateLangganan(ctx context.Context, l *domain.Langgana
 	if p.DataTeknis == nil {
 		return fmt.Errorf("Langganan tidak dapat dibuat. Pelanggan '%s' belum memiliki data teknis. Tim NOC harus menambahkan data teknis terlebih dahulu sebelum membuat langganan.", p.Nama)
 	}
+
+	// 1. Distributed Mutex Lock via Redis untuk mencegah race condition / double-submit
+	if rdb := websocket.GetRedisClient(); rdb != nil {
+		lockKey := fmt.Sprintf("lock:langganan:create:%d", l.PelangganID)
+		acquired, errLock := rdb.SetNX(ctx, lockKey, "1", 10*time.Second).Result()
+		if errLock == nil && !acquired {
+			return errors.New("permintaan pembuatan langganan untuk pelanggan ini sedang diproses, mohon tunggu beberapa saat")
+		}
+		if acquired {
+			defer rdb.Del(ctx, lockKey)
+		}
+	}
+
+	// 2. Proteksi Duplikasi: Periksa apakah pelanggan sudah memiliki langganan aktif
+	if u.langgananRepo != nil {
+		existingLangs, errL := u.langgananRepo.GetByPelangganID(ctx, l.PelangganID)
+		if errL == nil && len(existingLangs) > 0 {
+			for _, el := range existingLangs {
+				if el.Status == "Aktif" {
+					if el.PaketLayananID == l.PaketLayananID {
+						if el.CreatedAt != nil && time.Since(*el.CreatedAt) < 30*time.Second {
+							return errors.New("langganan aktif untuk paket ini baru saja dibuat untuk pelanggan ini (duplikasi dicegah)")
+						}
+					}
+					return fmt.Errorf("pelanggan '%s' sudah memiliki langganan aktif (ID: %d). Hentikan atau edit langganan yang ada terlebih dahulu", p.Nama, el.ID)
+				}
+			}
+		}
+	}
+
 	brand, _ := u.brandRepo.GetByID(ctx, *p.IDBrand)
 	paket, _ := u.paketRepo.GetByID(ctx, l.PaketLayananID)
 	if brand == nil || paket == nil {

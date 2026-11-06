@@ -399,6 +399,10 @@ func (h *BillingHandler) CreateLangganan(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
+		if strings.Contains(err.Error(), "sedang diproses") || strings.Contains(err.Error(), "sudah memiliki langganan aktif") || strings.Contains(err.Error(), "duplikasi dicegah") {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

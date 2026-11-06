@@ -1457,7 +1457,7 @@
         variant="flat"
         @click="saveLangganan"
         :loading="saving"
-        :disabled="!isFormValid || (selectedPelangganHasDataTeknis === false)"
+        :disabled="saving || !isFormValid || (selectedPelangganHasDataTeknis === false)"
         class="text-none px-6 modal-footer-v2__submit"
         size="large"
       >
@@ -3138,12 +3138,15 @@ function closeDialog() {
 }
 
 async function saveLangganan() {
-  // Validasi form (tidak berubah)
+  // Cegah double-submit / race condition dari klik ganda
+  if (saving.value) return;
   if (!isFormValid.value) return;
 
-  // VALIDASI PENTING: Cek apakah pelanggan sudah punya data teknis
-  if (editedItem.value.pelanggan_id) {
-    try {
+  saving.value = true;
+
+  try {
+    // VALIDASI PENTING: Cek apakah pelanggan sudah punya data teknis (hanya saat tambah baru)
+    if (editedIndex.value === -1 && editedItem.value.pelanggan_id) {
       const customerName = getPelangganName(editedItem.value.pelanggan_id);
       const response = await apiClient.get(`/data_teknis/by-pelanggan/${editedItem.value.pelanggan_id}`);
 
@@ -3152,39 +3155,25 @@ async function saveLangganan() {
           `Tidak dapat membuat langganan. Pelanggan "${customerName}" belum memiliki data teknis. Silakan hubungi tim NOC untuk menambahkan data teknis terlebih dahulu.`,
           'warning'
         );
-        saving.value = false;
         return;
       }
-    } catch (error) {
-      console.warn('Gagal mengecek data teknis:', error);
-      showSnackbar(
-        `Gagal memvalidasi data teknis. Silakan hubungi tim NOC untuk memastikan data teknis sudah ada.`,
-        'warning'
-      );
-      saving.value = false;
-      return;
     }
-  }
 
-  saving.value = true;
-  
-  // Siapkan payload yang akan dikirim ke backend
-  const dataToSave = {
-    pelanggan_id: editedItem.value.pelanggan_id,
-    paket_layanan_id: editedItem.value.paket_layanan_id,
-    status: editedItem.value.status,
-    metode_pembayaran: editedItem.value.metode_pembayaran,
-    tgl_mulai_langganan: editedItem.value.tgl_mulai_langganan,
-    tgl_jatuh_tempo_pembayaran: editedItem.value.tgl_jatuh_tempo_pembayaran,
+    // Siapkan payload yang akan dikirim ke backend
+    const dataToSave = {
+      pelanggan_id: editedItem.value.pelanggan_id,
+      paket_layanan_id: editedItem.value.paket_layanan_id,
+      status: editedItem.value.status,
+      metode_pembayaran: editedItem.value.metode_pembayaran,
+      tgl_mulai_langganan: editedItem.value.tgl_mulai_langganan,
+      tgl_jatuh_tempo_pembayaran: editedItem.value.tgl_jatuh_tempo_pembayaran,
 
-    // Kirim status switch ke backend
-    sertakan_bulan_depan: isProratePlusFull.value 
-  };
+      // Kirim status switch ke backend
+      sertakan_bulan_depan: isProratePlusFull.value 
+    };
 
-  try {
     if (editedIndex.value > -1) {
       // Logika update tidak perlu mengirim 'sertakan_bulan_depan'
-      // jadi kita bisa gunakan payload yang lebih sederhana
       const updatePayload = {
         paket_layanan_id: editedItem.value.paket_layanan_id,
         status: editedItem.value.status,
@@ -3206,9 +3195,10 @@ async function saveLangganan() {
       await fetchLangganan();
     }
     closeDialog();
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gagal menyimpan data langganan:", error);
-    showSnackbar('Gagal menyimpan data langganan', 'error');
+    const errMsg = error.response?.data?.error || 'Gagal menyimpan data langganan';
+    showSnackbar(errMsg, 'error');
   } finally {
     saving.value = false;
   }
