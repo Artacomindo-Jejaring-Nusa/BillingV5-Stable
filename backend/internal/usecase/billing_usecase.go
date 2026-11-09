@@ -2809,6 +2809,75 @@ func (u *billingUsecase) ArchiveOldInvoices(ctx context.Context) error {
 
 // --- Helpers ---
 
+func (u *billingUsecase) resolveActiveProfile(ctx context.Context, dt *domain.DataTeknis, c *routeros.Client) string {
+	if dt.ProfilePppoe != nil {
+		prof := strings.TrimSpace(*dt.ProfilePppoe)
+		if prof != "" && !strings.EqualFold(prof, "SUSPENDED") && !strings.EqualFold(prof, "default") {
+			return prof
+		}
+	}
+
+	var speed int
+	if u.langgananRepo != nil && dt.PelangganID > 0 {
+		langs, err := u.langgananRepo.GetByPelangganID(ctx, dt.PelangganID)
+		if err == nil && len(langs) > 0 {
+			for _, l := range langs {
+				if l.Status == "Aktif" && l.PaketLayananID > 0 && u.paketRepo != nil {
+					pkt, _ := u.paketRepo.GetByID(ctx, l.PaketLayananID)
+					if pkt != nil && pkt.Kecepatan > 0 {
+						speed = pkt.Kecepatan
+						break
+					}
+				}
+			}
+			if speed == 0 {
+				for _, l := range langs {
+					if l.Status != "Berhenti" && l.PaketLayananID > 0 && u.paketRepo != nil {
+						pkt, _ := u.paketRepo.GetByID(ctx, l.PaketLayananID)
+						if pkt != nil && pkt.Kecepatan > 0 {
+							speed = pkt.Kecepatan
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if speed > 0 && c != nil {
+		profiles, err := mikrotik.GetAllPPPProfiles(c)
+		if err == nil && len(profiles) > 0 {
+			speedStr := fmt.Sprintf("%dmbps", speed)
+			speedShort1 := fmt.Sprintf("%dm-", speed)
+			speedShort2 := fmt.Sprintf("%dm_", speed)
+			speedShort3 := fmt.Sprintf("%dm ", speed)
+			speedExact := fmt.Sprintf("%dm", speed)
+
+			for _, prof := range profiles {
+				pLower := strings.ToLower(prof)
+				if pLower == "default" || pLower == "default-encryption" || pLower == "suspended" {
+					continue
+				}
+				if strings.Contains(pLower, speedStr) || strings.HasPrefix(pLower, speedShort1) ||
+					strings.HasPrefix(pLower, speedShort2) || strings.HasPrefix(pLower, speedShort3) ||
+					pLower == speedExact {
+					dt.ProfilePppoe = &prof
+					if u.dataTeknisRepo != nil {
+						_ = u.dataTeknisRepo.Update(ctx, dt)
+					}
+					return prof
+				}
+			}
+		}
+	}
+
+	if dt.ProfilePppoe != nil && strings.TrimSpace(*dt.ProfilePppoe) != "" && !strings.EqualFold(strings.TrimSpace(*dt.ProfilePppoe), "SUSPENDED") {
+		return strings.TrimSpace(*dt.ProfilePppoe)
+	}
+
+	return "default"
+}
+
 func (u *billingUsecase) triggerMikrotikUpdate(ctx context.Context, name string, dt *domain.DataTeknis, status string) error {
 	if dt.MikrotikServerID == nil {
 		if dt.Pelanggan != nil && dt.Pelanggan.MikrotikServerID != nil {
@@ -2833,8 +2902,9 @@ func (u *billingUsecase) triggerMikrotikUpdate(ctx context.Context, name string,
 		profile, disabled := "default", "no"
 		if status == "Suspended" || status == "Berhenti" {
 			profile, disabled = "SUSPENDED", "yes"
-		} else if dt.ProfilePppoe != nil && strings.TrimSpace(*dt.ProfilePppoe) != "" {
-			profile = strings.TrimSpace(*dt.ProfilePppoe)
+		} else {
+			disabled = "no"
+			profile = u.resolveActiveProfile(ctx, dt, c)
 		}
 		ip := ""
 		if dt.IPPelanggan != nil {

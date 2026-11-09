@@ -116,19 +116,19 @@ func (u *dataTeknisUsecase) triggerMikrotikUpdate(ctx context.Context, oldName s
 		}
 	}
 	return u.executeRouterOS(ctx, *data.MikrotikServerID, func(client *routeros.Client) error {
-		profile := ""
+		profile := "default"
 		disabled := "no"
 		if newStatus == "Aktif" {
-			if data.ProfilePppoe != nil {
-				profile = *data.ProfilePppoe
+			if data.ProfilePppoe != nil && strings.TrimSpace(*data.ProfilePppoe) != "" && !strings.EqualFold(strings.TrimSpace(*data.ProfilePppoe), "SUSPENDED") {
+				profile = strings.TrimSpace(*data.ProfilePppoe)
 			}
 			disabled = "no"
 		} else if newStatus == "Suspended" || newStatus == "Berhenti" {
 			profile = "SUSPENDED"
 			disabled = "yes"
 		} else {
-			if data.ProfilePppoe != nil {
-				profile = *data.ProfilePppoe
+			if data.ProfilePppoe != nil && strings.TrimSpace(*data.ProfilePppoe) != "" && !strings.EqualFold(strings.TrimSpace(*data.ProfilePppoe), "SUSPENDED") {
+				profile = strings.TrimSpace(*data.ProfilePppoe)
 			}
 		}
 
