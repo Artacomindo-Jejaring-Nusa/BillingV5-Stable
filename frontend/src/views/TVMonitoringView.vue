@@ -123,9 +123,6 @@
             <div class="metric-content">
               <div class="metric-header">
                 <span class="metric-tag">TOTAL KESELURUHAN</span>
-                <div class="icon-circle bg-sky-light">
-                  <v-icon size="22" color="#0284c7">mdi-account-group</v-icon>
-                </div>
               </div>
               <div class="metric-body">
                 <div class="metric-big-number text-primary">
@@ -138,7 +135,7 @@
               </div>
             </div>
             <div class="metric-anim">
-              <img src="/anim-total.gif" alt="Total animation" class="metric-gif" />
+              <img src="/total-user.gif" alt="Total animation" class="metric-gif metric-gif--total" />
             </div>
           </div>
         </div>
@@ -149,9 +146,6 @@
             <div class="metric-content">
               <div class="metric-header">
                 <span class="metric-tag text-success">AKTIF</span>
-                <div class="icon-circle bg-green-light">
-                  <v-icon size="22" color="#059669">mdi-account-check</v-icon>
-                </div>
               </div>
               <div class="metric-body">
                 <div class="metric-big-number text-success">
@@ -164,7 +158,7 @@
               </div>
             </div>
             <div class="metric-anim">
-              <img src="/anim-aktif.gif" alt="Aktif animation" class="metric-gif" />
+              <img src="/user-aktif.gif" alt="Aktif animation" class="metric-gif metric-gif--aktif" />
             </div>
           </div>
         </div>
@@ -175,9 +169,6 @@
             <div class="metric-content">
               <div class="metric-header">
                 <span class="metric-tag text-danger">SUSPENDED</span>
-                <div class="icon-circle bg-red-light">
-                  <v-icon size="22" color="#dc2626">mdi-account-alert</v-icon>
-                </div>
               </div>
               <div class="metric-body">
                 <div class="metric-big-number text-danger">
@@ -190,7 +181,7 @@
               </div>
             </div>
             <div class="metric-anim">
-              <img src="/anim-suspended.gif" alt="Suspended animation" class="metric-gif" />
+              <img src="/prabowo-marah.gif" alt="Suspended animation" class="metric-gif metric-gif--prabowo" />
             </div>
           </div>
         </div>
@@ -1296,8 +1287,29 @@ onUnmounted(() => {
 .metric-gif {
   width: 90px;
   height: 90px;
-  object-fit: contain;
+  object-fit: cover;
+  border-radius: 12px;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  transition: transform 0.3s ease;
+}
+
+.metric-card:hover .metric-gif {
+  transform: scale(1.05);
+}
+
+.metric-gif--total {
+  border: 2px solid rgba(2, 132, 199, 0.25);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+}
+
+.metric-gif--aktif {
+  border: 2px solid rgba(5, 150, 105, 0.25);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
+}
+
+.metric-gif--prabowo {
+  border: 2px solid rgba(220, 38, 38, 0.25);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
 }
 
 .metric-header {
