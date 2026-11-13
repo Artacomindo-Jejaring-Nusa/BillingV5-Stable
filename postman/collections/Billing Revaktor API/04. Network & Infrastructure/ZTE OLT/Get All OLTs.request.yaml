@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch all registered Optical Line Terminals (OLT).
+url: "{{base_url}}/olt"
+method: GET
+order: 1000

@@ -1,0 +1,20 @@
+$kind: http-request
+description: Bulk register inventory items.
+url: "{{base_url}}/inventory/bulk-import"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "items": [
+            {
+                "name": "Patch Cord SC-UPC 3M",
+                "item_type_id": 2,
+                "status_id": 1,
+                "serial_number": "PC-001"
+            }
+        ]
+    }
+order: 10000

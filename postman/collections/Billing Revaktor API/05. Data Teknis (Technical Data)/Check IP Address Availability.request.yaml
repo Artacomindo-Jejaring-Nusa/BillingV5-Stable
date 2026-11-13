@@ -1,0 +1,14 @@
+$kind: http-request
+description: Validate if an IP address is free or already allocated.
+url: "{{base_url}}/data_teknis/check-ip"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "ip_address": "10.10.10.55",
+        "mikrotik_server_id": 1
+    }
+order: 7000

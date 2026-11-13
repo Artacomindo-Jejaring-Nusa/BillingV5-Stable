@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete an internal user account.
+url: "{{base_url}}/users/2"
+method: DELETE
+order: 6000

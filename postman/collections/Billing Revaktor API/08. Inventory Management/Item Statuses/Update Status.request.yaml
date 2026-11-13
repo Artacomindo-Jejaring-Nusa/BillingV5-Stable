@@ -1,0 +1,14 @@
+$kind: http-request
+description: Update inventory status.
+url: "{{base_url}}/inventory-statuses/1"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "name": "Ready to Deploy",
+        "color": "#2196F3"
+    }
+order: 3000

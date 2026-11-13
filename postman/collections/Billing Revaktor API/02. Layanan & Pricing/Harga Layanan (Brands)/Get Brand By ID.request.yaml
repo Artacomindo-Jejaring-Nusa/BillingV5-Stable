@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get detail of a single brand by brand code.
+url: "{{base_url}}/harga_layanan/JKN"
+method: GET
+order: 2000

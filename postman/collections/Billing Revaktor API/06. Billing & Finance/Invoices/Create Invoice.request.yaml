@@ -1,0 +1,18 @@
+$kind: http-request
+description: Create a billing invoice manually.
+url: "{{base_url}}/invoices"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "pelanggan_id": 1,
+        "langganan_id": 1,
+        "periode": "2026-11",
+        "total_amount": 220000,
+        "tgl_jatuh_tempo_pembayaran": "2026-11-20T23:59:59Z",
+        "catatan": "Tagihan Bulanan Periode November 2026"
+    }
+order: 3000

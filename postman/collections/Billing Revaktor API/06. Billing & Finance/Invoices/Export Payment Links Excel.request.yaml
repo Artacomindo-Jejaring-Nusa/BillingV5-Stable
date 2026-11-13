@@ -1,0 +1,12 @@
+$kind: http-request
+description: Export list of active payment links with customer numbers.
+url: "{{base_url}}/invoices/export-payment-links-excel?month=11&year=2026"
+method: GET
+queryParams:
+  - key: month
+    value: "11"
+    description: Month
+  - key: year
+    value: "2026"
+    description: Year
+order: 12000

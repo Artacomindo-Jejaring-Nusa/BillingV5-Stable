@@ -1,0 +1,14 @@
+$kind: http-request
+description: Quick update of ODP GPS latitude/longitude coordinates.
+url: "{{base_url}}/odp/1/coordinates"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "latitude": -6.306488,
+        "longitude": 106.894155
+    }
+order: 7000

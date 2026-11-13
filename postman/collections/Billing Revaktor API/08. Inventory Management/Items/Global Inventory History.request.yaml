@@ -1,0 +1,5 @@
+$kind: http-request
+description: Audit trail of hardware deployments and status movements.
+url: "{{base_url}}/inventory/history/all"
+method: GET
+order: 8000

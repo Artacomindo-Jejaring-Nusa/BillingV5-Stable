@@ -1,0 +1,5 @@
+$kind: http-request
+description: Project future monthly recurring billing and receivables.
+url: "{{base_url}}/dashboard/future-invoice-projection"
+method: GET
+order: 7000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Download template for bulk importing Data Teknis.
+url: "{{base_url}}/data_teknis/template/csv"
+method: GET
+order: 21000

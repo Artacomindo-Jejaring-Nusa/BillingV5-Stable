@@ -1,0 +1,31 @@
+$kind: http-request
+description: Authenticate with email and password to receive JWT access and refresh tokens.
+url: "{{base_url}}/auth/token"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "email": "admin@example.com",
+        "password": "password"
+    }
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      const response = pm.response.json();
+      if (response.access_token) {
+          pm.environment.set("access_token", response.access_token);
+          pm.collectionVariables.set("access_token", response.access_token);
+          console.log("Saved access_token to environment and collection variables.");
+      }
+      if (response.refresh_token) {
+          pm.environment.set("refresh_token", response.refresh_token);
+          pm.collectionVariables.set("refresh_token", response.refresh_token);
+          console.log("Saved refresh_token to environment and collection variables.");
+      }
+    language: text/javascript
+order: 1000

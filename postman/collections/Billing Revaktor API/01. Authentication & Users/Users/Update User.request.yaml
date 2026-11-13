@@ -1,0 +1,14 @@
+$kind: http-request
+description: Update existing user details.
+url: "{{base_url}}/users/2"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama": "Johnathan Doe",
+        "no_telepon": "081298765432"
+    }
+order: 5000

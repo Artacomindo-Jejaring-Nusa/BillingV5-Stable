@@ -1,0 +1,5 @@
+$kind: http-request
+description: Inspect background cron scheduler engine running status.
+url: "{{base_url}}/system/scheduler/status"
+method: GET
+order: 3000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete brand entity.
+url: "{{base_url}}/harga_layanan/JKN"
+method: DELETE
+order: 5000

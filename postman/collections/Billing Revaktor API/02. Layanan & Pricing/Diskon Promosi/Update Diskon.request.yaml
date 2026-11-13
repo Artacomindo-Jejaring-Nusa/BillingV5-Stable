@@ -1,0 +1,15 @@
+$kind: http-request
+description: Update discount campaign.
+url: "{{base_url}}/diskon/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama_diskon": "Promo Merdeka Spesial",
+        "persentase": 20,
+        "is_active": true
+    }
+order: 4000

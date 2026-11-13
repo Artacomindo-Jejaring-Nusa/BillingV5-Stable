@@ -1,0 +1,5 @@
+$kind: http-request
+description: List all granular permissions available in the system.
+url: "{{base_url}}/permissions"
+method: GET
+order: 6000

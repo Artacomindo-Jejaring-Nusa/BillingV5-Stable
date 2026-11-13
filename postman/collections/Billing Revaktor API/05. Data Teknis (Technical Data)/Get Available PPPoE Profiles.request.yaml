@@ -1,0 +1,5 @@
+$kind: http-request
+description: List active PPPoE profile names defined in Mikrotik.
+url: "{{base_url}}/data_teknis/available-profiles"
+method: GET
+order: 9000

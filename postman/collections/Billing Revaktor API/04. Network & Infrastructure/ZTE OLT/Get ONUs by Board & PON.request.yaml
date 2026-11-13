@@ -1,0 +1,5 @@
+$kind: http-request
+description: List all connected ONUs on a specific slot/board and PON port.
+url: "{{base_url}}/olt/1/board/1/pon/1/onus"
+method: GET
+order: 8000

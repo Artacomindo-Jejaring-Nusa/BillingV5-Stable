@@ -1,0 +1,13 @@
+$kind: http-request
+description: Decommission item from customer back to inventory stock.
+url: "{{base_url}}/inventory/1/unassign"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "notes": "Ditarik kembali ke gudang karena migrasi perangkat"
+    }
+order: 7000

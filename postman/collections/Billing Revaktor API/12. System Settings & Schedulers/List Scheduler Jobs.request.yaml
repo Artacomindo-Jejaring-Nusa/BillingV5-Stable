@@ -1,0 +1,5 @@
+$kind: http-request
+description: List all scheduled cron tasks (Auto-billing, Auto-suspend, WA Outbox).
+url: "{{base_url}}/system/scheduler/jobs"
+method: GET
+order: 5000

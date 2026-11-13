@@ -1,0 +1,25 @@
+$kind: http-request
+description: Public webhook endpoint for receiving instant payment notifications from Xendit.
+url: "{{base_url}}/invoices/xendit-callback"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "id": "inv_67345b1234567890",
+        "external_id": "INV-202611-0001",
+        "user_id": "xendit_user_id",
+        "is_high": false,
+        "payment_method": "BCA_VA",
+        "status": "PAID",
+        "merchant_name": "Artacom Fiber",
+        "amount": 220000,
+        "paid_amount": 220000,
+        "paid_at": "2026-11-13T10:00:00.000Z",
+        "payment_channel": "VIRTUAL_ACCOUNT"
+    }
+auth:
+  type: noauth
+order: 13000

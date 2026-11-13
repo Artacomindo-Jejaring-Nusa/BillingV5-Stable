@@ -1,0 +1,5 @@
+$kind: http-request
+description: Manually force an immediate run of a scheduled task.
+url: "{{base_url}}/system/scheduler/jobs/auto_billing/run"
+method: POST
+order: 7000

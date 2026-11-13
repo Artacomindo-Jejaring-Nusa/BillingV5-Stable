@@ -1,0 +1,3 @@
+$kind: collection
+description: Dynamic app settings, background cron scheduler management, terms & conditions, and audit logs.
+order: 12000

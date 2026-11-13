@@ -1,0 +1,16 @@
+$kind: http-request
+description: Create new terms and conditions document.
+url: "{{base_url}}/system/sk"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "judul": "Ketentuan Pembayaran & Isolir",
+        "konten": "Tagihan jatuh tempo setiap tanggal 20. Keterlambatan akan menyebabkan isolir otomatis.",
+        "versi": "1.0",
+        "is_active": true
+    }
+order: 10000

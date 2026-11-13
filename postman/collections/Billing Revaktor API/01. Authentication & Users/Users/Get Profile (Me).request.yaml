@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch profile and permissions of the currently authenticated user.
+url: "{{base_url}}/users/me"
+method: GET
+order: 1000

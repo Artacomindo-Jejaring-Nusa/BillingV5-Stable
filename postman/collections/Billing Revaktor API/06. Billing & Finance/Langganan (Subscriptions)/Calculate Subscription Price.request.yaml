@@ -1,0 +1,16 @@
+$kind: http-request
+description: Preview first invoice pricing with applicable cluster discounts.
+url: "{{base_url}}/langganan/calculate-price"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "pelanggan_id": 1,
+        "paket_layanan_id": 1,
+        "metode_pembayaran": "Transfer Bank",
+        "tgl_mulai": "2026-11-01T00:00:00Z"
+    }
+order: 8000

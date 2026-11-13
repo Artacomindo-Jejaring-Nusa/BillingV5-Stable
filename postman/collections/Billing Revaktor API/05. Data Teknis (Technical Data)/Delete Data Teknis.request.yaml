@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete technical record and decommission router secrets.
+url: "{{base_url}}/data_teknis/1"
+method: DELETE
+order: 6000

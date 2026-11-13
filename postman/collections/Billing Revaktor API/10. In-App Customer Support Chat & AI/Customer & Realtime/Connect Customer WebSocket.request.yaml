@@ -1,0 +1,11 @@
+$kind: http-request
+description: Establish real-time WebSocket connection for support messaging.
+url: "{{base_url}}/chat/ws?token={{access_token}}"
+method: GET
+queryParams:
+  - key: token
+    value: "{{access_token}}"
+    description: JWT or customer token
+auth:
+  type: noauth
+order: 1000

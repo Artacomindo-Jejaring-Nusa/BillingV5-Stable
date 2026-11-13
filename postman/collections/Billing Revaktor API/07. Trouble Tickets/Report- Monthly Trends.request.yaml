@@ -1,0 +1,6 @@
+$kind: http-request
+name: "Report: Monthly Trends"
+description: Ticket volume trends per month.
+url: "{{base_url}}/trouble-tickets/reports/monthly-trends"
+method: GET
+order: 16000

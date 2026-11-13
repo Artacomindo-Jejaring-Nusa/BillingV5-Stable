@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch full profile of a customer by customer ID.
+url: "{{base_url}}/pelanggan/1"
+method: GET
+order: 2000

@@ -1,0 +1,24 @@
+$kind: http-request
+description: Create customer technical network profile and provision to Mikrotik/OLT.
+url: "{{base_url}}/data_teknis"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "pelanggan_id": 1,
+        "mikrotik_server_id": 1,
+        "olt_id": 1,
+        "username_pppoe": "cust001_ahmad",
+        "password_pppoe": "pppoe12345",
+        "ip_address": "10.10.10.55",
+        "mac_address": "AA:BB:CC:DD:EE:FF",
+        "serial_number": "ZTEGC1234567",
+        "vlan_id": 100,
+        "profile_pppoe": "PROFILE-20M",
+        "odp_name": "ODP-WRG-01-08",
+        "odp_port": 3
+    }
+order: 4000

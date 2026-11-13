@@ -1,0 +1,14 @@
+$kind: http-request
+description: Record action taken by field technician.
+url: "{{base_url}}/trouble-tickets/1/actions"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "action": "Splicing ulang sambungan core 4 di ODP-WRG-01",
+        "action_type": "technical_fix"
+    }
+order: 8000

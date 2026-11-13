@@ -1,0 +1,5 @@
+$kind: http-request
+description: Invalidate all active sessions for the current authenticated user across all devices.
+url: "{{base_url}}/auth/logout-all"
+method: POST
+order: 4000

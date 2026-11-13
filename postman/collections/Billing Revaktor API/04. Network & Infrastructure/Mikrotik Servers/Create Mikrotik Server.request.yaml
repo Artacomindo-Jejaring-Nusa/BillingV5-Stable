@@ -1,0 +1,18 @@
+$kind: http-request
+description: Register a new Mikrotik router for automated PPPoE management.
+url: "{{base_url}}/mikrotik"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama": "CCR1036-Core-Waringin",
+        "ip_address": "10.10.10.1",
+        "port": 8728,
+        "username": "api_billing",
+        "password": "RouterOSPassword123",
+        "tipe": "CCR1036-8G-2S+"
+    }
+order: 3000

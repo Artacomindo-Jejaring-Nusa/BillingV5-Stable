@@ -1,0 +1,5 @@
+$kind: http-request
+description: Distribution of active customers across internet packages.
+url: "{{base_url}}/dashboard/paket-details"
+method: GET
+order: 5000

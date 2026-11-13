@@ -1,0 +1,9 @@
+$kind: http-request
+description: High-performance lookup for customer self-service portal verification.
+url: "{{base_url}}/portal/customer/lookup?query=081234567890"
+method: GET
+queryParams:
+  - key: query
+    value: "081234567890"
+    description: Phone number, customer ID, or service number
+order: 10000

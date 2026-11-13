@@ -1,0 +1,21 @@
+$kind: http-request
+description: Register a new FTTH customer.
+url: "{{base_url}}/pelanggan"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama": "Ahmad Rizki",
+        "email": "ahmad.rizki@example.com",
+        "no_telepon": "081234567890",
+        "alamat": "Jl. Raya Waringin No. 45 RT 02/04",
+        "lokasi": "Waringin",
+        "latitude": -6.301234,
+        "longitude": 106.891234,
+        "status": "Aktif",
+        "identitas": "3201123456780001"
+    }
+order: 3000

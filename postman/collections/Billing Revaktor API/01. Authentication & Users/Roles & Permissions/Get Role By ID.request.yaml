@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch details of a single role including its permission IDs.
+url: "{{base_url}}/roles/1"
+method: GET
+order: 2000

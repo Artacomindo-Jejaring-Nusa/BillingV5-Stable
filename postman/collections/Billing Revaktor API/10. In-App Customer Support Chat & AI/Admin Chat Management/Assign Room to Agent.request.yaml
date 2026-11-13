@@ -1,0 +1,13 @@
+$kind: http-request
+description: Assign chat room to a specific support agent.
+url: "{{base_url}}/chat/rooms/1/assign"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "assigned_to": 1
+    }
+order: 5000

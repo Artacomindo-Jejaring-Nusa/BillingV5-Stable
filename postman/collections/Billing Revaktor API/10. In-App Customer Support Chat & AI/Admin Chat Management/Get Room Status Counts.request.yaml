@@ -1,0 +1,5 @@
+$kind: http-request
+description: Live counters of open, pending, and unassigned chat rooms.
+url: "{{base_url}}/chat/rooms/counts"
+method: GET
+order: 2000

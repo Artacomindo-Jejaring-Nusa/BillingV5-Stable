@@ -1,0 +1,5 @@
+$kind: http-request
+description: List active customers who do not yet have Data Teknis configured.
+url: "{{base_url}}/data_teknis/unconfigured-pelanggan"
+method: GET
+order: 14000

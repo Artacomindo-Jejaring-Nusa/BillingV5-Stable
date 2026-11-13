@@ -1,0 +1,5 @@
+$kind: http-request
+description: List all configured Mikrotik RouterOS servers.
+url: "{{base_url}}/mikrotik"
+method: GET
+order: 1000

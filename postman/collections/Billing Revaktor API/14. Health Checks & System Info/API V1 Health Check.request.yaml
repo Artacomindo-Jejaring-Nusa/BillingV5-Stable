@@ -1,0 +1,7 @@
+$kind: http-request
+description: Check status of API v1 routing layer.
+url: "{{base_url}}/health"
+method: GET
+auth:
+  type: noauth
+order: 1000

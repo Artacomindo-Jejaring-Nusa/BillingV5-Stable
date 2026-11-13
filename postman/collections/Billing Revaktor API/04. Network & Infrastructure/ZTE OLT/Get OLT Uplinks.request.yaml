@@ -1,0 +1,5 @@
+$kind: http-request
+description: Inspect uplink interfaces and traffic status on the OLT.
+url: "{{base_url}}/olt/1/uplinks"
+method: GET
+order: 7000

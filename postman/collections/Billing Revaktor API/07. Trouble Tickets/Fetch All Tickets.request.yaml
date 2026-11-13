@@ -1,0 +1,24 @@
+$kind: http-request
+description: Fetch paginated trouble tickets with multi-criteria filters.
+url: "{{base_url}}/trouble-tickets?page=1&limit=10&search=&status=&priority=&category="
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+    description: Page number
+  - key: limit
+    value: "10"
+    description: Items limit
+  - key: search
+    value: ""
+    description: Search title, ticket number, or customer
+  - key: status
+    value: ""
+    description: Status (open, in_progress, pending, resolved, closed)
+  - key: priority
+    value: ""
+    description: Priority (low, normal, high, critical)
+  - key: category
+    value: ""
+    description: Standard category code
+order: 1000

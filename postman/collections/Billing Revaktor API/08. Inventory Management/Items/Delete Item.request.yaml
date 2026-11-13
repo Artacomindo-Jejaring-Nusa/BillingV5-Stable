@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete item record.
+url: "{{base_url}}/inventory/1"
+method: DELETE
+order: 5000

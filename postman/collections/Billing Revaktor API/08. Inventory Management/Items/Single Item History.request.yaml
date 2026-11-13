@@ -1,0 +1,5 @@
+$kind: http-request
+description: Lifecycle history of a single hardware item.
+url: "{{base_url}}/inventory/1/history"
+method: GET
+order: 9000

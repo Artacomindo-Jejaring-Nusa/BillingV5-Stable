@@ -1,0 +1,5 @@
+$kind: http-request
+description: List OLTs available for assignment.
+url: "{{base_url}}/data_teknis/available-olt"
+method: GET
+order: 8000

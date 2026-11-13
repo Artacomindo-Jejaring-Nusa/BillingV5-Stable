@@ -1,0 +1,5 @@
+$kind: http-request
+description: AI/ML revenue forecasting and churn risk predictions.
+url: "{{base_url}}/reports/revenue/ml-insights"
+method: GET
+order: 3000

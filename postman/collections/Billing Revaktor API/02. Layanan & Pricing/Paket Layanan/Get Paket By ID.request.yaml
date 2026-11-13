@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get detail of a specific internet package.
+url: "{{base_url}}/paket_layanan/1"
+method: GET
+order: 2000

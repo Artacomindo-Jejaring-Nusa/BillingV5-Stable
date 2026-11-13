@@ -1,0 +1,15 @@
+$kind: http-request
+description: Update terms and conditions.
+url: "{{base_url}}/system/sk/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "judul": "Ketentuan Pembayaran & Isolir Revisi",
+        "konten": "Tagihan jatuh tempo setiap tanggal 20. Biaya admin berlaku.",
+        "is_active": true
+    }
+order: 11000

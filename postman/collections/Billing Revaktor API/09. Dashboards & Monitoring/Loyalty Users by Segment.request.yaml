@@ -1,0 +1,9 @@
+$kind: http-request
+description: Fetch customer list classified by payment loyalty.
+url: "{{base_url}}/dashboard/loyalitas-users-by-segment?segment=setia"
+method: GET
+queryParams:
+  - key: segment
+    value: setia
+    description: Segment name (setia, telat, nunggak)
+order: 3000

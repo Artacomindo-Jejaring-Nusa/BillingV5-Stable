@@ -1,0 +1,5 @@
+$kind: http-request
+description: List all Optical Distribution Cabinets.
+url: "{{base_url}}/odc"
+method: GET
+order: 1000

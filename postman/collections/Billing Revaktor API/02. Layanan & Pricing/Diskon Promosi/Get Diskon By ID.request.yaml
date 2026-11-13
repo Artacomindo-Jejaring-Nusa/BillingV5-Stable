@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get discount detail by ID.
+url: "{{base_url}}/diskon/1"
+method: GET
+order: 2000

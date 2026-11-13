@@ -1,0 +1,14 @@
+$kind: http-request
+description: Create hardware item type.
+url: "{{base_url}}/inventory-types"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "name": "Modem ONT/ONU",
+        "description": "Optical Network Terminal untuk customer"
+    }
+order: 2000

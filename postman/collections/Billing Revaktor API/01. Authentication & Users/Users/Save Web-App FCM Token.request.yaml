@@ -1,0 +1,15 @@
+$kind: http-request
+name: Save Web/App FCM Token
+description: Register Firebase Cloud Messaging push token for the user.
+url: "{{base_url}}/users/fcm-token"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "token": "fcm_device_token_string",
+        "device_type": "web"
+    }
+order: 7000

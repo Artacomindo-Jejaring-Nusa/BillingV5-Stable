@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete ODP entry.
+url: "{{base_url}}/odp/1"
+method: DELETE
+order: 8000

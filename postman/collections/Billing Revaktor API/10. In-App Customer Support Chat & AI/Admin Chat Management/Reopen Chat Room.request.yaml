@@ -1,0 +1,5 @@
+$kind: http-request
+description: Reopen a previously closed chat room.
+url: "{{base_url}}/chat/rooms/1/reopen"
+method: POST
+order: 4000

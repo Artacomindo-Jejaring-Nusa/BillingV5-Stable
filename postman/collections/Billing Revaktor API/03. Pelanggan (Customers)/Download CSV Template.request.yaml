@@ -1,0 +1,5 @@
+$kind: http-request
+description: Download CSV template format for batch customer imports.
+url: "{{base_url}}/pelanggan/template/csv"
+method: GET
+order: 8000

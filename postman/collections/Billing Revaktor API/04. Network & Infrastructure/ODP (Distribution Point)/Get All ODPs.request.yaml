@@ -1,0 +1,5 @@
+$kind: http-request
+description: List all Optical Distribution Points.
+url: "{{base_url}}/odp"
+method: GET
+order: 1000

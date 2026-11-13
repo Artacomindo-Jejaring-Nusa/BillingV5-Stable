@@ -1,0 +1,5 @@
+$kind: http-request
+description: Queue a new WhatsApp invoice payment reminder notification.
+url: "{{base_url}}/invoices/1/resend-wa"
+method: POST
+order: 8000

@@ -1,0 +1,24 @@
+$kind: http-request
+description: List hardware inventory items with status and location.
+url: "{{base_url}}/inventory?page=1&limit=10&search=&item_type_id=&status_id=&pelanggan_id="
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+    description: Page number
+  - key: limit
+    value: "10"
+    description: Items limit
+  - key: search
+    value: ""
+    description: Search item name or serial number
+  - key: item_type_id
+    value: ""
+    description: Type filter
+  - key: status_id
+    value: ""
+    description: Status filter
+  - key: pelanggan_id
+    value: ""
+    description: Customer filter
+order: 1000

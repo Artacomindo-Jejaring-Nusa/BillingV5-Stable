@@ -1,0 +1,12 @@
+$kind: http-request
+description: Upload and batch import customers from CSV file.
+url: "{{base_url}}/pelanggan/import"
+method: POST
+body:
+  type: formdata
+  content:
+    - type: file
+      key: file
+      src:
+        - ""
+order: 9000

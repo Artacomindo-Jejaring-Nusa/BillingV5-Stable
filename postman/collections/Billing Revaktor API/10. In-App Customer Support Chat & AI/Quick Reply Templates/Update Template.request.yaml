@@ -1,0 +1,15 @@
+$kind: http-request
+description: Update quick reply template.
+url: "{{base_url}}/chat/templates/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "shortcut": "/salam",
+        "title": "Salam Pembuka Ramah",
+        "message": "Halo! Selamat datang di Artacom Fiber. Ada yang bisa kami bantu hari ini?"
+    }
+order: 3000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Flush cached ONU operational data for this PON port.
+url: "{{base_url}}/olt/1/board/1/pon/1/cache"
+method: DELETE
+order: 13000

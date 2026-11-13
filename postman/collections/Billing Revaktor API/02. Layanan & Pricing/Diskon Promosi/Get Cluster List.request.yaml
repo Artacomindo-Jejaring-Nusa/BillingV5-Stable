@@ -1,0 +1,5 @@
+$kind: http-request
+description: List unique clusters where discounts have been configured.
+url: "{{base_url}}/diskon/clusters/list"
+method: GET
+order: 7000

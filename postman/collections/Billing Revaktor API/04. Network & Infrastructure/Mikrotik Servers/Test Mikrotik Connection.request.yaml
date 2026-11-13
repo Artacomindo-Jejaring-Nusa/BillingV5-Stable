@@ -1,0 +1,5 @@
+$kind: http-request
+description: Test live API reachability to the specified Mikrotik RouterOS.
+url: "{{base_url}}/mikrotik/1/test-connection"
+method: POST
+order: 6000

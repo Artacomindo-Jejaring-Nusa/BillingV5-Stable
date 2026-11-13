@@ -1,0 +1,12 @@
+$kind: http-request
+description: High-level monthly revenue report.
+url: "{{base_url}}/reports/revenue?year=2026&month=11"
+method: GET
+queryParams:
+  - key: year
+    value: "2026"
+    description: Year
+  - key: month
+    value: "11"
+    description: Month
+order: 1000

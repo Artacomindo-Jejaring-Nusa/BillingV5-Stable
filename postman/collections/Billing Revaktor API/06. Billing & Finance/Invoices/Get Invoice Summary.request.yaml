@@ -1,0 +1,12 @@
+$kind: http-request
+description: Get monthly aggregates (total invoiced, paid, pending, revenue).
+url: "{{base_url}}/invoices/summary?month=11&year=2026"
+method: GET
+queryParams:
+  - key: month
+    value: "11"
+    description: Month number (1-12)
+  - key: year
+    value: "2026"
+    description: 4-digit year
+order: 10000

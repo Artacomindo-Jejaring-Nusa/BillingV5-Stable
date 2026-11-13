@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete quick reply template.
+url: "{{base_url}}/chat/templates/1"
+method: DELETE
+order: 4000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Customer portal summary showing current active plan, quota, and latest invoice.
+url: "{{base_url}}/dashboard-pelanggan"
+method: GET
+order: 8000

@@ -1,0 +1,17 @@
+$kind: http-request
+description: Create a new internet package.
+url: "{{base_url}}/paket_layanan"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "id_brand": "JKN",
+        "nama_paket": "Home 20 Mbps",
+        "kecepatan": 20,
+        "harga": 200000,
+        "deskripsi": "Paket Internet Rumahan Kuota Unlimited"
+    }
+order: 3000

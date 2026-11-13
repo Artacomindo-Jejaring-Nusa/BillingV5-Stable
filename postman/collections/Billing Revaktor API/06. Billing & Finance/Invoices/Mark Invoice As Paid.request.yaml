@@ -1,0 +1,5 @@
+$kind: http-request
+description: Manually mark invoice as paid, update subscription status, and record settlement.
+url: "{{base_url}}/invoices/1/mark-as-paid"
+method: POST
+order: 6000

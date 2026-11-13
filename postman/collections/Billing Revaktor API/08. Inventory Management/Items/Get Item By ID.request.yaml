@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get inventory item details.
+url: "{{base_url}}/inventory/1"
+method: GET
+order: 2000

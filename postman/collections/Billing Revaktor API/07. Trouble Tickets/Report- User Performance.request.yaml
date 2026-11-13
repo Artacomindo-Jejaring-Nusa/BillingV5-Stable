@@ -1,0 +1,6 @@
+$kind: http-request
+name: "Report: User Performance"
+description: Technician performance, SLA compliance, and closure rates.
+url: "{{base_url}}/trouble-tickets/reports/user-performance"
+method: GET
+order: 18000

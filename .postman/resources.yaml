@@ -1,0 +1,13 @@
+# Use this workspace to collaborate
+workspace:
+  id: 6eb50fa2-4c8a-42c2-85d6-5449009cf636
+
+localResources:
+  specs:
+    - ../backend/docs/openapi.yaml
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../postman/collections/Billing Revaktor API: 71f9cdac-d08e-430c-9940-7ffdd208d7c8

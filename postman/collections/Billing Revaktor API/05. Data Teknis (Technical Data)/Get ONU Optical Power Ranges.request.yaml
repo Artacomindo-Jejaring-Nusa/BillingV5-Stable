@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get standard threshold metadata for optical power (good, warning, critical dBm).
+url: "{{base_url}}/data_teknis/onu-power-ranges"
+method: GET
+order: 11000

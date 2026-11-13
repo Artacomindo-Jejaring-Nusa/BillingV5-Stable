@@ -1,0 +1,13 @@
+$kind: http-request
+description: Update the payment status of an invoice.
+url: "{{base_url}}/invoices/1/status"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "status": "PAID"
+    }
+order: 5000

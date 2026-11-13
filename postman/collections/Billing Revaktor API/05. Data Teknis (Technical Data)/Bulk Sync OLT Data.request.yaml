@@ -1,0 +1,13 @@
+$kind: http-request
+description: Synchronize all ONU optical levels and registration states from OLT.
+url: "{{base_url}}/data_teknis/bulk-sync-olt"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "olt_id": 1
+    }
+order: 19000

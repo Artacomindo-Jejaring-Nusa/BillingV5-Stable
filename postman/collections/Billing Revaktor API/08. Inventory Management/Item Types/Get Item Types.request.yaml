@@ -1,0 +1,5 @@
+$kind: http-request
+description: List hardware categories/types.
+url: "{{base_url}}/inventory-types"
+method: GET
+order: 1000

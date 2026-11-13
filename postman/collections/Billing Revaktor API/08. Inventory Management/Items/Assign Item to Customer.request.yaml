@@ -1,0 +1,14 @@
+$kind: http-request
+description: Assign hardware item to a customer premise.
+url: "{{base_url}}/inventory/1/assign"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "pelanggan_id": 1,
+        "notes": "Dipasang di rumah pelanggan Bpk. Ahmad"
+    }
+order: 6000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Audit trail of status changes, reassignments, and downtime notes.
+url: "{{base_url}}/trouble-tickets/1/history"
+method: GET
+order: 10000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Discover available/unallocated ONU index slots on this PON port.
+url: "{{base_url}}/olt/1/board/1/pon/1/empty-onu-ids"
+method: GET
+order: 11000

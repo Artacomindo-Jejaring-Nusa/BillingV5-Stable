@@ -1,0 +1,18 @@
+$kind: http-request
+description: Retrieve backend diagnostic and runtime server logs.
+url: "{{base_url}}/system/system-logs?page=1&limit=50&level=&search="
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+    description: Page number
+  - key: limit
+    value: "50"
+    description: Log entries limit
+  - key: level
+    value: ""
+    description: Level filter (INFO, WARN, ERROR)
+  - key: search
+    value: ""
+    description: Keyword search
+order: 14000

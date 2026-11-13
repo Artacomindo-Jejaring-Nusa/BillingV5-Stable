@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch the highest/latest IP assigned on the given Mikrotik pool.
+url: "{{base_url}}/data_teknis/last-ip/1"
+method: GET
+order: 13000

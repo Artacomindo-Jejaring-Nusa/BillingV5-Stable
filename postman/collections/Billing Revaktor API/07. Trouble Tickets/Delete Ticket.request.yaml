@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete trouble ticket.
+url: "{{base_url}}/trouble-tickets/1"
+method: DELETE
+order: 20000

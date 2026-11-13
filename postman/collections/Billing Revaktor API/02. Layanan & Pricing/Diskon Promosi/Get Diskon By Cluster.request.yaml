@@ -1,0 +1,9 @@
+$kind: http-request
+description: Fetch applicable discount for a specific geographic cluster.
+url: "{{base_url}}/diskon/cluster/Waringin?tanggal=2026-08-17"
+method: GET
+queryParams:
+  - key: tanggal
+    value: 2026-08-17
+    description: Active date filter
+order: 6000

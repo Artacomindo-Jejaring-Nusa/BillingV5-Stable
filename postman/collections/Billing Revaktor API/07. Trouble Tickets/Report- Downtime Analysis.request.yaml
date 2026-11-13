@@ -1,0 +1,6 @@
+$kind: http-request
+name: "Report: Downtime Analysis"
+description: Detailed downtime duration metrics (MTTR, total outage time).
+url: "{{base_url}}/trouble-tickets/reports/downtime-analysis"
+method: GET
+order: 19000

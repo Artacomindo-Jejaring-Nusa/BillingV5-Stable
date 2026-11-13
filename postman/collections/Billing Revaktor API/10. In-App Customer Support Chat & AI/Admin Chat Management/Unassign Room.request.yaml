@@ -1,0 +1,5 @@
+$kind: http-request
+description: Release chat room assignment back to open pool.
+url: "{{base_url}}/chat/rooms/1/unassign"
+method: POST
+order: 6000

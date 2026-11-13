@@ -1,0 +1,5 @@
+$kind: http-request
+description: Download subscription CSV import template.
+url: "{{base_url}}/langganan/template/csv"
+method: GET
+order: 12000

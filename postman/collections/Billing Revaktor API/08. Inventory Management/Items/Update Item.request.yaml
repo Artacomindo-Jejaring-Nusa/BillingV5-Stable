@@ -1,0 +1,14 @@
+$kind: http-request
+description: Update inventory item specifications.
+url: "{{base_url}}/inventory/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "name": "Modem ONU Fiberhome AN5506-04 v2",
+        "specifications": "Dual Band Gigabit GPON Updated Firmware"
+    }
+order: 4000

@@ -1,0 +1,16 @@
+$kind: http-request
+description: Update subscription settings or status.
+url: "{{base_url}}/langganan/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "paket_layanan_id": 2,
+        "metode_pembayaran": "Transfer Bank (Xendit)",
+        "status": "Aktif",
+        "auto_isolir": true
+    }
+order: 6000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch geographic coordinates and capacity of all ODPs for map visualization.
+url: "{{base_url}}/odp/map-overview"
+method: GET
+order: 2000

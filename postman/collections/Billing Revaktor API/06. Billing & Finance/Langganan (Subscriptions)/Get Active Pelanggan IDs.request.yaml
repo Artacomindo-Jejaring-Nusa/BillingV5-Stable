@@ -1,0 +1,5 @@
+$kind: http-request
+description: Quick list of customer IDs that currently have active subscriptions.
+url: "{{base_url}}/langganan/active-pelanggan-ids"
+method: GET
+order: 3000

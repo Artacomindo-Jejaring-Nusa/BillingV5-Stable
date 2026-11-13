@@ -1,0 +1,21 @@
+$kind: http-request
+description: List customers with search, pagination, and multi-filter.
+url: "{{base_url}}/pelanggan?page=1&pageSize=10&search=&status=&lokasi="
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+    description: Page number
+  - key: pageSize
+    value: "10"
+    description: Page size
+  - key: search
+    value: ""
+    description: Search by name, email, phone, or customer ID
+  - key: status
+    value: ""
+    description: Status filter (Aktif, Suspended, Berhenti)
+  - key: lokasi
+    value: ""
+    description: Location / cluster filter
+order: 1000

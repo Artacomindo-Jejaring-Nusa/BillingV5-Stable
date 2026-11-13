@@ -1,0 +1,5 @@
+$kind: http-request
+description: List all programmatic API keys generated for integrations.
+url: "{{base_url}}/api-keys"
+method: GET
+order: 1000

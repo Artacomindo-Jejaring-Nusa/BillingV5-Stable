@@ -1,0 +1,9 @@
+$kind: http-request
+description: List recently activated new customer subscriptions.
+url: "{{base_url}}/langganan/new-users?limit=10"
+method: GET
+queryParams:
+  - key: limit
+    value: "10"
+    description: Limit count
+order: 2000

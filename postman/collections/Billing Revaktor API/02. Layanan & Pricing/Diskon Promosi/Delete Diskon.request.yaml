@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete discount configuration.
+url: "{{base_url}}/diskon/1"
+method: DELETE
+order: 8000

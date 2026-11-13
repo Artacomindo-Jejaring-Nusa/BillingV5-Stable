@@ -1,0 +1,12 @@
+$kind: http-request
+description: Upload image/attachment for in-chat sharing.
+url: "{{base_url}}/chat/upload"
+method: POST
+body:
+  type: formdata
+  content:
+    - type: file
+      key: file
+      src:
+        - ""
+order: 5000

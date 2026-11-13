@@ -1,0 +1,12 @@
+$kind: http-request
+description: General file uploader for chat media attachments.
+url: "{{base_url}}/uploads/chat"
+method: POST
+body:
+  type: formdata
+  content:
+    - type: file
+      key: file
+      src:
+        - ""
+order: 3000

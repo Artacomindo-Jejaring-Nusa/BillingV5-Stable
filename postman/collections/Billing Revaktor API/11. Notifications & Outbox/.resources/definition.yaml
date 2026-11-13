@@ -1,0 +1,3 @@
+$kind: collection
+description: In-app alerts, read status tracking, and WebSocket notification broadcasts.
+order: 11000

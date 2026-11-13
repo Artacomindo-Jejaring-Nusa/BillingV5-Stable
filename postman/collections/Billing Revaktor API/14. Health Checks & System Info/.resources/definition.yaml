@@ -1,0 +1,3 @@
+$kind: collection
+description: System health probes, readiness checks, and OpenAPI specifications.
+order: 14000

@@ -1,0 +1,22 @@
+$kind: http-request
+description: Bulk create ODPs from JSON payload.
+url: "{{base_url}}/odp/batch-import"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "items": [
+            {
+                "nama": "ODP-WRG-01-09",
+                "odc_id": 1,
+                "latitude": -6.3067,
+                "longitude": 106.8945,
+                "kapasitas": 8,
+                "alamat": "Jl. Waringin Blok C No. 20"
+            }
+        ]
+    }
+order: 5000

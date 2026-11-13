@@ -1,0 +1,17 @@
+$kind: http-request
+description: Update customer personal and contact information.
+url: "{{base_url}}/pelanggan/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama": "Ahmad Rizki Pratama",
+        "no_telepon": "081234567890",
+        "alamat": "Jl. Raya Waringin No. 45 Blok A",
+        "lokasi": "Waringin",
+        "status": "Aktif"
+    }
+order: 4000

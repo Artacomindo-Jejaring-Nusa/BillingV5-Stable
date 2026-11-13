@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch comprehensive network map containing Mikrotik, OLT, ODC, ODP, and connected pelanggan.
+url: "{{base_url}}/network/map-overview"
+method: GET
+order: 1000

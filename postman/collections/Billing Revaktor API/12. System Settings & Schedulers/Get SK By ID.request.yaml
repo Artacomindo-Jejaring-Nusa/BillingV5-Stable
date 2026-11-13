@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get SK details.
+url: "{{base_url}}/system/sk/1"
+method: GET
+order: 9000

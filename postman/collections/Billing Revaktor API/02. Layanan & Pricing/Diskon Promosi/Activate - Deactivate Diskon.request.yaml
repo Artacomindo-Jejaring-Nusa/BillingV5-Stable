@@ -1,0 +1,14 @@
+$kind: http-request
+name: Activate / Deactivate Diskon
+description: Toggle discount active state.
+url: "{{base_url}}/diskon/1/activate"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "is_active": true
+    }
+order: 5000

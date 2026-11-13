@@ -1,0 +1,7 @@
+$kind: http-request
+description: Public unauthenticated endpoint optimized for TV wallboards in NOC operation centers.
+url: "{{base_url}}/dashboard/tv-monitoring"
+method: GET
+auth:
+  type: noauth
+order: 2000

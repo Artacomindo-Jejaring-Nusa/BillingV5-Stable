@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete subscription record.
+url: "{{base_url}}/langganan/1"
+method: DELETE
+order: 7000

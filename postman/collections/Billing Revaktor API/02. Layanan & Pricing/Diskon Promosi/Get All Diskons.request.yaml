@@ -1,0 +1,18 @@
+$kind: http-request
+description: List promotional discounts.
+url: "{{base_url}}/diskon?page=1&page_size=50&cluster=&is_active="
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+    description: Page number
+  - key: page_size
+    value: "50"
+    description: Items per page
+  - key: cluster
+    value: ""
+    description: Filter by cluster name
+  - key: is_active
+    value: ""
+    description: Filter by active status (true/false)
+order: 1000

@@ -1,0 +1,18 @@
+$kind: http-request
+description: Create a new trouble ticket. Automatically notifies lead technician if Waringin/Parama.
+url: "{{base_url}}/trouble-tickets"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "pelanggan_id": 1,
+        "judul": "Internet Lambat / Lemot",
+        "kategori": "cable_issue",
+        "prioritas": "high",
+        "deskripsi": "Pelanggan melaporkan lampu PON berkedip merah dan redaman drop",
+        "assigned_to": 2
+    }
+order: 3000

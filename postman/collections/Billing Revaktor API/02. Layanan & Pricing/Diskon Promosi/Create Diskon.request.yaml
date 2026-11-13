@@ -1,0 +1,18 @@
+$kind: http-request
+description: Create a new discount campaign.
+url: "{{base_url}}/diskon"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama_diskon": "Promo Merdeka FTTH",
+        "persentase": 15,
+        "cluster": "Waringin",
+        "tgl_mulai": "2026-08-01T00:00:00Z",
+        "tgl_selesai": "2026-08-31T23:59:59Z",
+        "is_active": true
+    }
+order: 3000

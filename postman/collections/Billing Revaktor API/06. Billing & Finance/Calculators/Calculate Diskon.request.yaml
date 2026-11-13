@@ -1,0 +1,15 @@
+$kind: http-request
+description: Calculate price after applying promotional discount.
+url: "{{base_url}}/calculator/diskon"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "paket_layanan_id": 1,
+        "id_brand": "JKN",
+        "persentase_diskon": 15
+    }
+order: 2000

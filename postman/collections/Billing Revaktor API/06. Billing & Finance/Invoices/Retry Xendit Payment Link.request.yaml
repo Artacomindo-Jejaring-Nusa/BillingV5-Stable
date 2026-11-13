@@ -1,0 +1,5 @@
+$kind: http-request
+description: Regenerate Xendit payment link if expired or failed.
+url: "{{base_url}}/invoices/1/retry-xendit"
+method: POST
+order: 9000

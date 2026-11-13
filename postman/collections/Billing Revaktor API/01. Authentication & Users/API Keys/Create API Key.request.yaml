@@ -1,0 +1,14 @@
+$kind: http-request
+description: Generate a new API key with a designated role.
+url: "{{base_url}}/api-keys"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "name": "Internal Billing Automation",
+        "role_id": 1
+    }
+order: 2000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Retrieve technical network profile assigned to a customer.
+url: "{{base_url}}/data_teknis/by-pelanggan/1"
+method: GET
+order: 3000

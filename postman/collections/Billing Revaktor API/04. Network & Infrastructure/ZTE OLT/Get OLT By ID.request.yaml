@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get single OLT detail.
+url: "{{base_url}}/olt/1"
+method: GET
+order: 2000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get single invoice details and line items.
+url: "{{base_url}}/invoices/1"
+method: GET
+order: 2000

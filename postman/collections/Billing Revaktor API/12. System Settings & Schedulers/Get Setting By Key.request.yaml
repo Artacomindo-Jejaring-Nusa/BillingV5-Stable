@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch global system configuration value.
+url: "{{base_url}}/system/settings/app_name"
+method: GET
+order: 1000

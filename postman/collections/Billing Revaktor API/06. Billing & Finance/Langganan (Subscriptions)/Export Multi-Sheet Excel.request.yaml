@@ -1,0 +1,5 @@
+$kind: http-request
+description: Export multi-sheet Excel organized by brand and payment status.
+url: "{{base_url}}/langganan/export/excel/multi-sheet"
+method: GET
+order: 11000

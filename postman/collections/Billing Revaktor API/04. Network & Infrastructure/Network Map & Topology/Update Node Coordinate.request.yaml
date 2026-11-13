@@ -1,0 +1,16 @@
+$kind: http-request
+description: Update GPS coordinate for any network entity ('server', 'olt', 'odc', 'odp', 'pelanggan').
+url: "{{base_url}}/network/coordinate"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "type": "odp",
+        "id": 1,
+        "latitude": -6.306488,
+        "longitude": 106.894155
+    }
+order: 2000

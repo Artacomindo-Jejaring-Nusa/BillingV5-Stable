@@ -1,0 +1,12 @@
+$kind: http-request
+description: General file uploader for speedtest result images.
+url: "{{base_url}}/uploads/speedtest"
+method: POST
+body:
+  type: formdata
+  content:
+    - type: file
+      key: file
+      src:
+        - ""
+order: 2000

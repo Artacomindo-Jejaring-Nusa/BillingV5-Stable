@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch comprehensive executive metrics, piutang, active users, and monthly chart data.
+url: "{{base_url}}/dashboard"
+method: GET
+order: 1000

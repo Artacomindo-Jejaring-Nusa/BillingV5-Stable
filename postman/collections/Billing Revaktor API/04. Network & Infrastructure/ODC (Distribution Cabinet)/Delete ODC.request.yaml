@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete ODC record.
+url: "{{base_url}}/odc/1"
+method: DELETE
+order: 5000

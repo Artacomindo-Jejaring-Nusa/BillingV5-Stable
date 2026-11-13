@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get single ODP detail.
+url: "{{base_url}}/odp/1"
+method: GET
+order: 3000

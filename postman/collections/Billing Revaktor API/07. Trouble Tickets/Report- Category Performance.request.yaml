@@ -1,0 +1,6 @@
+$kind: http-request
+name: "Report: Category Performance"
+description: Ticket breakdown by root cause categories.
+url: "{{base_url}}/trouble-tickets/reports/category-performance"
+method: GET
+order: 17000

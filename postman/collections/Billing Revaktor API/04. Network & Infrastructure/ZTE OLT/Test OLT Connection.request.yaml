@@ -1,0 +1,5 @@
+$kind: http-request
+description: Test live connection to OLT device.
+url: "{{base_url}}/olt/1/test-connection"
+method: POST
+order: 6000

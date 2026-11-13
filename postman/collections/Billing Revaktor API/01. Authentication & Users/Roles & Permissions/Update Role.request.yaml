@@ -1,0 +1,18 @@
+$kind: http-request
+description: Update role description and assigned permissions.
+url: "{{base_url}}/roles/2"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "description": "Supervisor NOC & Billing",
+        "permission_ids": [
+            1,
+            2,
+            3
+        ]
+    }
+order: 4000

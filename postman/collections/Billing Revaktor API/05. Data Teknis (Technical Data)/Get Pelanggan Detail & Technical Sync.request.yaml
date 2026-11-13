@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get unified customer and technical info for configuration modal.
+url: "{{base_url}}/data_teknis/pelanggan-detail/1"
+method: GET
+order: 15000

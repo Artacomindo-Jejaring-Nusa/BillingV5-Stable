@@ -1,0 +1,18 @@
+$kind: http-request
+description: Register FCM token for end-customer mobile/web app notifications.
+url: "{{base_url}}/customer/fcm-token"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "pelanggan_id": 1,
+        "identifier": "081234567890",
+        "fcm_token": "fcm_customer_mobile_token_string",
+        "device_type": "android"
+    }
+auth:
+  type: noauth
+order: 11000

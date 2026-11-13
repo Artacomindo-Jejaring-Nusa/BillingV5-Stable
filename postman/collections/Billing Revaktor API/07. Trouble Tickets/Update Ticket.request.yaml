@@ -1,0 +1,16 @@
+$kind: http-request
+description: Update ticket details.
+url: "{{base_url}}/trouble-tickets/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "judul": "Internet Lambat / Lemot - Dropcore Rusak",
+        "kategori": "cable_issue",
+        "prioritas": "high",
+        "deskripsi": "Kabel dropcore tertimpa pohon tumbang"
+    }
+order: 4000

@@ -1,0 +1,24 @@
+$kind: http-request
+description: List technical configuration data across all customers.
+url: "{{base_url}}/data_teknis?skip=0&limit=50&search=&olt=&profile=&vlan="
+method: GET
+queryParams:
+  - key: skip
+    value: "0"
+    description: Offset items
+  - key: limit
+    value: "50"
+    description: Items limit
+  - key: search
+    value: ""
+    description: Search by IP, username PPPoE, or serial
+  - key: olt
+    value: ""
+    description: Filter by OLT name
+  - key: profile
+    value: ""
+    description: Filter by PPPoE profile
+  - key: vlan
+    value: ""
+    description: Filter by VLAN ID
+order: 1000

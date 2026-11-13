@@ -1,0 +1,12 @@
+$kind: http-request
+description: Batch import subscriptions from CSV.
+url: "{{base_url}}/langganan/import/csv"
+method: POST
+body:
+  type: formdata
+  content:
+    - type: file
+      key: file
+      src:
+        - ""
+order: 13000

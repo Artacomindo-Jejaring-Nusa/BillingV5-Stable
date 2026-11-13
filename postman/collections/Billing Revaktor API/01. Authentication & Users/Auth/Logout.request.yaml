@@ -1,0 +1,15 @@
+$kind: http-request
+description: Blacklist the refresh token and terminate the current user session.
+url: "{{base_url}}/auth/logout"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "refresh_token": "{{refresh_token}}"
+    }
+auth:
+  type: noauth
+order: 3000

@@ -1,0 +1,9 @@
+$kind: http-request
+description: Get matching profile name on Mikrotik based on customer package speed.
+url: "{{base_url}}/data_teknis/available-profiles/1/1?mikrotik_server_id=1"
+method: GET
+queryParams:
+  - key: mikrotik_server_id
+    value: "1"
+    description: Mikrotik server ID
+order: 12000

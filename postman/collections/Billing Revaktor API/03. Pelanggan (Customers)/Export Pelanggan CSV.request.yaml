@@ -1,0 +1,5 @@
+$kind: http-request
+description: Export customer master list to CSV format.
+url: "{{base_url}}/pelanggan/export"
+method: GET
+order: 7000

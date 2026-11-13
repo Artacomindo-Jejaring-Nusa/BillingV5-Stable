@@ -1,0 +1,12 @@
+$kind: http-request
+description: General file uploader for repair evidence.
+url: "{{base_url}}/uploads/evidence"
+method: POST
+body:
+  type: formdata
+  content:
+    - type: file
+      key: file
+      src:
+        - ""
+order: 1000

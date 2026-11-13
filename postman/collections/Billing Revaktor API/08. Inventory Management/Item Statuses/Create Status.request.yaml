@@ -1,0 +1,14 @@
+$kind: http-request
+description: Create inventory status.
+url: "{{base_url}}/inventory-statuses"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "name": "In Storage",
+        "color": "#4CAF50"
+    }
+order: 2000

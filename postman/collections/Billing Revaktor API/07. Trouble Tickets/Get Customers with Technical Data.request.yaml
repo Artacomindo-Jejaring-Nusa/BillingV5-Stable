@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch customer list with network metadata for trouble ticket creation.
+url: "{{base_url}}/trouble-tickets/customers"
+method: GET
+order: 11000

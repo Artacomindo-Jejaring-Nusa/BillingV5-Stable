@@ -1,0 +1,9 @@
+$kind: http-request
+description: List unconfigured / newly discovered ONUs on the OLT.
+url: "{{base_url}}/data_teknis/detected-onus?olt_id=1"
+method: GET
+queryParams:
+  - key: olt_id
+    value: "1"
+    description: OLT ID
+order: 18000

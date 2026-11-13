@@ -1,0 +1,21 @@
+$kind: http-request
+description: Audit trail tracking user actions and database changes.
+url: "{{base_url}}/system/activity-logs?page=1&limit=15&search=&user_id=&action="
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+    description: Page number
+  - key: limit
+    value: "15"
+    description: Page limit
+  - key: search
+    value: ""
+    description: Search description
+  - key: user_id
+    value: ""
+    description: Filter by user ID
+  - key: action
+    value: ""
+    description: Filter by action type
+order: 13000

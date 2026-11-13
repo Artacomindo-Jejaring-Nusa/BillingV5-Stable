@@ -1,0 +1,14 @@
+$kind: http-request
+description: Update technical parameters.
+url: "{{base_url}}/data_teknis/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "profile_pppoe": "PROFILE-25M",
+        "ip_address": "10.10.10.55"
+    }
+order: 5000

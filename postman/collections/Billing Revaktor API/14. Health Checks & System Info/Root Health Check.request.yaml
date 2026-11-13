@@ -1,0 +1,7 @@
+$kind: http-request
+description: Check root server, database, and Redis connectivity health.
+url: "{{base_url}}/api/health"
+method: GET
+auth:
+  type: noauth
+order: 2000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete an internet package.
+url: "{{base_url}}/paket_layanan/1"
+method: DELETE
+order: 5000

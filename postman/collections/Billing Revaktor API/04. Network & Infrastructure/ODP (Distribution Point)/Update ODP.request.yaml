@@ -1,0 +1,14 @@
+$kind: http-request
+description: Update ODP information.
+url: "{{base_url}}/odp/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama": "ODP-WRG-01-08",
+        "alamat": "Jl. Waringin Blok C No. 12 RT 03"
+    }
+order: 6000

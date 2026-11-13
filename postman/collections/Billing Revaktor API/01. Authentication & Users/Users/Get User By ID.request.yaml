@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch detail of a user by user ID.
+url: "{{base_url}}/users/1"
+method: GET
+order: 3000

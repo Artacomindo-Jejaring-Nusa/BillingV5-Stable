@@ -1,0 +1,15 @@
+$kind: http-request
+description: Update an existing package.
+url: "{{base_url}}/paket_layanan/1"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama_paket": "Home 25 Mbps Super",
+        "kecepatan": 25,
+        "harga": 225000
+    }
+order: 4000

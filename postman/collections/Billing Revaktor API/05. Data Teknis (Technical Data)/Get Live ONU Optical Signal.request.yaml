@@ -1,0 +1,5 @@
+$kind: http-request
+description: Query OLT in real-time for current ONU Rx power and link state.
+url: "{{base_url}}/data_teknis/1/live-onu"
+method: GET
+order: 16000

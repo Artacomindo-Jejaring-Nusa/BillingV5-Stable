@@ -1,0 +1,5 @@
+$kind: http-request
+description: "AI-assisted extraction: summarize conversation into a ready-to-file Trouble Ticket draft."
+url: "{{base_url}}/chat/rooms/1/auto-fill-ticket"
+method: POST
+order: 7000

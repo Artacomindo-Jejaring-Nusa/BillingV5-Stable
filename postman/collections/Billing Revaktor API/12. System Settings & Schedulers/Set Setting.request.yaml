@@ -1,0 +1,14 @@
+$kind: http-request
+description: Save or update system configuration key.
+url: "{{base_url}}/system/settings"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "key": "app_name",
+        "value": "Artacom Billing System"
+    }
+order: 2000

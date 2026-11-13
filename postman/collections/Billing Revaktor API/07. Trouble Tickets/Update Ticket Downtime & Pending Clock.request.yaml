@@ -1,0 +1,14 @@
+$kind: http-request
+description: Pause or resume downtime clock with audited pending reason.
+url: "{{base_url}}/trouble-tickets/1/downtime"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "status": "pending",
+        "pending_reason": "Menunggu tim PLN menyelesaikan perbaikan tiang"
+    }
+order: 6000

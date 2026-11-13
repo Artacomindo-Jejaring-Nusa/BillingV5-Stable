@@ -1,0 +1,7 @@
+$kind: http-request
+description: Download raw OpenAPI 3.0 specification.
+url: "{{base_url}}/docs/openapi.yaml"
+method: GET
+auth:
+  type: noauth
+order: 3000

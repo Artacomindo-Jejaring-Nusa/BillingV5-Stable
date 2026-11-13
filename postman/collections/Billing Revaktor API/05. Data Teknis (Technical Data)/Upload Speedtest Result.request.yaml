@@ -1,0 +1,12 @@
+$kind: http-request
+description: Upload customer speedtest screenshot.
+url: "{{base_url}}/data_teknis/upload-speedtest"
+method: POST
+body:
+  type: formdata
+  content:
+    - type: file
+      key: file
+      src:
+        - ""
+order: 23000

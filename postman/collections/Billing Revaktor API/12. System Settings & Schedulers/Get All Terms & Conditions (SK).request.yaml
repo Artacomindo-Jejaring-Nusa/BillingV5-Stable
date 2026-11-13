@@ -1,0 +1,5 @@
+$kind: http-request
+description: List terms and conditions documents.
+url: "{{base_url}}/system/sk"
+method: GET
+order: 8000

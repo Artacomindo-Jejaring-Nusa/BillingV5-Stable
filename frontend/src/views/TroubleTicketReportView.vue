@@ -1,15 +1,20 @@
 <template>
-  <div class="trouble-ticket-report-container pa-4 pa-md-6">
+  <div class="trouble-ticket-report-container">
     <!-- ===== HEADER SECTION ===== -->
     <div class="header-card mb-4 mb-md-6">
       <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
         <div class="d-flex align-center header-info">
           <div class="header-avatar-box">
-            <v-icon color="white" size="26">mdi-chart-box-outline</v-icon>
+            <v-icon color="white" size="24">mdi-chart-box-outline</v-icon>
           </div>
           <div class="ml-4">
-            <h1 class="header-title mb-0">Trouble Ticket Reports</h1>
-            <p class="header-subtitle mb-0">
+            <div class="d-flex align-center gap-2">
+              <h1 class="header-title mb-0">Trouble Ticket Reports</h1>
+              <v-chip size="x-small" color="primary" variant="tonal" class="font-weight-bold ml-1">
+                Analytics
+              </v-chip>
+            </div>
+            <p class="header-subtitle mb-0 mt-0.5">
               Analisis komprehensif, tracking downtime, dan performa penanganan gangguan
             </p>
           </div>
@@ -22,7 +27,7 @@
             class="action-btn-refresh text-none font-weight-medium"
             variant="outlined"
             rounded="pill"
-            height="40"
+            height="38"
           >
             Segarkan Data
           </v-btn>
@@ -35,7 +40,7 @@
             variant="flat"
             rounded="pill"
             elevation="0"
-            height="40"
+            height="38"
           >
             Export Laporan
           </v-btn>
@@ -45,7 +50,7 @@
 
     <!-- ===== DATE RANGE FILTER ===== -->
     <div class="filter-card mb-4 mb-md-6 pa-4 pa-sm-5">
-      <div class="d-flex align-center justify-space-between mb-4">
+      <div class="d-flex align-center justify-space-between mb-3">
         <div class="d-flex align-center">
           <div class="filter-icon-box mr-3">
             <v-icon color="primary" size="20">mdi-calendar-range</v-icon>
@@ -58,7 +63,7 @@
         <v-chip
           v-if="dateRange.from || dateRange.to"
           color="primary"
-          variant="flat"
+          variant="tonal"
           size="small"
           prepend-icon="mdi-filter-check"
           class="font-weight-medium"
@@ -67,9 +72,9 @@
         </v-chip>
       </div>
 
-      <div class="date-range-filters">
+      <div class="date-range-filters mt-3">
         <v-row dense class="align-center">
-          <v-col cols="12" sm="5">
+          <v-col cols="12" sm="5" md="4" lg="3">
             <v-text-field
               v-model="dateRange.from"
               type="date"
@@ -79,10 +84,10 @@
               density="compact"
               hide-details
               @update:modelValue="applyDateFilter"
-              class="date-input"
+              class="date-input rounded-lg bg-white"
             />
           </v-col>
-          <v-col cols="12" sm="5">
+          <v-col cols="12" sm="5" md="4" lg="3">
             <v-text-field
               v-model="dateRange.to"
               type="date"
@@ -92,10 +97,10 @@
               density="compact"
               hide-details
               @update:modelValue="applyDateFilter"
-              class="date-input"
+              class="date-input rounded-lg bg-white"
             />
           </v-col>
-          <v-col cols="12" sm="2">
+          <v-col cols="12" sm="2" md="2" lg="2">
             <v-btn
               variant="tonal"
               prepend-icon="mdi-filter-off-outline"
@@ -134,9 +139,12 @@
           <div class="metric-card pa-4 pa-sm-5">
             <div class="metric-accent-line line-blue"></div>
             <div class="d-flex align-center justify-space-between mb-3 mt-1">
-              <span class="metric-label">TOTAL TICKETS</span>
+              <div class="d-flex align-center">
+                <span class="metric-dot dot-blue mr-2"></span>
+                <span class="metric-label">TOTAL TICKETS</span>
+              </div>
               <div class="metric-icon-box box-blue">
-                <v-icon size="22" color="primary">mdi-ticket-confirmation-outline</v-icon>
+                <v-icon size="20" color="primary">mdi-ticket-confirmation-outline</v-icon>
               </div>
             </div>
             <div class="metric-value mb-2">{{ statistics?.total_tickets || 0 }}</div>
@@ -155,9 +163,12 @@
           <div class="metric-card pa-4 pa-sm-5">
             <div class="metric-accent-line line-green"></div>
             <div class="d-flex align-center justify-space-between mb-3 mt-1">
-              <span class="metric-label">RESOLUTION RATE</span>
+              <div class="d-flex align-center">
+                <span class="metric-dot dot-green mr-2"></span>
+                <span class="metric-label">RESOLUTION RATE</span>
+              </div>
               <div class="metric-icon-box box-green">
-                <v-icon size="22" color="success">mdi-check-circle-outline</v-icon>
+                <v-icon size="20" color="success">mdi-check-circle-outline</v-icon>
               </div>
             </div>
             <div class="metric-value text-success mb-2">{{ calculateResolutionRate() }}%</div>
@@ -176,9 +187,12 @@
           <div class="metric-card pa-4 pa-sm-5">
             <div class="metric-accent-line line-amber"></div>
             <div class="d-flex align-center justify-space-between mb-3 mt-1">
-              <span class="metric-label">AVG RESOLUTION TIME</span>
+              <div class="d-flex align-center">
+                <span class="metric-dot dot-amber mr-2"></span>
+                <span class="metric-label">AVG RESOLUTION TIME</span>
+              </div>
               <div class="metric-icon-box box-amber">
-                <v-icon size="22" color="warning">mdi-clock-fast</v-icon>
+                <v-icon size="20" color="warning">mdi-clock-fast</v-icon>
               </div>
             </div>
             <div class="metric-value text-warning mb-2">{{ formatHours(statistics?.avg_resolution_time_hours || null) }}</div>
@@ -197,9 +211,12 @@
           <div class="metric-card pa-4 pa-sm-5">
             <div class="metric-accent-line line-rose"></div>
             <div class="d-flex align-center justify-space-between mb-3 mt-1">
-              <span class="metric-label">OPEN TICKETS</span>
+              <div class="d-flex align-center">
+                <span class="metric-dot dot-rose mr-2"></span>
+                <span class="metric-label">OPEN TICKETS</span>
+              </div>
               <div class="metric-icon-box box-rose">
-                <v-icon size="22" color="error">mdi-alert-circle-outline</v-icon>
+                <v-icon size="20" color="error">mdi-alert-circle-outline</v-icon>
               </div>
             </div>
             <div class="metric-value text-error mb-2">{{ statistics?.open_tickets || 0 }}</div>
@@ -511,9 +528,12 @@
                   <div class="metric-card pa-4 pa-sm-5">
                     <div class="metric-accent-line line-blue"></div>
                     <div class="d-flex align-center justify-space-between mb-3 mt-1">
-                      <span class="metric-label">TOTAL DOWNTIME</span>
+                      <div class="d-flex align-center">
+                        <span class="metric-dot dot-blue mr-2"></span>
+                        <span class="metric-label">TOTAL DOWNTIME</span>
+                      </div>
                       <div class="metric-icon-box box-blue">
-                        <v-icon size="22" color="primary">mdi-clock-outline</v-icon>
+                        <v-icon size="20" color="primary">mdi-clock-outline</v-icon>
                       </div>
                     </div>
                     <div class="metric-value mb-2">{{ formatHours(downtimeAnalysis.overall_statistics.total_downtime_hours) }}</div>
@@ -532,9 +552,12 @@
                   <div class="metric-card pa-4 pa-sm-5">
                     <div class="metric-accent-line line-green"></div>
                     <div class="d-flex align-center justify-space-between mb-3 mt-1">
-                      <span class="metric-label">AVG DOWNTIME</span>
+                      <div class="d-flex align-center">
+                        <span class="metric-dot dot-green mr-2"></span>
+                        <span class="metric-label">AVG DOWNTIME</span>
+                      </div>
                       <div class="metric-icon-box box-green">
-                        <v-icon size="22" color="success">mdi-chart-timeline-variant</v-icon>
+                        <v-icon size="20" color="success">mdi-chart-timeline-variant</v-icon>
                       </div>
                     </div>
                     <div class="metric-value text-success mb-2">{{ formatHours(downtimeAnalysis.overall_statistics.avg_downtime_hours) }}</div>
@@ -553,9 +576,12 @@
                   <div class="metric-card pa-4 pa-sm-5">
                     <div class="metric-accent-line line-amber"></div>
                     <div class="d-flex align-center justify-space-between mb-3 mt-1">
-                      <span class="metric-label">MAX DOWNTIME</span>
+                      <div class="d-flex align-center">
+                        <span class="metric-dot dot-amber mr-2"></span>
+                        <span class="metric-label">MAX DOWNTIME</span>
+                      </div>
                       <div class="metric-icon-box box-amber">
-                        <v-icon size="22" color="warning">mdi-clock-alert-outline</v-icon>
+                        <v-icon size="20" color="warning">mdi-clock-alert-outline</v-icon>
                       </div>
                     </div>
                     <div class="metric-value text-warning mb-2">{{ formatHours(downtimeAnalysis.overall_statistics.max_downtime_hours) }}</div>
@@ -574,9 +600,12 @@
                   <div class="metric-card pa-4 pa-sm-5">
                     <div class="metric-accent-line line-rose"></div>
                     <div class="d-flex align-center justify-space-between mb-3 mt-1">
-                      <span class="metric-label">TIKET TERDAMPAK</span>
+                      <div class="d-flex align-center">
+                        <span class="metric-dot dot-rose mr-2"></span>
+                        <span class="metric-label">TIKET TERDAMPAK</span>
+                      </div>
                       <div class="metric-icon-box box-rose">
-                        <v-icon size="22" color="error">mdi-ticket-alert-outline</v-icon>
+                        <v-icon size="20" color="error">mdi-ticket-alert-outline</v-icon>
                       </div>
                     </div>
                     <div class="metric-value text-error mb-2">{{ downtimeAnalysis.overall_statistics.tickets_with_downtime }}</div>
@@ -687,7 +716,7 @@
           </div>
           <div v-else-if="ticketDetails.length > 0" class="ticket-details-content">
             <!-- Filter Bar -->
-            <div class="ticket-filter-bar mb-4 p-3 bg-slate-50 border rounded-lg">
+            <div class="ticket-filter-bar mb-4 pa-3 pa-sm-4 rounded-xl border">
               <v-row dense align="center">
                 <v-col cols="12" md="4">
                   <v-text-field
@@ -698,7 +727,7 @@
                     density="compact"
                     hide-details
                     clearable
-                    class="bg-white"
+                    class="bg-white filter-input-control"
                   ></v-text-field>
                 </v-col>
                 <v-col cols="12" sm="6" md="3">
@@ -711,7 +740,7 @@
                     density="compact"
                     hide-details
                     clearable
-                    class="bg-white"
+                    class="bg-white filter-input-control"
                   ></v-select>
                 </v-col>
                 <v-col cols="12" sm="6" md="3">
@@ -724,18 +753,20 @@
                     density="compact"
                     hide-details
                     clearable
-                    class="bg-white"
+                    class="bg-white filter-input-control"
                   ></v-select>
                 </v-col>
                 <v-col cols="12" md="2">
                   <v-btn
-                    variant="outlined"
+                    variant="tonal"
                     prepend-icon="mdi-filter-off-outline"
                     @click="clearTicketFilters"
                     size="small"
                     block
                     color="slate-600"
                     height="40"
+                    rounded="lg"
+                    class="font-weight-bold text-none"
                   >
                     Reset
                   </v-btn>
@@ -755,29 +786,25 @@
             >
               <!-- Ticket Number -->
               <template v-slot:item.ticket_number="{ item }">
-                <v-chip
-                  color="primary"
-                  variant="tonal"
-                  size="small"
-                  prepend-icon="mdi-ticket-outline"
-                  class="font-weight-medium"
-                >
+                <span class="ticket-number-badge">
+                  <v-icon size="14" class="mr-1 text-slate-500">mdi-ticket-outline</v-icon>
                   {{ item.ticket_number }}
-                </v-chip>
+                </span>
               </template>
 
               <!-- Customer Information -->
               <template v-slot:item.customer_info="{ item }">
                 <div class="py-1">
-                  <div class="font-weight-bold text-slate-800 text-body-2 mb-0">
+                  <div class="font-weight-bold text-slate-900 text-body-2 mb-0">
                     {{ item.customer_name || 'N/A' }}
                   </div>
-                  <div class="text-caption text-slate-500 d-flex align-center gap-1">
+                  <div class="text-caption text-slate-500 d-flex align-center gap-1 my-0.5">
                     <v-icon size="12" color="slate-400">mdi-phone-outline</v-icon>
-                    {{ item.customer_phone || '-' }}
+                    <span>{{ item.customer_phone || '-' }}</span>
                   </div>
-                  <div class="text-caption text-slate-400 text-truncate" style="max-width: 200px;">
-                    {{ item.customer_address || '-' }}
+                  <div v-if="item.customer_address" class="text-caption text-slate-400 text-truncate" style="max-width: 220px;" :title="item.customer_address">
+                    <v-icon size="12" color="slate-400" class="mr-0.5">mdi-map-marker-outline</v-icon>
+                    {{ item.customer_address }}
                   </div>
                 </div>
               </template>
@@ -786,16 +813,21 @@
               <template v-slot:item.technical_info="{ item }">
                 <div class="d-flex flex-column gap-1 py-1">
                   <div class="d-flex align-center gap-1">
-                    <span class="text-caption text-slate-400" style="min-width: 32px;">IP:</span>
-                    <span class="text-caption font-mono font-weight-medium text-slate-700">{{ item.ip_pelanggan || '-' }}</span>
+                    <span class="text-caption text-slate-400 font-weight-medium" style="min-width: 30px;">IP:</span>
+                    <span class="text-caption font-mono font-weight-semibold text-slate-700">{{ item.ip_pelanggan || '-' }}</span>
                   </div>
                   <div class="d-flex align-center gap-1">
-                    <span class="text-caption text-slate-400" style="min-width: 32px;">ID:</span>
+                    <span class="text-caption text-slate-400 font-weight-medium" style="min-width: 30px;">ID:</span>
                     <span class="text-caption font-weight-medium text-slate-700">{{ item.id_pelanggan || '-' }}</span>
                   </div>
                   <div class="d-flex align-center gap-1">
-                    <span class="text-caption text-slate-400" style="min-width: 32px;">ONU:</span>
-                    <v-chip size="x-small" variant="tonal" color="success">
+                    <span class="text-caption text-slate-400 font-weight-medium" style="min-width: 30px;">ONU:</span>
+                    <v-chip
+                      size="x-small"
+                      variant="tonal"
+                      :color="item.onu_power && item.onu_power !== 'N/A' && parseFloat(item.onu_power) < -27 ? 'error' : (item.onu_power && item.onu_power !== 'N/A' ? 'success' : 'slate')"
+                      class="font-weight-medium font-mono"
+                    >
                       {{ item.onu_power || '-' }} dBm
                     </v-chip>
                   </div>
@@ -804,20 +836,21 @@
 
               <!-- Problem Description -->
               <template v-slot:item.problem="{ item }">
-                <div class="py-1" style="max-width: 250px;">
-                  <div class="font-weight-medium text-slate-800 text-body-2 text-truncate">{{ item.title }}</div>
-                  <div class="text-caption text-slate-500 text-truncate">{{ item.description }}</div>
+                <div class="py-1" style="max-width: 260px;">
+                  <div class="font-weight-bold text-slate-800 text-body-2 text-truncate" :title="item.title">{{ item.title }}</div>
+                  <div class="text-caption text-slate-500 text-truncate mt-0.5" :title="item.description">{{ item.description || '-' }}</div>
                 </div>
               </template>
 
               <!-- Status & Category -->
               <template v-slot:item.status_category="{ item }">
-                <div class="d-flex flex-column gap-1 py-1 align-start">
+                <div class="d-flex flex-column gap-1.5 py-1 align-start">
                   <v-chip
                     :color="getStatusColor(item.status)"
                     size="small"
                     variant="tonal"
-                    class="font-weight-medium"
+                    class="font-weight-bold text-uppercase"
+                    style="font-size: 0.6875rem; letter-spacing: 0.03em;"
                   >
                     {{ formatStatus(item.status) }}
                   </v-chip>
@@ -825,6 +858,8 @@
                     color="slate"
                     size="x-small"
                     variant="outlined"
+                    class="text-uppercase"
+                    style="font-size: 0.625rem; font-weight: 600; letter-spacing: 0.03em;"
                   >
                     {{ formatCategory(item.category) }}
                   </v-chip>
@@ -838,12 +873,12 @@
                     :color="getDowntimeColor(item.total_downtime_minutes)"
                     size="small"
                     variant="tonal"
-                    prepend-icon="mdi-clock-alert-outline"
-                    class="font-weight-medium"
+                    prepend-icon="mdi-clock-outline"
+                    class="font-weight-bold"
                   >
                     {{ item.downtime_hours }} jam
                   </v-chip>
-                  <div class="text-caption text-slate-400 mt-1">
+                  <div class="text-caption text-slate-400 mt-1 font-weight-medium">
                     {{ item.total_downtime_minutes }} menit
                   </div>
                 </div>
@@ -852,11 +887,11 @@
               <!-- Assignment -->
               <template v-slot:item.assignment="{ item }">
                 <div class="py-1">
-                  <div class="d-flex align-center gap-1 text-body-2 font-weight-medium text-slate-800">
-                    <v-icon size="14" color="success">mdi-account-check-outline</v-icon>
+                  <div class="d-flex align-center gap-1.5 text-body-2 font-weight-semibold text-slate-800">
+                    <v-icon size="15" color="success">mdi-account-check-outline</v-icon>
                     <span>{{ item.assigned_to || 'Belum ditugaskan' }}</span>
                   </div>
-                  <span class="text-caption text-slate-400">
+                  <span class="text-caption text-slate-400 d-inline-block mt-0.5 font-weight-medium">
                     {{ item.latest_actions ? item.latest_actions.length : 0 }} riwayat tindakan
                   </span>
                 </div>
@@ -2798,9 +2833,11 @@ onMounted(() => {
 
 <style scoped>
 .trouble-ticket-report-container {
-  padding: 24px;
-  max-width: 1600px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  padding: 20px 24px;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 /* Header & Panels */
@@ -2809,28 +2846,29 @@ onMounted(() => {
 .chart-panel-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
   transition: all 0.2s ease;
 }
 
 .header-card {
-  padding: 20px 24px;
+  padding: 18px 24px;
 }
 
 .header-avatar-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: #0f172a;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.15);
 }
 
 .header-title {
-  font-size: 1.375rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #0f172a;
   letter-spacing: -0.01em;
@@ -2875,7 +2913,7 @@ onMounted(() => {
 
 /* Filter Card Elements */
 .filter-title {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 700;
   color: #0f172a;
 }
@@ -2887,9 +2925,9 @@ onMounted(() => {
 }
 
 .filter-icon-box {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   background: #eff6ff;
   border: 1px solid #dbeafe;
   display: flex;
@@ -2927,7 +2965,7 @@ onMounted(() => {
 .chart-header-icon-box {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #f1f5f9;
   display: flex;
   align-items: center;
@@ -2944,7 +2982,7 @@ onMounted(() => {
 .metric-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border-radius: 12px;
   position: relative;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -2965,7 +3003,7 @@ onMounted(() => {
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 2px;
 }
 
 .line-blue { background-color: #0284c7; }
@@ -2973,8 +3011,20 @@ onMounted(() => {
 .line-amber { background-color: #f59e0b; }
 .line-rose { background-color: #f43f5e; }
 
+.metric-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-blue { background-color: #0284c7; }
+.dot-green { background-color: #10b981; }
+.dot-amber { background-color: #f59e0b; }
+.dot-rose { background-color: #f43f5e; }
+
 .metric-label {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: #64748b;
   letter-spacing: 0.05em;
@@ -2989,9 +3039,9 @@ onMounted(() => {
 }
 
 .metric-icon-box {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3051,6 +3101,21 @@ onMounted(() => {
   border: 1px solid #e2e8f0;
 }
 
+/* Ticket Number Badge */
+.ticket-number-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+  letter-spacing: -0.01em;
+}
+
 /* Modern Data Table Tweaks */
 .modern-data-table :deep(th) {
   font-size: 0.75rem !important;
@@ -3059,11 +3124,23 @@ onMounted(() => {
   letter-spacing: 0.05em !important;
   color: #475569 !important;
   background-color: #f8fafc !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 12px 16px !important;
 }
 
 .modern-data-table :deep(td) {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding: 10px 16px !important;
+}
+
+.modern-data-table :deep(tr:hover td) {
+  background-color: #f8fafc !important;
+}
+
+/* Filter Bar */
+.ticket-filter-bar {
+  background: #f8fafc;
+  border-color: #e2e8f0 !important;
 }
 
 /* Export Option Box */
@@ -3115,6 +3192,29 @@ onMounted(() => {
 }
 
 /* Segmented Buttons */
+.segmented-toggle {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  background-color: #f8fafc !important;
+  padding: 2px !important;
+}
+
+.segmented-toggle .v-btn {
+  border: none !important;
+  border-radius: 6px !important;
+  color: #64748b !important;
+  font-weight: 500 !important;
+  font-size: 0.75rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.segmented-toggle .v-btn--active {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
 .segmented-btn {
   font-size: 0.75rem !important;
   font-weight: 600 !important;
@@ -3178,6 +3278,12 @@ onMounted(() => {
 :deep(.v-theme--dark) .ticket-filter-bar {
   background: #0f172a !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:deep(.v-theme--dark) .ticket-number-badge {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
 }
 
 :deep(.v-theme--dark) .export-option-box {

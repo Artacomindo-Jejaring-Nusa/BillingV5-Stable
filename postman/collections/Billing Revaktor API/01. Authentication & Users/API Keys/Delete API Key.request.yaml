@@ -1,0 +1,5 @@
+$kind: http-request
+description: Revoke and delete an API key.
+url: "{{base_url}}/api-keys/1"
+method: DELETE
+order: 4000

@@ -1,0 +1,13 @@
+$kind: http-request
+description: Assign ticket to field technician.
+url: "{{base_url}}/trouble-tickets/1/assign"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "technician_id": 2
+    }
+order: 7000

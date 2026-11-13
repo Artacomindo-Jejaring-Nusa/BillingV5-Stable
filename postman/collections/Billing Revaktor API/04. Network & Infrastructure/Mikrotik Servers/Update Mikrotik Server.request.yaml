@@ -1,0 +1,17 @@
+$kind: http-request
+description: Update Mikrotik connection configuration.
+url: "{{base_url}}/mikrotik/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama": "CCR1036-Core-Waringin-Primary",
+        "ip_address": "10.10.10.1",
+        "port": 8728,
+        "username": "api_billing",
+        "password": "NewPassword123"
+    }
+order: 4000

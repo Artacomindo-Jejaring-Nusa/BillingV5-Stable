@@ -1,0 +1,8 @@
+name: Billing Revaktor - Local
+values:
+  - key: base_url
+    value: 'http://localhost:8000/api/v1'
+  - key: access_token
+    value: ''
+  - key: refresh_token
+    value: ''

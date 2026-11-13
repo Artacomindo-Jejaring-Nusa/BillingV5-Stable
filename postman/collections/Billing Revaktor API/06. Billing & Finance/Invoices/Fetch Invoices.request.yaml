@@ -1,0 +1,24 @@
+$kind: http-request
+description: Fetch paginated invoices with comprehensive filters.
+url: "{{base_url}}/invoices?page=1&pageSize=10&search=&status=&brand=&is_paid="
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+    description: Page number
+  - key: pageSize
+    value: "10"
+    description: Page size
+  - key: search
+    value: ""
+    description: Search invoice number or customer name
+  - key: status
+    value: ""
+    description: Status (PENDING, PAID, EXPIRED)
+  - key: brand
+    value: ""
+    description: Brand code
+  - key: is_paid
+    value: ""
+    description: Filter by paid boolean
+order: 1000

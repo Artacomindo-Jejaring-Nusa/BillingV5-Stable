@@ -1,0 +1,14 @@
+$kind: http-request
+description: Update brand details.
+url: "{{base_url}}/harga_layanan/JKN"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama_brand": "Jakinet Fiber Premium",
+        "keterangan": "High Speed FTTH Service"
+    }
+order: 4000

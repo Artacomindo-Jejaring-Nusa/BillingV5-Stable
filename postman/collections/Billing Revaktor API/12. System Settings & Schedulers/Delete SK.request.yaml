@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete terms and conditions document.
+url: "{{base_url}}/system/sk/1"
+method: DELETE
+order: 12000

@@ -1,0 +1,12 @@
+$kind: http-request
+description: Fetch paginated list of ONUs under the PON port.
+url: "{{base_url}}/olt/1/board/1/pon/1/paginate?page=1&page_size=20"
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+    description: Page number
+  - key: page_size
+    value: "20"
+    description: Page size
+order: 9000

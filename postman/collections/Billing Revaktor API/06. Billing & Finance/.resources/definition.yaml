@@ -1,0 +1,3 @@
+$kind: collection
+description: Monthly recurring invoices, subscriptions, payment links, Xendit callbacks, revenue analytics, and prorate calculators.
+order: 6000

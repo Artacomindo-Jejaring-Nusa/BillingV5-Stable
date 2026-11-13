@@ -1,0 +1,3 @@
+$kind: collection
+description: PPPoE credentials, IP allocation, VLANs, live ONU power monitoring, and OLT sync.
+order: 5000

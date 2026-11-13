@@ -1,0 +1,5 @@
+$kind: http-request
+description: List technicians available for ticket assignment.
+url: "{{base_url}}/trouble-tickets/technicians"
+method: GET
+order: 12000

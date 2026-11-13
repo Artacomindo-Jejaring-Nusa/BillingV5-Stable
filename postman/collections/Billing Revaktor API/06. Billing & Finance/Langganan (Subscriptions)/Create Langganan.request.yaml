@@ -1,0 +1,20 @@
+$kind: http-request
+description: Create a subscription for a customer.
+url: "{{base_url}}/langganan"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "pelanggan_id": 1,
+        "paket_layanan_id": 1,
+        "metode_pembayaran": "Transfer Bank (Xendit)",
+        "status": "Aktif",
+        "tgl_mulai": "2026-11-01T00:00:00Z",
+        "jatuh_tempo_hari": 20,
+        "auto_isolir": true,
+        "prorate_tagihan_pertama": false
+    }
+order: 5000

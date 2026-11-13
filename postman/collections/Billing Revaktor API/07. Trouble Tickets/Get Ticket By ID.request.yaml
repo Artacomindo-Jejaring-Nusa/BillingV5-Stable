@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get full ticket details including downtime clocks and audit log.
+url: "{{base_url}}/trouble-tickets/1"
+method: GET
+order: 2000

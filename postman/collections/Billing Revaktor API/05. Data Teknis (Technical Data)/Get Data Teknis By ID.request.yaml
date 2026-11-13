@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get technical data details by ID.
+url: "{{base_url}}/data_teknis/1"
+method: GET
+order: 2000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Resolve and close chat conversation.
+url: "{{base_url}}/chat/rooms/1/close"
+method: POST
+order: 3000

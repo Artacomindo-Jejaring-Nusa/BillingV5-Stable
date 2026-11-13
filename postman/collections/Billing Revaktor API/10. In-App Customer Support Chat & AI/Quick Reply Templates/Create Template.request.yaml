@@ -1,0 +1,16 @@
+$kind: http-request
+description: Create a canned response template.
+url: "{{base_url}}/chat/templates"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "shortcut": "/salam",
+        "title": "Salam Pembuka",
+        "message": "Halo Bpk/Ibu, selamat datang di layanan pelanggan Artacom. Ada yang bisa kami bantu?",
+        "category": "general"
+    }
+order: 2000

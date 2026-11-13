@@ -1,0 +1,5 @@
+$kind: http-request
+description: Unregister Firebase Cloud Messaging push token.
+url: "{{base_url}}/users/fcm-token/fcm_device_token_string"
+method: DELETE
+order: 8000

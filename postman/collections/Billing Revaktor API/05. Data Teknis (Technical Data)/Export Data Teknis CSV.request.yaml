@@ -1,0 +1,5 @@
+$kind: http-request
+description: Export all technical records to CSV.
+url: "{{base_url}}/data_teknis/export"
+method: GET
+order: 20000

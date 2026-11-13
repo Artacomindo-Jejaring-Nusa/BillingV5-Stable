@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get ticket metrics (open, in progress, resolved, avg resolution time).
+url: "{{base_url}}/trouble-tickets/statistics"
+method: GET
+order: 13000

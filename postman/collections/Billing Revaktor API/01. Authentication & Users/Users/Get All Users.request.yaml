@@ -1,0 +1,15 @@
+$kind: http-request
+description: Fetch paginated list of internal system users.
+url: "{{base_url}}/users?page=1&limit=15&search="
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+    description: Page number
+  - key: limit
+    value: "15"
+    description: Items per page
+  - key: search
+    value: ""
+    description: Filter by name or email
+order: 2000

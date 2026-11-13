@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get widget summary statistics for executive dashboard.
+url: "{{base_url}}/trouble-tickets/statistics/dashboard"
+method: GET
+order: 14000

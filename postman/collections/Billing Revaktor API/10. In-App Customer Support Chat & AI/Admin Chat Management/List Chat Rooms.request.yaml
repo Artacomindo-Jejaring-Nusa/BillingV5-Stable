@@ -1,0 +1,18 @@
+$kind: http-request
+description: Admin agent inbox listing all live customer conversations.
+url: "{{base_url}}/chat/rooms?status=open&search=&limit=20&page=1"
+method: GET
+queryParams:
+  - key: status
+    value: open
+    description: Status filter (open, closed, all)
+  - key: search
+    value: ""
+    description: Search customer name or phone
+  - key: limit
+    value: "20"
+    description: Page limit
+  - key: page
+    value: "1"
+    description: Page number
+order: 1000

@@ -1,0 +1,16 @@
+$kind: http-request
+description: Calculate standalone prorated price.
+url: "{{base_url}}/calculator/prorate"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "paket_layanan_id": 1,
+        "id_brand": "JKN",
+        "tgl_mulai": "2026-11-15T00:00:00Z",
+        "include_ppn_next_month": true
+    }
+order: 1000

@@ -1,0 +1,9 @@
+$kind: http-request
+description: Retrieve or create active conversation room for customer.
+url: "{{base_url}}/chat/customer/room?customer_id=1"
+method: GET
+queryParams:
+  - key: customer_id
+    value: "1"
+    description: Customer ID
+order: 2000

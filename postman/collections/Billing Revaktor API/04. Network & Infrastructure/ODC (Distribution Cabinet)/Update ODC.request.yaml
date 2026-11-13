@@ -1,0 +1,14 @@
+$kind: http-request
+description: Update ODC details.
+url: "{{base_url}}/odc/1"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama": "ODC-WRG-01-Rev",
+        "kapasitas": 48
+    }
+order: 4000

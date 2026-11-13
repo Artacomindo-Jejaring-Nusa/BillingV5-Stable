@@ -1,0 +1,12 @@
+$kind: http-request
+description: Fetch chat history for a specific room.
+url: "{{base_url}}/chat/messages/1?limit=50&before_id="
+method: GET
+queryParams:
+  - key: limit
+    value: "50"
+    description: Message limit
+  - key: before_id
+    value: ""
+    description: Pagination cursor
+order: 3000

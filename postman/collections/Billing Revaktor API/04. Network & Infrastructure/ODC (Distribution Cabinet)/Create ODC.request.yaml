@@ -1,0 +1,18 @@
+$kind: http-request
+description: Create a new Optical Distribution Cabinet.
+url: "{{base_url}}/odc"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama": "ODC-WRG-01",
+        "olt_id": 1,
+        "latitude": -6.305123,
+        "longitude": 106.892123,
+        "kapasitas": 48,
+        "deskripsi": "ODC Utama Simpang Waringin"
+    }
+order: 3000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Fetch real-time ONU optical power from OLT and persist it to the database.
+url: "{{base_url}}/data_teknis/1/sync-onu-power"
+method: POST
+order: 17000

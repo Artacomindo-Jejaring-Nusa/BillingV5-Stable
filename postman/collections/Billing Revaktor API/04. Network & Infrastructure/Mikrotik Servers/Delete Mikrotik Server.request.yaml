@@ -1,0 +1,5 @@
+$kind: http-request
+description: Delete Mikrotik server entry.
+url: "{{base_url}}/mikrotik/1"
+method: DELETE
+order: 5000

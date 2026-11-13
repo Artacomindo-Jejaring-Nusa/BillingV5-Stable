@@ -1,0 +1,15 @@
+$kind: http-request
+description: Create a new brand entity.
+url: "{{base_url}}/harga_layanan"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "id_brand": "JKN",
+        "nama_brand": "Jakinet Fiber",
+        "keterangan": "Layanan Internet FTTH Wilayah Jakarta"
+    }
+order: 3000

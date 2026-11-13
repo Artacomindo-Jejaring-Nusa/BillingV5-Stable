@@ -1,0 +1,12 @@
+$kind: collection
+description: Comprehensive and production-ready Postman Collection for BillingRevaktor (FTTH ISP Management System). Covers Authentication, Users, RBAC, API Keys, Brands, Packages, Discounts, Pelanggan, Network Infrastructure (Mikrotik, ZTE OLT, ODC, ODP), Data Teknis, Billing (Invoices, Subscriptions, Reports), Trouble Tickets & Downtime Tracking, Inventory, Dashboards, Real-Time In-App Support Chat & AI, Notifications, and System Schedulers.
+variables:
+  base_url: http://localhost:8000/api/v1
+  access_token: ""
+  refresh_token: ""
+auth:
+  - id: 4b5e0c52-2f65-414d-91a7-8fc26d1da661
+    type: bearer
+    name: bearer auth
+    credentials:
+      token: "{{access_token}}"

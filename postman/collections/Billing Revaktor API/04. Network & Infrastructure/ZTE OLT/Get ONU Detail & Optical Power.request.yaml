@@ -1,0 +1,5 @@
+$kind: http-request
+description: Read real-time optical power (Rx/Tx dBm) and status of a specific ONU.
+url: "{{base_url}}/olt/1/board/1/pon/1/onu/1"
+method: GET
+order: 10000

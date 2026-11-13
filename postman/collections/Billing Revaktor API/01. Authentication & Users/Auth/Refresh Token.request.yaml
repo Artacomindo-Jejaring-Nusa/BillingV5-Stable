@@ -1,0 +1,28 @@
+$kind: http-request
+description: Obtain a fresh access token using a valid refresh token.
+url: "{{base_url}}/auth/refresh"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "refresh_token": "{{refresh_token}}"
+    }
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      const response = pm.response.json();
+      if (response.access_token) {
+          pm.environment.set("access_token", response.access_token);
+          pm.collectionVariables.set("access_token", response.access_token);
+      }
+      if (response.refresh_token) {
+          pm.environment.set("refresh_token", response.refresh_token);
+          pm.collectionVariables.set("refresh_token", response.refresh_token);
+      }
+    language: text/javascript
+order: 2000

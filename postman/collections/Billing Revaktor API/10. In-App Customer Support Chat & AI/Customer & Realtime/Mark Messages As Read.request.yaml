@@ -1,0 +1,5 @@
+$kind: http-request
+description: Mark unread messages in the room as read.
+url: "{{base_url}}/chat/messages/1/read"
+method: POST
+order: 4000

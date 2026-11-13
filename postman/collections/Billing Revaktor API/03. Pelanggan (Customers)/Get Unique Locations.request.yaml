@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get list of unique customer location strings for filter dropdowns.
+url: "{{base_url}}/pelanggan/lokasi/unik"
+method: GET
+order: 6000

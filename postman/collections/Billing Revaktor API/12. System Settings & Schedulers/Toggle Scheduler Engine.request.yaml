@@ -1,0 +1,13 @@
+$kind: http-request
+description: Enable or pause background scheduler daemon.
+url: "{{base_url}}/system/scheduler/toggle"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "enabled": true
+    }
+order: 4000

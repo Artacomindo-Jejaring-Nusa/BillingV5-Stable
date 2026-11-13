@@ -1,0 +1,7 @@
+$kind: http-request
+description: Connect to live notification stream via WebSocket.
+url: "{{base_url}}/ws/notifications"
+method: GET
+auth:
+  type: noauth
+order: 4000

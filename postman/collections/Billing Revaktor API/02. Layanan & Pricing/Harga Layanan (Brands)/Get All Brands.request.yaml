@@ -1,0 +1,5 @@
+$kind: http-request
+description: List all brand entities (e.g. Jakinet, Parama, Waringin).
+url: "{{base_url}}/harga_layanan"
+method: GET
+order: 1000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: List all internet packages across brands.
+url: "{{base_url}}/paket_layanan"
+method: GET
+order: 1000

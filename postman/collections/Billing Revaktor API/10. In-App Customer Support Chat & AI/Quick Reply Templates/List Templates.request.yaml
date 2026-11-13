@@ -1,0 +1,11 @@
+$kind: http-request
+description: List quick response canned templates for agents.
+url: "{{base_url}}/chat/templates?category=general"
+method: GET
+queryParams:
+  - key: category
+    value: general
+    description: Category filter
+auth:
+  type: noauth
+order: 1000

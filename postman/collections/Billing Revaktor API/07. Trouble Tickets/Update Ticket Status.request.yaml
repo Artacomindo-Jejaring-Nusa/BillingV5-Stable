@@ -1,0 +1,13 @@
+$kind: http-request
+description: Advance ticket lifecycle status ('open' -> 'in_progress' -> 'resolved' -> 'closed').
+url: "{{base_url}}/trouble-tickets/1/status"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "status": "in_progress"
+    }
+order: 5000

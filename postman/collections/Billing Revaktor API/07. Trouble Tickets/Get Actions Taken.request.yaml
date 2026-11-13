@@ -1,0 +1,5 @@
+$kind: http-request
+description: List all actions taken for this ticket.
+url: "{{base_url}}/trouble-tickets/1/actions"
+method: GET
+order: 9000

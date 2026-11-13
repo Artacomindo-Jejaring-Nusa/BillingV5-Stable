@@ -1,0 +1,5 @@
+$kind: http-request
+description: Monitor status of automated invoice generator cron and upcoming cycles.
+url: "{{base_url}}/dashboard/invoice-generation-monitor"
+method: GET
+order: 6000

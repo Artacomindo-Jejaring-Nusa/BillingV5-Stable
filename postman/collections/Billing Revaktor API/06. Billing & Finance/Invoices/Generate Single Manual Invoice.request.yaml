@@ -1,0 +1,14 @@
+$kind: http-request
+description: Trigger invoice generation for a customer for the specified period.
+url: "{{base_url}}/invoices/generate"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "pelanggan_id": 1,
+        "periode": "2026-11"
+    }
+order: 4000

@@ -1,0 +1,30 @@
+$kind: http-request
+description: Fetch subscriptions with instant filtering and server-side sorting.
+url: "{{base_url}}/langganan?page=1&pageSize=10&search=&status=&paket_id=&brand=&sort_by=pelanggan.nama&sort_order=asc"
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+    description: Page number
+  - key: pageSize
+    value: "10"
+    description: Page size
+  - key: search
+    value: ""
+    description: Search customer name or address
+  - key: status
+    value: ""
+    description: Status (Aktif, Suspended, Berhenti)
+  - key: paket_id
+    value: ""
+    description: Package filter ID
+  - key: brand
+    value: ""
+    description: Brand code
+  - key: sort_by
+    value: pelanggan.nama
+    description: Sort column (whitelisted)
+  - key: sort_order
+    value: asc
+    description: Sort order (asc/desc)
+order: 1000

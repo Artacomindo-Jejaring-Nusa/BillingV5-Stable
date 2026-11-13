@@ -1,0 +1,5 @@
+$kind: http-request
+description: List active VLAN tags.
+url: "{{base_url}}/data_teknis/available-vlans"
+method: GET
+order: 10000

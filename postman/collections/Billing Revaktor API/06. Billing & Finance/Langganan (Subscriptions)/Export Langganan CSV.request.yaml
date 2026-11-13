@@ -1,0 +1,5 @@
+$kind: http-request
+description: Export subscriptions list to CSV.
+url: "{{base_url}}/langganan/export"
+method: GET
+order: 10000

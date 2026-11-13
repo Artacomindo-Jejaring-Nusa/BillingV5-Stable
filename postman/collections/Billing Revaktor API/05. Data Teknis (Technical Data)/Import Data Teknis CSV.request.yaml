@@ -1,0 +1,12 @@
+$kind: http-request
+description: Import technical records from CSV.
+url: "{{base_url}}/data_teknis/import/csv"
+method: POST
+body:
+  type: formdata
+  content:
+    - type: file
+      key: file
+      src:
+        - ""
+order: 22000

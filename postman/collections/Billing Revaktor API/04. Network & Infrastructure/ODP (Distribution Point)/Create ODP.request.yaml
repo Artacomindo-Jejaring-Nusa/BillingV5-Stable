@@ -1,0 +1,18 @@
+$kind: http-request
+description: Register a new ODP distribution box.
+url: "{{base_url}}/odp"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama": "ODP-WRG-01-08",
+        "odc_id": 1,
+        "latitude": -6.306456,
+        "longitude": 106.894123,
+        "kapasitas": 8,
+        "alamat": "Jl. Waringin Blok C No. 12"
+    }
+order: 4000

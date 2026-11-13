@@ -1,0 +1,18 @@
+$kind: http-request
+description: Export invoices list to Excel/CSV.
+url: "{{base_url}}/invoices/export?status=&brand=&month=11&year=2026"
+method: GET
+queryParams:
+  - key: status
+    value: ""
+    description: Status filter
+  - key: brand
+    value: ""
+    description: Brand filter
+  - key: month
+    value: "11"
+    description: Month
+  - key: year
+    value: "2026"
+    description: Year
+order: 11000

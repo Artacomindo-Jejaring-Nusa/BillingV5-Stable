@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get subscription details.
+url: "{{base_url}}/langganan/1"
+method: GET
+order: 4000

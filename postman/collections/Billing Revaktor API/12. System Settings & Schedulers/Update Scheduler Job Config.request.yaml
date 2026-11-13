@@ -1,0 +1,14 @@
+$kind: http-request
+description: Update cron expression or state of a specific scheduler task.
+url: "{{base_url}}/system/scheduler/jobs/auto_billing"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "cron_expression": "0 0 1 * *",
+        "enabled": true
+    }
+order: 6000

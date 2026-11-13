@@ -1,0 +1,5 @@
+$kind: http-request
+description: Get connection details of a single Mikrotik server.
+url: "{{base_url}}/mikrotik/1"
+method: GET
+order: 2000

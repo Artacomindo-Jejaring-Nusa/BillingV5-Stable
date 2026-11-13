@@ -1,0 +1,18 @@
+$kind: http-request
+description: Add a new ZTE OLT device.
+url: "{{base_url}}/olt"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "nama": "OLT-ZTE-C320-Waringin",
+        "ip_address": "192.168.100.1",
+        "port": 23,
+        "username": "admin",
+        "password": "ztepassword",
+        "tipe": "ZTE C320"
+    }
+order: 3000

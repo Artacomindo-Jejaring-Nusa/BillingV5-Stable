@@ -1,0 +1,5 @@
+$kind: http-request
+description: List discovered serial numbers on the PON port.
+url: "{{base_url}}/olt/1/board/1/pon/1/onu-serials"
+method: GET
+order: 12000

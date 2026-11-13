@@ -1,0 +1,18 @@
+$kind: http-request
+description: Add a hardware item to inventory.
+url: "{{base_url}}/inventory"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "name": "Modem ONU Fiberhome AN5506-04",
+        "item_type_id": 1,
+        "status_id": 1,
+        "serial_number": "FH12345678",
+        "mac_address": "AA:BB:CC:DD:EE:01",
+        "specifications": "Dual Band Gigabit GPON"
+    }
+order: 3000

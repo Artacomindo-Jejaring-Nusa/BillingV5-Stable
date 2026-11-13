@@ -1,0 +1,13 @@
+$kind: http-request
+description: Update item type.
+url: "{{base_url}}/inventory-types/1"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+        "name": "Modem ONT/ONU Dual-Band"
+    }
+order: 3000
