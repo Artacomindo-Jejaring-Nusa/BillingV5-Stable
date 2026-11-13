@@ -764,7 +764,7 @@
                     height="40"
                     rounded="lg"
                     class="btn-reset-filter text-none font-weight-semibold"
-                    :class="{ 'has-active-filter': !!ticketSearchQuery || !!ticketStatusFilter || !!ticketCategoryFilter }"
+                    :class="{ 'has-active-filter': !!ticketSearch || !!ticketStatusFilter || !!ticketCategoryFilter }"
                   >
                     Reset
                   </v-btn>
