@@ -83,3 +83,5 @@ venv/
 # Firebase Credentials
 backend/config/firebase-service-account.json
 project.todo
+docs
+.stack_icons

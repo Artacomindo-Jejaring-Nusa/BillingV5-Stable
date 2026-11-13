@@ -5,7 +5,7 @@
         <div class="d-flex align-center header-info">
           <div class="header-avatar-wrapper">
             <v-avatar class="header-avatar" color="transparent" size="50">
-              <v-icon color="white" size="28">mdi-lan</v-icon>
+              <v-icon color="primary" size="28">mdi-lan</v-icon>
             </v-avatar>
           </div>
           <div class="ml-4">
@@ -84,75 +84,186 @@
       </div>
     </div>
 
+    <!-- Filter Card - Modern Redesign (Clean & Responsive) -->
     <v-card class="filter-card mb-6" elevation="0">
-      <div class="d-flex flex-wrap align-center gap-4 pa-4">
+      <!-- Primary Search Row -->
+      <div class="filter-primary-row">
         <v-text-field
           v-model="searchQuery"
-          label="Cari (Nama, ID PPPoE, IP)"
+          :placeholder="display.mobile.value ? 'Cari data teknis...' : 'Cari berdasarkan nama, ID PPPoE, atau IP pelanggan...'"
           prepend-inner-icon="mdi-magnify"
-          variant="outlined"
+          variant="solo-filled"
           density="comfortable"
           hide-details
-          class="flex-grow-1"
-          style="min-width: 300px;"
+          class="filter-search-field"
+          flat
+          clearable
         ></v-text-field>
 
-        <v-select
-          v-model="selectedOlt"
-          :items="oltOptions"
-          label="Filter OLT"
-          variant="outlined"
-          density="comfortable"
-          hide-details
-          clearable
-          class="flex-grow-1"
-          style="min-width: 200px;"
-        ></v-select>
-
-        <v-select
-          v-model="selectedProfile"
-          :items="profileOptions"
-          label="Filter Profile PPPoE"
-          variant="outlined"
-          density="comfortable"
-          hide-details
-          clearable
-          class="flex-grow-1"
-          style="min-width: 200px;"
-        ></v-select>
-
-        <v-select
-          v-model="selectedVlan"
-          :items="vlanOptions"
-          label="Filter VLAN"
-          variant="outlined"
-          density="comfortable"
-          hide-details
-          clearable
-          class="flex-grow-1"
-          style="min-width: 200px;"
-        ></v-select>
-
-        <v-select
-          v-model="selectedOnuPowerRange"
-          :items="onuPowerRangeOptions"
-          label="Filter ONU Power"
-          variant="outlined"
-          density="comfortable"
-          hide-details
-          clearable
-          class="flex-grow-1"
-          style="min-width: 200px;"
-        ></v-select>
+        <v-badge
+          :content="activeFilterCount"
+          :model-value="activeFilterCount > 0"
+          color="primary"
+          offset-x="4"
+          offset-y="4"
+          class="filter-badge-wrapper"
+        >
+          <v-btn
+            :color="showAdvancedFilters ? 'primary' : undefined"
+            :variant="showAdvancedFilters ? 'tonal' : 'outlined'"
+            @click="showAdvancedFilters = !showAdvancedFilters"
+            class="filter-toggle-btn text-none"
+            :prepend-icon="showAdvancedFilters ? 'mdi-filter-minus' : 'mdi-filter-plus'"
+            size="large"
+          >
+            <span class="d-none d-sm-inline">{{ showAdvancedFilters ? 'Tutup Filter' : 'Filter' }}</span>
+          </v-btn>
+        </v-badge>
 
         <v-btn
-            variant="text"
-            @click="resetFilters"
-            class="text-none"
+          v-if="searchQuery || activeFilterCount > 0"
+          variant="text"
+          color="error"
+          @click="resetFilters"
+          class="filter-reset-btn text-none"
+          prepend-icon="mdi-filter-off"
+          size="large"
         >
-          Reset Filter
+          <span class="d-none d-sm-inline">Reset</span>
         </v-btn>
       </div>
+
+      <!-- Active Filter Chips -->
+      <v-expand-transition>
+        <div v-if="activeFilterCount > 0" class="filter-active-chips">
+          <div class="d-flex align-center flex-wrap gap-2">
+            <v-icon size="16" class="text-medium-emphasis mr-1">mdi-filter-check</v-icon>
+            <span class="text-caption text-medium-emphasis font-weight-medium mr-2">Filter aktif:</span>
+
+            <v-chip
+              v-if="selectedOlt && selectedOlt !== 'Semua'"
+              closable
+              size="small"
+              color="primary"
+              variant="tonal"
+              class="filter-chip"
+              @click:close="selectedOlt = null"
+            >
+              <v-icon start size="14">mdi-server-network</v-icon>
+              OLT: {{ selectedOlt }}
+            </v-chip>
+
+            <v-chip
+              v-if="selectedProfile"
+              closable
+              size="small"
+              color="teal"
+              variant="tonal"
+              class="filter-chip"
+              @click:close="selectedProfile = null"
+            >
+              <v-icon start size="14">mdi-speedometer</v-icon>
+              Profil: {{ selectedProfile }}
+            </v-chip>
+
+            <v-chip
+              v-if="selectedVlan"
+              closable
+              size="small"
+              color="indigo"
+              variant="tonal"
+              class="filter-chip"
+              @click:close="selectedVlan = null"
+            >
+              <v-icon start size="14">mdi-tag-outline</v-icon>
+              VLAN: {{ selectedVlan }}
+            </v-chip>
+
+            <v-chip
+              v-if="selectedOnuPowerRange"
+              closable
+              size="small"
+              color="amber-darken-3"
+              variant="tonal"
+              class="filter-chip"
+              @click:close="selectedOnuPowerRange = null"
+            >
+              <v-icon start size="14">mdi-signal-variant</v-icon>
+              Power: {{ selectedOnuPowerRange }}
+            </v-chip>
+
+            <v-btn
+              variant="text"
+              size="x-small"
+              color="error"
+              class="text-none ml-1"
+              @click="resetFilters"
+              prepend-icon="mdi-close-circle-outline"
+            >
+              Hapus Semua
+            </v-btn>
+          </div>
+        </div>
+      </v-expand-transition>
+
+      <!-- Advanced Filters Panel -->
+      <v-expand-transition>
+        <div v-show="showAdvancedFilters" class="filter-advanced-panel">
+          <v-divider class="mb-4"></v-divider>
+          <v-row dense>
+            <v-col cols="12" sm="6" md="3">
+              <v-select
+                v-model="selectedOlt"
+                :items="oltOptions"
+                label="Filter OLT"
+                prepend-inner-icon="mdi-server-network"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                clearable
+              ></v-select>
+            </v-col>
+            <v-col cols="12" sm="6" md="3">
+              <v-select
+                v-model="selectedProfile"
+                :items="profileOptions"
+                label="Filter Profile PPPoE"
+                prepend-inner-icon="mdi-speedometer"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                clearable
+              ></v-select>
+            </v-col>
+            <v-col cols="12" sm="6" md="3">
+              <v-select
+                v-model="selectedVlan"
+                :items="vlanOptions"
+                label="Filter VLAN"
+                prepend-inner-icon="mdi-tag-outline"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                clearable
+              ></v-select>
+            </v-col>
+            <v-col cols="12" sm="6" md="3">
+              <v-select
+                v-model="selectedOnuPowerRange"
+                :items="onuPowerRangeOptions"
+                item-title="title"
+                item-value="value"
+                label="Filter ONU Power"
+                prepend-inner-icon="mdi-signal-variant"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                clearable
+              ></v-select>
+            </v-col>
+          </v-row>
+        </div>
+      </v-expand-transition>
     </v-card>
 
     <!-- VLAN Information Section -->
@@ -1986,6 +2097,18 @@ const profileOptions = ref<string[]>([]);
 const vlanOptions = ref<string[]>([]);
 const onuPowerRangeOptions = ref<any[]>([]);
 
+// --- State Filter Modern ---
+const showAdvancedFilters = ref(true);
+
+const activeFilterCount = computed(() => {
+  let count = 0;
+  if (selectedOlt.value && selectedOlt.value !== 'Semua') count++;
+  if (selectedProfile.value) count++;
+  if (selectedVlan.value) count++;
+  if (selectedOnuPowerRange.value) count++;
+  return count;
+});
+
 // --- State for Total Count ---
 const totalDataTeknisCount = ref(0);
 
@@ -1993,7 +2116,7 @@ const totalDataTeknisCount = ref(0);
 
 // --- State for Statistics ---
 const statisticsData = ref({
-  totalPelanggan: 0,
+  totalPelanggan: 0, 
   sinyalBaik: 0,
   sinyalLemah: 0,
   oltAktif: 0
@@ -3475,11 +3598,16 @@ function getOnuPowerError() {
 }
 
 .header-avatar-wrapper {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 50%;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
   flex-shrink: 0;
+}
+
+.v-theme--dark .header-avatar-wrapper {
+  background: #1e293b;
+  border-color: #334155;
 }
 
 .header-title {
@@ -3760,104 +3888,85 @@ function getOnuPowerError() {
   overflow-x: auto;
   width: 100%;
 }
+/* Filter Card - Modern Redesign (Clean & Responsive) */
 .filter-card {
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  position: relative;
+  border-radius: 16px !important;
+  border: 1px solid rgba(var(--v-theme-primary), 0.12) !important;
+  background: rgb(var(--v-theme-surface)) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
   overflow: hidden;
 }
 
-.filter-card .d-flex {
-  padding: 20px 24px !important;
-  gap: 16px !important;
-  flex-wrap: wrap;
+.filter-primary-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
 }
 
-.filter-card .v-text-field, .filter-card .v-select {
-  min-width: 250px !important;
+.filter-search-field {
+  flex: 1;
 }
 
-.filter-card :deep(.v-field) {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 6px !important;
-  box-shadow: inset 0 2px 4px rgba(var(--v-theme-shadow), 0.06);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+.filter-search-field :deep(.v-field) {
+  border-radius: 12px !important;
+  background: rgba(var(--v-theme-on-surface), 0.04) !important;
+  min-height: 48px;
 }
 
-.filter-card :deep(.v-field:hover) {
-  border-color: rgba(var(--v-theme-primary), 0.4) !important;
-  background: rgba(var(--v-theme-surface), 1) !important;
-  transform: translateY(-1px);
-  box-shadow: 
-    inset 0 2px 4px rgba(var(--v-theme-shadow), 0.06),
-    0 4px 12px rgba(var(--v-theme-primary), 0.1);
+.filter-search-field :deep(.v-field--focused) {
+  background: rgba(var(--v-theme-primary), 0.04) !important;
 }
 
-.filter-card :deep(.v-field--focused) {
-  border-color: rgb(var(--v-theme-primary)) !important;
-  background: rgba(var(--v-theme-surface), 1) !important;
-  box-shadow: 
-    inset 0 2px 4px rgba(var(--v-theme-shadow), 0.06),
-    0 0 0 3px rgba(var(--v-theme-primary), 0.12);
-}
-
-.filter-card .v-text-field :deep(.v-field__prepend-inner .v-icon) {
-  color: rgba(var(--v-theme-primary), 0.7) !important;
-  transition: color 0.2s ease;
-}
-
-.filter-card .v-text-field:hover :deep(.v-field__prepend-inner .v-icon) {
-  color: rgb(var(--v-theme-primary)) !important;
-}
-
-.filter-card .v-btn[variant="text"] {
-  border-radius: 14px !important;
-  font-weight: 600 !important;
+.filter-toggle-btn {
+  border-radius: 12px !important;
+  min-width: 48px;
   height: 48px !important;
-  min-width: 120px !important;
-  color: rgba(var(--v-theme-primary), 0.8) !important;
-  background: rgba(var(--v-theme-primary), 0.08) !important;
-  border: 1px solid rgba(var(--v-theme-primary), 0.2) !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 600;
+  position: relative;
+  flex-shrink: 0;
 }
 
-.filter-card .v-btn[variant="text"]:hover {
-  background: rgba(var(--v-theme-primary), 0.12) !important;
-  color: rgb(var(--v-theme-primary)) !important;
+.filter-reset-btn {
+  border-radius: 12px !important;
+  height: 48px !important;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.filter-badge-wrapper :deep(.v-badge__badge) {
+  font-size: 0.65rem;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+}
+
+.filter-active-chips {
+  padding: 0 20px 14px 20px;
+}
+
+.filter-chip {
+  font-weight: 500;
+  letter-spacing: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.filter-chip:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(var(--v-theme-primary), 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-@media (max-width: 960px) {
-  .filter-card .d-flex {
-    padding: 20px 24px !important;
-    gap: 16px !important;
-  }
-  
-  .filter-card .v-text-field,
-  .filter-card .v-select {
-    min-width: 100% !important;
-  }
-  
-  .filter-card .v-btn[variant="text"] {
-    width: 100% !important;
-    margin-top: 8px;
-  }
+.filter-advanced-panel {
+  padding: 0 20px 20px 20px;
 }
 
 @media (max-width: 600px) {
-  .filter-card .d-flex {
-    padding: 16px 20px !important;
-    flex-direction: column !important;
-    gap: 12px !important;
+  .filter-primary-row {
+    padding: 12px 16px;
+    gap: 8px;
   }
-  
-  .filter-card {
-    border-radius: 16px;
-    margin: 0;
+  .filter-advanced-panel {
+    padding: 0 16px 16px 16px;
   }
 }
 

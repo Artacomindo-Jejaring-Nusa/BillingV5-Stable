@@ -1,26 +1,16 @@
 <template>
-  <div class="trouble-ticket-report-container">
-    <!-- ===== ENHANCED HEADER SECTION ===== -->
-    <div class="page-header">
-      <div class="header-content">
-        <div class="header-left">
-          <div class="header-icon-wrapper">
-            <v-avatar
-              color="primary"
-              size="64"
-              class="header-avatar"
-              elevation="8"
-            >
-              <v-icon size="36" color="white">mdi-chart-box-outline</v-icon>
-            </v-avatar>
+  <div class="trouble-ticket-report-container pa-4 pa-md-6">
+    <!-- ===== HEADER SECTION ===== -->
+    <div class="header-card mb-4 mb-md-6">
+      <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
+        <div class="d-flex align-center header-info">
+          <div class="header-avatar-box">
+            <v-icon color="white" size="26">mdi-chart-box-outline</v-icon>
           </div>
-          <div class="header-text">
-            <h1 class="page-title">
-              <span class="title-solid">Trouble Ticket Reports</span>
-            </h1>
-            <p class="page-subtitle">
-              <v-icon size="18" class="me-2">mdi-chart-line</v-icon>
-              Comprehensive analytics and insights for ticket management
+          <div class="ml-4">
+            <h1 class="header-title mb-0">Trouble Ticket Reports</h1>
+            <p class="header-subtitle mb-0">
+              Analisis komprehensif, tracking downtime, dan performa penanganan gangguan
             </p>
           </div>
         </div>
@@ -29,221 +19,216 @@
             prepend-icon="mdi-refresh"
             @click="refreshAllData"
             :loading="loading"
-            size="large"
-            class="modern-btn refresh-btn-modern"
-            color="primary"
+            class="action-btn-refresh text-none font-weight-medium"
             variant="outlined"
-            elevation="2"
             rounded="pill"
+            height="40"
           >
-            <span class="btn-text">Refresh Data</span>
+            Segarkan Data
           </v-btn>
           <v-btn
-            prepend-icon="mdi-download"
+            prepend-icon="mdi-file-export-outline"
             @click="exportReport"
             :disabled="loading || exporting"
             :loading="exporting"
-            size="large"
-            class="modern-btn export-btn-modern"
-            color="success"
+            class="export-btn-emerald text-none font-weight-bold"
             variant="flat"
-            elevation="4"
             rounded="pill"
+            elevation="0"
+            height="40"
           >
-            <v-icon end class="ms-1">mdi-file-export</v-icon>
-            <span class="btn-text">Export Report</span>
+            Export Laporan
           </v-btn>
         </div>
       </div>
     </div>
 
-    <!-- ===== ENHANCED DATE RANGE FILTER ===== -->
-    <v-card class="date-filter-card" elevation="0">
-      <v-card-text class="pa-6">
-        <div class="filter-header">
-          <div class="filter-title-wrapper">
-            <div class="filter-icon">
-              <v-icon color="primary" size="24">mdi-calendar-range</v-icon>
-            </div>
-            <div>
-              <h3 class="filter-title">Report Period</h3>
-              <p class="filter-subtitle">Select date range to filter reports</p>
-            </div>
+    <!-- ===== DATE RANGE FILTER ===== -->
+    <div class="filter-card mb-4 mb-md-6 pa-4 pa-sm-5">
+      <div class="d-flex align-center justify-space-between mb-4">
+        <div class="d-flex align-center">
+          <div class="filter-icon-box mr-3">
+            <v-icon color="primary" size="20">mdi-calendar-range</v-icon>
           </div>
-          <v-chip
-            v-if="dateRange.from || dateRange.to"
-            color="primary"
-            variant="flat"
-            size="default"
-            prepend-icon="mdi-filter-check"
-            class="active-filter-chip"
-          >
-            Custom Range Active
-          </v-chip>
-        </div>
-
-        <div class="date-range-filters">
-          <v-row>
-            <v-col cols="12" md="5">
-              <v-text-field
-                v-model="dateRange.from"
-                type="date"
-                label="Start Date"
-                prepend-inner-icon="mdi-calendar-start"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                @update:modelValue="applyDateFilter"
-                class="date-input"
-              />
-            </v-col>
-            <v-col cols="12" md="5">
-              <v-text-field
-                v-model="dateRange.to"
-                type="date"
-                label="End Date"
-                prepend-inner-icon="mdi-calendar-end"
-                variant="outlined"
-                density="comfortable"
-                hide-details
-                @update:modelValue="applyDateFilter"
-                class="date-input"
-              />
-            </v-col>
-            <v-col cols="12" md="2">
-              <v-btn
-                variant="outlined"
-                prepend-icon="mdi-filter-remove"
-                @click="clearDateFilter"
-                :disabled="!dateRange.from && !dateRange.to"
-                block
-                size="large"
-                color="error"
-                class="clear-filter-btn"
-              >
-                Clear
-              </v-btn>
-            </v-col>
-          </v-row>
-        </div>
-      </v-card-text>
-    </v-card>
-
-    <!-- ===== ENHANCED KEY METRICS OVERVIEW ===== -->
-    <div class="metrics-overview">
-      <div class="section-header">
-        <div class="section-header-content">
-          <v-icon class="section-icon" color="primary">mdi-view-dashboard-outline</v-icon>
           <div>
-            <h2 class="section-title">Key Performance Metrics</h2>
-            <p class="section-subtitle">Real-time overview of ticket performance</p>
+            <h3 class="filter-title mb-0">Periode Laporan</h3>
+            <p class="filter-subtitle mb-0">Pilih rentang tanggal untuk memfilter analitik tiket</p>
           </div>
         </div>
+        <v-chip
+          v-if="dateRange.from || dateRange.to"
+          color="primary"
+          variant="flat"
+          size="small"
+          prepend-icon="mdi-filter-check"
+          class="font-weight-medium"
+        >
+          Filter Aktif
+        </v-chip>
       </div>
 
-      <div class="metrics-grid">
-        <!-- Total Tickets Card -->
-        <v-card class="metric-card total-tickets-card" elevation="0">
-          <div class="metric-gradient gradient-blue"></div>
-          <v-card-text class="metric-content">
-            <div class="metric-icon-wrapper blue-gradient">
-              <v-icon size="32" color="white">mdi-ticket-outline</v-icon>
-            </div>
-            <div class="metric-info">
-              <div class="metric-value">{{ statistics?.total_tickets || 0 }}</div>
-              <div class="metric-label">Total Tickets</div>
-              <div class="metric-change positive">
-                <v-icon size="16">mdi-trending-up</v-icon>
-                <span>All time</span>
-              </div>
-            </div>
-          </v-card-text>
-          <div class="metric-footer">
-            <v-icon size="14" class="me-1">mdi-information-outline</v-icon>
-            <span>Total tickets created</span>
-          </div>
-        </v-card>
-
-        <!-- Resolution Rate Card -->
-        <v-card class="metric-card resolution-rate-card" elevation="0">
-          <div class="metric-gradient gradient-green"></div>
-          <v-card-text class="metric-content">
-            <div class="metric-icon-wrapper green-gradient">
-              <v-icon size="32" color="white">mdi-check-circle-outline</v-icon>
-            </div>
-            <div class="metric-info">
-              <div class="metric-value">{{ calculateResolutionRate() }}%</div>
-              <div class="metric-label">Resolution Rate</div>
-              <div class="metric-change positive">
-                <v-icon size="16">mdi-trending-up</v-icon>
-                <span>Good performance</span>
-              </div>
-            </div>
-          </v-card-text>
-          <div class="metric-footer">
-            <v-icon size="14" class="me-1">mdi-information-outline</v-icon>
-            <span>Tickets resolved successfully</span>
-          </div>
-        </v-card>
-
-        <!-- Avg Resolution Time Card -->
-        <v-card class="metric-card avg-resolution-card" elevation="0">
-          <div class="metric-gradient gradient-orange"></div>
-          <v-card-text class="metric-content">
-            <div class="metric-icon-wrapper orange-gradient">
-              <v-icon size="32" color="white">mdi-clock-fast</v-icon>
-            </div>
-            <div class="metric-info">
-              <div class="metric-value">{{ formatHours(statistics?.avg_resolution_time_hours || null) }}</div>
-              <div class="metric-label">Avg Resolution Time</div>
-              <div class="metric-change" :class="getResolutionTimeClass()">
-                <v-icon size="16">mdi-clock-outline</v-icon>
-                <span>{{ getResolutionTimeStatus() }}</span>
-              </div>
-            </div>
-          </v-card-text>
-          <div class="metric-footer">
-            <v-icon size="14" class="me-1">mdi-information-outline</v-icon>
-            <span>Average time to resolve</span>
-          </div>
-        </v-card>
-
-        <!-- Open Tickets Card -->
-        <v-card class="metric-card critical-tickets-card" elevation="0">
-          <div class="metric-gradient gradient-red"></div>
-          <v-card-text class="metric-content">
-            <div class="metric-icon-wrapper red-gradient">
-              <v-icon size="32" color="white">mdi-alert-circle-outline</v-icon>
-            </div>
-            <div class="metric-info">
-              <div class="metric-value">{{ statistics?.open_tickets || 0 }}</div>
-              <div class="metric-label">Open Tickets</div>
-              <div class="metric-change warning">
-                <v-icon size="16">mdi-alert</v-icon>
-                <span>Needs attention</span>
-              </div>
-            </div>
-          </v-card-text>
-          <div class="metric-footer">
-            <v-icon size="14" class="me-1">mdi-information-outline</v-icon>
-            <span>Tickets currently open</span>
-          </div>
-        </v-card>
+      <div class="date-range-filters">
+        <v-row dense class="align-center">
+          <v-col cols="12" sm="5">
+            <v-text-field
+              v-model="dateRange.from"
+              type="date"
+              label="Tanggal Mulai"
+              prepend-inner-icon="mdi-calendar-start"
+              variant="outlined"
+              density="compact"
+              hide-details
+              @update:modelValue="applyDateFilter"
+              class="date-input"
+            />
+          </v-col>
+          <v-col cols="12" sm="5">
+            <v-text-field
+              v-model="dateRange.to"
+              type="date"
+              label="Tanggal Akhir"
+              prepend-inner-icon="mdi-calendar-end"
+              variant="outlined"
+              density="compact"
+              hide-details
+              @update:modelValue="applyDateFilter"
+              class="date-input"
+            />
+          </v-col>
+          <v-col cols="12" sm="2">
+            <v-btn
+              variant="tonal"
+              prepend-icon="mdi-filter-off-outline"
+              @click="clearDateFilter"
+              :disabled="!dateRange.from && !dateRange.to"
+              block
+              color="error"
+              class="btn-clear text-none font-weight-bold"
+              height="40"
+              rounded="lg"
+            >
+              Reset Filter
+            </v-btn>
+          </v-col>
+        </v-row>
       </div>
     </div>
 
-    <!-- ===== ENHANCED CHARTS SECTION ===== -->
-    <div class="charts-section">
+    <!-- ===== KEY METRICS OVERVIEW ===== -->
+    <div class="metrics-overview mb-4 mb-md-6 mt-6">
+      <div class="section-heading mb-4">
+        <div class="d-flex align-center">
+          <div class="section-icon-badge mr-3">
+            <v-icon size="20" color="primary">mdi-view-dashboard-outline</v-icon>
+          </div>
+          <div>
+            <h2 class="section-title mb-0">Key Performance Metrics</h2>
+            <p class="section-subtitle mb-0">Ringkasan performa tiket dan kecepatan penanganan gangguan</p>
+          </div>
+        </div>
+      </div>
+
+      <v-row>
+        <!-- Total Tickets Card -->
+        <v-col cols="12" sm="6" md="3">
+          <div class="metric-card pa-4 pa-sm-5">
+            <div class="metric-accent-line line-blue"></div>
+            <div class="d-flex align-center justify-space-between mb-3 mt-1">
+              <span class="metric-label">TOTAL TICKETS</span>
+              <div class="metric-icon-box box-blue">
+                <v-icon size="22" color="primary">mdi-ticket-confirmation-outline</v-icon>
+              </div>
+            </div>
+            <div class="metric-value mb-2">{{ statistics?.total_tickets || 0 }}</div>
+            <div class="d-flex align-center justify-space-between flex-wrap gap-2 mt-auto pt-2 border-t">
+              <span class="meta-pill pill-subtle">
+                <v-icon size="12" class="mr-1">mdi-history</v-icon>
+                All time
+              </span>
+              <span class="text-caption text-medium-emphasis">Total dibuat</span>
+            </div>
+          </div>
+        </v-col>
+
+        <!-- Resolution Rate Card -->
+        <v-col cols="12" sm="6" md="3">
+          <div class="metric-card pa-4 pa-sm-5">
+            <div class="metric-accent-line line-green"></div>
+            <div class="d-flex align-center justify-space-between mb-3 mt-1">
+              <span class="metric-label">RESOLUTION RATE</span>
+              <div class="metric-icon-box box-green">
+                <v-icon size="22" color="success">mdi-check-circle-outline</v-icon>
+              </div>
+            </div>
+            <div class="metric-value text-success mb-2">{{ calculateResolutionRate() }}%</div>
+            <div class="d-flex align-center justify-space-between flex-wrap gap-2 mt-auto pt-2 border-t">
+              <span class="meta-pill pill-success">
+                <v-icon size="12" class="mr-1">mdi-check</v-icon>
+                Performa baik
+              </span>
+              <span class="text-caption text-medium-emphasis">Tiket terselesaikan</span>
+            </div>
+          </div>
+        </v-col>
+
+        <!-- Avg Resolution Time Card -->
+        <v-col cols="12" sm="6" md="3">
+          <div class="metric-card pa-4 pa-sm-5">
+            <div class="metric-accent-line line-amber"></div>
+            <div class="d-flex align-center justify-space-between mb-3 mt-1">
+              <span class="metric-label">AVG RESOLUTION TIME</span>
+              <div class="metric-icon-box box-amber">
+                <v-icon size="22" color="warning">mdi-clock-fast</v-icon>
+              </div>
+            </div>
+            <div class="metric-value text-warning mb-2">{{ formatHours(statistics?.avg_resolution_time_hours || null) }}</div>
+            <div class="d-flex align-center justify-space-between flex-wrap gap-2 mt-auto pt-2 border-t">
+              <span class="meta-pill pill-amber">
+                <v-icon size="12" class="mr-1">mdi-clock-outline</v-icon>
+                {{ getResolutionTimeStatus() }}
+              </span>
+              <span class="text-caption text-medium-emphasis">Rata-rata waktu</span>
+            </div>
+          </div>
+        </v-col>
+
+        <!-- Open Tickets Card -->
+        <v-col cols="12" sm="6" md="3">
+          <div class="metric-card pa-4 pa-sm-5">
+            <div class="metric-accent-line line-rose"></div>
+            <div class="d-flex align-center justify-space-between mb-3 mt-1">
+              <span class="metric-label">OPEN TICKETS</span>
+              <div class="metric-icon-box box-rose">
+                <v-icon size="22" color="error">mdi-alert-circle-outline</v-icon>
+              </div>
+            </div>
+            <div class="metric-value text-error mb-2">{{ statistics?.open_tickets || 0 }}</div>
+            <div class="d-flex align-center justify-space-between flex-wrap gap-2 mt-auto pt-2 border-t">
+              <span class="meta-pill pill-rose">
+                <v-icon size="12" class="mr-1">mdi-alert</v-icon>
+                Perlu atensi
+              </span>
+              <span class="text-caption text-medium-emphasis">Sedang ditangani</span>
+            </div>
+          </div>
+        </v-col>
+      </v-row>
+    </div>
+
+    <!-- ===== CHARTS SECTION ===== -->
+    <div class="charts-section mb-4 mb-md-6">
       <v-row>
         <!-- Monthly Trends Chart -->
         <v-col cols="12" lg="8">
-          <v-card class="chart-card" elevation="0">
-            <v-card-title class="chart-header">
-              <div class="chart-title-wrapper">
-                <v-icon class="me-3" color="primary">mdi-chart-line</v-icon>
+          <div class="chart-panel-card h-100">
+            <div class="chart-panel-header pa-4 pa-sm-5 d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-3 border-b">
+              <div class="d-flex align-center gap-2">
+                <div class="chart-header-icon-box">
+                  <v-icon color="primary" size="18">mdi-chart-line</v-icon>
+                </div>
                 <div>
-                  <h3 class="chart-title">Monthly Trends</h3>
-                  <p class="chart-subtitle">Ticket volume and resolution trends</p>
+                  <h3 class="chart-panel-title mb-0">Monthly Trends</h3>
+                  <p class="chart-panel-subtitle mb-0">Tren volume dan resolusi tiket bulanan</p>
                 </div>
               </div>
               <v-btn-toggle
@@ -251,23 +236,22 @@
                 mandatory
                 variant="outlined"
                 density="compact"
-                class="period-toggle"
+                class="segmented-toggle"
               >
-                <v-btn value="6" size="small">6M</v-btn>
-                <v-btn value="12" size="small">1Y</v-btn>
-                <v-btn value="24" size="small">2Y</v-btn>
+                <v-btn value="6" size="small" class="text-none">6 Bulan</v-btn>
+                <v-btn value="12" size="small" class="text-none">1 Tahun</v-btn>
+                <v-btn value="24" size="small" class="text-none">2 Tahun</v-btn>
               </v-btn-toggle>
-            </v-card-title>
-            <v-divider></v-divider>
-            <v-card-text class="pa-6">
-              <div v-if="loadingMonthly" class="loading-state">
+            </div>
+            <div class="chart-panel-body pa-4 pa-sm-6">
+              <div v-if="loadingMonthly" class="loading-state py-8 text-center">
                 <v-progress-circular 
                   indeterminate 
                   color="primary" 
-                  size="64"
-                  width="6"
+                  size="48"
+                  width="4"
                 ></v-progress-circular>
-                <p class="loading-text">Loading monthly trends...</p>
+                <p class="loading-text mt-3 text-caption text-medium-emphasis">Memuat tren bulanan...</p>
               </div>
               <div v-else-if="monthlyTrends.length > 0" class="trends-chart">
                 <Line
@@ -276,39 +260,40 @@
                   height="120"
                 />
               </div>
-              <div v-else class="empty-state">
-                <div class="empty-state-icon">
-                  <v-icon size="64" color="primary-lighten-1">mdi-chart-line</v-icon>
+              <div v-else class="empty-chart-state py-8">
+                <div class="empty-chart-icon-box mb-2">
+                  <v-icon size="32" color="slate-400">mdi-chart-line</v-icon>
                 </div>
-                <p class="empty-state-title">No Trend Data Available</p>
-                <p class="empty-state-text">Data will appear here once tickets are created</p>
+                <h4 class="empty-chart-title mb-1">Tidak Ada Data Tren</h4>
+                <p class="empty-chart-desc mb-0">Data grafik akan muncul ketika tiket mulai tercatat dalam rentang waktu ini.</p>
               </div>
-            </v-card-text>
-          </v-card>
+            </div>
+          </div>
         </v-col>
 
         <!-- Category Distribution -->
         <v-col cols="12" lg="4">
-          <v-card class="chart-card" elevation="0">
-            <v-card-title class="chart-header">
-              <div class="chart-title-wrapper">
-                <v-icon class="me-3" color="primary">mdi-chart-pie</v-icon>
+          <div class="chart-panel-card h-100">
+            <div class="chart-panel-header pa-4 pa-sm-5 d-flex align-center justify-space-between border-b">
+              <div class="d-flex align-center gap-2">
+                <div class="chart-header-icon-box">
+                  <v-icon color="primary" size="18">mdi-chart-pie</v-icon>
+                </div>
                 <div>
-                  <h3 class="chart-title">Category Distribution</h3>
-                  <p class="chart-subtitle">Tickets by category</p>
+                  <h3 class="chart-panel-title mb-0">Category Distribution</h3>
+                  <p class="chart-panel-subtitle mb-0">Persentase tiket berdasarkan kategori</p>
                 </div>
               </div>
-            </v-card-title>
-            <v-divider></v-divider>
-            <v-card-text class="pa-6">
-              <div v-if="loadingCategory" class="loading-state">
+            </div>
+            <div class="chart-panel-body pa-4 pa-sm-6">
+              <div v-if="loadingCategory" class="loading-state py-8 text-center">
                 <v-progress-circular 
                   indeterminate 
                   color="primary" 
-                  size="64"
-                  width="6"
+                  size="48"
+                  width="4"
                 ></v-progress-circular>
-                <p class="loading-text">Loading category data...</p>
+                <p class="loading-text mt-3 text-caption text-medium-emphasis">Memuat kategori...</p>
               </div>
               <div v-else-if="categoryPerformance.length > 0" class="category-chart">
                 <Pie
@@ -317,54 +302,55 @@
                   height="200"
                 />
               </div>
-              <div v-else class="empty-state">
-                <div class="empty-state-icon">
-                  <v-icon size="64" color="primary-lighten-1">mdi-chart-pie</v-icon>
+              <div v-else class="empty-chart-state py-8">
+                <div class="empty-chart-icon-box mb-2">
+                  <v-icon size="32" color="slate-400">mdi-chart-pie</v-icon>
                 </div>
-                <p class="empty-state-title">No Category Data</p>
-                <p class="empty-state-text">Data will appear once categorized</p>
+                <h4 class="empty-chart-title mb-1">Tidak Ada Data Kategori</h4>
+                <p class="empty-chart-desc mb-0">Data akan muncul setelah tiket memiliki kategori masalah.</p>
               </div>
-            </v-card-text>
-          </v-card>
+            </div>
+          </div>
         </v-col>
       </v-row>
     </div>
 
-    <!-- ===== ENHANCED DETAILED TABLES SECTION ===== -->
-    <div class="tables-section">
+    <!-- ===== DETAILED PERFORMANCE TABLES SECTION ===== -->
+    <div class="tables-section mb-6">
       <v-row>
         <!-- Category Performance Table -->
         <v-col cols="12" lg="6">
-          <v-card class="table-card" elevation="0">
-            <v-card-title class="table-header">
-              <div class="table-title-wrapper">
-                <v-icon class="me-3" color="primary">mdi-tag-outline</v-icon>
+          <div class="chart-panel-card h-100">
+            <div class="chart-panel-header pa-4 pa-sm-5 d-flex align-center justify-space-between border-b">
+              <div class="d-flex align-center gap-2">
+                <div class="chart-header-icon-box">
+                  <v-icon color="primary" size="18">mdi-tag-outline</v-icon>
+                </div>
                 <div>
-                  <h3 class="table-title">Category Performance</h3>
-                  <p class="table-subtitle">Performance metrics by category</p>
+                  <h3 class="chart-panel-title mb-0">Category Performance</h3>
+                  <p class="chart-panel-subtitle mb-0">Metrik performa per kategori gangguan</p>
                 </div>
               </div>
-              <v-chip size="small" color="info" variant="flat" prepend-icon="mdi-tag-multiple">
-                {{ categoryPerformance.length }} Categories
+              <v-chip size="small" variant="tonal" color="primary">
+                {{ categoryPerformance.length }} Kategori
               </v-chip>
-            </v-card-title>
-            <v-divider></v-divider>
-            <v-card-text class="pa-0">
-              <div v-if="loadingCategory" class="loading-state">
+            </div>
+            <div class="pa-0">
+              <div v-if="loadingCategory" class="loading-state py-8 text-center">
                 <v-progress-circular 
                   indeterminate 
                   color="primary" 
-                  size="48"
-                  width="5"
+                  size="40"
+                  width="3"
                 ></v-progress-circular>
-                <p class="loading-text">Loading category performance...</p>
+                <p class="loading-text mt-3 text-caption text-medium-emphasis">Memuat performa kategori...</p>
               </div>
               <v-data-table
                 v-else
                 :headers="categoryHeaders"
                 :items="categoryPerformance"
                 :loading="loadingCategory"
-                class="enhanced-table category-table"
+                class="modern-data-table"
                 density="comfortable"
                 hide-default-footer
                 :items-per-page="-1"
@@ -372,125 +358,122 @@
                 <template v-slot:item.category="{ item }">
                   <v-chip
                     size="small"
-                    variant="flat"
-                    color="info"
+                    variant="tonal"
+                    color="primary"
                     prepend-icon="mdi-tag-outline"
-                    class="category-chip"
+                    class="font-weight-medium"
                   >
                     {{ item.category_display }}
                   </v-chip>
                 </template>
                 <template v-slot:item.resolution_rate="{ item }">
-                  <div class="progress-wrapper">
+                  <div class="d-flex align-center gap-2" style="max-width: 160px;">
                     <v-progress-linear
                       :model-value="item.resolution_rate_percent"
                       :color="getResolutionRateColor(item.resolution_rate_percent)"
-                      height="24"
+                      height="8"
                       rounded
-                      class="resolution-progress"
-                    >
-                      <template v-slot:default="{ value }">
-                        <strong class="progress-text">
-                          {{ Math.ceil(value) }}%
-                        </strong>
-                      </template>
-                    </v-progress-linear>
+                      class="flex-grow-1"
+                    ></v-progress-linear>
+                    <span class="text-caption font-weight-bold" style="min-width: 36px; text-align: right;">
+                      {{ Math.ceil(item.resolution_rate_percent) }}%
+                    </span>
                   </div>
                 </template>
                 <template v-slot:item.avg_resolution="{ item }">
-                  <v-chip size="small" variant="tonal" color="primary">
+                  <span class="text-body-2 font-weight-medium text-slate-700">
                     {{ formatHours(item.avg_resolution_hours) }}
-                  </v-chip>
+                  </span>
                 </template>
               </v-data-table>
-            </v-card-text>
-          </v-card>
+            </div>
+          </div>
         </v-col>
 
         <!-- User Performance Table -->
         <v-col cols="12" lg="6">
-          <v-card class="table-card" elevation="0">
-            <v-card-title class="table-header">
-              <div class="table-title-wrapper">
-                <v-icon class="me-3" color="primary">mdi-account-group-outline</v-icon>
+          <div class="chart-panel-card h-100">
+            <div class="chart-panel-header pa-4 pa-sm-5 d-flex align-center justify-space-between border-b">
+              <div class="d-flex align-center gap-2">
+                <div class="chart-header-icon-box">
+                  <v-icon color="primary" size="18">mdi-account-group-outline</v-icon>
+                </div>
                 <div>
-                  <h3 class="table-title">Technician Performance</h3>
-                  <p class="table-subtitle">Individual technician metrics</p>
+                  <h3 class="chart-panel-title mb-0">Technician Performance</h3>
+                  <p class="chart-panel-subtitle mb-0">Metrik produktivitas masing-masing teknisi</p>
                 </div>
               </div>
-              <v-chip size="small" color="success" variant="flat" prepend-icon="mdi-account-multiple">
-                {{ userPerformance.length }} Technicians
+              <v-chip size="small" variant="tonal" color="success">
+                {{ userPerformance.length }} Teknisi
               </v-chip>
-            </v-card-title>
-            <v-divider></v-divider>
-            <v-card-text class="pa-0">
-              <div v-if="loadingUser" class="loading-state">
+            </div>
+            <div class="pa-0">
+              <div v-if="loadingUser" class="loading-state py-8 text-center">
                 <v-progress-circular 
                   indeterminate 
                   color="primary" 
-                  size="48"
-                  width="5"
+                  size="40"
+                  width="3"
                 ></v-progress-circular>
-                <p class="loading-text">Loading user performance...</p>
+                <p class="loading-text mt-3 text-caption text-medium-emphasis">Memuat performa teknisi...</p>
               </div>
               <v-data-table
                 v-else
                 :headers="userHeaders"
                 :items="userPerformance"
                 :loading="loadingUser"
-                class="enhanced-table user-table"
+                class="modern-data-table"
                 density="comfortable"
                 hide-default-footer
                 :items-per-page="-1"
               >
                 <template v-slot:item.user_name="{ item }">
-                  <div class="user-info">
-                    <v-avatar size="36" color="success" variant="flat" class="user-avatar">
-                      <span class="user-initial">
+                  <div class="d-flex align-center gap-2">
+                    <v-avatar size="28" color="slate-100" class="border">
+                      <span class="text-caption font-weight-bold text-slate-700">
                         {{ item.user_name.charAt(0).toUpperCase() }}
                       </span>
                     </v-avatar>
-                    <span class="user-name">{{ item.user_name }}</span>
+                    <span class="font-weight-medium text-body-2 text-slate-800">{{ item.user_name }}</span>
                   </div>
                 </template>
                 <template v-slot:item.resolution_rate="{ item }">
-                  <div class="progress-wrapper">
+                  <div class="d-flex align-center gap-2" style="max-width: 160px;">
                     <v-progress-linear
                       :model-value="item.resolution_rate_percent"
                       :color="getResolutionRateColor(item.resolution_rate_percent)"
-                      height="24"
+                      height="8"
                       rounded
-                      class="resolution-progress"
-                    >
-                      <template v-slot:default="{ value }">
-                        <strong class="progress-text">
-                          {{ Math.ceil(value) }}%
-                        </strong>
-                      </template>
-                    </v-progress-linear>
+                      class="flex-grow-1"
+                    ></v-progress-linear>
+                    <span class="text-caption font-weight-bold" style="min-width: 36px; text-align: right;">
+                      {{ Math.ceil(item.resolution_rate_percent) }}%
+                    </span>
                   </div>
                 </template>
                 <template v-slot:item.avg_resolution="{ item }">
-                  <v-chip size="small" variant="tonal" color="primary">
+                  <span class="text-body-2 font-weight-medium text-slate-700">
                     {{ formatHours(item.avg_resolution_hours) }}
-                  </v-chip>
+                  </span>
                 </template>
               </v-data-table>
-            </v-card-text>
-          </v-card>
+            </div>
+          </div>
         </v-col>
       </v-row>
     </div>
 
-    <!-- ===== ENHANCED DOWNTIME ANALYSIS SECTION ===== -->
-    <div class="downtime-section">
-      <v-card class="downtime-card" elevation="0">
-        <v-card-title class="downtime-header">
-          <div class="downtime-title-wrapper">
-            <v-icon class="me-3" color="primary">mdi-clock-alert-outline</v-icon>
+    <!-- ===== DOWNTIME ANALYSIS SECTION ===== -->
+    <div class="downtime-section mb-6">
+      <div class="chart-panel-card">
+        <div class="chart-panel-header pa-4 pa-sm-5 d-flex align-center justify-space-between border-b">
+          <div class="d-flex align-center gap-2">
+            <div class="chart-header-icon-box">
+              <v-icon color="primary" size="18">mdi-clock-alert-outline</v-icon>
+            </div>
             <div>
-              <h3 class="downtime-title">Downtime Analysis</h3>
-              <p class="downtime-subtitle">Track and analyze service interruptions</p>
+              <h3 class="chart-panel-title mb-0">Downtime Analysis</h3>
+              <p class="chart-panel-subtitle mb-0">Pelacakan durasi downtime dan dampaknya pada pelanggan</p>
             </div>
           </div>
           <v-btn
@@ -501,134 +484,183 @@
             size="small"
             color="primary"
           >
-            Refresh
+            Refresh Data
           </v-btn>
-        </v-card-title>
-        <v-divider></v-divider>
-        <v-card-text class="pa-6">
-          <div v-if="loadingDowntime" class="loading-state">
+        </div>
+
+        <div class="pa-4 pa-sm-6">
+          <div v-if="loadingDowntime" class="loading-state py-10 text-center">
             <v-progress-circular 
               indeterminate 
               color="primary" 
-              size="64"
-              width="6"
+              size="44"
+              width="3"
             ></v-progress-circular>
-            <p class="loading-text">Analyzing downtime data...</p>
+            <p class="loading-text mt-3 text-caption text-medium-emphasis">Menganalisis data downtime...</p>
           </div>
           <div v-else-if="downtimeAnalysis && downtimeAnalysis.overall_statistics" class="downtime-content">
-            <!-- Overall Statistics -->
-            <div class="downtime-overview">
-              <h4 class="subsection-title">
-                <v-icon size="20" class="me-2">mdi-chart-box</v-icon>
-                Overall Downtime Statistics
+            <!-- Overall Statistics Cards -->
+            <div class="mb-6">
+              <h4 class="text-subtitle-2 font-weight-bold text-slate-800 mb-3 d-flex align-center gap-2">
+                <v-icon size="16" color="primary">mdi-chart-box-outline</v-icon>
+                Statistik Akumulasi Downtime
               </h4>
-              <div class="downtime-metrics-grid">
-                <div class="downtime-metric-card">
-                  <div class="downtime-metric-icon blue-bg">
-                    <v-icon color="white">mdi-clock-outline</v-icon>
+              <v-row>
+                <!-- Total Downtime -->
+                <v-col cols="12" sm="6" lg="3">
+                  <div class="metric-card pa-4 pa-sm-5">
+                    <div class="metric-accent-line line-blue"></div>
+                    <div class="d-flex align-center justify-space-between mb-3 mt-1">
+                      <span class="metric-label">TOTAL DOWNTIME</span>
+                      <div class="metric-icon-box box-blue">
+                        <v-icon size="22" color="primary">mdi-clock-outline</v-icon>
+                      </div>
+                    </div>
+                    <div class="metric-value mb-2">{{ formatHours(downtimeAnalysis.overall_statistics.total_downtime_hours) }}</div>
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-2 mt-auto pt-2 border-t">
+                      <span class="meta-pill pill-subtle">
+                        <v-icon size="12" class="mr-1">mdi-clock-time-four-outline</v-icon>
+                        Semua Tiket
+                      </span>
+                      <span class="text-caption text-medium-emphasis">Akumulasi durasi</span>
+                    </div>
                   </div>
-                  <div class="downtime-metric-info">
-                    <div class="downtime-metric-value">{{ formatHours(downtimeAnalysis.overall_statistics.total_downtime_hours) }}</div>
-                    <div class="downtime-metric-label">Total Downtime</div>
+                </v-col>
+
+                <!-- Average Downtime -->
+                <v-col cols="12" sm="6" lg="3">
+                  <div class="metric-card pa-4 pa-sm-5">
+                    <div class="metric-accent-line line-green"></div>
+                    <div class="d-flex align-center justify-space-between mb-3 mt-1">
+                      <span class="metric-label">AVG DOWNTIME</span>
+                      <div class="metric-icon-box box-green">
+                        <v-icon size="22" color="success">mdi-chart-timeline-variant</v-icon>
+                      </div>
+                    </div>
+                    <div class="metric-value text-success mb-2">{{ formatHours(downtimeAnalysis.overall_statistics.avg_downtime_hours) }}</div>
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-2 mt-auto pt-2 border-t">
+                      <span class="meta-pill pill-success">
+                        <v-icon size="12" class="mr-1">mdi-timer-outline</v-icon>
+                        Rata-rata
+                      </span>
+                      <span class="text-caption text-medium-emphasis">Per tiket gangguan</span>
+                    </div>
                   </div>
-                </div>
-                <div class="downtime-metric-card">
-                  <div class="downtime-metric-icon green-bg">
-                    <v-icon color="white">mdi-chart-timeline-variant</v-icon>
+                </v-col>
+
+                <!-- Maximum Downtime -->
+                <v-col cols="12" sm="6" lg="3">
+                  <div class="metric-card pa-4 pa-sm-5">
+                    <div class="metric-accent-line line-amber"></div>
+                    <div class="d-flex align-center justify-space-between mb-3 mt-1">
+                      <span class="metric-label">MAX DOWNTIME</span>
+                      <div class="metric-icon-box box-amber">
+                        <v-icon size="22" color="warning">mdi-clock-alert-outline</v-icon>
+                      </div>
+                    </div>
+                    <div class="metric-value text-warning mb-2">{{ formatHours(downtimeAnalysis.overall_statistics.max_downtime_hours) }}</div>
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-2 mt-auto pt-2 border-t">
+                      <span class="meta-pill pill-amber">
+                        <v-icon size="12" class="mr-1">mdi-alert-outline</v-icon>
+                        Tertinggi
+                      </span>
+                      <span class="text-caption text-medium-emphasis">Durasi terlama</span>
+                    </div>
                   </div>
-                  <div class="downtime-metric-info">
-                    <div class="downtime-metric-value">{{ formatHours(downtimeAnalysis.overall_statistics.avg_downtime_hours) }}</div>
-                    <div class="downtime-metric-label">Average Downtime</div>
+                </v-col>
+
+                <!-- Affected Tickets -->
+                <v-col cols="12" sm="6" lg="3">
+                  <div class="metric-card pa-4 pa-sm-5">
+                    <div class="metric-accent-line line-rose"></div>
+                    <div class="d-flex align-center justify-space-between mb-3 mt-1">
+                      <span class="metric-label">TIKET TERDAMPAK</span>
+                      <div class="metric-icon-box box-rose">
+                        <v-icon size="22" color="error">mdi-ticket-alert-outline</v-icon>
+                      </div>
+                    </div>
+                    <div class="metric-value text-error mb-2">{{ downtimeAnalysis.overall_statistics.tickets_with_downtime }}</div>
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-2 mt-auto pt-2 border-t">
+                      <span class="meta-pill pill-rose">
+                        <v-icon size="12" class="mr-1">mdi-alert-circle-outline</v-icon>
+                        Terdampak
+                      </span>
+                      <span class="text-caption text-medium-emphasis">Dengan downtime</span>
+                    </div>
                   </div>
-                </div>
-                <div class="downtime-metric-card">
-                  <div class="downtime-metric-icon orange-bg">
-                    <v-icon color="white">mdi-clock-alert</v-icon>
-                  </div>
-                  <div class="downtime-metric-info">
-                    <div class="downtime-metric-value">{{ formatHours(downtimeAnalysis.overall_statistics.max_downtime_hours) }}</div>
-                    <div class="downtime-metric-label">Maximum Downtime</div>
-                  </div>
-                </div>
-                <div class="downtime-metric-card">
-                  <div class="downtime-metric-icon red-bg">
-                    <v-icon color="white">mdi-ticket-alert</v-icon>
-                  </div>
-                  <div class="downtime-metric-info">
-                    <div class="downtime-metric-value">{{ downtimeAnalysis.overall_statistics.tickets_with_downtime }}</div>
-                    <div class="downtime-metric-label">Affected Tickets</div>
-                  </div>
-                </div>
-              </div>
+                </v-col>
+              </v-row>
             </div>
 
             <!-- Top Customers with Downtime -->
             <div class="top-customers" v-if="downtimeAnalysis.top_customers && downtimeAnalysis.top_customers.length > 0">
-              <h4 class="subsection-title">
-                <v-icon size="20" class="me-2">mdi-account-alert</v-icon>
-                Top Customers by Downtime
+              <h4 class="text-subtitle-2 font-weight-bold text-slate-800 mb-3 d-flex align-center gap-2">
+                <v-icon size="16" color="warning">mdi-account-alert-outline</v-icon>
+                Pelanggan dengan Downtime Tertinggi
               </h4>
               <v-data-table
                 :headers="customerDowntimeHeaders"
                 :items="downtimeAnalysis.top_customers.slice(0, 5)"
                 density="comfortable"
                 hide-default-footer
-                class="enhanced-table customer-downtime-table"
+                class="modern-data-table"
               >
                 <template v-slot:item.customer_name="{ item }">
-                  <div class="customer-info">
-                    <v-avatar size="36" color="warning" variant="flat" class="customer-avatar">
-                      <span class="customer-initial">
+                  <div class="d-flex align-center gap-2">
+                    <v-avatar size="28" color="slate-100" class="border">
+                      <span class="text-caption font-weight-bold text-slate-700">
                         {{ item.customer_name.charAt(0).toUpperCase() }}
                       </span>
                     </v-avatar>
-                    <span class="customer-name">{{ item.customer_name }}</span>
+                    <span class="font-weight-medium text-body-2 text-slate-800">{{ item.customer_name }}</span>
                   </div>
                 </template>
                 <template v-slot:item.total_downtime="{ item }">
                   <v-chip
                     size="small"
                     :color="getDowntimeSeverityColor(item.total_downtime_hours)"
-                    variant="flat"
-                    class="downtime-chip"
+                    variant="tonal"
+                    prepend-icon="mdi-clock-alert-outline"
+                    class="font-weight-medium"
                   >
-                    <v-icon size="14" class="me-1">mdi-clock-alert</v-icon>
                     {{ formatHours(item.total_downtime_hours) }}
                   </v-chip>
                 </template>
                 <template v-slot:item.avg_downtime_hours="{ item }">
-                  <v-chip size="small" variant="tonal" color="warning">
+                  <span class="text-body-2 font-weight-medium text-slate-700">
                     {{ formatHours(item.avg_downtime_hours) }}
-                  </v-chip>
+                  </span>
                 </template>
               </v-data-table>
             </div>
           </div>
-          <div v-else class="empty-state">
-            <div class="empty-state-icon">
-              <v-icon size="64" color="warning-lighten-1">mdi-clock-alert-outline</v-icon>
+          <div v-else class="empty-state py-10 text-center">
+            <div class="empty-chart-icon-box mb-2 mx-auto">
+              <v-icon size="36" color="slate-400">mdi-clock-check-outline</v-icon>
             </div>
-            <p class="empty-state-title">No Downtime Data Available</p>
-            <p class="empty-state-text">Downtime information will appear here when available</p>
+            <h4 class="text-subtitle-1 font-weight-bold text-slate-800 mb-1">Tidak Ada Data Downtime</h4>
+            <p class="text-caption text-slate-500 mb-0">Semua layanan stabil atau belum ada tiket yang mencatat waktu downtime pada periode ini.</p>
           </div>
-        </v-card-text>
-      </v-card>
+        </div>
+      </div>
     </div>
 
-    <!-- ===== ENHANCED TICKET DETAILS SECTION ===== -->
-    <div class="ticket-details-section">
-      <v-card class="ticket-details-card" elevation="0">
-        <v-card-title class="ticket-details-header">
-          <div class="ticket-details-title-wrapper">
-            <v-icon class="me-3" color="primary">mdi-ticket-account</v-icon>
+    <!-- ===== TICKET DETAILS SECTION ===== -->
+    <div class="ticket-details-section mb-6">
+      <div class="chart-panel-card">
+        <div class="chart-panel-header pa-4 pa-sm-5 d-flex align-center justify-space-between border-b flex-wrap gap-3">
+          <div class="d-flex align-center gap-2">
+            <div class="chart-header-icon-box">
+              <v-icon color="primary" size="18">mdi-ticket-account</v-icon>
+            </div>
             <div>
-              <h3 class="ticket-details-title">Ticket Details with Customer Information</h3>
-              <p class="ticket-details-subtitle">Complete ticket information and history</p>
+              <h3 class="chart-panel-title mb-0">Detail Tiket & Informasi Pelanggan</h3>
+              <p class="chart-panel-subtitle mb-0">Data lengkap riwayat penanganan gangguan dan data teknis pelanggan</p>
             </div>
           </div>
-          <div class="ticket-details-actions">
-            <v-chip size="small" color="info" variant="flat" prepend-icon="mdi-ticket">
-              {{ ticketDetails.length }} Total Tickets
+          <div class="d-flex align-center gap-2">
+            <v-chip size="small" variant="tonal" color="primary">
+              {{ ticketDetails.length }} Total Tiket
             </v-chip>
             <v-btn
               variant="outlined"
@@ -637,81 +669,81 @@
               :loading="loadingTicketDetails"
               size="small"
               color="primary"
-              class="ms-2"
             >
               Refresh
             </v-btn>
           </div>
-        </v-card-title>
-        <v-divider></v-divider>
-        <v-card-text class="pa-6">
-          <div v-if="loadingTicketDetails" class="loading-state">
+        </div>
+
+        <div class="pa-4 pa-sm-6">
+          <div v-if="loadingTicketDetails" class="loading-state py-10 text-center">
             <v-progress-circular 
               indeterminate 
               color="primary" 
-              size="64"
-              width="6"
+              size="44"
+              width="3"
             ></v-progress-circular>
-            <p class="loading-text">Loading ticket details...</p>
+            <p class="loading-text mt-3 text-caption text-medium-emphasis">Memuat detail tiket...</p>
           </div>
           <div v-else-if="ticketDetails.length > 0" class="ticket-details-content">
-            <!-- Enhanced Filters -->
-            <div class="ticket-filters-card">
-              <v-row>
+            <!-- Filter Bar -->
+            <div class="ticket-filter-bar mb-4 p-3 bg-slate-50 border rounded-lg">
+              <v-row dense align="center">
                 <v-col cols="12" md="4">
                   <v-text-field
                     v-model="ticketSearch"
-                    label="Search tickets..."
+                    placeholder="Cari no tiket, pelanggan, atau teknisi..."
                     prepend-inner-icon="mdi-magnify"
                     variant="outlined"
-                    density="comfortable"
+                    density="compact"
                     hide-details
                     clearable
-                    class="search-field"
+                    class="bg-white"
                   ></v-text-field>
                 </v-col>
-                <v-col cols="12" md="3">
+                <v-col cols="12" sm="6" md="3">
                   <v-select
                     v-model="ticketStatusFilter"
                     :items="ticketStatusOptions"
-                    label="Filter by Status"
-                    prepend-inner-icon="mdi-filter"
+                    placeholder="Filter Status"
+                    prepend-inner-icon="mdi-filter-outline"
                     variant="outlined"
-                    density="comfortable"
+                    density="compact"
                     hide-details
                     clearable
-                    class="filter-select"
+                    class="bg-white"
                   ></v-select>
                 </v-col>
-                <v-col cols="12" md="3">
+                <v-col cols="12" sm="6" md="3">
                   <v-select
                     v-model="ticketCategoryFilter"
                     :items="ticketCategoryOptions"
-                    label="Filter by Category"
-                    prepend-inner-icon="mdi-tag"
+                    placeholder="Filter Kategori"
+                    prepend-inner-icon="mdi-tag-outline"
                     variant="outlined"
-                    density="comfortable"
+                    density="compact"
                     hide-details
                     clearable
-                    class="filter-select"
+                    class="bg-white"
                   ></v-select>
                 </v-col>
                 <v-col cols="12" md="2">
                   <v-btn
                     variant="outlined"
-                    prepend-icon="mdi-filter-remove"
+                    prepend-icon="mdi-filter-off-outline"
                     @click="clearTicketFilters"
-                    size="large"
+                    size="small"
                     block
-                    color="error"
+                    color="slate-600"
+                    height="40"
                   >
-                    Clear
+                    Reset
                   </v-btn>
                 </v-col>
               </v-row>
             </div>
 
-            <!-- Enhanced Ticket Details Table -->
+            <!-- Modern Ticket Details Table -->
             <v-data-table
               :headers="ticketDetailsHeaders"
               :items="filteredTicketDetails"
@@ -719,16 +751,16 @@
               density="comfortable"
               :items-per-page="ticketDetailsPerPage"
               v-model:page="ticketDetailsPage"
-              class="enhanced-table ticket-details-table"
+              class="modern-data-table"
             >
               <!-- Ticket Number -->
               <template v-slot:item.ticket_number="{ item }">
                 <v-chip
                   color="primary"
-                  variant="flat"
+                  variant="tonal"
                   size="small"
-                  prepend-icon="mdi-ticket"
-                  class="ticket-number-chip"
+                  prepend-icon="mdi-ticket-outline"
+                  class="font-weight-medium"
                 >
                   {{ item.ticket_number }}
                 </v-chip>
@@ -736,43 +768,35 @@
 
               <!-- Customer Information -->
               <template v-slot:item.customer_info="{ item }">
-                <div class="customer-info-cell">
-                  <div class="customer-name-row">
-                    <v-icon size="16" color="primary" class="me-1">mdi-account</v-icon>
-                    <span class="customer-name-text">{{ item.customer_name || 'N/A' }}</span>
+                <div class="py-1">
+                  <div class="font-weight-bold text-slate-800 text-body-2 mb-0">
+                    {{ item.customer_name || 'N/A' }}
                   </div>
-                  <div class="customer-detail-row">
-                    <v-icon size="14" color="primary-lighten-1" class="me-1">mdi-phone</v-icon>
-                    <span class="customer-detail-text">{{ item.customer_phone || 'N/A' }}</span>
+                  <div class="text-caption text-slate-500 d-flex align-center gap-1">
+                    <v-icon size="12" color="slate-400">mdi-phone-outline</v-icon>
+                    {{ item.customer_phone || '-' }}
                   </div>
-                  <div class="customer-detail-row">
-                    <v-icon size="14" color="primary-lighten-1" class="me-1">mdi-map-marker</v-icon>
-                    <span class="customer-detail-text">
-                      {{ (item.customer_address || 'N/A').substring(0, 50) }}{{ (item.customer_address || '').length > 50 ? '...' : '' }}
-                    </span>
+                  <div class="text-caption text-slate-400 text-truncate" style="max-width: 200px;">
+                    {{ item.customer_address || '-' }}
                   </div>
                 </div>
               </template>
 
               <!-- Technical Details -->
               <template v-slot:item.technical_info="{ item }">
-                <div class="technical-info-cell">
-                  <div class="tech-detail-row">
-                    <span class="tech-label">IP:</span>
-                    <v-chip size="x-small" variant="tonal" color="info" class="tech-chip">
-                      {{ item.ip_pelanggan }}
-                    </v-chip>
+                <div class="d-flex flex-column gap-1 py-1">
+                  <div class="d-flex align-center gap-1">
+                    <span class="text-caption text-slate-400" style="min-width: 32px;">IP:</span>
+                    <span class="text-caption font-mono font-weight-medium text-slate-700">{{ item.ip_pelanggan || '-' }}</span>
                   </div>
-                  <div class="tech-detail-row">
-                    <span class="tech-label">ID:</span>
-                    <v-chip size="x-small" variant="tonal" color="info" class="tech-chip">
-                      {{ item.id_pelanggan }}
-                    </v-chip>
+                  <div class="d-flex align-center gap-1">
+                    <span class="text-caption text-slate-400" style="min-width: 32px;">ID:</span>
+                    <span class="text-caption font-weight-medium text-slate-700">{{ item.id_pelanggan || '-' }}</span>
                   </div>
-                  <div classs="tech-detail-row">
-                    <span class="tech-label">ONU:</span>
-                    <v-chip size="x-small" variant="tonal" color="success" class="tech-chip">
-                      {{ item.onu_power }} dBm
+                  <div class="d-flex align-center gap-1">
+                    <span class="text-caption text-slate-400" style="min-width: 32px;">ONU:</span>
+                    <v-chip size="x-small" variant="tonal" color="success">
+                      {{ item.onu_power || '-' }} dBm
                     </v-chip>
                   </div>
                 </div>
@@ -780,28 +804,27 @@
 
               <!-- Problem Description -->
               <template v-slot:item.problem="{ item }">
-                <div class="problem-cell">
-                  <div class="problem-title-text">{{ item.title }}</div>
-                  <div class="problem-description-text">{{ item.description.substring(0, 100) }}{{ item.description.length > 100 ? '...' : '' }}</div>
+                <div class="py-1" style="max-width: 250px;">
+                  <div class="font-weight-medium text-slate-800 text-body-2 text-truncate">{{ item.title }}</div>
+                  <div class="text-caption text-slate-500 text-truncate">{{ item.description }}</div>
                 </div>
               </template>
 
               <!-- Status & Category -->
               <template v-slot:item.status_category="{ item }">
-                <div class="status-priority-cell">
+                <div class="d-flex flex-column gap-1 py-1 align-start">
                   <v-chip
                     :color="getStatusColor(item.status)"
                     size="small"
-                    variant="flat"
-                    class="status-chip mb-1"
+                    variant="tonal"
+                    class="font-weight-medium"
                   >
                     {{ formatStatus(item.status) }}
                   </v-chip>
                   <v-chip
-                    color="info"
-                    size="small"
-                    variant="flat"
-                    class="priority-chip font-weight-bold"
+                    color="slate"
+                    size="x-small"
+                    variant="outlined"
                   >
                     {{ formatCategory(item.category) }}
                   </v-chip>
@@ -810,149 +833,143 @@
 
               <!-- Downtime -->
               <template v-slot:item.downtime="{ item }">
-                <div class="downtime-cell">
+                <div class="py-1">
                   <v-chip
                     :color="getDowntimeColor(item.total_downtime_minutes)"
                     size="small"
-                    variant="flat"
-                    class="downtime-chip-main"
+                    variant="tonal"
+                    prepend-icon="mdi-clock-alert-outline"
+                    class="font-weight-medium"
                   >
-                    <v-icon size="14" class="me-1">mdi-clock-alert</v-icon>
-                    {{ item.downtime_hours }}h
+                    {{ item.downtime_hours }} jam
                   </v-chip>
-                  <div class="downtime-minutes">
-                    {{ item.total_downtime_minutes }} minutes
+                  <div class="text-caption text-slate-400 mt-1">
+                    {{ item.total_downtime_minutes }} menit
                   </div>
                 </div>
               </template>
 
               <!-- Assignment -->
               <template v-slot:item.assignment="{ item }">
-                <div class="assignment-cell">
-                  <div class="assigned-user-row">
-                    <v-icon size="16" color="success" class="me-1">mdi-account-check</v-icon>
-                    <span class="assigned-user-text">{{ item.assigned_to }}</span>
+                <div class="py-1">
+                  <div class="d-flex align-center gap-1 text-body-2 font-weight-medium text-slate-800">
+                    <v-icon size="14" color="success">mdi-account-check-outline</v-icon>
+                    <span>{{ item.assigned_to || 'Belum ditugaskan' }}</span>
                   </div>
-                  <v-chip size="x-small" variant="outlined" color="primary" class="action-count-chip">
-                    {{ item.latest_actions.length }} actions
-                  </v-chip>
+                  <span class="text-caption text-slate-400">
+                    {{ item.latest_actions ? item.latest_actions.length : 0 }} riwayat tindakan
+                  </span>
                 </div>
               </template>
             </v-data-table>
           </div>
-          <div v-else class="empty-state">
-            <div class="empty-state-icon">
-              <v-icon size="64" color="primary-lighten-1">mdi-ticket-outline</v-icon>
+          <div v-else class="empty-state py-10 text-center">
+            <div class="empty-chart-icon-box mb-2 mx-auto">
+              <v-icon size="36" color="slate-400">mdi-ticket-outline</v-icon>
             </div>
-            <p class="empty-state-title">No Ticket Details Available</p>
-            <p class="empty-state-text">Click the button below to load ticket information</p>
+            <h4 class="text-subtitle-1 font-weight-bold text-slate-800 mb-1">Tidak Ada Tiket</h4>
+            <p class="text-caption text-slate-500 mb-3">Klik tombol di bawah untuk memuat informasi tiket pada periode terpilih.</p>
             <v-btn
               variant="outlined"
               prepend-icon="mdi-refresh"
               @click="loadTicketDetails"
-              class="mt-4 load-tickets-btn"
               color="primary"
-              size="large"
-              elevation="2"
+              size="small"
             >
-              Load Tickets
+              Muat Data Tiket
             </v-btn>
           </div>
-        </v-card-text>
-      </v-card>
+        </div>
+      </div>
     </div>
 
-    <!-- ===== ENHANCED EXPORT DIALOG ===== -->
-    <v-dialog v-model="showExportDialog" max-width="600" persistent class="export-dialog">
-      <v-card class="export-dialog-card" elevation="8">
-        <v-card-title class="export-dialog-header">
-          <div class="export-header-content">
-            <div class="export-icon-wrapper">
-              <v-icon size="32" color="white">mdi-download</v-icon>
+    <!-- ===== EXPORT DIALOG ===== -->
+    <v-dialog v-model="showExportDialog" max-width="520" persistent>
+      <div class="export-dialog-card bg-white rounded-xl border elevation-4 overflow-hidden">
+        <div class="export-dialog-header pa-4 pa-sm-5 border-b d-flex align-center justify-space-between">
+          <div class="d-flex align-center gap-2">
+            <div class="chart-header-icon-box">
+              <v-icon color="primary" size="20">mdi-file-export-outline</v-icon>
             </div>
             <div>
-              <h3 class="export-dialog-title">Export Report</h3>
-              <p class="export-dialog-subtitle">Choose your preferred export format</p>
+              <h3 class="text-subtitle-1 font-weight-bold text-slate-900 mb-0">Export Laporan</h3>
+              <p class="text-caption text-slate-500 mb-0">Unduh data analitik trouble ticket</p>
             </div>
           </div>
-        </v-card-title>
-        <v-divider></v-divider>
-        <v-card-text class="pa-6">
-          <p class="export-description">Select the brand and format that best suits your needs:</p>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            density="compact"
+            color="slate-400"
+            @click="closeExportDialog"
+            :disabled="exporting"
+          ></v-btn>
+        </div>
 
+        <div class="pa-4 pa-sm-5">
+          <label class="text-caption font-weight-bold text-slate-700 mb-2 d-block">Filter Brand (Opsional)</label>
           <v-select
             v-model="exportBrandFilter"
             :items="brandOptions"
-            label="Filter by Brand"
+            placeholder="Semua Brand"
             prepend-inner-icon="mdi-domain"
             variant="outlined"
-            density="comfortable"
-            class="mb-6 export-brand-select"
+            density="compact"
+            class="mb-4"
             hide-details
             clearable
           ></v-select>
 
-          <v-list class="export-options-list">
-            <v-list-item
+          <label class="text-caption font-weight-bold text-slate-700 mb-2 d-block">Pilih Format File</label>
+          <div class="d-flex flex-column gap-2 mb-3">
+            <div
               v-for="format in exportFormats"
               :key="format.value"
-              @click="selectExportFormat(format.value)"
-              class="export-option-item"
-              :disabled="exporting"
+              @click="!exporting && selectExportFormat(format.value)"
+              class="export-option-box pa-3 rounded-lg border d-flex align-center justify-space-between cursor-pointer transition-all"
+              :class="{ 'opacity-50 pointer-events-none': exporting }"
             >
-              <template v-slot:prepend>
-                <div class="export-format-icon" :class="`${format.color}-bg`">
-                  <v-icon :color="'white'" size="28">{{ format.icon }}</v-icon>
+              <div class="d-flex align-center gap-3">
+                <div class="export-format-badge rounded-md pa-2 d-flex align-center justify-center" :class="`${format.color}-light`">
+                  <v-icon size="20" :color="format.color === 'blue' ? 'primary' : format.color === 'green' ? 'success' : format.color === 'red' ? 'error' : 'warning'">
+                    {{ format.icon }}
+                  </v-icon>
                 </div>
-              </template>
-              <v-list-item-title class="export-format-title">
-                {{ format.title }}
-              </v-list-item-title>
-              <v-list-item-subtitle class="export-format-description">
-                {{ format.description }}
-              </v-list-item-subtitle>
-              <template v-slot:append>
-                <v-icon color="primary-lighten-1">mdi-chevron-right</v-icon>
-              </template>
-            </v-list-item>
-          </v-list>
+                <div>
+                  <div class="text-body-2 font-weight-bold text-slate-800">{{ format.title }}</div>
+                  <div class="text-caption text-slate-500">{{ format.description }}</div>
+                </div>
+              </div>
+              <v-icon size="18" color="slate-400">mdi-chevron-right</v-icon>
+            </div>
+          </div>
 
           <v-alert
             v-if="exporting"
             type="info"
             variant="tonal"
-            class="mt-4 export-progress-alert"
-            density="comfortable"
+            density="compact"
+            class="mt-3"
           >
-            <div class="export-progress-content">
-              <v-progress-circular
-                indeterminate
-                size="20"
-                width="3"
-                color="info"
-                class="me-3"
-              ></v-progress-circular>
-              <div>
-                <strong>Exporting report...</strong>
-                <p class="text-caption mb-0">Please wait while we prepare your file</p>
-              </div>
+            <div class="d-flex align-center gap-2">
+              <v-progress-circular indeterminate size="16" width="2" color="info"></v-progress-circular>
+              <span class="text-caption">Sedang menyiapkan dan mengunduh berkas laporan...</span>
             </div>
           </v-alert>
-        </v-card-text>
-        <v-divider></v-divider>
-        <v-card-actions class="pa-4 export-dialog-actions">
-          <v-spacer></v-spacer>
+        </div>
+
+        <div class="pa-4 border-t d-flex justify-end bg-slate-50">
           <v-btn
-            variant="outlined"
+            variant="text"
             @click="closeExportDialog"
             :disabled="exporting"
-            size="large"
-            color="primary"
+            size="small"
+            color="slate-600"
           >
-            Cancel
+            Batal
           </v-btn>
-        </v-card-actions>
-      </v-card>
+        </div>
+      </div>
     </v-dialog>
   </div>
 </template>
@@ -2780,1287 +2797,411 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ===== GLOBAL STYLES ===== */
-* {
-  box-sizing: border-box;
-}
-
-/* ===== ANIMATIONS ===== */
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideOut {
-  from {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  to {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-}
-
-/* ===== CONTAINER ===== */
 .trouble-ticket-report-container {
-  padding: 32px;
-  background: linear-gradient(135deg,
-    rgb(var(--v-theme-background)) 0%,
-    rgba(var(--v-theme-surface), 0.4) 100%);
-  min-height: 100vh;
+  padding: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
-/* ===== ENHANCED HEADER ===== */
-.page-header {
-  background: linear-gradient(135deg,
-    rgba(var(--v-theme-primary), 0.1) 0%,
-    rgba(var(--v-theme-secondary), 0.05) 100%);
-  border-radius: 24px;
-  padding: 40px;
-  margin-bottom: 32px;
-  border: 1px solid rgba(var(--v-theme-primary), 0.15);
-  box-shadow: 
-    0 8px 32px rgba(var(--v-theme-shadow), 0.1),
-    0 2px 8px rgba(var(--v-theme-shadow), 0.05);
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+/* Header & Panels */
+.header-card,
+.filter-card,
+.chart-panel-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 32px;
+.header-card {
+  padding: 20px 24px;
 }
 
-.header-left {
+.header-avatar-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #0f172a;
   display: flex;
   align-items: center;
-  gap: 24px;
-  flex: 1;
-}
-
-.header-icon-wrapper {
-  position: relative;
-}
-
-.header-avatar {
-  background: linear-gradient(135deg,
-    rgb(var(--v-theme-primary)) 0%,
-    rgb(var(--v-theme-secondary)) 100%) !important;
-  box-shadow: 
-    0 8px 24px rgba(var(--v-theme-primary), 0.3),
-    0 0 0 4px rgba(var(--v-theme-primary), 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.header-avatar:hover {
-  transform: translateY(-4px);
-  box-shadow: 
-    0 12px 32px rgba(var(--v-theme-primary), 0.4),
-    0 0 0 6px rgba(var(--v-theme-primary), 0.15);
-}
-
-.header-text {
-  flex: 1;
-}
-
-.page-title {
-  font-size: 2.5rem;
-  font-weight: 800;
-  margin: 0 0 12px 0;
-  line-height: 1.2;
-  letter-spacing: -0.5px;
-}
-
-.title-gradient {
-  background: linear-gradient(135deg,
-    rgb(var(--v-theme-primary)) 0%,
-    rgb(var(--v-theme-secondary)) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.title-gradient-modern {
-  background: linear-gradient(135deg,
-    #667eea 0%,
-    #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.title-accent {
-  color: #FF6B6B;
-  font-weight: 700;
-}
-
-.title-solid {
-  color: #667eea;
-  font-weight: 700;
-}
-
-.title-normal {
-  color: rgb(var(--v-theme-on-surface));
-}
-
-.page-subtitle {
-  font-size: 1.05rem;
-  color: rgba(var(--v-theme-on-surface), 0.9);
-  margin: 0;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.refresh-btn {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.refresh-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(var(--v-theme-primary), 0.3);
-}
-
-.export-btn {
-  box-shadow: 0 4px 12px rgba(var(--v-theme-primary), 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.load-tickets-btn {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.load-tickets-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(var(--v-theme-primary), 0.4);
-}
-
-.export-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(var(--v-theme-primary), 0.4);
-}
-
-/* Modern Button Styling */
-.modern-btn {
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-transform: none;
-  font-weight: 600;
-}
-
-.modern-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.1),
-    transparent
-  );
-  transition: left 0.5s;
-}
-
-.modern-btn:hover::before {
-  left: 100%;
-}
-
-.modern-btn:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 25px rgba(var(--v-theme-primary), 0.3);
-}
-
-.modern-btn:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.refresh-btn-modern:hover {
-  box-shadow: 0 8px 25px rgba(var(--v-theme-primary), 0.3);
-}
-
-.export-btn-modern:hover {
-  box-shadow: 0 8px 25px rgba(var(--v-theme-success), 0.3);
-}
-
-.btn-text {
-  position: relative;
-  z-index: 1;
-}
-
-/* ===== ENHANCED DATE FILTER ===== */
-.date-filter-card {
-  background: rgb(var(--v-theme-surface));
-  border-radius: 20px;
-  border: 1px solid rgba(var(--v-theme-outline), 0.1);
-  margin-bottom: 32px;
-  box-shadow: 
-    0 4px 20px rgba(var(--v-theme-shadow), 0.08),
-    0 1px 4px rgba(var(--v-theme-shadow), 0.04);
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
-}
-
-.filter-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.filter-title-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.filter-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg,
-    rgba(var(--v-theme-primary), 0.1) 0%,
-    rgba(var(--v-theme-secondary), 0.1) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.filter-title {
-  font-size: 1.25rem;
+.header-title {
+  font-size: 1.375rem;
   font-weight: 700;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 0;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.header-subtitle,
+.chart-panel-subtitle {
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+/* Action Buttons Header */
+.header-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.header-actions .v-btn + .v-btn {
+  margin-left: 12px !important;
+}
+
+.action-btn-refresh {
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+.action-btn-refresh:hover {
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+.export-btn-emerald {
+  background-color: #10b981 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.export-btn-emerald:hover {
+  background-color: #059669 !important;
+}
+
+/* Filter Card Elements */
+.filter-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .filter-subtitle {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), 0.85);
-  margin: 4px 0 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin-top: 2px;
 }
 
-.active-filter-chip {
-  box-shadow: 0 2px 8px rgba(var(--v-theme-primary), 0.2);
-  animation: pulse 2s infinite;
-}
-
-.date-input, .filter-select {
-  transition: all 0.3s ease;
-}
-
-.date-input:hover, .filter-select:hover {
-  transform: translateY(-2px);
-}
-
-.clear-filter-btn {
-  transition: all 0.3s ease;
-}
-
-.clear-filter-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
-
-/* ===== ENHANCED METRICS OVERVIEW ===== */
-.metrics-overview {
-  margin-bottom: 32px;
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
-}
-
-.section-header {
-  margin-bottom: 24px;
-}
-
-.section-header-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.section-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg,
-    rgba(var(--v-theme-primary), 0.1) 0%,
-    rgba(var(--v-theme-secondary), 0.1) 100%);
+.filter-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  flex-shrink: 0;
+}
+
+/* Section Header */
+.section-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .section-title {
-  font-size: 1.75rem;
+  font-size: 1.125rem;
   font-weight: 700;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 0;
+  color: #0f172a;
+  line-height: 1.25;
 }
 
 .section-subtitle {
-  font-size: 0.95rem;
-  color: rgba(var(--v-theme-on-surface), 0.85);
-  margin: 4px 0 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin-top: 2px;
 }
 
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
+.chart-header-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+.chart-panel-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Metric Cards */
 .metric-card {
-  background: rgb(var(--v-theme-surface));
-  border-radius: 20px;
-  border: 1px solid rgba(var(--v-theme-outline), 0.1);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
   position: relative;
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
-
-.metric-card:nth-child(1) { animation-delay: 0.1s; }
-.metric-card:nth-child(2) { animation-delay: 0.2s; }
-.metric-card:nth-child(3) { animation-delay: 0.3s; }
-.metric-card:nth-child(4) { animation-delay: 0.4s; }
 
 .metric-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 
-    0 20px 40px rgba(var(--v-theme-shadow), 0.15),
-    0 8px 16px rgba(var(--v-theme-shadow), 0.1);
-  border-color: rgba(var(--v-theme-primary), 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+  border-color: #cbd5e1;
 }
 
-.metric-gradient {
+.metric-accent-line {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 5px;
+  height: 3px;
 }
 
-.gradient-blue {
-  background: linear-gradient(90deg,
-    #2196F3 0%,
-    #21CBF3 100%);
-}
+.line-blue { background-color: #0284c7; }
+.line-green { background-color: #10b981; }
+.line-amber { background-color: #f59e0b; }
+.line-rose { background-color: #f43f5e; }
 
-.gradient-green {
-  background: linear-gradient(90deg,
-    #4CAF50 0%,
-    #8BC34A 100%);
-}
-
-.gradient-orange {
-  background: linear-gradient(90deg,
-    #FF9800 0%,
-    #FFC107 100%);
-}
-
-.gradient-red {
-  background: linear-gradient(90deg,
-    #F44336 0%,
-    #E91E63 100%);
-}
-
-.metric-content {
-  display: flex;
-  align-items: center;
-  padding: 32px 28px 24px !important;
-  gap: 20px;
-}
-
-.metric-icon-wrapper {
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  transition: all 0.3s ease;
-}
-
-.metric-card:hover .metric-icon-wrapper {
-  transform: scale(1.1) rotate(5deg);
-}
-
-.blue-gradient {
-  background: linear-gradient(135deg, #2196F3 0%, #21CBF3 100%);
-}
-
-.green-gradient {
-  background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%);
-}
-
-.orange-gradient {
-  background: linear-gradient(135deg, #FF9800 0%, #FFC107 100%);
-}
-
-.red-gradient {
-  background: linear-gradient(135deg, #F44336 0%, #E91E63 100%);
-}
-
-.metric-info {
-  flex: 1;
+.metric-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.05em;
 }
 
 .metric-value {
-  font-size: 2.5rem;
+  font-size: 1.875rem;
   font-weight: 800;
-  color: rgb(var(--v-theme-on-surface));
-  line-height: 1;
-  margin-bottom: 8px;
+  color: #0f172a;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
 }
 
-.metric-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: rgba(var(--v-theme-on-surface), 0.9);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
-}
-
-.metric-change {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 8px;
-  display: inline-flex;
-}
-
-.metric-change.positive {
-  color: rgb(var(--v-theme-success));
-  background: rgba(var(--v-theme-success), 0.1);
-}
-
-.metric-change.warning {
-  color: rgb(var(--v-theme-warning));
-  background: rgba(var(--v-theme-warning), 0.1);
-}
-
-.metric-change.negative {
-  color: rgb(var(--v-theme-error));
-  background: rgba(var(--v-theme-error), 0.1);
-}
-
-.metric-footer {
-  padding: 12px 28px;
-  /* PERUBAHAN: Mengganti background abu-abu dengan warna outline yang sangat halus */
-  background: rgba(var(--v-theme-outline), 0.05);
-  border-top: 1px solid rgba(var(--v-theme-outline), 0.1);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  color: rgba(var(--v-theme-on-surface), 0.85);
-}
-
-/* ===== ENHANCED CHARTS ===== */
-.charts-section {
-  margin-bottom: 32px;
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
-}
-
-.chart-card {
-  background: rgb(var(--v-theme-surface));
-  border-radius: 20px;
-  border: 1px solid rgba(var(--v-theme-outline), 0.1);
-  overflow: hidden;
-  box-shadow: 
-    0 4px 20px rgba(var(--v-theme-shadow), 0.08),
-    0 1px 4px rgba(var(--v-theme-shadow), 0.04);
-  transition: all 0.3s ease;
-}
-
-.chart-card:hover {
-  box-shadow: 
-    0 8px 32px rgba(var(--v-theme-shadow), 0.12),
-    0 2px 8px rgba(var(--v-theme-shadow), 0.06);
-}
-
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 28px !important;
-  /* PERUBAHAN: Menghapus background abu-abu */
-  /* background: rgba(var(--v-theme-surface-variant), 0.3); */
-}
-
-.chart-title-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.chart-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 0;
-}
-
-.chart-subtitle {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), 0.8);
-  margin: 4px 0 0 0;
-}
-
-.period-toggle {
+.metric-icon-box {
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
-  overflow: hidden;
-}
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 64px;
-  gap: 20px;
-}
-
-.loading-text {
-  font-size: 1rem;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  font-weight: 500;
-  margin: 0;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 64px;
-  gap: 16px;
-}
-
-.empty-state-icon {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  /* PERUBAHAN: Mengganti background abu-abu dengan warna outline yang sangat halus */
-  background: rgba(var(--v-theme-outline), 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-
-.empty-state-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 0;
-}
-
-.empty-state-text {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), 0.8);
-  margin: 0;
-}
-
-/* ===== ENHANCED TABLES ===== */
-.tables-section {
-  margin-bottom: 32px;
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.4s both;
-}
-
-.table-card {
-  background: rgb(var(--v-theme-surface));
-  border-radius: 20px;
-  border: 1px solid rgba(var(--v-theme-outline), 0.1);
-  overflow: hidden;
-  box-shadow: 
-    0 4px 20px rgba(var(--v-theme-shadow), 0.08),
-    0 1px 4px rgba(var(--v-theme-shadow), 0.04);
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 28px !important;
-  /* PERUBAHAN: Menghapus background abu-abu */
-  /* background: rgba(var(--v-theme-surface-variant), 0.3); */
-}
-
-.table-title-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.table-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 0;
-}
-
-.table-subtitle {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  margin: 4px 0 0 0;
-}
-
-.enhanced-table :deep(.v-data-table__tr) {
-  transition: all 0.2s ease;
-}
-
-.enhanced-table :deep(.v-data-table__tr:hover) {
-  background-color: rgba(var(--v-theme-primary), 0.05) !important;
-  transform: scale(1.01);
-}
-
-.category-chip {
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.progress-wrapper {
-  padding: 4px 0;
-}
-
-.resolution-progress {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.progress-text {
-  font-size: 0.75rem;
-  color: white !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.user-info, .customer-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.user-avatar, .customer-avatar {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.user-initial, .customer-initial {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: white;
-}
-
-.user-name, .customer-name {
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
-}
-
-/* ===== ENHANCED DOWNTIME SECTION ===== */
-.downtime-section {
-  margin-bottom: 32px;
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;
-}
-
-.downtime-card {
-  background: rgb(var(--v-theme-surface));
-  border-radius: 20px;
-  border: 1px solid rgba(var(--v-theme-outline), 0.1);
-  overflow: hidden;
-  box-shadow: 
-    0 4px 20px rgba(var(--v-theme-shadow), 0.08),
-    0 1px 4px rgba(var(--v-theme-shadow), 0.04);
-}
-
-.downtime-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 28px !important;
-  /* PERUBAHAN: Menghapus background abu-abu */
-  /* background: rgba(var(--v-theme-surface-variant), 0.3); */
-}
-
-.downtime-title-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.downtime-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 0;
-}
-
-.downtime-subtitle {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), 0.85);
-  margin: 4px 0 0 0;
-}
-
-.downtime-overview {
-  margin-bottom: 32px;
-}
-
-.subsection-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-}
-
-.downtime-metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.downtime-metric-card {
-  /* PERUBAHAN: Mengganti background abu-abu dengan warna outline yang sangat halus */
-  background: rgba(var(--v-theme-outline), 0.04);
-  border-radius: 16px;
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  /* PERUBAHAN: Mempertegas border agar tetap terlihat */
-  border: 1px solid rgba(var(--v-theme-outline), 0.12);
-  transition: all 0.3s ease;
-}
-
-.downtime-metric-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(var(--v-theme-shadow), 0.12);
-}
-
-.downtime-metric-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.blue-bg {
-  background: linear-gradient(135deg, #2196F3 0%, #21CBF3 100%);
+.box-blue {
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
 }
 
-.green-bg {
-  background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%);
+.box-green {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
 }
 
-.orange-bg {
-  background: linear-gradient(135deg, #FF9800 0%, #FFC107 100%);
+.box-amber {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
 }
 
-.red-bg {
-  background: linear-gradient(135deg, #F44336 0%, #E91E63 100%);
+.box-rose {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
 }
 
-.downtime-metric-info {
-  flex: 1;
-}
-
-.downtime-metric-value {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: rgb(var(--v-theme-primary));
-  margin-bottom: 4px;
-}
-
-.downtime-metric-label {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), 0.9);
-  font-weight: 500;
-}
-
-.top-customers {
-  margin-top: 32px;
-}
-
-.downtime-chip {
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* ===== ENHANCED TICKET DETAILS SECTION ===== */
-.ticket-details-section {
-  margin-bottom: 32px;
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.6s both;
-}
-
-.ticket-details-card {
-  background: rgb(var(--v-theme-surface));
-  border-radius: 20px;
-  border: 1px solid rgba(var(--v-theme-outline), 0.1);
-  overflow: hidden;
-  box-shadow: 
-    0 4px 20px rgba(var(--v-theme-shadow), 0.08),
-    0 1px 4px rgba(var(--v-theme-shadow), 0.04);
-}
-
-.ticket-details-header {
-  display: flex;
-  justify-content: space-between;
+.meta-pill {
+  display: inline-flex;
   align-items: center;
-  padding: 24px 28px !important;
-  /* PERUBAHAN: Menghapus background abu-abu */
-  /* background: rgba(var(--v-theme-surface-variant), 0.3); */
-}
-
-.ticket-details-title-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-}
-
-.ticket-details-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 0;
-}
-
-.ticket-details-subtitle {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  margin: 4px 0 0 0;
-}
-
-.ticket-details-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.ticket-filters-card {
-  /* PERUBAHAN: Mengganti background abu-abu dengan warna outline yang sangat halus */
-  background: rgba(var(--v-theme-outline), 0.04);
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 24px;
-  /* PERUBAHAN: Mempertegas border agar tetap terlihat */
-  border: 1px solid rgba(var(--v-theme-outline), 0.12);
-}
-
-.search-field, .filter-select {
-  transition: all 0.3s ease;
-}
-
-.search-field:hover, .filter-select:hover {
-  transform: translateY(-2px);
-}
-
-.ticket-number-chip {
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(var(--v-theme-primary), 0.2);
-}
-
-.customer-info-cell {
-  line-height: 1.6;
-}
-
-.customer-name-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.customer-name-text {
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
-  font-size: 0.95rem;
-}
-
-.customer-detail-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.customer-detail-text {
-  font-size: 0.8rem;
-  color: rgba(var(--v-theme-on-surface), 0.9);
-}
-
-.technical-info-cell {
-  line-height: 1.6;
-}
-
-.tech-detail-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.tech-label {
-  font-weight: 600;
-  color: rgba(var(--v-theme-on-surface), 0.9);
+  padding: 2px 8px;
+  border-radius: 6px;
   font-size: 0.75rem;
-  min-width: 28px;
-}
-
-.tech-chip {
-  font-family: monospace;
   font-weight: 600;
 }
 
-.problem-cell {
-  line-height: 1.6;
+.pill-success {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
 }
 
-.problem-title-text {
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
-  margin-bottom: 6px;
-  font-size: 0.95rem;
+.pill-amber {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
 }
 
-.problem-description-text {
-  font-size: 0.85rem;
-  color: rgba(var(--v-theme-on-surface), 0.9);
-  margin-bottom: 8px;
-  line-height: 1.4;
+.pill-rose {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
 }
 
-.problem-category-chip {
-  font-weight: 600;
+.pill-subtle {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 }
 
-.status-priority-cell {
+/* Modern Data Table Tweaks */
+.modern-data-table :deep(th) {
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: #475569 !important;
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.modern-data-table :deep(td) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Export Option Box */
+.export-option-box {
+  border-color: rgba(0, 0, 0, 0.08);
+  transition: all 0.15s ease;
+}
+
+.export-option-box:hover {
+  background-color: #f8fafc;
+  border-color: rgba(0, 0, 0, 0.16);
+}
+
+.export-format-badge.blue-light { background: #eff6ff; }
+.export-format-badge.green-light { background: #f0fdf4; }
+.export-format-badge.red-light { background: #fef2f2; }
+.export-format-badge.orange-light { background: #fffbeb; }
+
+/* Empty Chart States */
+.empty-chart-state {
+  text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.status-chip, .priority-chip {
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.downtime-cell {
-  text-align: center;
-}
-
-.downtime-chip-main {
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 4px;
-}
-
-.downtime-minutes {
-  font-size: 0.75rem;
-  color: rgba(var(--v-theme-on-surface), 0.85);
-}
-
-.assignment-cell {
-  line-height: 1.6;
-}
-
-.assigned-user-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.assigned-user-text {
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface));
-  font-size: 0.9rem;
-}
-
-.action-count-chip {
-  font-weight: 600;
-}
-
-/* ===== ENHANCED EXPORT DIALOG ===== */
-.export-dialog :deep(.v-overlay__content) {
-  animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.export-dialog-card {
-  border-radius: 24px !important;
-  overflow: hidden;
-}
-
-.export-dialog-header {
-  background: linear-gradient(135deg,
-    rgba(var(--v-theme-primary), 0.1) 0%,
-    rgba(var(--v-theme-secondary), 0.05) 100%);
-  padding: 28px 32px !important;
-}
-
-.export-header-content {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.export-icon-wrapper {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  background: linear-gradient(135deg,
-    rgb(var(--v-theme-primary)) 0%,
-    rgb(var(--v-theme-secondary)) 100%);
-  display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(var(--v-theme-primary), 0.3);
+  min-height: 220px;
 }
 
-.export-dialog-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: rgb(var(--v-theme-on-surface));
-  margin: 0;
-}
-
-.export-dialog-subtitle {
-  font-size: 0.95rem;
-  color: rgba(var(--v-theme-on-surface), 0.85);
-  margin: 4px 0 0 0;
-}
-
-.export-description {
-  font-size: 1rem;
-  color: rgba(var(--v-theme-on-surface), 0.9);
-  margin-bottom: 24px;
-}
-
-.export-options-list {
-  background: transparent;
-  padding: 0;
-}
-
-.export-option-item {
-  border-radius: 16px;
-  margin-bottom: 12px;
-  border: 2px solid rgba(var(--v-theme-outline), 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 20px 24px !important;
-  cursor: pointer;
-}
-
-.export-option-item:hover:not([disabled]) {
-  background-color: rgba(var(--v-theme-primary), 0.05);
-  border-color: rgba(var(--v-theme-primary), 0.3);
-  transform: translateX(8px);
-  box-shadow: 0 4px 16px rgba(var(--v-theme-shadow), 0.1);
-}
-
-.export-option-item:active:not([disabled]) {
-  transform: translateX(8px) scale(0.98);
-}
-
-.export-format-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.success-bg {
-  background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%);
-}
-
-.info-bg {
-  background: linear-gradient(135deg, #2196F3 0%, #21CBF3 100%);
-}
-
-.error-bg {
-  background: linear-gradient(135deg, #F44336 0%, #E91E63 100%);
-}
-
-.warning-bg {
-  background: linear-gradient(135deg, #FF9800 0%, #FFC107 100%);
-}
-
-.export-format-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: rgb(var(--v-theme-on-surface));
-  margin-bottom: 4px;
-}
-
-.export-format-description {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), 0.85);
-  line-height: 1.4;
-}
-
-.export-progress-alert {
+.empty-chart-icon-box {
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
-  border: 1px solid rgba(var(--v-theme-info), 0.2);
-}
-
-.export-progress-content {
+  background: #f1f5f9;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 
-.export-dialog-actions {
-  /* PERUBAHAN: Mengganti background abu-abu dengan warna outline yang sangat halus */
-  background: rgba(var(--v-theme-outline), 0.05);
+.empty-chart-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #334155;
 }
 
-/* ===== RESPONSIVE DESIGN ===== */
-@media (max-width: 1200px) {
-  .metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .downtime-metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.empty-chart-desc {
+  font-size: 0.75rem;
+  color: #64748b;
+  max-width: 320px;
 }
 
-@media (max-width: 960px) {
-  .header-content {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .header-left {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-
-  .header-actions {
-    justify-content: center;
-  }
+/* Segmented Buttons */
+.segmented-btn {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  min-width: 48px !important;
+  text-transform: none !important;
 }
 
-@media (max-width: 768px) {
-  .trouble-ticket-report-container {
-    padding: 20px;
-  }
+/* Dark Mode Overrides */
+:deep(.v-theme--dark) .header-card,
+:deep(.v-theme--dark) .filter-card,
+:deep(.v-theme--dark) .metric-card,
+:deep(.v-theme--dark) .chart-panel-card,
+:deep(.v-theme--dark) .export-dialog-card {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
 
-  .page-header {
-    padding: 28px 24px;
-  }
+:deep(.v-theme--dark) .header-title,
+:deep(.v-theme--dark) .section-title,
+:deep(.v-theme--dark) .filter-title,
+:deep(.v-theme--dark) .chart-panel-title,
+:deep(.v-theme--dark) .metric-value {
+  color: #f8fafc !important;
+}
 
-  .page-title {
-    font-size: 2rem;
-  }
+:deep(.v-theme--dark) .header-subtitle,
+:deep(.v-theme--dark) .section-subtitle,
+:deep(.v-theme--dark) .filter-subtitle,
+:deep(.v-theme--dark) .chart-panel-subtitle,
+:deep(.v-theme--dark) .metric-label {
+  color: #94a3b8 !important;
+}
 
-  .metrics-grid {
-    grid-template-columns: 1fr;
-  }
+:deep(.v-theme--dark) .header-avatar-box {
+  background: #0f172a !important;
+}
 
-  .downtime-metrics-grid {
-    grid-template-columns: 1fr;
-  }
+:deep(.v-theme--dark) .filter-icon-box,
+:deep(.v-theme--dark) .section-icon-badge,
+:deep(.v-theme--dark) .chart-header-icon-box,
+:deep(.v-theme--dark) .empty-chart-icon-box {
+  background: #334155 !important;
+  border-color: #475569 !important;
+}
 
-  .ticket-details-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-  }
+:deep(.v-theme--dark) .action-btn-refresh {
+  border-color: #475569 !important;
+  color: #cbd5e1 !important;
+}
 
-  .ticket-details-actions {
-    justify-content: space-between;
-  }
+:deep(.v-theme--dark) .modern-data-table :deep(th) {
+  background-color: #0f172a !important;
+  color: #cbd5e1 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:deep(.v-theme--dark) .modern-data-table :deep(td) {
+  border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+:deep(.v-theme--dark) .ticket-filter-bar {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:deep(.v-theme--dark) .export-option-box {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:deep(.v-theme--dark) .export-option-box:hover {
+  background-color: #334155 !important;
 }
 
 @media (max-width: 600px) {
-  .header-actions {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .header-actions .v-btn {
-    width: 100%;
-  }
-
-  .date-range-filters .v-row {
-    flex-direction: column;
-  }
-
-  .filter-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
+  .trouble-ticket-report-container {
+    padding: 12px;
   }
 }
 
-/* ===== PRINT STYLES ===== */
 @media print {
   .trouble-ticket-report-container {
     padding: 0;
   }
-
-  .page-header,
-  .date-filter-card,
-  .header-actions,
-  .refresh-btn,
-  .export-btn,
-  .clear-filter-btn {
+  .header-card .v-btn,
+  .filter-card,
+  .ticket-filter-bar {
     display: none !important;
-  }
-
-  .metric-card,
-  .chart-card,
-  .table-card,
-  .downtime-card,
-  .ticket-details-card {
-    break-inside: avoid;
-    box-shadow: none !important;
-    border: 1px solid #ddd !important;
   }
 }
 </style>

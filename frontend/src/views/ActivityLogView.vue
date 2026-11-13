@@ -15,23 +15,24 @@
     </div>
 
     <!-- Tabs Section -->
-    <v-card class="mb-4 mb-md-6" elevation="0" rounded="xl" style="border: 1px solid rgba(var(--v-border-color), 0.12);">
+    <v-card class="log-tabs-card mb-4 mb-md-6" elevation="0" rounded="xl">
       <v-tabs
         v-model="activeTab"
-        color="purple"
+        color="#0e7c8c"
+        slider-color="#0e7c8c"
         density="comfortable"
         grow
         class="custom-log-tabs"
       >
         <v-tab value="user" class="text-none font-weight-bold">
-          <v-icon start>mdi-account-clock-outline</v-icon>
+          <v-icon start size="18">mdi-account-clock-outline</v-icon>
           Log Aktivitas Pengguna
-          <v-chip size="x-small" color="purple" variant="tonal" class="ms-2">Audit User</v-chip>
+          <v-chip size="x-small" color="primary" variant="tonal" class="ms-2 font-weight-medium">Audit User</v-chip>
         </v-tab>
         <v-tab value="system" class="text-none font-weight-bold">
-          <v-icon start>mdi-server-network</v-icon>
+          <v-icon start size="18">mdi-server-network</v-icon>
           Log Sistem & Otomatisasi
-          <v-chip size="x-small" color="indigo" variant="tonal" class="ms-2">Cron & Xendit</v-chip>
+          <v-chip size="x-small" color="teal" variant="tonal" class="ms-2 font-weight-medium">Cron & Xendit</v-chip>
         </v-tab>
       </v-tabs>
     </v-card>
@@ -40,29 +41,33 @@
     <template v-if="activeTab === 'user'">
       <!-- Filters Section -->
       <v-card class="filter-card mb-4 mb-md-6" elevation="0" rounded="xl">
-        <v-card-title class="d-flex align-center pa-5">
-          <v-icon color="#0e7c8c" size="22" class="me-3">mdi-filter-variant</v-icon>
-          <div>
-            <h3 class="filter-card-title">Filter Pencarian User</h3>
-            <p class="filter-card-subtitle">Temukan aktivitas pengguna dengan cepat</p>
+        <div class="filter-card-header pa-4 pa-md-5 d-flex align-center flex-wrap gap-3">
+          <div class="d-flex align-center">
+            <div class="filter-icon-box me-3">
+              <v-icon color="#0e7c8c" size="20">mdi-account-clock-outline</v-icon>
+            </div>
+            <div>
+              <h3 class="filter-card-title">Filter Pencarian Aktivitas User</h3>
+              <p class="filter-card-subtitle">Temukan riwayat audit dan aktivitas pengguna sistem</p>
+            </div>
           </div>
           <v-spacer></v-spacer>
           <v-btn
             v-if="hasActiveFilters"
             variant="tonal"
             color="error"
-            prepend-icon="mdi-close-circle-outline"
+            prepend-icon="mdi-filter-off-outline"
             size="small"
             @click="clearFilters"
             class="clear-filters-btn"
           >
-            Reset
+            Reset Filter
           </v-btn>
-        </v-card-title>
+        </div>
 
         <v-divider class="filter-divider"></v-divider>
 
-        <v-card-text class="filter-content pa-6">
+        <v-card-text class="filter-content pa-4 pa-md-5">
           <v-row dense>
             <!-- Search Keyword -->
             <v-col cols="12" md="3">
@@ -74,7 +79,7 @@
                 density="compact"
                 hide-details
                 clearable
-                placeholder="Kata kunci"
+                placeholder="Kata kunci..."
                 class="search-field"
                 @update:model-value="debouncedSearch"
               ></v-text-field>
@@ -92,8 +97,8 @@
                 hide-details
                 clearable
                 placeholder="Semua pengguna"
-                item-title="name"
-                item-value="id"
+                item-title="title"
+                item-value="value"
                 class="user-filter"
                 @update:model-value="applyFilters"
               ></v-select>
@@ -117,40 +122,40 @@
             </v-col>
 
             <!-- Date Range Filter -->
-            <v-col cols="12" md="4">
-              <div class="d-flex gap-2">
-                <v-text-field
-                  v-model="filters.date_from"
-                  type="date"
-                  label="Dari tanggal"
-                  prepend-inner-icon="mdi-calendar-start"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  clearable
-                  class="date-from-filter"
-                  @update:model-value="applyFilters"
-                ></v-text-field>
-                <v-text-field
-                  v-model="filters.date_to"
-                  type="date"
-                  label="Sampai tanggal"
-                  prepend-inner-icon="mdi-calendar-end"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  clearable
-                  class="date-to-filter"
-                  @update:model-value="applyFilters"
-                ></v-text-field>
-              </div>
+            <v-col cols="12" sm="6" md="2">
+              <v-text-field
+                v-model="filters.date_from"
+                type="date"
+                label="Dari tanggal"
+                prepend-inner-icon="mdi-calendar-start"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                class="date-from-filter"
+                @update:model-value="applyFilters"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="6" md="2">
+              <v-text-field
+                v-model="filters.date_to"
+                type="date"
+                label="Sampai tanggal"
+                prepend-inner-icon="mdi-calendar-end"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                class="date-to-filter"
+                @update:model-value="applyFilters"
+              ></v-text-field>
             </v-col>
           </v-row>
 
           <!-- Active Filters Display -->
           <div v-if="hasActiveFilters" class="active-filters mt-4">
             <div class="d-flex align-center flex-wrap gap-2">
-              <span class="text-caption text-primary me-2">Filter aktif:</span>
+              <span class="text-caption font-weight-bold text-medium-emphasis me-2">Filter aktif:</span>
               <v-chip
                 v-if="filters.search"
                 color="primary"
@@ -164,7 +169,7 @@
               </v-chip>
               <v-chip
                 v-if="filters.user_id"
-                color="purple"
+                color="primary"
                 variant="tonal"
                 size="small"
                 closable
@@ -186,7 +191,7 @@
               </v-chip>
               <v-chip
                 v-if="filters.date_from"
-                color="indigo"
+                color="teal"
                 variant="tonal"
                 size="small"
                 closable
@@ -197,7 +202,7 @@
               </v-chip>
               <v-chip
                 v-if="filters.date_to"
-                color="indigo"
+                color="teal"
                 variant="tonal"
                 size="small"
                 closable
@@ -215,12 +220,12 @@
       <v-card class="activity-card" elevation="0" rounded="xl">
         <!-- Card Header -->
         <div class="table-header">
-          <v-card-title class="d-flex align-center pa-6">
+          <v-card-title class="d-flex align-center pa-4 pa-md-5">
             <div class="d-flex align-center flex-grow-1">
-              <v-icon color="purple" size="24" class="me-3">mdi-format-list-bulleted</v-icon>
+              <v-icon color="#0e7c8c" size="22" class="me-3">mdi-format-list-bulleted</v-icon>
               <div>
-                <h2 class="text-h6 font-weight-bold mb-0">Riwayat Aktivitas Pengguna</h2>
-                <p class="text-caption text-primary mb-0">
+                <h2 class="text-subtitle-1 font-weight-bold mb-0">Riwayat Aktivitas Pengguna</h2>
+                <p class="text-caption text-medium-emphasis mb-0">
                   {{ totalLogs }} total aktivitas tercatat
                 </p>
               </div>
@@ -229,12 +234,13 @@
             <!-- Refresh Button -->
             <v-btn
               icon="mdi-refresh"
-              variant="text"
+              variant="tonal"
               size="small"
-              color="purple"
+              color="primary"
               :loading="loading"
               @click="refreshData"
-              class="refresh-btn"
+              class="refresh-btn rounded-lg"
+              title="Segarkan Data"
             ></v-btn>
           </v-card-title>
         </div>
@@ -302,17 +308,14 @@
             <template v-slot:item.details="{ item }">
               <div class="details-cell text-center">
                 <v-btn
-                  v-if="item.details"
-                  icon
-                  variant="text"
-                  size="small"
+                  icon="mdi-eye-outline"
+                  variant="tonal"
+                  size="x-small"
                   color="primary"
-                  class="details-btn"
-                  @click="showDetails(item.details, item)"
-                >
-                  <v-icon size="20">mdi-code-json</v-icon>
-                </v-btn>
-                <span v-else class="text-info">-</span>
+                  class="action-icon-btn rounded-lg"
+                  @click="showDetails(item.details || '', item)"
+                  title="Lihat Detail Aktivitas"
+                ></v-btn>
               </div>
             </template>
 
@@ -338,84 +341,125 @@
     <template v-else-if="activeTab === 'system'">
       <!-- System Filters Section -->
       <v-card class="filter-card mb-4 mb-md-6" elevation="0" rounded="xl">
-        <v-card-title class="d-flex align-center flex-wrap gap-2 pa-5">
-          <v-icon color="#0e7c8c" size="22" class="me-3">mdi-server-network</v-icon>
-          <div>
-            <h3 class="filter-card-title">Filter Log Sistem & Otomatisasi</h3>
-            <p class="filter-card-subtitle">Pantau proses cron auto-billing, suspensi, & callback Xendit</p>
+        <div class="filter-card-header pa-4 pa-md-5 d-flex align-center flex-wrap gap-3">
+          <div class="d-flex align-center">
+            <div class="filter-icon-box me-3">
+              <v-icon color="#0e7c8c" size="22">mdi-server-network</v-icon>
+            </div>
+            <div>
+              <h3 class="filter-card-title">Filter Log Sistem & Otomatisasi</h3>
+              <p class="filter-card-subtitle">Pantau proses cron auto-billing, suspensi, & callback Xendit</p>
+            </div>
           </div>
           <v-spacer></v-spacer>
-          <div class="d-flex align-center gap-2">
-            <v-switch
-              v-model="autoRefresh"
-              color="success"
-              density="compact"
-              hide-details
-              label="Live Refresh (15s)"
-              class="me-2"
-            ></v-switch>
+          <div class="d-flex align-center gap-3">
+            <div class="live-refresh-pill d-flex align-center px-3 py-1.5 rounded-pill">
+              <div class="live-pulse-dot" :class="{ 'live-pulse-dot--active': autoRefresh }"></div>
+              <span class="live-label text-caption font-weight-medium ms-2 me-2">Live Update (15s)</span>
+              <v-switch
+                v-model="autoRefresh"
+                color="#0e7c8c"
+                density="compact"
+                hide-details
+                class="live-switch ma-0 pa-0"
+              ></v-switch>
+            </div>
             <v-btn
               v-if="hasActiveSystemFilters"
               variant="tonal"
               color="error"
-              prepend-icon="mdi-close-circle-outline"
+              prepend-icon="mdi-refresh"
               size="small"
+              rounded="lg"
               @click="clearSystemFilters"
               class="clear-filters-btn"
             >
-              Reset
+              Reset Filter
             </v-btn>
           </div>
-        </v-card-title>
+        </div>
 
         <v-divider class="filter-divider"></v-divider>
 
-        <v-card-text class="filter-content pa-6">
+        <v-card-text class="filter-content pa-4 pa-md-5">
           <div class="d-flex flex-column gap-4">
-            <!-- Severity Filter Chips -->
-            <div class="d-flex align-center flex-wrap gap-2">
-              <span class="text-caption font-weight-bold me-2">Tingkat Log:</span>
-              <v-chip
-                :variant="systemFilters.level === '' ? 'flat' : 'outlined'"
-                color="primary"
-                size="small"
-                @click="setSystemLevel('')"
-                class="font-weight-medium"
-              >
-                Semua Tingkat
-              </v-chip>
-              <v-chip
-                :variant="systemFilters.level === 'INFO' ? 'flat' : 'outlined'"
-                color="info"
-                size="small"
-                @click="setSystemLevel('INFO')"
-                class="font-weight-medium"
-              >
-                <v-icon start size="14">mdi-information</v-icon>
-                INFO (Normal)
-              </v-chip>
-              <v-chip
-                :variant="systemFilters.level === 'WARN' ? 'flat' : 'outlined'"
-                color="warning"
-                size="small"
-                @click="setSystemLevel('WARN')"
-                class="font-weight-medium"
-              >
-                <v-icon start size="14">mdi-alert</v-icon>
-                WARN (Peringatan)
-              </v-chip>
-              <v-chip
-                :variant="systemFilters.level === 'ERROR' ? 'flat' : 'outlined'"
-                color="error"
-                size="small"
-                @click="setSystemLevel('ERROR')"
-                class="font-weight-medium"
-              >
-                <v-icon start size="14">mdi-alert-circle</v-icon>
-                ERROR (Kegagalan)
-              </v-chip>
+            <!-- Row 1: Tingkat Log Segmented Filter Toolbar & Date Quick Presets -->
+            <div class="filter-toolbar-row d-flex align-center justify-space-between flex-wrap gap-3 pb-3">
+              <div class="d-flex align-center flex-wrap gap-2">
+                <span class="filter-section-label">Tingkat Log:</span>
+                <div class="segmented-control">
+                  <button
+                    type="button"
+                    class="segmented-btn"
+                    :class="{ active: systemFilters.level === '' }"
+                    @click="setSystemLevel('')"
+                  >
+                    Semua
+                  </button>
+                  <button
+                    type="button"
+                    class="segmented-btn btn-info"
+                    :class="{ active: systemFilters.level === 'INFO' }"
+                    @click="setSystemLevel('INFO')"
+                  >
+                    <span class="status-indicator-dot dot-info"></span>
+                    INFO
+                  </button>
+                  <button
+                    type="button"
+                    class="segmented-btn btn-warning"
+                    :class="{ active: systemFilters.level === 'WARN' }"
+                    @click="setSystemLevel('WARN')"
+                  >
+                    <span class="status-indicator-dot dot-warning"></span>
+                    WARN
+                  </button>
+                  <button
+                    type="button"
+                    class="segmented-btn btn-error"
+                    :class="{ active: systemFilters.level === 'ERROR' }"
+                    @click="setSystemLevel('ERROR')"
+                  >
+                    <span class="status-indicator-dot dot-error"></span>
+                    ERROR
+                  </button>
+                </div>
+              </div>
+
+              <!-- Quick Date Range Shortcuts -->
+              <div class="d-flex align-center flex-wrap gap-1">
+                <span class="filter-section-label text-caption me-1">Rentang Cepat:</span>
+                <v-btn
+                  size="x-small"
+                  variant="tonal"
+                  color="primary"
+                  class="text-none font-weight-medium rounded-pill"
+                  @click="setDateRangeQuick('today')"
+                >
+                  Hari Ini
+                </v-btn>
+                <v-btn
+                  size="x-small"
+                  variant="tonal"
+                  color="primary"
+                  class="text-none font-weight-medium rounded-pill"
+                  @click="setDateRangeQuick('7days')"
+                >
+                  7 Hari
+                </v-btn>
+                <v-btn
+                  size="x-small"
+                  variant="tonal"
+                  color="primary"
+                  class="text-none font-weight-medium rounded-pill"
+                  @click="setDateRangeQuick('month')"
+                >
+                  Bulan Ini
+                </v-btn>
+              </div>
             </div>
 
+            <!-- Row 2: Search and Date Range Inputs -->
             <v-row dense>
               <!-- Search Keyword -->
               <v-col cols="12" md="6">
@@ -427,39 +471,93 @@
                   density="compact"
                   hide-details
                   clearable
-                  placeholder="Contoh: XENDIT, SUSPEND, CRON, 0812..."
+                  placeholder="Contoh: SchedulerManager, XENDIT, SUSPEND, CRON..."
+                  class="filter-input-field"
                   @update:model-value="debouncedSystemSearch"
                 ></v-text-field>
               </v-col>
 
               <!-- Date Range Filter -->
-              <v-col cols="12" md="6">
-                <div class="d-flex gap-2">
-                  <v-text-field
-                    v-model="systemFilters.date_from"
-                    type="date"
-                    label="Dari tanggal"
-                    prepend-inner-icon="mdi-calendar-start"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
-                    clearable
-                    @update:model-value="applySystemFilters"
-                  ></v-text-field>
-                  <v-text-field
-                    v-model="systemFilters.date_to"
-                    type="date"
-                    label="Sampai tanggal"
-                    prepend-inner-icon="mdi-calendar-end"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
-                    clearable
-                    @update:model-value="applySystemFilters"
-                  ></v-text-field>
-                </div>
+              <v-col cols="12" sm="6" md="3">
+                <v-text-field
+                  v-model="systemFilters.date_from"
+                  type="date"
+                  label="Dari tanggal"
+                  prepend-inner-icon="mdi-calendar-start"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  clearable
+                  class="filter-input-field"
+                  @update:model-value="applySystemFilters"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6" md="3">
+                <v-text-field
+                  v-model="systemFilters.date_to"
+                  type="date"
+                  label="Sampai tanggal"
+                  prepend-inner-icon="mdi-calendar-end"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  clearable
+                  class="filter-input-field"
+                  @update:model-value="applySystemFilters"
+                ></v-text-field>
               </v-col>
             </v-row>
+
+            <!-- Active System Filters Display -->
+            <div v-if="hasActiveSystemFilters" class="active-filters mt-2">
+              <div class="d-flex align-center flex-wrap gap-2">
+                <span class="text-caption font-weight-bold text-medium-emphasis me-2">Filter aktif:</span>
+                <v-chip
+                  v-if="systemFilters.search"
+                  color="primary"
+                  variant="tonal"
+                  size="small"
+                  closable
+                  @click:close="systemFilters.search = ''; applySystemFilters()"
+                >
+                  <v-icon start size="14">mdi-magnify</v-icon>
+                  {{ systemFilters.search }}
+                </v-chip>
+                <v-chip
+                  v-if="systemFilters.level"
+                  :color="getSystemLevelColor(systemFilters.level)"
+                  variant="tonal"
+                  size="small"
+                  closable
+                  @click:close="setSystemLevel('')"
+                >
+                  <v-icon start size="14">{{ getSystemLevelIcon(systemFilters.level) }}</v-icon>
+                  {{ systemFilters.level }}
+                </v-chip>
+                <v-chip
+                  v-if="systemFilters.date_from"
+                  color="teal"
+                  variant="tonal"
+                  size="small"
+                  closable
+                  @click:close="systemFilters.date_from = ''; applySystemFilters()"
+                >
+                  <v-icon start size="14">mdi-calendar-start</v-icon>
+                  {{ formatDateFilter(systemFilters.date_from) }}
+                </v-chip>
+                <v-chip
+                  v-if="systemFilters.date_to"
+                  color="teal"
+                  variant="tonal"
+                  size="small"
+                  closable
+                  @click:close="systemFilters.date_to = ''; applySystemFilters()"
+                >
+                  <v-icon start size="14">mdi-calendar-end</v-icon>
+                  {{ formatDateFilter(systemFilters.date_to) }}
+                </v-chip>
+              </div>
+            </div>
           </div>
         </v-card-text>
       </v-card>
@@ -467,12 +565,12 @@
       <!-- System Logs Table Card -->
       <v-card class="activity-card" elevation="0" rounded="xl">
         <div class="table-header">
-          <v-card-title class="d-flex align-center pa-6">
+          <v-card-title class="d-flex align-center pa-4 pa-md-5">
             <div class="d-flex align-center flex-grow-1">
-              <v-icon color="indigo" size="24" class="me-3">mdi-server-network</v-icon>
+              <v-icon color="#0e7c8c" size="22" class="me-3">mdi-server-network</v-icon>
               <div>
-                <h2 class="text-h6 font-weight-bold mb-0">Riwayat Log Sistem & Otomatisasi</h2>
-                <p class="text-caption text-primary mb-0">
+                <h2 class="text-subtitle-1 font-weight-bold mb-0">Riwayat Log Sistem & Otomatisasi</h2>
+                <p class="text-caption text-medium-emphasis mb-0">
                   {{ totalSystemLogs }} total catatan sistem
                 </p>
               </div>
@@ -480,12 +578,13 @@
 
             <v-btn
               icon="mdi-refresh"
-              variant="text"
+              variant="tonal"
               size="small"
-              color="indigo"
+              color="primary"
               :loading="systemLoading"
               @click="refreshSystemData"
-              class="refresh-btn"
+              class="refresh-btn rounded-lg"
+              title="Segarkan Data"
             ></v-btn>
           </v-card-title>
         </div>
@@ -523,7 +622,7 @@
                 :color="getSystemLevelColor(item.level)"
                 variant="flat"
                 size="small"
-                class="font-weight-bold"
+                class="font-weight-bold rounded-pill"
                 label
               >
                 <v-icon start size="14">{{ getSystemLevelIcon(item.level) }}</v-icon>
@@ -538,7 +637,7 @@
                   :color="getModuleColor(item.module)"
                   variant="tonal"
                   size="small"
-                  class="font-weight-bold"
+                  class="font-weight-medium rounded-pill"
                 >
                   <v-icon start size="14">{{ getModuleIcon(item.module) }}</v-icon>
                   {{ item.module }}
@@ -549,10 +648,10 @@
             <!-- Message Column -->
             <template v-slot:item.message="{ item }">
               <div class="py-2">
-                <div class="font-weight-bold text-caption text-indigo mb-1">
+                <div class="font-weight-bold text-caption text-primary mb-1">
                   {{ item.action }}
                 </div>
-                <div class="text-body-2 font-weight-medium" style="word-break: break-word;">
+                <div class="text-body-2 font-weight-medium" style="word-break: break-word; line-height: 1.4;">
                   {{ item.message }}
                 </div>
               </div>
@@ -562,17 +661,14 @@
             <template v-slot:item.details="{ item }">
               <div class="details-cell text-center">
                 <v-btn
-                  v-if="item.details"
-                  icon
-                  variant="text"
-                  size="small"
-                  color="indigo"
-                  class="details-btn"
+                  icon="mdi-eye-outline"
+                  variant="tonal"
+                  size="x-small"
+                  color="primary"
+                  class="action-icon-btn rounded-lg"
                   @click="showSystemDetails(item)"
-                >
-                  <v-icon size="20">mdi-code-json</v-icon>
-                </v-btn>
-                <span v-else class="text-medium-emphasis">-</span>
+                  title="Lihat Detail Log Sistem"
+                ></v-btn>
               </div>
             </template>
 
@@ -597,15 +693,15 @@
     <!-- Enhanced Details Dialog (Supports both User and System Logs) -->
     <v-dialog v-model="dialog" max-width="800" class="details-dialog" persistent>
       <v-card class="dialog-card" rounded="xl">
-        <!-- Dialog Header with Gradient -->
-        <div class="dialog-header-enhanced pa-4 pa-md-6">
+        <!-- Dialog Header with Clean High-Contrast Layout -->
+        <div class="dialog-header-enhanced pa-4 pa-md-5">
           <div class="d-flex align-center justify-space-between">
             <div class="d-flex align-center">
               <div class="dialog-icon-wrapper-enhanced me-3">
-                <v-icon color="white" size="28">mdi-information-outline</v-icon>
+                <v-icon color="#0e7c8c" size="24">mdi-information-outline</v-icon>
               </div>
               <div>
-                <h3 class="dialog-title-enhanced text-h5 font-weight-bold mb-0">
+                <h3 class="dialog-title-enhanced text-h6 font-weight-bold mb-0">
                   {{ selectedSystemLog ? 'Detail Log Sistem' : 'Detail Aktivitas Pengguna' }}
                 </h3>
                 <p class="dialog-subtitle-enhanced text-caption mb-0">
@@ -615,9 +711,8 @@
             </div>
             <v-btn
               icon="mdi-close"
-              variant="elevated"
+              variant="text"
               size="small"
-              color="white"
               class="close-btn-enhanced"
               @click="closeDetailDialog"
             ></v-btn>
@@ -869,10 +964,10 @@ const filters = ref<Filters>({
 });
 
 const headers = [
-  { title: 'Pengguna', key: 'user', sortable: false, width: '30%' },
-  { title: 'Aksi', key: 'action', sortable: false, width: '25%' },
+  { title: 'Pengguna', key: 'user', sortable: false, width: '28%' },
+  { title: 'Aksi', key: 'action', sortable: false, width: '22%' },
   { title: 'Waktu', key: 'timestamp', sortable: false, width: '25%' },
-  { title: 'Detail', key: 'details', sortable: false, align: 'center', width: '20%' },
+  { title: 'Detail', key: 'details', sortable: false, align: 'center', width: '100px' },
 ] as const;
 
 // --- System Log Interfaces & State ---
@@ -884,6 +979,7 @@ interface SystemLog {
   message: string;
   details?: string | null;
   created_at: string;
+  timestamp?: string;
 }
 
 interface SystemFilters {
@@ -909,12 +1005,62 @@ const systemFilters = ref<SystemFilters>({
 });
 
 const systemHeaders = [
-  { title: 'Waktu', key: 'created_at', sortable: false, width: '180px' },
+  { title: 'Waktu', key: 'created_at', sortable: false, width: '160px' },
   { title: 'Level', key: 'level', sortable: false, width: '110px' },
   { title: 'Modul', key: 'module', sortable: false, width: '160px' },
   { title: 'Aksi & Pesan', key: 'message', sortable: false },
   { title: 'Detail', key: 'details', sortable: false, align: 'center', width: '90px' },
 ] as const;
+
+// --- Parsing helper for System Logs ---
+function parseSystemLogItem(raw: any): SystemLog {
+  const ts = raw.timestamp || raw.created_at || new Date().toISOString();
+  let rawMsg = (raw.message || '').trim();
+  let mod = (raw.module || '').trim();
+  let act = (raw.action || '').trim();
+  let displayMsg = rawMsg;
+
+  if (!mod && rawMsg.includes(':')) {
+    const colonIdx = rawMsg.indexOf(':');
+    const candidate = rawMsg.substring(0, colonIdx).trim();
+    if (candidate.length > 0 && candidate.length < 35 && !candidate.includes('\n')) {
+      mod = candidate;
+      displayMsg = rawMsg.substring(colonIdx + 1).trim();
+    }
+  }
+
+  if (!mod) {
+    mod = 'SYSTEM';
+  }
+
+  if (!act) {
+    const combined = (rawMsg + ' ' + mod).toLowerCase();
+    if (combined.includes('retry_failed_whatsapp') || combined.includes('whatsapp')) {
+      act = 'WHATSAPP RETRY';
+    } else if (combined.includes('retry_mikrotik_sync') || combined.includes('mikrotik')) {
+      act = 'MIKROTIK SYNC';
+    } else if (combined.includes('job') || combined.includes('scheduler') || combined.includes('cron')) {
+      act = 'CRON JOB';
+    } else if (combined.includes('xendit') || combined.includes('invoice') || combined.includes('payment')) {
+      act = 'PAYMENT';
+    } else if (combined.includes('suspend') || combined.includes('isolir')) {
+      act = 'SUSPENSION';
+    } else {
+      act = 'SYSTEM EVENT';
+    }
+  }
+
+  return {
+    id: raw.id,
+    level: raw.level || 'INFO',
+    module: mod,
+    action: act,
+    message: displayMsg || rawMsg,
+    details: raw.details || null,
+    created_at: ts,
+    timestamp: ts
+  };
+}
 
 // --- Computed Properties ---
 const hasActiveFilters = computed(() => {
@@ -1068,13 +1214,9 @@ async function fetchSystemLogs(options?: { page?: number, itemsPerPage?: number,
     if (systemFilters.value.date_to) params.date_to = systemFilters.value.date_to;
 
     const response = await apiClient.get('/system-logs', { params });
-    if (response.data && response.data.data) {
-      systemLogs.value = response.data.data || [];
-      totalSystemLogs.value = response.data.total || 0;
-    } else {
-      systemLogs.value = Array.isArray(response.data) ? response.data : [];
-      totalSystemLogs.value = response.data.total || systemLogs.value.length;
-    }
+    const rawList = response.data?.data || (Array.isArray(response.data) ? response.data : []);
+    systemLogs.value = rawList.map(parseSystemLogItem);
+    totalSystemLogs.value = response.data?.total || systemLogs.value.length;
   } catch (error) {
     console.error("Gagal mengambil system logs:", error);
   } finally {
@@ -1111,6 +1253,32 @@ function clearSystemFilters() {
   applySystemFilters();
 }
 
+function setDateRangeQuick(preset: 'today' | '7days' | 'month') {
+  const now = new Date();
+  const formatYMD = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  if (preset === 'today') {
+    const todayStr = formatYMD(now);
+    systemFilters.value.date_from = todayStr;
+    systemFilters.value.date_to = todayStr;
+  } else if (preset === '7days') {
+    const past = new Date();
+    past.setDate(past.getDate() - 7);
+    systemFilters.value.date_from = formatYMD(past);
+    systemFilters.value.date_to = formatYMD(now);
+  } else if (preset === 'month') {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    systemFilters.value.date_from = formatYMD(startOfMonth);
+    systemFilters.value.date_to = formatYMD(now);
+  }
+  applySystemFilters();
+}
+
 // --- Style & Format Helpers ---
 function getSystemLevelColor(level: string): string {
   switch (level?.toUpperCase()) {
@@ -1131,25 +1299,25 @@ function getSystemLevelIcon(level: string): string {
 }
 
 function getModuleColor(module: string): string {
-  switch (module?.toUpperCase()) {
-    case 'BILLING_CRON': return 'teal';
-    case 'AUTO_SUSPEND': return 'deep-orange';
-    case 'XENDIT_WEBHOOK': return 'indigo';
-    case 'MANUAL_INVOICE': return 'purple';
-    case 'SUBSCRIPTION': return 'blue';
-    default: return 'grey';
-  }
+  const m = module?.toUpperCase() || '';
+  if (m.includes('SCHEDULER') || m.includes('CRON') || m.includes('BILLING')) return 'teal';
+  if (m.includes('SUSPEND') || m.includes('ISOLIR')) return 'deep-orange';
+  if (m.includes('XENDIT') || m.includes('PAYMENT')) return 'indigo';
+  if (m.includes('WHATSAPP') || m.includes('WA')) return 'success';
+  if (m.includes('MIKROTIK') || m.includes('NETWORK')) return 'cyan';
+  if (m.includes('SUBSCRIPTION')) return 'blue';
+  return 'blue-grey';
 }
 
 function getModuleIcon(module: string): string {
-  switch (module?.toUpperCase()) {
-    case 'BILLING_CRON': return 'mdi-clock-check-outline';
-    case 'AUTO_SUSPEND': return 'mdi-account-lock-outline';
-    case 'XENDIT_WEBHOOK': return 'mdi-credit-card-sync-outline';
-    case 'MANUAL_INVOICE': return 'mdi-receipt-text-plus';
-    case 'SUBSCRIPTION': return 'mdi-account-cog-outline';
-    default: return 'mdi-cog-outline';
-  }
+  const m = module?.toUpperCase() || '';
+  if (m.includes('SCHEDULER') || m.includes('CRON')) return 'mdi-clock-check-outline';
+  if (m.includes('SUSPEND')) return 'mdi-account-lock-outline';
+  if (m.includes('XENDIT')) return 'mdi-credit-card-sync-outline';
+  if (m.includes('WHATSAPP')) return 'mdi-whatsapp';
+  if (m.includes('MIKROTIK')) return 'mdi-router-wireless';
+  if (m.includes('SUBSCRIPTION')) return 'mdi-account-cog-outline';
+  return 'mdi-cog-outline';
 }
 
 function getUserDisplayName(userId: number): string {
@@ -1158,8 +1326,9 @@ function getUserDisplayName(userId: number): string {
 }
 
 function formatDateFilter(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('id-ID', {
+  const d = parseSafeDate(dateString);
+  if (!d) return dateString;
+  return d.toLocaleDateString('id-ID', {
     day: 'numeric',
     month: 'short',
     year: 'numeric'
@@ -1185,10 +1354,20 @@ function getActionIcon(action: string): string {
 function showDetails(details: string, log: ActivityLog) {
   selectedSystemLog.value = null;
   selectedLog.value = log;
-  try {
-    detailsObject.value = JSON.parse(details);
-  } catch {
-    detailsObject.value = { "raw_data": details };
+  if (details && details.trim() !== '') {
+    try {
+      detailsObject.value = JSON.parse(details);
+    } catch {
+      detailsObject.value = { "raw_data": details };
+    }
+  } else {
+    detailsObject.value = {
+      id: log.id,
+      user: log.user ? log.user.name : '-',
+      email: log.user ? log.user.email : '-',
+      action: log.action,
+      timestamp: log.timestamp
+    };
   }
   dialog.value = true;
 }
@@ -1196,7 +1375,7 @@ function showDetails(details: string, log: ActivityLog) {
 function showSystemDetails(log: SystemLog) {
   selectedLog.value = null;
   selectedSystemLog.value = log;
-  if (log.details) {
+  if (log.details && log.details.trim() !== '') {
     try {
       detailsObject.value = JSON.parse(log.details);
     } catch {
@@ -1205,11 +1384,11 @@ function showSystemDetails(log: SystemLog) {
   } else {
     detailsObject.value = {
       id: log.id,
+      level: log.level,
       module: log.module,
       action: log.action,
       message: log.message,
-      level: log.level,
-      created_at: log.created_at
+      timestamp: log.created_at
     };
   }
   dialog.value = true;
@@ -1222,10 +1401,20 @@ function closeDetailDialog() {
   detailsObject.value = null;
 }
 
+function parseSafeDate(timestamp: any): Date | null {
+  if (!timestamp) return null;
+  let str = String(timestamp).trim();
+  if (str.includes(' ') && !str.includes('T')) {
+    str = str.replace(' ', 'T');
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function formatFullDateTime(timestamp: string): string {
-  if (!timestamp) return '-';
-  const date = new Date(timestamp);
-  return date.toLocaleString('id-ID', {
+  const d = parseSafeDate(timestamp);
+  if (!d) return '-';
+  return d.toLocaleString('id-ID', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -1316,8 +1505,9 @@ function formatKey(key: string): string {
 }
 
 function formatDate(timestamp: string): string {
-  if (!timestamp) return '-';
-  return new Date(timestamp).toLocaleDateString('id-ID', { 
+  const d = parseSafeDate(timestamp);
+  if (!d) return '-';
+  return d.toLocaleDateString('id-ID', { 
     day: 'numeric',
     month: 'short', 
     year: 'numeric' 
@@ -1325,8 +1515,9 @@ function formatDate(timestamp: string): string {
 }
 
 function formatTime(timestamp: string): string {
-  if (!timestamp) return '-';
-  return new Date(timestamp).toLocaleTimeString('id-ID', {
+  const d = parseSafeDate(timestamp);
+  if (!d) return '-';
+  return d.toLocaleTimeString('id-ID', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit'
@@ -1397,6 +1588,32 @@ fetchUsers();
   color: #8994a6 !important;
 }
 
+/* Tabs Card */
+.log-tabs-card {
+  background: #ffffff;
+  border: 1px solid #e2e7eb;
+}
+
+.v-theme--dark .log-tabs-card {
+  background: #1a1f2e;
+  border-color: #2d3548;
+}
+
+.custom-log-tabs :deep(.v-tab) {
+  letter-spacing: normal;
+  transition: all 0.2s ease;
+}
+
+.custom-log-tabs :deep(.v-tab--selected) {
+  color: #0e7c8c !important;
+}
+
+.custom-log-tabs :deep(.v-tab__slider) {
+  height: 3px !important;
+  background-color: #0e7c8c !important;
+  border-radius: 3px 3px 0 0 !important;
+}
+
 /* Filter Card */
 .filter-card {
   background: #ffffff;
@@ -1411,12 +1628,196 @@ fetchUsers();
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-.filter-card .v-card-title {
-  background: #f5f7f9;
+.filter-card-header {
+  background: #f8fafc;
 }
 
-.v-theme--dark .filter-card .v-card-title {
+.v-theme--dark .filter-card-header {
   background: #141825;
+}
+
+.filter-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(14, 124, 140, 0.08);
+  border: 1px solid rgba(14, 124, 140, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Live Refresh Pill */
+.live-refresh-pill {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.v-theme--dark .live-refresh-pill {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.live-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #94a3b8;
+  transition: all 0.3s ease;
+}
+
+.live-pulse-dot--active {
+  background-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  animation: pulseGreen 2s infinite;
+}
+
+@keyframes pulseGreen {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.live-label {
+  font-size: 0.8rem;
+  color: #47566e;
+  white-space: nowrap;
+}
+
+.v-theme--dark .live-label {
+  color: #cbd5e1;
+}
+
+/* Filter Toolbar Row (Tingkat Log & Quick Range) */
+.filter-toolbar-row {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.v-theme--dark .filter-toolbar-row {
+  border-bottom-color: #2d3548;
+}
+
+.filter-section-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #47566e;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.v-theme--dark .filter-section-label {
+  color: #94a3b8;
+}
+
+/* Segmented Control for Log Levels */
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  gap: 2px;
+}
+
+.v-theme--dark .segmented-control {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 14px;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #47566e;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1.2;
+}
+
+.v-theme--dark .segmented-btn {
+  color: #94a3b8;
+}
+
+.segmented-btn:hover {
+  color: #101827;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.v-theme--dark .segmented-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.segmented-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.v-theme--dark .segmented-btn.active {
+  background: #0f172a;
+  color: #f8fafc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.status-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.dot-info {
+  background-color: #0284c7;
+}
+
+.dot-warning {
+  background-color: #f59e0b;
+}
+
+.dot-error {
+  background-color: #ef4444;
+}
+
+.segmented-btn.btn-info.active {
+  color: #0284c7;
+}
+
+.segmented-btn.btn-warning.active {
+  color: #d97706;
+}
+
+.segmented-btn.btn-error.active {
+  color: #dc2626;
+}
+
+.action-icon-btn {
+  width: 32px !important;
+  height: 32px !important;
+  transition: all 0.2s ease;
+}
+
+.action-icon-btn:hover {
+  transform: scale(1.08);
 }
 
 .filter-card-title {
@@ -1711,63 +2112,69 @@ fetchUsers();
 
 /* Enhanced Header */
 .dialog-header-enhanced {
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
-  color: white;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  color: #0f172a;
   position: relative;
-  overflow: hidden;
 }
 
-.dialog-header-enhanced::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 100%;
-  height: 100%;
-  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="1" fill="white" opacity="0.05"/><circle cx="10" cy="50" r="1" fill="white" opacity="0.05"/><circle cx="90" cy="30" r="1" fill="white" opacity="0.05"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-  pointer-events: none;
+.v-theme--dark .dialog-header-enhanced {
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  color: #f8fafc;
 }
 
 .dialog-icon-wrapper-enhanced {
-  width: 48px;
-  height: 48px;
-  background: rgba(255, 255, 255, 0.15);
+  width: 44px;
+  height: 44px;
+  background: rgba(14, 124, 140, 0.1);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
 }
 
 .dialog-title-enhanced {
-  color: white !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  color: #0f172a !important;
+  font-size: 1.15rem;
+}
+
+.v-theme--dark .dialog-title-enhanced {
+  color: #f8fafc !important;
 }
 
 .dialog-subtitle-enhanced {
-  color: white !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  color: #64748b !important;
+}
+
+.v-theme--dark .dialog-subtitle-enhanced {
+  color: #94a3b8 !important;
 }
 
 .close-btn-enhanced {
-  background: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
+  color: #64748b !important;
+  transition: all 0.2s ease;
+}
+
+.v-theme--dark .close-btn-enhanced {
+  color: #cbd5e1 !important;
 }
 
 .close-btn-enhanced:hover {
-  background: rgba(255, 255, 255, 0.25) !important;
-  transform: scale(1.05);
+  background: rgba(0, 0, 0, 0.05) !important;
 }
 
 /* Summary Section */
 .summary-section {
-  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.04) 0%, rgba(var(--v-theme-secondary), 0.04) 100%);
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid rgba(var(--v-border-color), 0.08);
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 16px 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.v-theme--dark .summary-section {
+  background: #1e293b;
+  border-color: #334155;
 }
 
 .summary-avatar-wrapper {
@@ -1775,14 +2182,14 @@ fetchUsers();
 }
 
 .summary-avatar {
-  box-shadow: 0 6px 20px rgba(var(--v-theme-primary), 0.2);
+  box-shadow: 0 4px 12px rgba(14, 124, 140, 0.2);
   transition: all 0.3s ease;
 }
 
 .summary-avatar-bg {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
+  background: #0e7c8c;
   border-radius: 50%;
   display: flex;
   align-items: center;

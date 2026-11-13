@@ -5,7 +5,7 @@
         <div class="d-flex align-center header-info">
           <div class="header-avatar-wrapper">
             <v-avatar class="header-avatar" color="transparent" size="50">
-              <v-icon color="white" size="28">mdi-wifi-star</v-icon>
+              <v-icon color="primary" size="28">mdi-wifi-star</v-icon>
             </v-avatar>
           </div>
           <div class="ml-4">
@@ -1069,7 +1069,7 @@
   - `d-block d-md-none`: Menampilkan daftar kartu hanya di layar kecil (mobile).
   - `d-none d-md-block`: Menyembunyikan tabel di layar kecil dan menampilkannya di layar medium ke atas (desktop).
 -->
-<v-dialog v-model="dialog" max-width="640px" persistent scrollable :fullscreen="smAndDown">
+<v-dialog v-model="dialog" max-width="960px" persistent scrollable :fullscreen="smAndDown">
   <v-card class="subscription-modal-v2" :class="{ 'rounded-0': smAndDown }">
     <!-- Clean Modern Header -->
     <div class="modal-header-v2">
@@ -1098,347 +1098,354 @@
     <!-- Form Content -->
     <v-card-text class="modal-body-v2">
       <v-form ref="formRef" v-model="formValid" lazy-validation>
-        
-        <!-- Section 1: Informasi Pelanggan -->
-        <div class="form-section-v2">
-          <div class="form-section-v2__header">
-            <v-icon size="18" class="form-section-v2__icon">mdi-account-outline</v-icon>
-            <span class="form-section-v2__label">Informasi Pelanggan</span>
-          </div>
-          
-          <label class="field-label-v2">
-            Pilih Pelanggan
-            <span class="field-label-v2__req">*</span>
-          </label>
-          <v-autocomplete
-            v-model="editedItem.pelanggan_id"
-            :items="dropdownPelangganSource"
-            :loading="pelangganLoading"
-            item-title="nama"
-            item-value="id"
-            placeholder="Ketik nama pelanggan untuk mencari..."
-            variant="outlined"
-            prepend-inner-icon="mdi-account-search"
-            :rules="[rules.required]"
-            :disabled="editedIndex !== -1"
-            density="comfortable"
-            clearable
-            hide-details="auto"
-            class="field-v2"
-          >
-            <template v-slot:append-inner>
-              <v-tooltip
-                v-if="selectedPelangganHasDataTeknis !== null"
-                :text="dataTeknisIndicatorText"
-                location="top"
-              >
-                <v-icon
-                  :color="dataTeknisIndicatorColor"
-                  size="20"
-                  class="mr-2"
-                >
-                  {{ selectedPelangganHasDataTeknis ? 'mdi-check-circle' : 'mdi-alert-circle' }}
-                </v-icon>
-              </v-tooltip>
-              <v-progress-circular
-                v-if="checkingDataTeknis"
-                indeterminate
-                size="20"
-                width="2"
-                color="primary"
-                class="mr-2"
-              ></v-progress-circular>
-            </template>
-            <template v-slot:item="{ props, item }">
-              <v-list-item v-bind="props" class="px-4">
-                <template v-slot:prepend>
-                  <v-avatar color="primary" size="32">
-                    <v-icon color="white" size="16">mdi-account</v-icon>
-                  </v-avatar>
-                </template>
-                <template v-slot:title>
-                  <div class="font-weight-medium d-flex align-center">
-                    <span class="flex-grow-1">{{ item.raw.nama }}</span>
-                    <v-chip
-                      v-if="isPelangganBaru(item.raw.id)"
-                      size="x-small"
-                      color="success"
-                      variant="elevated"
-                      class="ms-2 flex-shrink-0"
-                    >
-                      USER BARU
-                    </v-chip>
-                  </div>
-                </template>
-                <template v-slot:subtitle v-if="item.raw.alamat">
-                  <div class="text-caption text-medium-emphasis">
-                    {{ item.raw.alamat }}
-                  </div>
-                </template>
-              </v-list-item>
-            </template>
-          </v-autocomplete>
-
-          <!-- Warning Message -->
-          <v-alert
-            v-if="selectedPelangganHasDataTeknis === false"
-            type="warning"
-            variant="tonal"
-            icon="mdi-alert-outline"
-            class="mt-3"
-            border="start"
-            density="compact"
-          >
-            <div class="text-body-2">
-              <strong>Perhatian:</strong> Pelanggan ini belum memiliki data teknis.
-              Silakan hubungi tim NOC untuk menambahkan data teknis terlebih dahulu sebelum membuat langganan.
-            </div>
-          </v-alert>
-        </div>
-
-        <!-- Section 2: Paket & Pembayaran -->
-        <div class="form-section-v2">
-          <div class="form-section-v2__header">
-            <v-icon size="18" class="form-section-v2__icon">mdi-wifi</v-icon>
-            <span class="form-section-v2__label">Paket & Pembayaran</span>
-          </div>
-          
-          <v-row>
-            <v-col cols="12" md="6">
+        <v-row class="modal-grid-v2 ma-0">
+          <!-- Left Column: Informasi Pelanggan + Paket & Pembayaran -->
+          <v-col cols="12" md="6" class="modal-grid-v2__left pa-0 pa-md-3">
+            <!-- Section 1: Informasi Pelanggan -->
+            <div class="form-section-v2">
+              <div class="form-section-v2__header">
+                <v-icon size="18" class="form-section-v2__icon">mdi-account-outline</v-icon>
+                <span class="form-section-v2__label">Informasi Pelanggan</span>
+              </div>
+              
               <label class="field-label-v2">
-                Pilih Paket Layanan
+                Pilih Pelanggan
                 <span class="field-label-v2__req">*</span>
               </label>
-              <v-select
-                v-model="editedItem.paket_layanan_id"
-                :items="filteredPaketLayanan"
-                :loading="paketLoading"
-                item-title="nama_paket"
+              <v-autocomplete
+                v-model="editedItem.pelanggan_id"
+                :items="dropdownPelangganSource"
+                :loading="pelangganLoading"
+                item-title="nama"
                 item-value="id"
-                :disabled="!editedItem.pelanggan_id || isPaketLocked"
-                placeholder="Pilih pelanggan terlebih dahulu"
+                placeholder="Ketik nama pelanggan untuk mencari..."
                 variant="outlined"
-                prepend-inner-icon="mdi-wifi-star"
+                prepend-inner-icon="mdi-account-search"
                 :rules="[rules.required]"
+                :disabled="editedIndex !== -1"
                 density="comfortable"
+                clearable
                 hide-details="auto"
                 class="field-v2"
               >
+                <template v-slot:append-inner>
+                  <v-tooltip
+                    v-if="selectedPelangganHasDataTeknis !== null"
+                    :text="dataTeknisIndicatorText"
+                    location="top"
+                  >
+                    <v-icon
+                      :color="dataTeknisIndicatorColor"
+                      size="20"
+                      class="mr-2"
+                    >
+                      {{ selectedPelangganHasDataTeknis ? 'mdi-check-circle' : 'mdi-alert-circle' }}
+                    </v-icon>
+                  </v-tooltip>
+                  <v-progress-circular
+                    v-if="checkingDataTeknis"
+                    indeterminate
+                    size="20"
+                    width="2"
+                    color="primary"
+                    class="mr-2"
+                  ></v-progress-circular>
+                </template>
                 <template v-slot:item="{ props, item }">
                   <v-list-item v-bind="props" class="px-4">
                     <template v-slot:prepend>
-                      <v-avatar color="primary" size="32" variant="tonal">
-                        <v-icon size="16">mdi-wifi</v-icon>
+                      <v-avatar color="primary" size="32">
+                        <v-icon color="white" size="16">mdi-account</v-icon>
                       </v-avatar>
                     </template>
-                    <v-list-item-title class="font-weight-medium">{{ item.raw.nama_paket }}</v-list-item-title>
-                    <v-list-item-subtitle>{{ item.raw.kecepatan }} Mbps - {{ formatCurrency(item.raw.harga) }}</v-list-item-subtitle>
+                    <template v-slot:title>
+                      <div class="font-weight-medium d-flex align-center">
+                        <span class="flex-grow-1">{{ item.raw.nama }}</span>
+                        <v-chip
+                          v-if="isPelangganBaru(item.raw.id)"
+                          size="x-small"
+                          color="success"
+                          variant="elevated"
+                          class="ms-2 flex-shrink-0"
+                        >
+                          USER BARU
+                        </v-chip>
+                      </div>
+                    </template>
+                    <template v-slot:subtitle v-if="item.raw.alamat">
+                      <div class="text-caption text-medium-emphasis">
+                        {{ item.raw.alamat }}
+                      </div>
+                    </template>
                   </v-list-item>
                 </template>
-              </v-select>
-            </v-col>
-            
-            <v-col cols="12" md="6">
-              <label class="field-label-v2">
-                Metode Pembayaran
-                <span class="field-label-v2__req">*</span>
-              </label>
-              <v-select
-                v-model="editedItem.metode_pembayaran"
-                :items="[
-                  { title: 'Otomatis (Bulanan)', value: 'Otomatis' }, 
-                  { title: 'Prorate (Proporsional)', value: 'Prorate' }
-                ]"
-                variant="outlined"
-                prepend-inner-icon="mdi-cash-multiple"
-                density="comfortable"
-                hide-details="auto"
-                class="field-v2"
-              ></v-select>
-            </v-col>
-          </v-row>
+              </v-autocomplete>
 
-          <!-- Pricing Display for Otomatis -->
-          <div v-if="editedItem.metode_pembayaran === 'Otomatis'" class="mt-4">
-            <div class="price-display-v2">
-              <div class="price-display-v2__label">Total Harga Bulanan</div>
-              <div class="price-display-v2__value">Rp {{ editedItem.harga_awal?.toLocaleString('id-ID') || '0' }}</div>
-            </div>
-          </div>
-
-          <!-- Prorate Options -->
-          <template v-if="editedItem.metode_pembayaran === 'Prorate'">
-            <v-row class="mt-2">
-              <v-col cols="12" class="d-flex align-center">
-                <v-switch
-                  v-model="isProratePlusFull"
-                  color="primary"
-                  label="Sertakan tagihan penuh bulan depan"
-                  inset
-                  hide-details
-                  density="comfortable"
-                ></v-switch>
-              </v-col>
-            </v-row>
-
-            <!-- Prorate Pricing Info -->
-            <div class="mt-4">
+              <!-- Warning Message -->
               <v-alert
-                v-if="isProratePlusFull && hargaProrate > 0"
+                v-if="selectedPelangganHasDataTeknis === false"
+                type="warning"
                 variant="tonal"
-                color="info"
-                icon="mdi-information-outline"
+                icon="mdi-alert-outline"
+                class="mt-3"
+                border="start"
                 density="compact"
-                class="mb-4"
               >
                 <div class="text-body-2">
-                  <strong>Rincian Tagihan Pertama:</strong>
-                  <div class="ms-2 mt-1">
-                    • Biaya Prorate: {{ formatCurrency(hargaProrate) }}<br>
-                    • Biaya Bulan Depan: {{ formatCurrency(hargaNormal) }}
-                  </div>
+                  <strong>Perhatian:</strong> Pelanggan ini belum memiliki data teknis.
+                  Silakan hubungi tim NOC untuk menambahkan data teknis terlebih dahulu sebelum membuat langganan.
                 </div>
               </v-alert>
+            </div>
 
-              <div class="price-display-v2">
-                <div class="price-display-v2__label">{{ isProratePlusFull ? 'Total Tagihan Pertama' : 'Total Harga Prorate' }}</div>
-                <div class="price-display-v2__value">Rp {{ editedItem.harga_awal?.toLocaleString('id-ID') || '0' }}</div>
+            <!-- Section 2: Paket & Pembayaran -->
+            <div class="form-section-v2 form-section-v2--last">
+              <div class="form-section-v2__header">
+                <v-icon size="18" class="form-section-v2__icon">mdi-wifi</v-icon>
+                <span class="form-section-v2__label">Paket & Pembayaran</span>
               </div>
+              
+              <v-row dense>
+                <v-col cols="12">
+                  <label class="field-label-v2">
+                    Pilih Paket Layanan
+                    <span class="field-label-v2__req">*</span>
+                  </label>
+                  <v-select
+                    v-model="editedItem.paket_layanan_id"
+                    :items="filteredPaketLayanan"
+                    :loading="paketLoading"
+                    item-title="nama_paket"
+                    item-value="id"
+                    :disabled="!editedItem.pelanggan_id || isPaketLocked"
+                    placeholder="Pilih pelanggan terlebih dahulu"
+                    variant="outlined"
+                    prepend-inner-icon="mdi-wifi-star"
+                    :rules="[rules.required]"
+                    density="comfortable"
+                    hide-details="auto"
+                    class="field-v2"
+                  >
+                    <template v-slot:item="{ props, item }">
+                      <v-list-item v-bind="props" class="px-4">
+                        <template v-slot:prepend>
+                          <v-avatar color="primary" size="32" variant="tonal">
+                            <v-icon size="16">mdi-wifi</v-icon>
+                          </v-avatar>
+                        </template>
+                        <v-list-item-title class="font-weight-medium">{{ item.raw.nama_paket }}</v-list-item-title>
+                        <v-list-item-subtitle>{{ item.raw.kecepatan }} Mbps - {{ formatCurrency(item.raw.harga) }}</v-list-item-subtitle>
+                      </v-list-item>
+                    </template>
+                  </v-select>
+                </v-col>
+                
+                <v-col cols="12" class="mt-3">
+                  <label class="field-label-v2">
+                    Metode Pembayaran
+                    <span class="field-label-v2__req">*</span>
+                  </label>
+                  <v-select
+                    v-model="editedItem.metode_pembayaran"
+                    :items="[
+                      { title: 'Otomatis (Bulanan)', value: 'Otomatis' }, 
+                      { title: 'Prorate (Proporsional)', value: 'Prorate' }
+                    ]"
+                    variant="outlined"
+                    prepend-inner-icon="mdi-cash-multiple"
+                    density="comfortable"
+                    hide-details="auto"
+                    class="field-v2"
+                  ></v-select>
+                </v-col>
+              </v-row>
+
+              <!-- Pricing Display for Otomatis -->
+              <div v-if="editedItem.metode_pembayaran === 'Otomatis'" class="mt-4">
+                <div class="price-display-v2">
+                  <div class="price-display-v2__label">Total Harga Bulanan</div>
+                  <div class="price-display-v2__value">Rp {{ editedItem.harga_awal?.toLocaleString('id-ID') || '0' }}</div>
+                </div>
+              </div>
+
+              <!-- Prorate Options -->
+              <template v-if="editedItem.metode_pembayaran === 'Prorate'">
+                <v-row class="mt-2" dense>
+                  <v-col cols="12" class="d-flex align-center">
+                    <v-switch
+                      v-model="isProratePlusFull"
+                      color="primary"
+                      label="Sertakan tagihan penuh bulan depan"
+                      inset
+                      hide-details
+                      density="comfortable"
+                    ></v-switch>
+                  </v-col>
+                </v-row>
+
+                <!-- Prorate Pricing Info -->
+                <div class="mt-3">
+                  <v-alert
+                    v-if="isProratePlusFull && hargaProrate > 0"
+                    variant="tonal"
+                    color="info"
+                    icon="mdi-information-outline"
+                    density="compact"
+                    class="mb-3"
+                  >
+                    <div class="text-body-2">
+                      <strong>Rincian Tagihan Pertama:</strong>
+                      <div class="ms-2 mt-1">
+                        • Biaya Prorate: {{ formatCurrency(hargaProrate) }}<br>
+                        • Biaya Bulan Depan: {{ formatCurrency(hargaNormal) }}
+                      </div>
+                    </div>
+                  </v-alert>
+
+                  <div class="price-display-v2">
+                    <div class="price-display-v2__label">{{ isProratePlusFull ? 'Total Tagihan Pertama' : 'Total Harga Prorate' }}</div>
+                    <div class="price-display-v2__value">Rp {{ editedItem.harga_awal?.toLocaleString('id-ID') || '0' }}</div>
+                  </div>
+                </div>
+              </template>
             </div>
-          </template>
-        </div>
+          </v-col>
 
-        <!-- Section 3: Status & Jadwal -->
-        <div class="form-section-v2 form-section-v2--last">
-          <div class="form-section-v2__header">
-            <v-icon size="18" class="form-section-v2__icon">mdi-tune-vertical</v-icon>
-            <span class="form-section-v2__label">Status & Jadwal</span>
-          </div>
-          
-          <v-row>
-            <v-col cols="12" md="6">
-              <label class="field-label-v2">
-                Status Langganan
-                <span class="field-label-v2__req">*</span>
-              </label>
-              <v-select
-                v-model="editedItem.status"
-                :items="[
-                  { title: 'Aktif', value: 'Aktif' },
-                  { title: 'Suspended', value: 'Suspended' },
-                  { title: 'Berhenti', value: 'Berhenti' }
-                ]"
-                variant="outlined"
-                prepend-inner-icon="mdi-check-circle-outline"
-                :rules="[rules.required]"
-                density="comfortable"
-                hide-details="auto"
-                class="field-v2"
-              ></v-select>
-            </v-col>
-          </v-row>
+          <!-- Right Column: Status & Jadwal -->
+          <v-col cols="12" md="6" class="modal-grid-v2__right pa-0 pa-md-3">
+            <!-- Section 3: Status & Jadwal -->
+            <div class="form-section-v2 form-section-v2--last">
+              <div class="form-section-v2__header">
+                <v-icon size="18" class="form-section-v2__icon">mdi-tune-vertical</v-icon>
+                <span class="form-section-v2__label">Status & Jadwal</span>
+              </div>
+              
+              <v-row dense>
+                <v-col cols="12">
+                  <label class="field-label-v2">
+                    Status Langganan
+                    <span class="field-label-v2__req">*</span>
+                  </label>
+                  <v-select
+                    v-model="editedItem.status"
+                    :items="[
+                      { title: 'Aktif', value: 'Aktif' },
+                      { title: 'Suspended', value: 'Suspended' },
+                      { title: 'Berhenti', value: 'Berhenti' }
+                    ]"
+                    variant="outlined"
+                    prepend-inner-icon="mdi-check-circle-outline"
+                    :rules="[rules.required]"
+                    density="comfortable"
+                    hide-details="auto"
+                    class="field-v2"
+                  ></v-select>
+                </v-col>
+              </v-row>
 
-          <v-row class="mt-2">
-            <v-col cols="12" md="6">
-              <label class="field-label-v2">
-                Tanggal Mulai Langganan
-                <span class="field-label-v2__req">*</span>
-              </label>
-              <v-text-field
-                v-model="editedItem.tgl_mulai_langganan"
-                type="date"
-                variant="outlined"
-                prepend-inner-icon="mdi-calendar-start"
-                :rules="[rules.required]"
-                density="comfortable"
-                hide-details="auto"
-                class="field-v2"
-              ></v-text-field>
-            </v-col>
-            
-            <v-col cols="12" md="6">
-              <label class="field-label-v2">
-                Tanggal Berakhir Langganan
-                <span class="field-label-v2__req">*</span>
-              </label>
-              <v-text-field
-                v-model="editedItem.tgl_jatuh_tempo"
-                type="date"
-                variant="outlined"
-                prepend-inner-icon="mdi-calendar-alert"
-                :rules="[rules.required]"
-                density="comfortable"
-                hide-details="auto"
-                class="field-v2"
-              ></v-text-field>
-            </v-col>
-          </v-row>
+              <v-row dense class="mt-3">
+                <v-col cols="12" sm="6">
+                  <label class="field-label-v2">
+                    Tanggal Mulai Langganan
+                    <span class="field-label-v2__req">*</span>
+                  </label>
+                  <v-text-field
+                    v-model="editedItem.tgl_mulai_langganan"
+                    type="date"
+                    variant="outlined"
+                    prepend-inner-icon="mdi-calendar-start"
+                    :rules="[rules.required]"
+                    density="comfortable"
+                    hide-details="auto"
+                    class="field-v2"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <label class="field-label-v2">
+                    Tanggal Berakhir Langganan
+                    <span class="field-label-v2__req">*</span>
+                  </label>
+                  <v-text-field
+                    v-model="editedItem.tgl_jatuh_tempo"
+                    type="date"
+                    variant="outlined"
+                    prepend-inner-icon="mdi-calendar-alert"
+                    :rules="[rules.required]"
+                    density="comfortable"
+                    hide-details="auto"
+                    class="field-v2"
+                  ></v-text-field>
+                </v-col>
+              </v-row>
 
-          <!-- Jatuh Tempo Pembayaran (Kotak 3) - Selalu Tampil -->
-          <v-row class="mt-2">
-            <v-col cols="12" md="6">
-              <label class="field-label-v2">
-                Tanggal Jatuh Tempo Pembayaran
-                <span class="field-label-v2__req">*</span>
-              </label>
-              <v-text-field
-                v-model="editedItem.tgl_jatuh_tempo_pembayaran"
-                type="date"
-                variant="outlined"
-                prepend-inner-icon="mdi-calendar-clock"
-                :rules="[rules.required]"
-                density="comfortable"
-                hide-details="auto"
-                class="field-v2"
-                hint="Tanggal batas akhir pembayaran invoice"
-                persistent-hint
-              ></v-text-field>
-            </v-col>
-          </v-row>
+              <!-- Jatuh Tempo Pembayaran (Kotak 3) - Selalu Tampil -->
+              <v-row dense class="mt-3">
+                <v-col cols="12">
+                  <label class="field-label-v2">
+                    Tanggal Jatuh Tempo Pembayaran
+                    <span class="field-label-v2__req">*</span>
+                  </label>
+                  <v-text-field
+                    v-model="editedItem.tgl_jatuh_tempo_pembayaran"
+                    type="date"
+                    variant="outlined"
+                    prepend-inner-icon="mdi-calendar-clock"
+                    :rules="[rules.required]"
+                    density="comfortable"
+                    hide-details="auto"
+                    class="field-v2"
+                    hint="Tanggal batas akhir pembayaran invoice"
+                    persistent-hint
+                  ></v-text-field>
+                </v-col>
+              </v-row>
 
-          <!-- Status Modem Section -->
-          <v-expand-transition>
-            <div v-if="editedItem.status === 'Aktif' || editedItem.status === 'Berhenti'" class="mt-4">
-              <label class="field-label-v2">
-                Status Modem
-                <span class="text-caption text-medium-emphasis ms-1">(Wajib diisi)</span>
-              </label>
-              <v-select
-                v-model="editedItem.status_modem"
-                :items="getStatusModemOptions(editedItem.status)"
-                item-title="title"
-                item-value="value"
-                variant="outlined"
-                prepend-inner-icon="mdi-wifi-router"
-                density="comfortable"
-                hide-details="auto"
-                class="field-v2"
-              ></v-select>
+              <!-- Status Modem Section -->
+              <v-expand-transition>
+                <div v-if="editedItem.status === 'Aktif' || editedItem.status === 'Berhenti'" class="mt-4">
+                  <label class="field-label-v2">
+                    Status Modem
+                    <span class="text-caption text-medium-emphasis ms-1">(Wajib diisi)</span>
+                  </label>
+                  <v-select
+                    v-model="editedItem.status_modem"
+                    :items="getStatusModemOptions(editedItem.status)"
+                    item-title="title"
+                    item-value="value"
+                    variant="outlined"
+                    prepend-inner-icon="mdi-wifi-router"
+                    density="comfortable"
+                    hide-details="auto"
+                    class="field-v2"
+                  ></v-select>
+                </div>
+              </v-expand-transition>
+
+              <!-- Alasan Berhenti Section -->
+              <v-expand-transition>
+                <div v-if="editedItem.status === 'Berhenti'" class="mt-4">
+                  <label class="field-label-v2">
+                    Alasan Berhenti
+                    <span class="text-caption text-medium-emphasis ms-1">(Opsional)</span>
+                  </label>
+                  <v-textarea
+                    v-model="editedItem.alasan_berhenti"
+                    label="Tuliskan alasan pelanggan berhenti berlangganan..."
+                    variant="outlined"
+                    prepend-inner-icon="mdi-text-box-outline"
+                    rows="3"
+                    auto-grow
+                    density="comfortable"
+                    hide-details="auto"
+                    class="field-v2"
+                    placeholder="Contoh: Pindah rumah, tidak puas dengan layanan, alasan ekonomi, dll."
+                  ></v-textarea>
+                </div>
+              </v-expand-transition>
             </div>
-          </v-expand-transition>
-
-          <!-- Alasan Berhenti Section -->
-          <v-expand-transition>
-            <div v-if="editedItem.status === 'Berhenti'" class="mt-4">
-              <label class="field-label-v2">
-                Alasan Berhenti
-                <span class="text-caption text-medium-emphasis ms-1">(Opsional)</span>
-              </label>
-              <v-textarea
-                v-model="editedItem.alasan_berhenti"
-                label="Tuliskan alasan pelanggan berhenti berlangganan..."
-                variant="outlined"
-                prepend-inner-icon="mdi-text-box-outline"
-                rows="3"
-                auto-grow
-                density="comfortable"
-                hide-details="auto"
-                class="field-v2"
-                placeholder="Contoh: Pindah rumah, tidak puas dengan layanan, alasan ekonomi, dll."
-              ></v-textarea>
-            </div>
-          </v-expand-transition>
-        </div>
+          </v-col>
+        </v-row>
       </v-form>
     </v-card-text>
 
@@ -3864,11 +3871,16 @@ async function copyInvoiceLink(link: string | null | undefined) {
 }
 
 .header-avatar-wrapper {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 50%;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
   flex-shrink: 0;
+}
+
+.v-theme--dark .header-avatar-wrapper {
+  background: #1e293b;
+  border-color: #334155;
 }
 
 .header-title {
@@ -6142,6 +6154,21 @@ async function copyInvoiceLink(link: string | null | undefined) {
 
 .modal-footer-v2__submit:active:not(:disabled) {
   transform: translateY(0);
+}
+
+/* Modal 2-Column Responsive Grid */
+@media (min-width: 960px) {
+  .modal-grid-v2__left {
+    border-right: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  }
+}
+
+@media (max-width: 959px) {
+  .modal-grid-v2__left {
+    border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+    margin-bottom: 16px;
+    padding-bottom: 16px !important;
+  }
 }
 
 /* Responsive — Mobile */

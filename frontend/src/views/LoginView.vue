@@ -463,8 +463,8 @@ function backToLogin() {
           >
             Kebijakan Privasi
           </router-link>
-          <span class="hidden md:inline text-gray-400">|</span>
-          <span class="hidden md:inline text-gray-500 font-medium py-1 px-2">
+          <span class="hidden md:inline text-gray-400" style="color: #94a3b8 !important;">|</span>
+          <span class="hidden md:inline font-medium py-1 px-2 copyright-text" style="color: #475569 !important;">
             © PT. Artacomindo Jejaring Nusa
           </span>
         </div>
@@ -1809,6 +1809,14 @@ button:hover .lucide {
 
 .text-gray-600 {
   color: #6b7280;
+}
+
+.text-gray-500 {
+  color: #475569 !important;
+}
+
+.copyright-text {
+  color: #475569 !important;
 }
 
 .text-gray-400 {

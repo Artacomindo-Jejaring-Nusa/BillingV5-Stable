@@ -1,130 +1,68 @@
 <template>
-  <v-container fluid class="pa-6">
-    <!-- Header Section -->
-    <div class="dashboard-header mb-6">
-      <h1 class="text-h4 font-weight-bold text-primary mb-2">Dashboard Monitoring Pelanggan Jakinet</h1>
-      <p class="text-subtitle-1 text-medium-emphasis">Pantau performa dan aktivitas pelanggan JakiNet secara real-time</p>
+  <v-container fluid class="pa-4 pa-md-6">
+    <!-- Header Section (Standard Clean SaaS Style) -->
+    <div class="header-card mb-4 mb-md-6">
+      <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
+        <div class="d-flex align-center header-info">
+          <div class="header-avatar-wrapper">
+            <v-avatar class="header-avatar" color="transparent" size="50">
+              <v-icon color="primary" size="28">mdi-view-dashboard-outline</v-icon>
+            </v-avatar>
+          </div>
+          <div class="ml-4">
+            <h1 class="header-title">Dashboard Monitoring Pelanggan JakiNet</h1>
+            <p class="header-subtitle">
+              Pantau performa, pertumbuhan, dan aktivitas finansial pelanggan JakiNet secara real-time
+            </p>
+          </div>
+        </div>
+
+        <div class="d-flex align-center gap-2 flex-wrap header-actions">
+          <div class="realtime-status-badge">
+            <span class="status-dot"></span>
+            <span class="status-text">Sistem Real-time</span>
+          </div>
+          <v-btn
+            variant="outlined"
+            class="refresh-btn text-none font-weight-medium"
+            prepend-icon="mdi-refresh"
+            :loading="loading"
+            @click="fetchDashboardData(revenueTimeframe)"
+          >
+            Segarkan Data
+          </v-btn>
+        </div>
+      </div>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading">
       <!-- Stats Cards Skeleton -->
-      <v-row class="mb-6">
-        <v-col cols="12" sm="6" md="3">
-          <v-card rounded="xl" elevation="2" class="stats-card">
-            <v-card-text class="pa-6">
-              <div class="d-flex align-center mb-2">
-                <v-avatar color="grey-lighten-2" size="48" class="me-3">
-                  <v-skeleton-loader type="avatar" width="48" height="48"></v-skeleton-loader>
-                </v-avatar>
-                <div class="flex-grow-1">
-                  <v-skeleton-loader type="text" width="100" class="mb-2"></v-skeleton-loader>
-                  <v-skeleton-loader type="heading" width="80"></v-skeleton-loader>
-                </div>
-              </div>
-              <v-skeleton-loader type="text" width="100%"></v-skeleton-loader>
-            </v-card-text>
-          </v-card>
-        </v-col>
-
-        <v-col cols="12" sm="6" md="3">
-          <v-card rounded="xl" elevation="2" class="stats-card">
-            <v-card-text class="pa-6">
-              <div class="d-flex align-center mb-2">
-                <v-avatar color="grey-lighten-2" size="48" class="me-3">
-                  <v-skeleton-loader type="avatar" width="48" height="48"></v-skeleton-loader>
-                </v-avatar>
-                <div class="flex-grow-1">
-                  <v-skeleton-loader type="text" width="100" class="mb-2"></v-skeleton-loader>
-                  <v-skeleton-loader type="heading" width="80"></v-skeleton-loader>
-                </div>
-              </div>
-              <v-skeleton-loader type="text" width="60"></v-skeleton-loader>
-            </v-card-text>
-          </v-card>
-        </v-col>
-
-        <v-col cols="12" sm="6" md="3">
-          <v-card rounded="xl" elevation="2" class="stats-card">
-            <v-card-text class="pa-6">
-              <div class="d-flex align-center mb-2">
-                <v-avatar color="grey-lighten-2" size="48" class="me-3">
-                  <v-skeleton-loader type="avatar" width="48" height="48"></v-skeleton-loader>
-                </v-avatar>
-                <div class="flex-grow-1">
-                  <v-skeleton-loader type="text" width="100" class="mb-2"></v-skeleton-loader>
-                  <v-skeleton-loader type="heading" width="80"></v-skeleton-loader>
-                </div>
-              </div>
-              <v-skeleton-loader type="text" width="60"></v-skeleton-loader>
-            </v-card-text>
-          </v-card>
-        </v-col>
-
-        <v-col cols="12" sm="6" md="3">
-          <v-card rounded="xl" elevation="2" class="stats-card">
-            <v-card-text class="pa-6">
-              <div class="d-flex align-center mb-2">
-                <v-avatar color="grey-lighten-2" size="48" class="me-3">
-                  <v-skeleton-loader type="avatar" width="48" height="48"></v-skeleton-loader>
-                </v-avatar>
-                <div class="flex-grow-1">
-                  <v-skeleton-loader type="text" width="100" class="mb-2"></v-skeleton-loader>
-                  <v-skeleton-loader type="heading" width="80"></v-skeleton-loader>
-                </div>
-              </div>
-              <v-skeleton-loader type="text" width="100%"></v-skeleton-loader>
-            </v-card-text>
+      <v-row class="mb-4 mb-md-6">
+        <v-col cols="12" sm="6" md="3" v-for="i in 4" :key="i">
+          <v-card class="skeleton-card pa-4 rounded-xl border" elevation="0">
+            <v-skeleton-loader type="article" />
           </v-card>
         </v-col>
       </v-row>
 
       <!-- Revenue Card Skeleton -->
-      <v-row class="mb-6">
+      <v-row class="mb-4 mb-md-6">
         <v-col cols="12">
-          <v-card rounded="xl" elevation="3" class="revenue-card">
-            <v-card-text class="pa-6">
-              <div class="d-flex align-center justify-space-between mb-4">
-                <div>
-                  <v-skeleton-loader type="heading" width="200" class="mb-2"></v-skeleton-loader>
-                  <v-skeleton-loader type="text" width="150"></v-skeleton-loader>
-                </div>
-                <v-avatar color="grey-lighten-2" size="56">
-                  <v-skeleton-loader type="avatar" width="56" height="56"></v-skeleton-loader>
-                </v-avatar>
-              </div>
-              <v-skeleton-loader type="heading" width="200" height="48" class="mb-4"></v-skeleton-loader>
-              <v-skeleton-loader type="text" width="300"></v-skeleton-loader>
-            </v-card-text>
+          <v-card class="skeleton-card pa-6 rounded-xl border" elevation="0">
+            <v-skeleton-loader type="heading, paragraph" />
           </v-card>
         </v-col>
       </v-row>
 
       <!-- Charts Skeleton -->
-      <v-row class="mb-6">
-        <v-col cols="12" md="6">
-          <v-card rounded="xl" elevation="2" height="400" class="chart-card">
-            <v-card-title class="pa-6 pb-2">
-              <v-skeleton-loader type="text" width="200"></v-skeleton-loader>
-            </v-card-title>
-            <v-card-text class="pa-6 pt-2">
-              <div style="height: 280px;">
-                <SkeletonLoader type="chart" />
-              </div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-
-        <v-col cols="12" md="6">
-          <v-card rounded="xl" elevation="2" height="400" class="chart-card">
-            <v-card-title class="pa-6 pb-2">
-              <v-skeleton-loader type="text" width="200"></v-skeleton-loader>
-            </v-card-title>
-            <v-card-text class="pa-6 pt-2">
-              <div style="height: 280px;">
-                <SkeletonLoader type="chart" />
-              </div>
-            </v-card-text>
+      <v-row class="mb-4 mb-md-6">
+        <v-col cols="12" md="6" v-for="i in 2" :key="i">
+          <v-card class="skeleton-card pa-6 rounded-xl border" height="400" elevation="0">
+            <v-skeleton-loader type="heading" class="mb-4" />
+            <div style="height: 280px;">
+              <SkeletonLoader type="chart" />
+            </div>
           </v-card>
         </v-col>
       </v-row>
@@ -133,322 +71,328 @@
     <!-- Dashboard Content -->
     <div v-else>
       <!-- Stats Cards Row -->
-      <v-row class="mb-6">
+      <v-row class="mb-4 mb-md-6">
+        <!-- 1. Pelanggan Aktif -->
         <v-col cols="12" sm="6" md="3">
-          <v-card 
-            rounded="xl" 
-            class="stats-card active-customers" 
-            elevation="2"
-            hover
-          >
-            <v-card-text class="pa-6">
-              <div class="d-flex align-center mb-2">
-                <v-avatar color="primary" size="48" class="me-3">
-                  <v-icon color="white" size="24">mdi-account-check</v-icon>
-                </v-avatar>
-                <div class="flex-grow-1">
-                  <div class="text-caption text-medium-emphasis">PELANGGAN AKTIF</div>
-                  <div class="text-h4 font-weight-bold text-primary">{{ stats.pelanggan_aktif }}</div>
-                </div>
+          <div class="metric-card">
+            <div class="d-flex align-center justify-space-between mb-2">
+              <span class="metric-label">PELANGGAN AKTIF</span>
+              <div class="metric-icon-box box-blue">
+                <v-icon size="20" color="primary">mdi-account-check</v-icon>
               </div>
-              <v-progress-linear 
-                :model-value="(stats.pelanggan_aktif / (stats.pelanggan_aktif + stats.pelanggan_berhenti_bulan_ini)) * 100" 
-                color="primary" 
-                height="6" 
-                rounded
-                class="mt-2"
-              ></v-progress-linear>
-            </v-card-text>
-          </v-card>
+            </div>
+            <div class="metric-value">{{ stats.pelanggan_aktif.toLocaleString('id-ID') }}</div>
+            <div class="metric-meta mt-2 text-caption text-medium-emphasis">
+              Total seluruh pelanggan berstatus aktif
+            </div>
+          </div>
         </v-col>
 
+        <!-- 2. Pelanggan Baru -->
         <v-col cols="12" sm="6" md="3">
-          <v-card 
-            rounded="xl" 
-            class="stats-card new-customers" 
-            elevation="2"
-            hover
-          >
-            <v-card-text class="pa-6">
-              <div class="d-flex align-center mb-2">
-                <v-avatar color="success" size="48" class="me-3">
-                  <v-icon color="white" size="24">mdi-account-plus</v-icon>
-                </v-avatar>
-                <div class="flex-grow-1">
-                  <div class="text-caption text-medium-emphasis">PELANGGAN BARU</div>
-                  <div class="text-h4 font-weight-bold text-success">{{ stats.pelanggan_baru_bulan_ini }}</div>
-                </div>
+          <div class="metric-card">
+            <div class="d-flex align-center justify-space-between mb-2">
+              <span class="metric-label">PELANGGAN BARU</span>
+              <div class="metric-icon-box box-green">
+                <v-icon size="20" color="success">mdi-account-plus</v-icon>
               </div>
-              <div class="text-caption text-success">
-                <v-icon size="16" class="me-1">mdi-trending-up</v-icon>
+            </div>
+            <div class="metric-value text-success">+{{ stats.pelanggan_baru_bulan_ini.toLocaleString('id-ID') }}</div>
+            <div class="d-flex align-center mt-2">
+              <span class="meta-pill pill-success">
+                <v-icon size="12" class="mr-1">mdi-trending-up</v-icon>
                 Bulan ini
-              </div>
-            </v-card-text>
-          </v-card>
+              </span>
+            </div>
+          </div>
         </v-col>
 
+        <!-- 3. Pelanggan Berhenti -->
         <v-col cols="12" sm="6" md="3">
-          <v-card 
-            rounded="xl" 
-            class="stats-card stopped-customers" 
-            elevation="2"
-            hover
-          >
-            <v-card-text class="pa-6">
-              <div class="d-flex align-center mb-2">
-                <v-avatar color="error" size="48" class="me-3">
-                  <v-icon color="white" size="24">mdi-account-minus</v-icon>
-                </v-avatar>
-                <div class="flex-grow-1">
-                  <div class="text-caption text-medium-emphasis">BERHENTI</div>
-                  <div class="text-h4 font-weight-bold text-error">{{ stats.pelanggan_berhenti_bulan_ini }}</div>
-                </div>
+          <div class="metric-card">
+            <div class="d-flex align-center justify-space-between mb-2">
+              <span class="metric-label">BERHENTI</span>
+              <div class="metric-icon-box box-rose">
+                <v-icon size="20" color="error">mdi-account-minus</v-icon>
               </div>
-              <div class="text-caption text-error">
-                <v-icon size="16" class="me-1">mdi-trending-down</v-icon>
+            </div>
+            <div class="metric-value text-error">{{ stats.pelanggan_berhenti_bulan_ini.toLocaleString('id-ID') }}</div>
+            <div class="d-flex align-center mt-2">
+              <span class="meta-pill pill-rose">
+                <v-icon size="12" class="mr-1">mdi-trending-down</v-icon>
                 Bulan ini
-              </div>
-            </v-card-text>
-          </v-card>
+              </span>
+            </div>
+          </div>
         </v-col>
 
+        <!-- 4. JakiNet Aktif -->
         <v-col cols="12" sm="6" md="3">
-          <v-card 
-            rounded="xl" 
-            class="stats-card jakinet-customers" 
-            elevation="2"
-            hover
-          >
-            <v-card-text class="pa-6">
-              <div class="d-flex align-center mb-2">
-                <v-avatar color="info" size="48" class="me-3">
-                  <v-icon color="white" size="24">mdi-wifi</v-icon>
-                </v-avatar>
-                <div class="flex-grow-1">
-                  <div class="text-caption text-medium-emphasis">JAKINET AKTIF</div>
-                  <div class="text-h4 font-weight-bold text-info">{{ stats.pelanggan_jakinet_aktif }}</div>
-                </div>
+          <div class="metric-card">
+            <div class="d-flex align-center justify-space-between mb-2">
+              <span class="metric-label">JAKINET AKTIF</span>
+              <div class="metric-icon-box box-cyan">
+                <v-icon size="20" color="info">mdi-wifi</v-icon>
               </div>
-              <v-progress-linear 
-                :model-value="(stats.pelanggan_jakinet_aktif / stats.pelanggan_aktif) * 100" 
-                color="info" 
-                height="6" 
-                rounded
-                class="mt-2"
-              ></v-progress-linear>
-            </v-card-text>
-          </v-card>
+            </div>
+            <div class="metric-value text-info">{{ stats.pelanggan_jakinet_aktif.toLocaleString('id-ID') }}</div>
+            <div class="metric-meta mt-2 text-caption text-medium-emphasis">
+              <strong>{{ jakiNetPercentage }}%</strong> dari total pelanggan
+            </div>
+          </div>
         </v-col>
       </v-row>
 
-      <!-- Revenue Card -->
-      <v-row class="mb-6">
+      <!-- Revenue Hero Card -->
+      <v-row class="mb-4 mb-md-6">
         <v-col cols="12">
-          <v-card rounded="xl" elevation="3" class="revenue-card">
-            <v-card-text class="pa-6">
-              <div class="d-flex align-center justify-space-between mb-4">
-                <div>
-                  <h3 class="text-h5 font-weight-bold mb-1">Pendapatan JakiNet</h3>
-                  <p class="text-subtitle-2 text-medium-emphasis">Bulan ini</p>
-                </div>
-                <v-avatar color="success" size="56">
-                  <v-icon color="white" size="28">mdi-cash-multiple</v-icon>
-                </v-avatar>
+          <div class="revenue-hero-card pa-5 pa-md-6">
+            <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-3 mb-3">
+              <div>
+                <span class="revenue-tag">FINANCIAL PERFORMANCE</span>
+                <h3 class="revenue-title mb-1">Pendapatan JakiNet</h3>
+                <p class="revenue-desc mb-0">
+                  Estimasi total tagihan dan penerimaan pelanggan JakiNet bulan berjalan
+                </p>
               </div>
-              
-              <div class="revenue-amount mb-4">
-                <span class="text-h3 font-weight-bold text-success">{{ formatCurrency(stats.pendapatan_jakinet_bulan_ini) }}</span>
+              <div class="revenue-icon-box">
+                <v-icon size="26" color="success">mdi-cash-multiple</v-icon>
               </div>
+            </div>
 
-              <div class="d-flex align-center">
-                <v-chip color="success" variant="tonal" size="small" class="me-2">
-                  <v-icon start size="16">mdi-trending-up</v-icon>
-                  Aktif
-                </v-chip>
-                <span class="text-caption text-medium-emphasis">
-                  {{ ((stats.pelanggan_jakinet_aktif / stats.pelanggan_aktif) * 100).toFixed(1) }}% dari total pelanggan
-                </span>
+            <div class="revenue-amount-row d-flex flex-column flex-sm-row align-start align-sm-baseline gap-2 gap-sm-3 mb-4">
+              <span class="revenue-amount-value">{{ formatCurrency(stats.pendapatan_jakinet_bulan_ini) }}</span>
+              <span class="revenue-amount-sub">/ bulan ini</span>
+            </div>
+
+            <div class="revenue-pills-row d-flex align-center gap-2 flex-wrap">
+              <div class="revenue-meta-pill">
+                <v-icon size="14" class="mr-1 text-success">mdi-check-circle-outline</v-icon>
+                <span>Penetrasi JakiNet: <strong>{{ jakiNetPercentage }}%</strong></span>
               </div>
-            </v-card-text>
-          </v-card>
+              <div class="revenue-meta-pill">
+                <v-icon size="14" class="mr-1 text-primary">mdi-account-cash-outline</v-icon>
+                <span>ARPU: <strong>{{ formatCurrency(averageRevenuePerUser) }}</strong> / user</span>
+              </div>
+            </div>
+          </div>
         </v-col>
       </v-row>
 
-      <!-- Charts Section -->
-      <v-row class="mb-6">
-        <!-- Customer Distribution Pie Chart -->
+      <!-- Charts Section Row 1 -->
+      <v-row class="mb-4 mb-md-6">
+        <!-- Customer Distribution Donut Chart -->
         <v-col cols="12" md="6">
-          <v-card rounded="xl" elevation="2" height="400" class="chart-card">
-            <v-card-title class="pa-6 pb-2">
-              <div class="d-flex align-center">
-                <v-icon color="primary" class="me-2">mdi-chart-pie</v-icon>
-                <span class="font-weight-bold">Distribusi Pelanggan JakiNet</span>
+          <div class="chart-panel-card">
+            <div class="chart-panel-header pa-4 pa-sm-5 d-flex align-center justify-space-between border-b">
+              <div class="d-flex align-center gap-2">
+                <div class="chart-header-icon-box">
+                  <v-icon size="18" color="primary">mdi-chart-pie</v-icon>
+                </div>
+                <div>
+                  <h3 class="chart-panel-title mb-0">Distribusi Pelanggan JakiNet</h3>
+                  <p class="chart-panel-subtitle mb-0">Komposisi aktif, baru, dan berhenti</p>
+                </div>
               </div>
-            </v-card-title>
-            <v-card-text class="pa-6 pt-2">
-              <div v-if="stats.pelanggan_aktif === 0" class="d-flex align-center justify-center flex-column text-center" style="height: 280px;">
-                <v-icon size="48" color="grey-lighten-1">mdi-chart-pie</v-icon>
-                <h4 class="text-h6 mt-4 text-medium-emphasis">Tidak Ada Data Pelanggan</h4>
-                <p class="text-body-2 text-medium-emphasis">Belum ada data pelanggan JakiNet yang tersedia.</p>
+            </div>
+            <div class="chart-panel-body pa-4 pa-sm-5">
+              <div v-if="stats.pelanggan_aktif === 0 && stats.pelanggan_baru_bulan_ini === 0 && stats.pelanggan_berhenti_bulan_ini === 0" class="empty-chart-state">
+                <div class="empty-chart-icon-box mb-2">
+                  <v-icon size="32" color="slate-400">mdi-chart-pie</v-icon>
+                </div>
+                <h4 class="empty-chart-title mb-1">Tidak Ada Data Pelanggan</h4>
+                <p class="empty-chart-desc mb-0">Belum ada data pelanggan JakiNet yang tersedia.</p>
               </div>
-              <div v-else class="chart-container" style="height: 280px; position: relative;">
+              <div v-else class="chart-canvas-wrapper" style="height: 280px; position: relative;">
                 <canvas ref="pieChartCanvas" style="max-height: 280px;"></canvas>
               </div>
-            </v-card-text>
-          </v-card>
+            </div>
+          </div>
         </v-col>
 
-        <!-- Customer Growth Trend -->
+        <!-- Customer Growth Trend Line Chart -->
         <v-col cols="12" md="6">
-          <v-card rounded="xl" elevation="2" height="400" class="chart-card">
-            <v-card-title class="pa-6 pb-2">
-              <div class="d-flex align-center">
-                <v-icon color="info" class="me-2">mdi-chart-line</v-icon>
-                <span class="font-weight-bold">Tren Pertumbuhan Kumulatif</span>
+          <div class="chart-panel-card">
+            <div class="chart-panel-header pa-4 pa-sm-5 d-flex align-center justify-space-between border-b">
+              <div class="d-flex align-center gap-2">
+                <div class="chart-header-icon-box">
+                  <v-icon size="18" color="info">mdi-chart-line</v-icon>
+                </div>
+                <div>
+                  <h3 class="chart-panel-title mb-0">Tren Pertumbuhan Kumulatif</h3>
+                  <p class="chart-panel-subtitle mb-0">Grafik akumulasi pelanggan JakiNet</p>
+                </div>
               </div>
-            </v-card-title>
-            <v-card-text class="pa-6 pt-2">
-              <div v-if="!growthChartData || !growthChartData.labels || growthChartData.labels.length === 0" class="d-flex align-center justify-center flex-column text-center" style="height: 280px;">
-                <v-icon size="48" color="grey-lighten-1">mdi-chart-line</v-icon>
-                <h4 class="text-h6 mt-4 text-medium-emphasis">Tidak Ada Data Pertumbuhan</h4>
-                <p class="text-body-2 text-medium-emphasis">Belum ada data pertumbuhan pelanggan JakiNet.</p>
+            </div>
+            <div class="chart-panel-body pa-4 pa-sm-5">
+              <div v-if="!growthChartData || !growthChartData.labels || growthChartData.labels.length === 0" class="empty-chart-state">
+                <div class="empty-chart-icon-box mb-2">
+                  <v-icon size="32" color="slate-400">mdi-chart-line</v-icon>
+                </div>
+                <h4 class="empty-chart-title mb-1">Tidak Ada Data Pertumbuhan</h4>
+                <p class="empty-chart-desc mb-0">Belum ada data riwayat pertumbuhan pelanggan JakiNet.</p>
               </div>
-              <div v-else class="chart-container" style="height: 280px; position: relative;">
+              <div v-else class="chart-canvas-wrapper" style="height: 280px; position: relative;">
                 <canvas ref="lineChartCanvas" style="max-height: 280px;"></canvas>
               </div>
-            </v-card-text>
-          </v-card>
+            </div>
+          </div>
         </v-col>
       </v-row>
 
-      <!-- Detailed Analytics Row -->
-      <v-row class="mb-6">
-        <!-- Customer Status Overview -->
+      <!-- Charts Section Row 2: Monthly Comparison & Quick Metrics -->
+      <v-row class="mb-4 mb-md-6">
+        <!-- Customer Status Overview (Bar Chart) -->
         <v-col cols="12" md="8">
-          <v-card rounded="xl" elevation="2" height="350" class="chart-card">
-            <v-card-title class="pa-6 pb-2">
-              <div class="d-flex align-center justify-space-between w-100">
-                <div class="d-flex align-center">
-                  <v-icon color="purple" class="me-2">mdi-chart-bar</v-icon>
-                  <span class="font-weight-bold">Pelanggan Baru vs Berhenti (Bulan Ini)</span>
+          <div class="chart-panel-card h-100">
+            <div class="chart-panel-header pa-4 pa-sm-5 d-flex align-center justify-space-between border-b">
+              <div class="d-flex align-center gap-2">
+                <div class="chart-header-icon-box">
+                  <v-icon size="18" color="primary">mdi-chart-bar</v-icon>
                 </div>
-                <v-chip color="purple" variant="tonal" size="small">
-                  Bulan Ini
-                </v-chip>
+                <div>
+                  <h3 class="chart-panel-title mb-0">Pelanggan Baru vs Berhenti</h3>
+                  <p class="chart-panel-subtitle mb-0">Perbandingan mutasi pelanggan bulan berjalan</p>
+                </div>
               </div>
-            </v-card-title>
-            <v-card-text class="pa-6 pt-2">
-              <div class="chart-container" style="height: 250px; position: relative;">
+              <span class="meta-pill pill-subtle">Bulan Ini</span>
+            </div>
+            <div class="chart-panel-body pa-4 pa-sm-5">
+              <div class="chart-canvas-wrapper" style="height: 250px; position: relative;">
                 <canvas ref="barChartCanvas" style="max-height: 250px;"></canvas>
               </div>
-            </v-card-text>
-          </v-card>
+            </div>
+          </div>
         </v-col>
 
         <!-- Quick Stats Panel -->
         <v-col cols="12" md="4">
-          <v-card rounded="xl" elevation="2" height="350">
-            <v-card-title class="pa-6 pb-2">
-              <div class="d-flex align-center">
-                <v-icon color="orange" class="me-2">mdi-speedometer</v-icon>
-                <span class="font-weight-bold">Metrics Cepat</span>
+          <div class="chart-panel-card h-100">
+            <div class="chart-panel-header pa-4 pa-sm-5 d-flex align-center justify-space-between border-b">
+              <div class="d-flex align-center gap-2">
+                <div class="chart-header-icon-box">
+                  <v-icon size="18" color="warning">mdi-speedometer</v-icon>
+                </div>
+                <div>
+                  <h3 class="chart-panel-title mb-0">Metrik Performa</h3>
+                  <p class="chart-panel-subtitle mb-0">KPI retensi dan pertumbuhan</p>
+                </div>
               </div>
-            </v-card-title>
-            <v-card-text class="pa-6 pt-2">
-              <div class="quick-stats">
+            </div>
+            <div class="chart-panel-body pa-4 pa-sm-5">
+              <div class="quick-stats-list">
                 <!-- Growth Rate -->
-                <div class="stat-item mb-4">
+                <div class="quick-stat-item mb-4">
                   <div class="d-flex align-center justify-space-between mb-2">
-                    <span class="text-body-2 text-medium-emphasis">Growth Rate (Bulan ini)</span>
-                    <v-chip :color="growthRate >= 0 ? 'success' : 'error'" variant="tonal" size="small">
-                      {{ growthRate >= 0 ? '+' : '' }}{{ growthRate.toFixed(1) }}%
-                    </v-chip>
+                    <span class="stat-item-label">Growth Rate Bulan Ini</span>
+                    <span
+                      class="stat-item-badge"
+                      :class="growthRate >= 0 ? 'badge-positive' : 'badge-negative'"
+                    >
+                      {{ growthRate >= 0 ? '+' : '' }}{{ isNaN(growthRate) ? '0.0' : growthRate.toFixed(1) }}%
+                    </span>
                   </div>
                   <v-progress-linear 
-                    :model-value="Math.abs(growthRate)" 
+                    :model-value="isNaN(growthRate) ? 0 : Math.min(100, Math.abs(growthRate))" 
                     :color="growthRate >= 0 ? 'success' : 'error'" 
-                    height="8" 
+                    height="6" 
                     rounded
+                    bg-color="slate-200"
                   ></v-progress-linear>
                 </div>
 
                 <!-- JakiNet Penetration -->
-                <div class="stat-item mb-4">
+                <div class="quick-stat-item mb-4">
                   <div class="d-flex align-center justify-space-between mb-2">
-                    <span class="text-body-2 text-medium-emphasis">JakiNet Penetration</span>
-                    <span class="font-weight-bold">{{ jakiNetPenetration.toFixed(1) }}%</span>
+                    <span class="stat-item-label">Penetrasi JakiNet</span>
+                    <span class="stat-item-val">{{ jakiNetPenetration.toFixed(1) }}%</span>
                   </div>
                   <v-progress-linear 
                     :model-value="jakiNetPenetration" 
                     color="info" 
-                    height="8" 
+                    height="6" 
                     rounded
+                    bg-color="slate-200"
                   ></v-progress-linear>
                 </div>
 
                 <!-- Customer Retention -->
-                <div class="stat-item mb-4">
+                <div class="quick-stat-item mb-4">
                   <div class="d-flex align-center justify-space-between mb-2">
-                    <span class="text-body-2 text-medium-emphasis">Customer Retention</span>
-                    <span class="font-weight-bold text-success">{{ customerRetention.toFixed(1) }}%</span>
+                    <span class="stat-item-label">Customer Retention</span>
+                    <span class="stat-item-val text-success">{{ customerRetention.toFixed(1) }}%</span>
                   </div>
                   <v-progress-linear 
                     :model-value="customerRetention" 
                     color="success" 
-                    height="8" 
+                    height="6" 
                     rounded
+                    bg-color="slate-200"
                   ></v-progress-linear>
                 </div>
 
                 <!-- Average Revenue Per User -->
-                <div class="stat-item">
-                  <div class="text-center pa-4 bg-surface rounded-lg">
-                    <div class="text-caption text-medium-emphasis">ARPU (JakiNet Bulan Ini)</div>
-                    <div class="text-h5 font-weight-bold text-warning mt-1">
-                      {{ formatCurrency(averageRevenuePerUser) }}
+                <div class="arpu-box pa-3 rounded-lg border mt-2">
+                  <div class="d-flex align-center justify-space-between">
+                    <div>
+                      <span class="text-caption text-medium-emphasis d-block">ARPU JakiNet Bulan Ini</span>
+                      <span class="arpu-val text-h6 font-weight-bold">{{ formatCurrency(averageRevenuePerUser) }}</span>
                     </div>
+                    <v-icon size="24" color="primary" class="opacity-70">mdi-cash-check</v-icon>
                   </div>
                 </div>
               </div>
-            </v-card-text>
-          </v-card>
+            </div>
+          </div>
         </v-col>
       </v-row>
 
-      <!-- Additional Analytics Row -->
+      <!-- Monthly Revenue Trend Row -->
       <v-row>
-        <!-- Monthly Revenue Trend -->
         <v-col cols="12">
-          <v-card rounded="xl" elevation="2" height="400" class="chart-card">
-            <v-card-title class="pa-6 pb-2">
-              <div class="d-flex align-center justify-space-between w-100">
-                <div class="d-flex align-center">
-                  <v-icon color="success" class="me-2">mdi-chart-areaspline</v-icon>
-                  <span class="font-weight-bold">Tren Pendapatan Bulanan JakiNet</span>
+          <div class="chart-panel-card">
+            <div class="chart-panel-header pa-4 pa-sm-5 d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-3 border-b">
+              <div class="d-flex align-center gap-2">
+                <div class="chart-header-icon-box">
+                  <v-icon size="18" color="success">mdi-chart-areaspline</v-icon>
                 </div>
-                <v-btn-toggle v-model="revenueTimeframe" color="primary" size="small" density="compact">
-                  <v-btn value="3m" size="small">3M</v-btn>
-                  <v-btn value="6m" size="small">6M</v-btn>
-                  <v-btn value="1y" size="small">1Y</v-btn>
+                <div>
+                  <h3 class="chart-panel-title mb-0">Tren Pendapatan Bulanan JakiNet</h3>
+                  <p class="chart-panel-subtitle mb-0">Riwayat penerimaan tagihan berdasar periode pilihan</p>
+                </div>
+              </div>
+              
+              <!-- Clean Segmented Timeframe Toggle -->
+              <div class="timeframe-toggle-wrapper">
+                <v-btn-toggle
+                  v-model="revenueTimeframe"
+                  color="primary"
+                  density="compact"
+                  mandatory
+                  variant="outlined"
+                  class="segmented-toggle"
+                >
+                  <v-btn value="3m" size="small" class="text-none">3 Bulan</v-btn>
+                  <v-btn value="6m" size="small" class="text-none">6 Bulan</v-btn>
+                  <v-btn value="1y" size="small" class="text-none">1 Tahun</v-btn>
                 </v-btn-toggle>
               </div>
-            </v-card-title>
-            <v-card-text class="pa-6 pt-2">
-              <!-- Conditional rendering for the chart -->
-              <div v-if="hasRevenueData" class="chart-container" style="height: 300px; position: relative;">
+            </div>
+            <div class="chart-panel-body pa-4 pa-sm-5">
+              <div v-if="hasRevenueData" class="chart-canvas-wrapper" style="height: 300px; position: relative;">
                 <canvas ref="revenueChartCanvas" style="max-height: 300px;"></canvas>
               </div>
-              <!-- Message for when there is no data -->
-              <div v-else class="d-flex align-center justify-center flex-column text-center fill-height">
-                <v-icon size="64" color="grey-lighten-1">mdi-chart-bar-off</v-icon>
-                <h4 class="text-h6 mt-4 text-medium-emphasis">Tidak Ada Data Pendapatan</h4>
-                <p class="text-body-1 text-medium-emphasis">Tidak ada pendapatan yang tercatat untuk periode waktu yang dipilih.</p>
+              <div v-else class="empty-chart-state py-8">
+                <div class="empty-chart-icon-box mb-2">
+                  <v-icon size="36" color="slate-400">mdi-chart-bar-off</v-icon>
+                </div>
+                <h4 class="empty-chart-title mb-1">Tidak Ada Data Pendapatan</h4>
+                <p class="empty-chart-desc mb-0">Tidak ada transaksi tagihan yang tercatat pada rentang waktu yang dipilih.</p>
               </div>
-            </v-card-text>
-          </v-card>
+            </div>
+          </div>
         </v-col>
       </v-row>
-
     </div>
   </v-container>
 </template>
@@ -460,12 +404,10 @@ import Chart from 'chart.js/auto';
 import type { ChartConfiguration } from 'chart.js';
 import SkeletonLoader from '@/components/SkeletonLoader.vue';
 
-// No need to manually register components when using chart.js/auto
-
 const loading = ref(true);
 const revenueTimeframe = ref('6m');
 
-// --- State untuk menyimpan data dari API ---
+// State data dari API
 const stats = ref({
   pelanggan_aktif: 0,
   pelanggan_baru_bulan_ini: 0,
@@ -476,8 +418,7 @@ const stats = ref({
 const growthChartData = ref({ labels: [] as string[], data: [] as number[] });
 const revenueChartData = ref({ labels: [] as string[], data: [] as number[] });
 
-
-// Chart refs
+// Chart canvas refs
 const pieChartCanvas = ref<HTMLCanvasElement>();
 const lineChartCanvas = ref<HTMLCanvasElement>();
 const barChartCanvas = ref<HTMLCanvasElement>();
@@ -488,43 +429,49 @@ let lineChart: Chart | null = null;
 let barChart: Chart | null = null;
 let revenueChart: Chart | null = null;
 
-// Computed properties
+// Safe Computed Properties (Zero-division Protection)
+const jakiNetPercentage = computed(() => {
+  if (!stats.value.pelanggan_aktif || stats.value.pelanggan_aktif <= 0) return '0.0';
+  return ((stats.value.pelanggan_jakinet_aktif / stats.value.pelanggan_aktif) * 100).toFixed(1);
+});
+
 const growthRate = computed(() => {
   const base = stats.value.pelanggan_aktif - stats.value.pelanggan_baru_bulan_ini;
   if (base <= 0) return stats.value.pelanggan_baru_bulan_ini > 0 ? 100 : 0;
-  return ((stats.value.pelanggan_baru_bulan_ini - stats.value.pelanggan_berhenti_bulan_ini) / base) * 100;
+  const rate = ((stats.value.pelanggan_baru_bulan_ini - stats.value.pelanggan_berhenti_bulan_ini) / base) * 100;
+  return isNaN(rate) ? 0 : rate;
 });
 
 const jakiNetPenetration = computed(() => {
-  // Karena dashboard ini khusus Jakinet, penetrasinya selalu 100% dari data yang ditampilkan
-  // Ini mungkin perlu dihitung terhadap total pelanggan semua brand jika data itu tersedia
-  return stats.value.pelanggan_aktif > 0 ? (stats.value.pelanggan_jakinet_aktif / stats.value.pelanggan_aktif) * 100 : 100;
+  if (!stats.value.pelanggan_aktif || stats.value.pelanggan_aktif <= 0) return 0;
+  const val = (stats.value.pelanggan_jakinet_aktif / stats.value.pelanggan_aktif) * 100;
+  return isNaN(val) ? 0 : val;
 });
 
 const customerRetention = computed(() => {
   const startOfMonth = stats.value.pelanggan_aktif - stats.value.pelanggan_baru_bulan_ini + stats.value.pelanggan_berhenti_bulan_ini;
-  if (startOfMonth <= 0) return 0;
+  if (startOfMonth <= 0) return 100;
   const retained = startOfMonth - stats.value.pelanggan_berhenti_bulan_ini;
-  return (retained / startOfMonth) * 100;
+  const val = (retained / startOfMonth) * 100;
+  return isNaN(val) ? 0 : Math.max(0, Math.min(100, val));
 });
 
 const averageRevenuePerUser = computed(() => {
-  return stats.value.pelanggan_jakinet_aktif > 0 ? stats.value.pendapatan_jakinet_bulan_ini / stats.value.pelanggan_jakinet_aktif : 0;
+  if (!stats.value.pelanggan_jakinet_aktif || stats.value.pelanggan_jakinet_aktif <= 0) return 0;
+  const val = stats.value.pendapatan_jakinet_bulan_ini / stats.value.pelanggan_jakinet_aktif;
+  return isNaN(val) ? 0 : val;
 });
 
 const hasRevenueData = computed(() => {
-  // Perbaikan: Validasi yang lebih komprehensif
   if (!revenueChartData.value ||
       !revenueChartData.value.data ||
       !Array.isArray(revenueChartData.value.data) ||
       revenueChartData.value.data.length === 0) {
     return false;
   }
-  // Check if there's any positive revenue data
   return revenueChartData.value.data.some(value => value > 0);
 });
 
-// --- Fungsi utama untuk mengambil semua data dashboard ---
 async function fetchDashboardData(timespan: string = '6m') {
   loading.value = true;
   try {
@@ -533,13 +480,11 @@ async function fetchDashboardData(timespan: string = '6m') {
     });
     const data = response.data;
 
-    stats.value = data.main_stats;
-    growthChartData.value = data.growth_chart;
-    revenueChartData.value = data.revenue_chart;
+    stats.value = data.main_stats || stats.value;
+    growthChartData.value = data.growth_chart || { labels: [], data: [] };
+    revenueChartData.value = data.revenue_chart || { labels: [], data: [] };
 
-    // Re-initialize charts with new data
     initializeCharts();
-
   } catch (error) {
     console.error("Gagal mengambil data dashboard pelanggan:", error);
   } finally {
@@ -548,6 +493,7 @@ async function fetchDashboardData(timespan: string = '6m') {
 }
 
 function formatCurrency(value: number) {
+  if (isNaN(value)) return "Rp 0";
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
@@ -562,8 +508,8 @@ function createPieChart() {
 
   if (pieChart) pieChart.destroy();
 
-  // Perbaikan: Pastikan activeExisting tidak negatif
   const activeExisting = Math.max(0, stats.value.pelanggan_jakinet_aktif - stats.value.pelanggan_baru_bulan_ini);
+  const total = activeExisting + stats.value.pelanggan_baru_bulan_ini + stats.value.pelanggan_berhenti_bulan_ini;
 
   const config: ChartConfiguration<'doughnut'> = {
     type: 'doughnut',
@@ -576,59 +522,45 @@ function createPieChart() {
           stats.value.pelanggan_berhenti_bulan_ini
         ],
         backgroundColor: [
-          'rgba(33, 150, 243, 0.8)',
-          'rgba(76, 175, 80, 0.8)',
-          'rgba(244, 67, 54, 0.8)'
+          '#0f172a', // Slate-900
+          '#059669', // Emerald-600
+          '#e11d48'  // Rose-600
         ],
-        borderColor: [
-          'rgb(33, 150, 243)',
-          'rgb(76, 175, 80)',
-          'rgb(244, 67, 54)'
-        ],
-        hoverBackgroundColor: [
-          'rgba(33, 150, 243, 1)',
-          'rgba(76, 175, 80, 1)',
-          'rgba(244, 67, 54, 1)'
-        ],
-        borderWidth: 2
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        hoverOffset: 4
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '65%',
+      cutout: '70%',
       plugins: {
         legend: { 
           position: 'bottom', 
           labels: { 
-            padding: 20, 
+            padding: 16, 
             usePointStyle: true, 
-            font: { size: 12, weight: 500 } 
-          }
+            font: { size: 12, weight: 500 },
+            color: '#475569'
+          } 
         },
         tooltip: {
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          titleColor: 'rgb(33, 33, 33)',
-          bodyColor: 'rgb(33, 33, 33)',
-          borderColor: 'rgba(0, 0, 0, 0.1)',
-          borderWidth: 1,
-          padding: 12,
-          cornerRadius: 8,
+          backgroundColor: '#0f172a',
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          padding: 10,
+          cornerRadius: 6,
           displayColors: true,
           callbacks: {
             label: (context) => {
               const label = context.label || '';
-              const value = context.parsed;
-              return `${label}: ${value} (${((value / context.dataset.data.reduce((a, b) => a + b, 0)) * 100).toFixed(1)}%)`;
+              const value = Number(context.parsed) || 0;
+              const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+              return `${label}: ${value} (${pct}%)`;
             }
           }
         }
-      },
-      animation: {
-        animateRotate: true,
-        animateScale: true,
-        duration: 1000,
-        easing: 'easeOutQuart'
       }
     }
   };
@@ -642,10 +574,13 @@ function createLineChart() {
 
   if (lineChart) lineChart.destroy();
 
-  // Perbaikan: Validasi data sebelum render chart
   if (!growthChartData.value || !growthChartData.value.labels || !growthChartData.value.data) {
     return;
   }
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+  gradient.addColorStop(0, 'rgba(5, 150, 105, 0.16)');
+  gradient.addColorStop(1, 'rgba(5, 150, 105, 0.0)');
 
   const config: ChartConfiguration<'line'> = {
     type: 'line',
@@ -655,16 +590,16 @@ function createLineChart() {
         {
           label: 'Total Pelanggan JakiNet',
           data: growthChartData.value.data,
-          borderColor: 'rgba(76, 175, 80, 1)',
-          backgroundColor: 'rgba(76, 175, 80, 0.2)',
-          pointBackgroundColor: 'rgba(76, 175, 80, 1)',
-          pointBorderColor: '#fff',
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: 'rgba(76, 175, 80, 1)',
+          borderColor: '#059669',
+          backgroundColor: gradient,
+          pointBackgroundColor: '#059669',
+          pointBorderColor: '#ffffff',
+          pointHoverBackgroundColor: '#ffffff',
+          pointHoverBorderColor: '#059669',
           pointRadius: 4,
           pointHoverRadius: 6,
-          borderWidth: 3,
-          tension: 0.4,
+          borderWidth: 2.5,
+          tension: 0.35,
           fill: true,
         }
       ]
@@ -676,13 +611,19 @@ function createLineChart() {
         y: { 
           beginAtZero: false,
           grid: {
-            color: 'rgba(0, 0, 0, 0.05)'
+            color: 'rgba(226, 232, 240, 0.6)'
+          },
+          ticks: {
+            color: '#64748b'
           }
         }, 
         x: { 
           grid: { 
             display: false 
-          } 
+          },
+          ticks: {
+            color: '#64748b'
+          }
         } 
       },
       plugins: { 
@@ -690,36 +631,21 @@ function createLineChart() {
           position: 'top', 
           labels: { 
             usePointStyle: true, 
-            padding: 20,
-            font: { size: 12, weight: 500 }
+            padding: 16,
+            font: { size: 12, weight: 500 },
+            color: '#475569'
           } 
         },
         tooltip: {
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          titleColor: 'rgb(33, 33, 33)',
-          bodyColor: 'rgb(33, 33, 33)',
-          borderColor: 'rgba(0, 0, 0, 0.1)',
-          borderWidth: 1,
-          padding: 12,
-          cornerRadius: 8,
+          backgroundColor: '#0f172a',
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          padding: 10,
+          cornerRadius: 6,
           displayColors: false,
           callbacks: {
-            label: (context) => {
-              return `${context.dataset.label}: ${context.parsed.y}`;
-            }
+            label: (context) => `${context.dataset.label}: ${context.parsed.y} pelanggan`
           }
-        }
-      },
-      animation: {
-        duration: 1000,
-        easing: 'easeOutQuart'
-      },
-      elements: {
-        line: {
-          borderWidth: 3
-        },
-        point: {
-          borderWidth: 2
         }
       }
     }
@@ -737,28 +663,24 @@ function createBarChart() {
   const config: ChartConfiguration<'bar'> = {
     type: 'bar',
     data: {
-      labels: ['Pelanggan Bulan Ini'],
+      labels: ['Mutasi Bulan Ini'],
       datasets: [
         {
-          label: 'Baru',
+          label: 'Pelanggan Baru',
           data: [stats.value.pelanggan_baru_bulan_ini],
-          backgroundColor: 'rgba(76, 175, 80, 0.7)',
-          borderColor: 'rgb(76, 175, 80)',
-          hoverBackgroundColor: 'rgba(76, 175, 80, 0.9)',
-          hoverBorderColor: 'rgb(76, 175, 80)',
-          borderWidth: 2,
-          borderRadius: 8,
+          backgroundColor: '#059669',
+          borderColor: '#047857',
+          borderWidth: 1,
+          borderRadius: 6,
           borderSkipped: false,
         },
         {
-          label: 'Berhenti',
+          label: 'Pelanggan Berhenti',
           data: [stats.value.pelanggan_berhenti_bulan_ini],
-          backgroundColor: 'rgba(244, 67, 54, 0.7)',
-          borderColor: 'rgb(244, 67, 54)',
-          hoverBackgroundColor: 'rgba(244, 67, 54, 0.9)',
-          hoverBorderColor: 'rgb(244, 67, 54)',
-          borderWidth: 2,
-          borderRadius: 8,
+          backgroundColor: '#e11d48',
+          borderColor: '#be123c',
+          borderWidth: 1,
+          borderRadius: 6,
           borderSkipped: false,
         }
       ]
@@ -770,39 +692,39 @@ function createBarChart() {
         y: { 
           beginAtZero: true,
           grid: {
-            color: 'rgba(0, 0, 0, 0.05)'
+            color: 'rgba(226, 232, 240, 0.6)'
+          },
+          ticks: {
+            color: '#64748b'
           }
         }, 
         x: { 
           grid: { 
             display: false 
-          } 
+          },
+          ticks: {
+            color: '#64748b'
+          }
         } 
       },
       plugins: { 
         legend: { 
-          display: true, 
           position: 'top',
           labels: { 
             usePointStyle: true, 
-            padding: 20,
-            font: { size: 12, weight: 500 }
+            padding: 16,
+            font: { size: 12, weight: 500 },
+            color: '#475569'
           }
         },
         tooltip: {
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          titleColor: 'rgb(33, 33, 33)',
-          bodyColor: 'rgb(33, 33, 33)',
-          borderColor: 'rgba(0, 0, 0, 0.1)',
-          borderWidth: 1,
-          padding: 12,
-          cornerRadius: 8,
+          backgroundColor: '#0f172a',
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          padding: 10,
+          cornerRadius: 6,
           displayColors: true
         }
-      },
-      animation: {
-        duration: 1000,
-        easing: 'easeOutQuart'
       }
     }
   };
@@ -816,15 +738,13 @@ function createRevenueChart() {
 
   if (revenueChart) revenueChart.destroy();
 
-  // Perbaikan: Validasi data sebelum render chart
   if (!revenueChartData.value || !revenueChartData.value.labels || !revenueChartData.value.data) {
-    console.warn('Tidak ada data untuk revenue chart');
     return;
   }
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-  gradient.addColorStop(0, 'rgba(76, 175, 80, 0.4)');
-  gradient.addColorStop(1, 'rgba(76, 175, 80, 0.05)');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+  gradient.addColorStop(0, 'rgba(5, 150, 105, 0.18)');
+  gradient.addColorStop(1, 'rgba(5, 150, 105, 0.0)');
 
   const config: ChartConfiguration<'line'> = {
     type: 'line',
@@ -833,16 +753,16 @@ function createRevenueChart() {
       datasets: [{
         label: 'Pendapatan (IDR)',
         data: revenueChartData.value.data,
-        borderColor: 'rgb(76, 175, 80)',
+        borderColor: '#059669',
         backgroundColor: gradient,
-        pointBackgroundColor: 'rgb(76, 175, 80)',
-        pointBorderColor: '#fff',
-        pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: 'rgb(76, 175, 80)',
+        pointBackgroundColor: '#059669',
+        pointBorderColor: '#ffffff',
+        pointHoverBackgroundColor: '#ffffff',
+        pointHoverBorderColor: '#059669',
         pointRadius: 4,
         pointHoverRadius: 6,
-        borderWidth: 3,
-        tension: 0.4,
+        borderWidth: 2.5,
+        tension: 0.35,
         fill: true,
       }]
     },
@@ -853,51 +773,36 @@ function createRevenueChart() {
         y: {
           beginAtZero: true,
           ticks: {
-            callback: (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value as number)
+            callback: (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, notation: 'compact' }).format(value as number),
+            color: '#64748b'
           },
           grid: {
-            color: 'rgba(0, 0, 0, 0.05)'
+            color: 'rgba(226, 232, 240, 0.6)'
           }
         },
         x: { 
           grid: { 
             display: false 
-          } 
+          },
+          ticks: {
+            color: '#64748b'
+          }
         }
       },
       plugins: {
         legend: { 
-          display: false,
-          labels: { 
-            usePointStyle: true, 
-            padding: 20,
-            font: { size: 12, weight: 500 }
-          }
+          display: false
         },
         tooltip: {
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          titleColor: 'rgb(33, 33, 33)',
-          bodyColor: 'rgb(33, 33, 33)',
-          borderColor: 'rgba(0, 0, 0, 0.1)',
-          borderWidth: 1,
-          padding: 12,
-          cornerRadius: 8,
+          backgroundColor: '#0f172a',
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          padding: 10,
+          cornerRadius: 6,
           displayColors: false,
           callbacks: {
-            label: (context) => `Pendapatan: ${formatCurrency(context.parsed.y)}`
+            label: (context) => `Pendapatan: ${formatCurrency(Number(context.parsed.y) || 0)}`
           }
-        }
-      },
-      animation: {
-        duration: 1000,
-        easing: 'easeOutQuart'
-      },
-      elements: {
-        line: {
-          borderWidth: 3
-        },
-        point: {
-          borderWidth: 2
         }
       }
     }
@@ -906,29 +811,24 @@ function createRevenueChart() {
 }
 
 function initializeCharts() {
-  // Perbaikan: Gunakan setTimeout untuk memastikan DOM sudah ter-render dengan sempurna
   setTimeout(() => {
-    // Perbaikan: Render semua chart yang memungkinkan, tapi tetap validasi data
     createPieChart();
     createBarChart();
 
-    // Render line chart jika ada data growth
     if (growthChartData.value && growthChartData.value.labels && growthChartData.value.data) {
       createLineChart();
     }
 
-    // Render revenue chart jika ada data
     if (hasRevenueData.value) {
       createRevenueChart();
     }
-  }, 100); // 100ms delay untuk memastikan DOM selesai render
+  }, 100);
 }
 
 watch(revenueTimeframe, (newTimeframe) => {
   fetchDashboardData(newTimeframe);
 });
 
-// Perbaikan: Watch untuk data changes dan re-initialize charts
 watch([stats, growthChartData], () => {
   initializeCharts();
 }, { deep: true });
@@ -939,191 +839,453 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* OPTIMIZED - Reduced shadows and animations */
-.dashboard-header {
-  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(156, 39, 176, 0.1) 100%);
-  border-radius: 16px;
+.gap-1 { gap: 0.25rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+
+/* ==========================================================================
+   Header Card (Standard Clean SaaS Style - NO PURPLE GRADIENT)
+   ========================================================================== */
+.header-card {
+  background: #ffffff;
+  border-radius: 8px;
   padding: 24px;
-  margin-bottom: 24px;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.stats-card {
-  transition: background-color 0.2s ease;
-  border: 1px solid rgba(var(--v-border-color), 0.1);
+@media (min-width: 768px) {
+  .header-card {
+    padding: 28px 32px;
+    border-radius: 12px;
+  }
 }
 
-.stats-card:hover {
-  border-color: rgba(var(--v-theme-primary), 0.3);
+.header-avatar-wrapper {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.revenue-card {
-  background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(33, 150, 243, 0.05) 100%);
-  border: 1px solid rgba(76, 175, 80, 0.2);
+.header-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
-.revenue-amount {
-  position: relative;
+.header-subtitle {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 4px 0 0 0;
 }
 
-.revenue-amount::before {
-  content: '';
-  position: absolute;
-  bottom: -8px;
-  left: 0;
-  width: 60px;
-  height: 3px;
-  background: linear-gradient(90deg, rgb(76, 175, 80) 0%, rgb(33, 150, 243) 100%);
-  border-radius: 2px;
+.realtime-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #166534;
 }
 
-.chart-container {
-  position: relative;
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  margin-right: 8px;
+  display: inline-block;
+  animation: pulse-dot 2s infinite;
 }
 
-.chart-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(245, 245, 245, 0.1) 100%);
-  transition: background-color 0.2s ease;
-  border: 1px solid rgba(var(--v-border-color), 0.1);
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.refresh-btn {
+  background: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  height: 38px !important;
+}
+
+.refresh-btn:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+/* ==========================================================================
+   Metric Stats Cards
+   ========================================================================== */
+.metric-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.metric-value {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.box-blue {
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+}
+
+.box-green {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.box-rose {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+}
+
+.box-cyan {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+}
+
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.pill-success {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.pill-rose {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.pill-subtle {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+/* ==========================================================================
+   Revenue Hero Card
+   ========================================================================== */
+.revenue-hero-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.revenue-tag {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #059669;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.revenue-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.revenue-desc {
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.revenue-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.revenue-amount-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #047857;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.revenue-amount-sub {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.revenue-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: #334155;
+}
+
+/* ==========================================================================
+   Chart Panel Cards
+   ========================================================================== */
+.chart-panel-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   overflow: hidden;
-  position: relative;
 }
 
-.chart-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(33, 150, 243, 0.8), rgba(76, 175, 80, 0.8), rgba(244, 67, 54, 0.8));
-  z-index: 1;
+.chart-panel-header {
+  background: #ffffff;
 }
 
-.chart-card:hover {
-  border-color: rgba(var(--v-theme-primary), 0.3);
+.chart-header-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.quick-stats .stat-item {
-  border-radius: 12px;
+.chart-panel-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-.kpi-item {
-  border-radius: 12px;
-  transition: background-color 0.2s ease;
+.chart-panel-subtitle {
+  font-size: 0.75rem;
+  color: #64748b;
 }
 
-.kpi-item:hover {
-  background-color: rgba(var(--v-theme-surface-variant), 0.5);
+/* Empty Chart State */
+.empty-chart-state {
+  height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
 }
 
-.timeline-custom {
-  max-height: 300px;
-  overflow-y: auto;
+.empty-chart-icon-box {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.timeline-custom::-webkit-scrollbar {
-  width: 4px;
+.empty-chart-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-.timeline-custom::-webkit-scrollbar-track {
-  background: rgba(var(--v-theme-surface-variant), 0.3);
-  border-radius: 2px;
+.empty-chart-desc {
+  font-size: 0.8125rem;
+  color: #64748b;
+  max-width: 320px;
 }
 
-.timeline-custom::-webkit-scrollbar-thumb {
-  background: rgba(var(--v-theme-primary), 0.4);
-  border-radius: 2px;
+/* Quick Stats */
+.stat-item-label {
+  font-size: 0.8125rem;
+  color: #64748b;
+  font-weight: 500;
 }
 
-.activity-content {
-  padding-left: 8px;
+.stat-item-val {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-/* Dark theme adjustments - SIMPLIFIED SHADOWS */
-.v-theme--dark .dashboard-header {
-  background: linear-gradient(135deg, rgba(33, 150, 243, 0.15) 0%, rgba(156, 39, 176, 0.15) 100%);
+.stat-item-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
 }
 
-.v-theme--dark .revenue-card {
-  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(33, 150, 243, 0.1) 100%);
-  border: 1px solid rgba(76, 175, 80, 0.3);
+.badge-positive {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
 }
 
-.v-theme--dark .stats-card:hover {
-  border-color: rgba(var(--v-theme-primary), 0.4);
+.badge-negative {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
 }
 
-.v-theme--dark .chart-card {
-  background: linear-gradient(135deg, rgba(30, 30, 40, 0.3) 0%, rgba(50, 50, 60, 0.3) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.arpu-box {
+  background: #f8fafc;
+  border-color: #e2e8f0 !important;
 }
 
-.v-theme--dark .chart-card:hover {
-  border-color: rgba(var(--v-theme-primary), 0.4);
+.arpu-val {
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
 }
 
-/* Mobile responsiveness */
-@media (max-width: 768px) {
-  .dashboard-header {
-    padding: 16px;
-    margin-bottom: 16px;
+/* Segmented Toggle */
+.segmented-toggle {
+  border-radius: 8px !important;
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+}
+
+/* ==========================================================================
+   Dark Theme Adjustments
+   ========================================================================== */
+.v-theme--dark .header-card,
+.v-theme--dark .metric-card,
+.v-theme--dark .revenue-hero-card,
+.v-theme--dark .chart-panel-card,
+.v-theme--dark .chart-panel-header {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+.v-theme--dark .header-title,
+.v-theme--dark .revenue-title,
+.v-theme--dark .chart-panel-title,
+.v-theme--dark .metric-value,
+.v-theme--dark .stat-item-val,
+.v-theme--dark .arpu-val,
+.v-theme--dark .empty-chart-title {
+  color: #f8fafc !important;
+}
+
+.v-theme--dark .header-avatar-wrapper,
+.v-theme--dark .chart-header-icon-box,
+.v-theme--dark .empty-chart-icon-box,
+.v-theme--dark .arpu-box {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+.v-theme--dark .refresh-btn,
+.v-theme--dark .segmented-toggle {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+.v-theme--dark .revenue-meta-pill,
+.v-theme--dark .pill-subtle {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+.v-theme--dark .realtime-status-badge {
+  background: rgba(34, 197, 94, 0.15) !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+  color: #4ade80 !important;
+}
+
+.v-theme--dark .box-blue {
+  background: rgba(59, 130, 246, 0.15) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.v-theme--dark .box-green,
+.v-theme--dark .revenue-icon-box {
+  background: rgba(34, 197, 94, 0.15) !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+}
+
+.v-theme--dark .box-rose {
+  background: rgba(244, 63, 94, 0.15) !important;
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+.v-theme--dark .box-cyan {
+  background: rgba(6, 182, 212, 0.15) !important;
+  border-color: rgba(6, 182, 212, 0.3) !important;
+}
+
+@media (max-width: 600px) {
+  .revenue-amount-value {
+    font-size: 1.75rem;
   }
-  
-  .dashboard-header h1 {
-    font-size: 1.5rem !important;
-  }
-  
-  .stats-card .v-card-text {
-    padding: 16px !important;
-  }
-  
-  .stats-card .text-h4 {
-    font-size: 1.8rem !important;
-  }
-  
-  .revenue-card .v-card-text {
-    padding: 20px !important;
-  }
-  
-  .chart-container {
-    height: 220px !important;
-  }
-  
-  .chart-card::before {
-    display: none;
-  }
-  
-  .kpi-item .v-progress-circular {
-    width: 60px !important;
-    height: 60px !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .pa-6 {
-    padding: 12px !important;
-  }
-
-  .stats-card .text-h4 {
-    font-size: 1.5rem !important;
-  }
-
-  .revenue-amount .text-h3 {
-    font-size: 1.8rem !important;
-  }
-
-  .chart-container {
-    height: 200px !important;
-  }
-
-  .timeline-custom {
-    max-height: 250px;
-  }
-}
-
-/* Custom scrollbar for timeline */
-.timeline-custom {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--v-theme-primary), 0.4) transparent;
 }
 </style>

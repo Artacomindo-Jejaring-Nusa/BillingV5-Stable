@@ -9,7 +9,7 @@
               <v-icon color="white" size="40">mdi-cog</v-icon>
             </v-avatar>
             <div>
-              <h1 class="text-h4 font-weight-bold text-white mb-2">Pengaturan Sistem</h1>
+              <h1 class="text-h4 font-weight-bold header-title mb-2">Pengaturan Sistem</h1>
               <p class="header-subtitle mb-0">
                 Kelola konfigurasi dan pengaturan sistem secara global
               </p>
@@ -110,82 +110,6 @@
           elevation="2"
         >
           Simpan Pengaturan
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-
-    <!-- WhatsApp API (Watzap) Settings Card -->
-    <v-card rounded="xl" elevation="2" class="settings-card mt-6">
-      <div class="maintenance-header">
-        <v-card-title class="d-flex align-center pa-6">
-          <div class="header-icon-wrapper me-3" style="background: rgba(37, 211, 102, 0.1);">
-            <v-icon color="success" size="28">mdi-whatsapp</v-icon>
-          </div>
-          <div>
-            <h2 class="text-h6 font-weight-bold mb-0">Integrasi WhatsApp API (Watzap)</h2>
-            <p class="text-caption text-medium-emphasis mb-0">
-              Kelola kredensial Watzap untuk notifikasi trouble ticket teknisi secara dinamis
-            </p>
-          </div>
-        </v-card-title>
-      </div>
-
-      <v-divider></v-divider>
-
-      <v-card-text class="pa-6">
-        <!-- Description Section -->
-        <div class="description-section mb-6" style="border-left-color: #25D366; background: rgba(37, 211, 102, 0.03);">
-          <p class="text-body-1 text-medium-emphasis mb-4">
-            Konfigurasi API Key dan Number Key dari Watzap.id agar pengiriman notifikasi WhatsApp ke teknisi berjalan secara otomatis. Pengaturan di sini akan mengesampingkan konfigurasi statis dari file `.env`.
-          </p>
-        </div>
-
-        <!-- Form Controls -->
-        <div class="form-section">
-          <v-row>
-            <v-col cols="12" md="6">
-              <div class="form-group mb-4">
-                <v-text-field
-                  v-model="watzapApiKey"
-                  label="WATZAP API KEY"
-                  variant="outlined"
-                  placeholder="Masukkan API Key Watzap"
-                  prepend-inner-icon="mdi-key"
-                  hide-details="auto"
-                ></v-text-field>
-              </div>
-            </v-col>
-            <v-col cols="12" md="6">
-              <div class="form-group mb-4">
-                <v-text-field
-                  v-model="watzapNumberKey"
-                  label="WATZAP NUMBER KEY"
-                  variant="outlined"
-                  placeholder="Masukkan Number Key Watzap"
-                  prepend-inner-icon="mdi-cellphone-cog"
-                  hide-details="auto"
-                ></v-text-field>
-              </div>
-            </v-col>
-          </v-row>
-        </div>
-      </v-card-text>
-
-      <v-divider></v-divider>
-
-      <!-- Card Actions -->
-      <v-card-actions class="pa-6">
-        <v-spacer></v-spacer>
-        <v-btn
-          color="success"
-          @click="saveWatzapSettings"
-          :loading="savingWatzap"
-          size="large"
-          class="text-none font-weight-bold"
-          prepend-icon="mdi-content-save"
-          elevation="2"
-        >
-          Simpan Kredensial WhatsApp
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -549,45 +473,10 @@ const triggeringJob = ref('');
 const localJobs = ref<Job[]>([]);
 const successJobs = ref<Record<string, boolean>>({});
 
-// Watzap.id dynamic settings
-const watzapApiKey = ref('');
-const watzapNumberKey = ref('');
-const savingWatzap = ref(false);
-
-async function fetchWatzapSettings() {
-  try {
-    const apiResp = await apiClient.get('/system/settings/WATZAP_API_KEY');
-    watzapApiKey.value = apiResp.data?.data?.value ?? '';
-  } catch (error) {
-    console.error("Gagal memuat WATZAP_API_KEY:", error);
-  }
-  try {
-    const numResp = await apiClient.get('/system/settings/WATZAP_NUMBER_KEY');
-    watzapNumberKey.value = numResp.data?.data?.value ?? '';
-  } catch (error) {
-    console.error("Gagal memuat WATZAP_NUMBER_KEY:", error);
-  }
-}
-
-async function saveWatzapSettings() {
-  savingWatzap.value = true;
-  try {
-    await apiClient.post('/system/settings', { key: 'WATZAP_API_KEY', value: watzapApiKey.value });
-    await apiClient.post('/system/settings', { key: 'WATZAP_NUMBER_KEY', value: watzapNumberKey.value });
-    showSnackbar('Pengaturan WhatsApp (Watzap) berhasil disimpan!', 'success');
-  } catch (error) {
-    console.error("Gagal menyimpan pengaturan WhatsApp:", error);
-    showSnackbar('Gagal menyimpan pengaturan WhatsApp.', 'error');
-  } finally {
-    savingWatzap.value = false;
-  }
-}
-
 // Saat halaman dimuat, isi form dengan data dari store
 onMounted(async () => {
   maintenanceActive.value = settingsStore.maintenanceMode.isActive;
   maintenanceMessage.value = settingsStore.maintenanceMode.message;
-  await fetchWatzapSettings();
   await fetchSchedulerStatus();
   await fetchSchedulerJobs();
   await fetchChatTemplates();
@@ -865,17 +754,27 @@ async function deleteChatTemplate(tpl: any) {
 }
 
 /* Header text styling */
-.header-section h1 {
-  color: white !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+.header-section h1,
+.header-title {
+  color: #0f172a !important;
+  text-shadow: none !important;
 }
 
 .header-subtitle {
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: #64748b !important;
   font-size: 1.1rem;
   font-weight: 400;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  opacity: 0.95;
+  text-shadow: none !important;
+  opacity: 1 !important;
+}
+
+.v-theme--dark .header-section h1,
+.v-theme--dark .header-title {
+  color: #ffffff !important;
+}
+
+.v-theme--dark .header-subtitle {
+  color: rgba(255, 255, 255, 0.85) !important;
 }
 
 /* Settings Card */
