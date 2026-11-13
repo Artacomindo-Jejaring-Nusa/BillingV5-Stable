@@ -100,17 +100,16 @@
               class="date-input rounded-lg bg-white"
             />
           </v-col>
-          <v-col cols="12" sm="2" md="2" lg="2">
+          <v-col cols="12" sm="4" md="3" lg="2">
             <v-btn
-              variant="tonal"
+              variant="outlined"
               prepend-icon="mdi-filter-off-outline"
               @click="clearDateFilter"
-              :disabled="!dateRange.from && !dateRange.to"
               block
-              color="error"
-              class="btn-clear text-none font-weight-bold"
               height="40"
               rounded="lg"
+              class="btn-reset-filter text-none font-weight-semibold"
+              :class="{ 'has-active-filter': !!dateRange.from || !!dateRange.to }"
             >
               Reset Filter
             </v-btn>
@@ -758,15 +757,14 @@
                 </v-col>
                 <v-col cols="12" md="2">
                   <v-btn
-                    variant="tonal"
+                    variant="outlined"
                     prepend-icon="mdi-filter-off-outline"
                     @click="clearTicketFilters"
-                    size="small"
                     block
-                    color="slate-600"
                     height="40"
                     rounded="lg"
-                    class="font-weight-bold text-none"
+                    class="btn-reset-filter text-none font-weight-semibold"
+                    :class="{ 'has-active-filter': !!ticketSearchQuery || !!ticketStatusFilter || !!ticketCategoryFilter }"
                   >
                     Reset
                   </v-btn>
@@ -2911,6 +2909,34 @@ onMounted(() => {
   background-color: #059669 !important;
 }
 
+/* Reset Filter Button Styling */
+.btn-reset-filter {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  font-size: 0.875rem !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-reset-filter:hover {
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+.btn-reset-filter.has-active-filter {
+  background-color: #fff1f2 !important;
+  border-color: #fca5a5 !important;
+  color: #e11d48 !important;
+}
+
+.btn-reset-filter.has-active-filter:hover {
+  background-color: #ffe4e6 !important;
+  border-color: #f87171 !important;
+  color: #be123c !important;
+}
+
 /* Filter Card Elements */
 .filter-title {
   font-size: 0.9375rem;
@@ -3263,6 +3289,24 @@ onMounted(() => {
 :deep(.v-theme--dark) .action-btn-refresh {
   border-color: #475569 !important;
   color: #cbd5e1 !important;
+}
+
+:deep(.v-theme--dark) .btn-reset-filter {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+  color: #cbd5e1 !important;
+}
+
+:deep(.v-theme--dark) .btn-reset-filter:hover {
+  background-color: #334155 !important;
+  border-color: #64748b !important;
+  color: #ffffff !important;
+}
+
+:deep(.v-theme--dark) .btn-reset-filter.has-active-filter {
+  background-color: rgba(225, 29, 72, 0.15) !important;
+  border-color: rgba(244, 63, 94, 0.4) !important;
+  color: #fb7185 !important;
 }
 
 :deep(.v-theme--dark) .modern-data-table :deep(th) {
