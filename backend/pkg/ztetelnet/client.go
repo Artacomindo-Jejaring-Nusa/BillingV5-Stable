@@ -333,9 +333,10 @@ func (c *zteTelnetClient) GetONUs(ctx context.Context, host string, port int, us
 
 	// 1. Fetch ONU state on specified PON (e.g. gpon-olt_1/1/1)
 	cmdState := fmt.Sprintf("show gpon onu state gpon-olt_1/%d/%d", board, pon)
-	outState, err := session.executeCommand(cmdState, 10*time.Second)
-	if err != nil {
-		return nil, err
+	outState, err := session.executeCommand(cmdState, 8*time.Second)
+	if err != nil || strings.Contains(outState, "%Error") || strings.Contains(outState, "Unknown") || !strings.Contains(outState, ":") {
+		// Fallback to global show gpon onu state (ZTE C320 CLI output: 1/1/1:1 enable enable working 1(GPON))
+		outState, _ = session.executeCommand("show gpon onu state", 10*time.Second)
 	}
 
 	// 2. Fetch ONU running configuration or baseinfo for names and serial numbers
@@ -415,18 +416,28 @@ func (c *zteTelnetClient) GetONUDetail(ctx context.Context, host string, port in
 	}
 
 	onuTarget := fmt.Sprintf("gpon-onu_1/%d/%d:%d", board, pon, onuID)
+	altTarget := fmt.Sprintf("1/%d/%d:%d", board, pon, onuID)
 
 	// 1. Optical attenuation (Rx/Tx Power)
 	cmdPower := fmt.Sprintf("show pon power attenuation %s", onuTarget)
 	outPower, _ := session.executeCommand(cmdPower, 6*time.Second)
+	if strings.Contains(outPower, "%Error") {
+		outPower, _ = session.executeCommand(fmt.Sprintf("show pon power attenuation %s", altTarget), 6*time.Second)
+	}
 
 	// 2. Optical distance
 	cmdDist := fmt.Sprintf("show gpon optical-distance %s", onuTarget)
 	outDist, _ := session.executeCommand(cmdDist, 6*time.Second)
+	if strings.Contains(outDist, "%Error") {
+		outDist, _ = session.executeCommand(fmt.Sprintf("show gpon optical-distance %s", altTarget), 6*time.Second)
+	}
 
 	// 3. ONU detail info & state
 	cmdDetail := fmt.Sprintf("show gpon onu detail-info %s", onuTarget)
 	outDetail, _ := session.executeCommand(cmdDetail, 6*time.Second)
+	if strings.Contains(outDetail, "%Error") {
+		outDetail, _ = session.executeCommand(fmt.Sprintf("show gpon onu detail-info %s", altTarget), 6*time.Second)
+	}
 
 	detail := parseZTEONUDetailOutput(board, pon, onuID, outPower, outDist, outDetail)
 	return detail, nil
@@ -517,14 +528,26 @@ func parseZTEONUs(board, pon int, outState, outConfig, outBase string) []domain.
 	onusMap := make(map[int]*domain.ZTEONUInfo)
 
 	// 1. Parse show gpon onu state:
-	// Format: gpon-onu_1/1/1:1   enable  enable  working  1
-	// or:     gpon-onu_1/1/1:2   enable  enable  los      1
-	reState := regexp.MustCompile(`gpon-onu_1/\d+/\d+:(\d+)\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)`)
+	// Output formats:
+	//   1/1/1:1     enable       enable      working      1(GPON)
+	//   1/1/10:5    enable       enable      working      1(GPON)
+	//   gpon-onu_1/1/1:1   enable  enable  working  1
+	reState := regexp.MustCompile(`(?:gpon-onu_)?(?:(\d+)/)?(?:(\d+)/)?(\d+):(\d+)\s+(\S+)\s+(\S+)\s+(\S+)`)
 	for _, line := range strings.Split(outState, "\n") {
 		m := reState.FindStringSubmatch(strings.TrimSpace(line))
-		if len(m) >= 5 {
-			id, _ := strconv.Atoi(m[1])
-			phaseState := strings.ToLower(m[4])
+		if len(m) >= 8 {
+			lineBoard, _ := strconv.Atoi(m[2])
+			linePon, _ := strconv.Atoi(m[3])
+			// If lineBoard is present and board > 0, filter by board
+			if board > 0 && lineBoard > 0 && lineBoard != board {
+				continue
+			}
+			// If linePon is present and pon > 0, filter by pon
+			if pon > 0 && linePon > 0 && linePon != pon {
+				continue
+			}
+			id, _ := strconv.Atoi(m[4])
+			phaseState := strings.ToLower(m[7])
 			status := "Offline"
 			if phaseState == "working" || phaseState == "online" {
 				status = "Online"
@@ -573,18 +596,19 @@ func parseZTEONUs(board, pon int, outState, outConfig, outBase string) []domain.
 	}
 
 	// 3. Fallback parse show gpon onu baseinfo if serial number is missing:
-	// Format: gpon-onu_1/1/1:1  ZTEG-F660  ZTEGC1234567  ready
-	reBase := regexp.MustCompile(`gpon-onu_1/\d+/\d+:(\d+)\s+([^\s]+)\s+([^\s]+)`)
+	// Format: 1/1/1:1  ZTEG-F660  ZTEGC1234567  ready
+	// or:     gpon-onu_1/1/1:1  ZTEG-F660  ZTEGC1234567  ready
+	reBase := regexp.MustCompile(`(?:gpon-onu_)?(?:(?:\d+)/)*(\d+):(\d+)\s+([^\s]+)\s+([^\s]+)`)
 	for _, line := range strings.Split(outBase, "\n") {
 		m := reBase.FindStringSubmatch(strings.TrimSpace(line))
-		if len(m) >= 4 {
-			id, _ := strconv.Atoi(m[1])
+		if len(m) >= 5 {
+			id, _ := strconv.Atoi(m[2])
 			if onu, ok := onusMap[id]; ok {
 				if onu.ONUType == "" || onu.ONUType == "GPON" {
-					onu.ONUType = m[2]
+					onu.ONUType = m[3]
 				}
 				if onu.SerialNumber == "" {
-					onu.SerialNumber = m[3]
+					onu.SerialNumber = m[4]
 				}
 			}
 		}

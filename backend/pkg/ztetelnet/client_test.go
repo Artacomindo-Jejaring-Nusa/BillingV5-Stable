@@ -122,3 +122,76 @@ Phase State: working
 	}
 }
 
+func TestParseZTEONUs_RealTiparCLI(t *testing.T) {
+	outState := `
+OnuIndex   Admin State  OMCC State  Phase State  Channel    
+--------------------------------------------------------------
+1/1/1:1     enable       enable      working      1(GPON)
+1/1/1:2     enable       enable      working      1(GPON)
+1/1/1:3     enable       disable     LOS          1(GPON)
+1/1/1:4     enable       enable      working      1(GPON)
+1/1/2:1     enable       enable      working      1(GPON)
+1/1/10:1    enable       enable      working      1(GPON)
+1/1/10:2    enable       enable      working      1(GPON)
+1/1/10:3    enable       disable     LOS          1(GPON)
+1/1/10:4    enable       enable      working      1(GPON)
+1/1/10:5    enable       enable      working      1(GPON)
+`
+	outConfigPon1 := `
+interface gpon-olt_1/1/1
+  onu 1 type ZTE-F660 sn RTEGC69E3F18
+  onu 1 name CKG-TPR-AKS-30-107-0224-Junus
+  onu 2 type ALL sn RTEGC60AD1A8
+  onu 3 type ZTE-F660 sn ZTEGC041E7C6
+  onu 3 name CKG-TPR-AKS-20-0411-0623-Eva
+  onu 4 type ALL sn RTEGC60AD556
+  onu 4 name CKG-TPR-AKS-112-Rika
+`
+	onusPon1 := parseZTEONUs(1, 1, outState, outConfigPon1, "")
+	if len(onusPon1) != 4 {
+		t.Fatalf("expected 4 ONUs on PON 1, got %d", len(onusPon1))
+	}
+	if onusPon1[0].Status != "Online" {
+		t.Errorf("expected ONU 1 to be Online, got %s", onusPon1[0].Status)
+	}
+	if onusPon1[1].Status != "Online" {
+		t.Errorf("expected ONU 2 to be Online, got %s", onusPon1[1].Status)
+	}
+	if onusPon1[2].Status != "Offline" {
+		t.Errorf("expected ONU 3 to be Offline, got %s", onusPon1[2].Status)
+	}
+	if onusPon1[3].Status != "Online" {
+		t.Errorf("expected ONU 4 to be Online, got %s", onusPon1[3].Status)
+	}
+
+	outConfigPon10 := `
+interface gpon-olt_1/1/10
+  onu 1 type ALL sn MHEGCDEEA884
+  onu 2 type ALL sn MHEGCDEA97D8
+  onu 3 type ALL sn MHEGCDE9ADF9
+  onu 4 type ALL sn RTEGC60A1E7E
+  onu 4 name CKG-BRT-F-308-Deasy
+  onu 5 type ZTE-F660 sn ZTEGC2D40FF7
+  onu 5 name CKG-BRT-F-105-20-0723-Alfin
+`
+	onusPon10 := parseZTEONUs(1, 10, outState, outConfigPon10, "")
+	if len(onusPon10) != 5 {
+		t.Fatalf("expected 5 ONUs on PON 10, got %d", len(onusPon10))
+	}
+	if onusPon10[0].Status != "Online" {
+		t.Errorf("expected PON 10 ONU 1 to be Online, got %s", onusPon10[0].Status)
+	}
+	if onusPon10[1].Status != "Online" {
+		t.Errorf("expected PON 10 ONU 2 to be Online, got %s", onusPon10[1].Status)
+	}
+	if onusPon10[2].Status != "Offline" {
+		t.Errorf("expected PON 10 ONU 3 to be Offline (LOS), got %s", onusPon10[2].Status)
+	}
+	if onusPon10[3].Status != "Online" {
+		t.Errorf("expected PON 10 ONU 4 to be Online, got %s", onusPon10[3].Status)
+	}
+	if onusPon10[4].Status != "Online" {
+		t.Errorf("expected PON 10 ONU 5 to be Online, got %s", onusPon10[4].Status)
+	}
+}
+
