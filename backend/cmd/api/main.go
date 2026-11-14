@@ -25,6 +25,7 @@ import (
 	"billing-backend/pkg/telemetry"
 	"billing-backend/pkg/utils"
 	"billing-backend/pkg/zteclient"
+	"billing-backend/pkg/ztetelnet"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -341,11 +342,12 @@ func main() {
 	mikrotikUsecase := usecase.NewMikrotikUsecase(mikrotikRepo)
 	httpDelivery.NewMikrotikHandler(api, mikrotikUsecase, authMw)
 
-	// OLT
+	// OLT (ZTE SNMP + ZTE Direct Telnet + HSGQ Direct Telnet)
 	zteClient := zteclient.NewClient(cfg.ZteOltApiURL, cfg.ZteOltApiKey)
+	zteTelnet := ztetelnet.NewClient()
 	hsgqClient := hsgqclient.NewClient()
 	oltRepo := repository.NewOLTRepository(db)
-	oltUsecase := usecase.NewOLTUsecase(oltRepo, zteClient, hsgqClient)
+	oltUsecase := usecase.NewOLTUsecase(oltRepo, zteClient, hsgqClient, zteTelnet)
 	httpDelivery.NewOLTHandler(api, oltUsecase, authMw)
 
 	// ODC

@@ -375,7 +375,7 @@
                 </v-chip>
               </div>
               <p class="text-caption text-slate-500 mb-0 font-mono">
-                IP: {{ activeOlt?.ip_address }} &bull; {{ isHSGQ ? 'HSGQ EPON Telnet Gateway' : 'ZTE C320 SNMP Gateway' }}
+                IP: {{ activeOlt?.ip_address }} &bull; {{ isHSGQ ? 'HSGQ EPON Telnet Gateway' : 'ZTE C320 Gateway (Direct Telnet / SNMP)' }}
               </p>
             </div>
           </div>

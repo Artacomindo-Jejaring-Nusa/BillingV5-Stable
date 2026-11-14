@@ -1,0 +1,655 @@
+package ztetelnet
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"fmt"
+	"net"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"billing-backend/internal/domain"
+)
+
+// Client defines the contract for communicating with ZTE C300/C320 OLTs via Telnet CLI.
+type Client interface {
+	TestConnection(ctx context.Context, host string, port int, username, password string) (string, error)
+	GetONUs(ctx context.Context, host string, port int, username, password string, board, pon int) ([]domain.ZTEONUInfo, error)
+	GetPaginatedONUs(ctx context.Context, host string, port int, username, password string, board, pon int, page, limit int) (*domain.ZTEPaginatedONUs, error)
+	GetONUDetail(ctx context.Context, host string, port int, username, password string, board, pon, onuID int) (*domain.ZTEONUDetail, error)
+	GetEmptyONUIDs(ctx context.Context, host string, port int, username, password string, board, pon int) ([]int, error)
+	GetUplinks(ctx context.Context, host string, port int, username, password string) (*domain.ZTEUplinksData, error)
+	ClearCache(host string)
+}
+
+type zteTelnetClient struct {
+	// hostLocks enforces strict VTY session discipline:
+	// AT MOST 1 concurrent Telnet session per physical ZTE OLT host.
+	// This prevents exhausting ZTE C320's limited VTY pool (5-8 sessions)
+	// and guarantees operational engineers can always access PuTTY/CLI.
+	hostLocks sync.Map // map[string]*sync.Mutex
+
+	cacheMu sync.RWMutex
+	cache   map[string]cacheItem
+}
+
+type cacheItem struct {
+	data      []domain.ZTEONUInfo
+	expiresAt time.Time
+}
+
+// NewClient initializes a new ZTE Telnet OLT client.
+func NewClient() Client {
+	return &zteTelnetClient{
+		cache: make(map[string]cacheItem),
+	}
+}
+
+func (c *zteTelnetClient) getHostLock(host string) *sync.Mutex {
+	actual, _ := c.hostLocks.LoadOrStore(host, &sync.Mutex{})
+	return actual.(*sync.Mutex)
+}
+
+func (c *zteTelnetClient) ClearCache(host string) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	for k := range c.cache {
+		if strings.HasPrefix(k, host) {
+			delete(c.cache, k)
+		}
+	}
+}
+
+// TelnetSession wraps a TCP connection with Telnet command handling.
+type TelnetSession struct {
+	conn   net.Conn
+	reader *bufio.Reader
+}
+
+func dialTelnet(ctx context.Context, host string, port int, timeout time.Duration) (*TelnetSession, error) {
+	if port <= 0 {
+		port = 23
+	}
+	dialer := net.Dialer{Timeout: timeout}
+	conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", host, port))
+	if err != nil {
+		return nil, fmt.Errorf("gagal terhubung ke ZTE OLT Telnet (%s:%d): %w", host, port, err)
+	}
+
+	return &TelnetSession{
+		conn:   conn,
+		reader: bufio.NewReader(conn),
+	}, nil
+}
+
+// CloseWithLogout sends exit commands to clean up any open VTY sessions, then closes TCP socket.
+func (s *TelnetSession) CloseWithLogout() error {
+	if s.conn == nil {
+		return nil
+	}
+	_ = s.conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+	_, _ = s.conn.Write([]byte("exit\r\n"))
+	time.Sleep(50 * time.Millisecond)
+	_, _ = s.conn.Write([]byte("exit\r\n"))
+	return s.conn.Close()
+}
+
+func (s *TelnetSession) readUntil(timeout time.Duration, delimiters ...string) (string, error) {
+	_ = s.conn.SetReadDeadline(time.Now().Add(timeout))
+	var buf bytes.Buffer
+	b := make([]byte, 1)
+
+	for {
+		n, err := s.reader.Read(b)
+		if err != nil {
+			return buf.String(), err
+		}
+		if n == 0 {
+			continue
+		}
+
+		// Handle Telnet IAC negotiation (0xFF)
+		if b[0] == 0xFF {
+			cmdByte, err := s.reader.ReadByte()
+			if err != nil {
+				return buf.String(), err
+			}
+			optByte, err := s.reader.ReadByte()
+			if err != nil {
+				return buf.String(), err
+			}
+			if cmdByte == 253 { // DO -> WONT
+				_, _ = s.conn.Write([]byte{0xFF, 252, optByte})
+			} else if cmdByte == 251 { // WILL -> DONT
+				_, _ = s.conn.Write([]byte{0xFF, 254, optByte})
+			}
+			continue
+		}
+
+		buf.WriteByte(b[0])
+		current := buf.String()
+
+		for _, delim := range delimiters {
+			if strings.Contains(strings.ToLower(current), strings.ToLower(delim)) {
+				return current, nil
+			}
+		}
+	}
+}
+
+func (s *TelnetSession) writeLine(line string) error {
+	_ = s.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	_, err := s.conn.Write([]byte(line + "\r\n"))
+	return err
+}
+
+func (s *TelnetSession) login(username, password string) error {
+	// 1. Wait for username / login prompt
+	out, err := s.readUntil(8*time.Second, "username:", "login:", "user:")
+	if err != nil {
+		return fmt.Errorf("timeout menunggu prompt username ZTE: %w (output: %s)", err, out)
+	}
+
+	// 2. Send username
+	if err := s.writeLine(username); err != nil {
+		return fmt.Errorf("gagal mengirim username: %w", err)
+	}
+
+	// 3. Wait for password prompt
+	out, err = s.readUntil(8*time.Second, "password:")
+	if err != nil {
+		return fmt.Errorf("timeout menunggu prompt password ZTE: %w (output: %s)", err, out)
+	}
+
+	// 4. Send password
+	if err := s.writeLine(password); err != nil {
+		return fmt.Errorf("gagal mengirim password: %w", err)
+	}
+
+	// 5. Wait for shell prompt (ZXAN> or ZXAN#)
+	out, err = s.readUntil(8*time.Second, ">", "#")
+	if err != nil {
+		return fmt.Errorf("gagal login ke ZTE OLT: %w (output: %s)", err, out)
+	}
+
+	// 6. If in user EXEC mode (>), enter privileged EXEC mode (enable)
+	if strings.Contains(out, ">") {
+		if err := s.writeLine("enable"); err != nil {
+			return err
+		}
+		res, err := s.readUntil(5*time.Second, "password:", "#")
+		if err == nil && strings.Contains(strings.ToLower(res), "password:") {
+			_ = s.writeLine(password)
+			_, _ = s.readUntil(5*time.Second, "#")
+		}
+	}
+
+	// 7. CRITICAL: disable pagination so output doesn't halt at --More--
+	_ = s.writeLine("terminal length 0")
+	_, _ = s.readUntil(4*time.Second, "#")
+
+	return nil
+}
+
+func (s *TelnetSession) executeCommand(cmd string, timeout time.Duration) (string, error) {
+	if err := s.writeLine(cmd); err != nil {
+		return "", fmt.Errorf("gagal mengirim command '%s': %w", cmd, err)
+	}
+	out, err := s.readUntil(timeout, "#")
+	if err != nil {
+		return out, fmt.Errorf("timeout membaca output command '%s': %w", cmd, err)
+	}
+	return out, nil
+}
+
+// TestConnection checks Telnet accessibility and returns basic card/version info.
+func (c *zteTelnetClient) TestConnection(ctx context.Context, host string, port int, username, password string) (string, error) {
+	lock := c.getHostLock(host)
+	lock.Lock()
+	defer lock.Unlock()
+
+	session, err := dialTelnet(ctx, host, port, 6*time.Second)
+	if err != nil {
+		return "", err
+	}
+	defer session.CloseWithLogout()
+
+	if err := session.login(username, password); err != nil {
+		return "", err
+	}
+
+	out, err := session.executeCommand("show version", 6*time.Second)
+	if err != nil {
+		// Fallback to show card if show version fails
+		out, err = session.executeCommand("show card", 6*time.Second)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	// Extract meaningful version string or card count
+	lines := strings.Split(out, "\n")
+	var summary string
+	for _, l := range lines {
+		lTrim := strings.TrimSpace(l)
+		if strings.Contains(strings.ToLower(lTrim), "zte") || strings.Contains(strings.ToLower(lTrim), "version") {
+			summary = lTrim
+			break
+		}
+	}
+	if summary == "" {
+		summary = "ZTE C320 Control System Active"
+	}
+
+	return fmt.Sprintf("Berhasil terhubung ke ZTE OLT via Telnet (%s:%d). %s", host, port, summary), nil
+}
+
+// GetUplinks retrieves detected line cards and uplink ports for ZTE C320.
+func (c *zteTelnetClient) GetUplinks(ctx context.Context, host string, port int, username, password string) (*domain.ZTEUplinksData, error) {
+	lock := c.getHostLock(host)
+	lock.Lock()
+	defer lock.Unlock()
+
+	session, err := dialTelnet(ctx, host, port, 6*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer session.CloseWithLogout()
+
+	if err := session.login(username, password); err != nil {
+		return nil, err
+	}
+
+	outCards, _ := session.executeCommand("show card", 8*time.Second)
+	outPorts, _ := session.executeCommand("show interface brief", 8*time.Second)
+
+	cards := parseZTECardsOutput(outCards)
+	ports := parseZTEPortsOutput(outPorts)
+
+	return &domain.ZTEUplinksData{
+		Cards: cards,
+		Ports: ports,
+	}, nil
+}
+
+// GetONUs retrieves ONUs on a specified board and PON port.
+func (c *zteTelnetClient) GetONUs(ctx context.Context, host string, port int, username, password string, board, pon int) ([]domain.ZTEONUInfo, error) {
+	cacheKey := fmt.Sprintf("%s:%d:%d", host, board, pon)
+
+	c.cacheMu.RLock()
+	item, found := c.cache[cacheKey]
+	c.cacheMu.RUnlock()
+	if found && time.Now().Before(item.expiresAt) {
+		return item.data, nil
+	}
+
+	lock := c.getHostLock(host)
+	lock.Lock()
+	defer lock.Unlock()
+
+	// Double check cache after acquiring lock
+	c.cacheMu.RLock()
+	item, found = c.cache[cacheKey]
+	c.cacheMu.RUnlock()
+	if found && time.Now().Before(item.expiresAt) {
+		return item.data, nil
+	}
+
+	session, err := dialTelnet(ctx, host, port, 6*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer session.CloseWithLogout()
+
+	if err := session.login(username, password); err != nil {
+		return nil, err
+	}
+
+	// 1. Fetch ONU state on specified PON (e.g. gpon-olt_1/1/1)
+	cmdState := fmt.Sprintf("show gpon onu state gpon-olt_1/%d/%d", board, pon)
+	outState, err := session.executeCommand(cmdState, 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Fetch ONU running configuration or baseinfo for names and serial numbers
+	cmdConfig := fmt.Sprintf("show running-config interface gpon-olt_1/%d/%d", board, pon)
+	outConfig, _ := session.executeCommand(cmdConfig, 8*time.Second)
+
+	cmdBase := fmt.Sprintf("show gpon onu baseinfo gpon-olt_1/%d/%d", board, pon)
+	outBase, _ := session.executeCommand(cmdBase, 8*time.Second)
+
+	onus := parseZTEONUs(board, pon, outState, outConfig, outBase)
+
+	// Cache results for 15 seconds
+	c.cacheMu.Lock()
+	c.cache[cacheKey] = cacheItem{
+		data:      onus,
+		expiresAt: time.Now().Add(15 * time.Second),
+	}
+	c.cacheMu.Unlock()
+
+	return onus, nil
+}
+
+// GetPaginatedONUs returns a paginated slice of ONUs.
+func (c *zteTelnetClient) GetPaginatedONUs(ctx context.Context, host string, port int, username, password string, board, pon int, page, limit int) (*domain.ZTEPaginatedONUs, error) {
+	allOnus, err := c.GetONUs(ctx, host, port, username, password, board, pon)
+	if err != nil {
+		return nil, err
+	}
+
+	total := len(allOnus)
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+
+	start := (page - 1) * limit
+	if start > total {
+		start = total
+	}
+	end := start + limit
+	if end > total {
+		end = total
+	}
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = (total + limit - 1) / limit
+	}
+
+	return &domain.ZTEPaginatedONUs{
+		Data: allOnus[start:end],
+		Meta: domain.ZTEPaginationMeta{
+			Page:      page,
+			Limit:     limit,
+			PageCount: totalPages,
+			TotalRows: total,
+		},
+	}, nil
+}
+
+// GetONUDetail retrieves detailed optical power and distance telemetry for a single ONU.
+func (c *zteTelnetClient) GetONUDetail(ctx context.Context, host string, port int, username, password string, board, pon, onuID int) (*domain.ZTEONUDetail, error) {
+	lock := c.getHostLock(host)
+	lock.Lock()
+	defer lock.Unlock()
+
+	session, err := dialTelnet(ctx, host, port, 6*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer session.CloseWithLogout()
+
+	if err := session.login(username, password); err != nil {
+		return nil, err
+	}
+
+	onuTarget := fmt.Sprintf("gpon-onu_1/%d/%d:%d", board, pon, onuID)
+
+	// 1. Optical attenuation (Rx/Tx Power)
+	cmdPower := fmt.Sprintf("show pon power attenuation %s", onuTarget)
+	outPower, _ := session.executeCommand(cmdPower, 6*time.Second)
+
+	// 2. Optical distance
+	cmdDist := fmt.Sprintf("show gpon optical-distance %s", onuTarget)
+	outDist, _ := session.executeCommand(cmdDist, 6*time.Second)
+
+	// 3. ONU detail info & state
+	cmdDetail := fmt.Sprintf("show gpon onu detail-info %s", onuTarget)
+	outDetail, _ := session.executeCommand(cmdDetail, 6*time.Second)
+
+	detail := parseZTEONUDetailOutput(board, pon, onuID, outPower, outDist, outDetail)
+	return detail, nil
+}
+
+// GetEmptyONUIDs calculates unallocated ONU IDs (1 to 128) on a PON port.
+func (c *zteTelnetClient) GetEmptyONUIDs(ctx context.Context, host string, port int, username, password string, board, pon int) ([]int, error) {
+	onus, err := c.GetONUs(ctx, host, port, username, password, board, pon)
+	if err != nil {
+		return nil, err
+	}
+
+	used := make(map[int]bool)
+	for _, o := range onus {
+		used[o.ONUID] = true
+	}
+
+	var emptyIDs []int
+	for id := 1; id <= 128; id++ {
+		if !used[id] {
+			emptyIDs = append(emptyIDs, id)
+		}
+	}
+	return emptyIDs, nil
+}
+
+// ===== PARSERS =====
+
+func parseZTECardsOutput(output string) []domain.ZTECardInfo {
+	var cards []domain.ZTECardInfo
+	lines := strings.Split(output, "\n")
+	// Header: Rack Shelf Slot CfgType RealType Port HardVer SoftVer Status
+	// Row:    1    1     1    GTGH    GTGHG    16   120400  V1.2.5P3 INSERVICE
+	re := regexp.MustCompile(`^\s*(\d+)\s+(\d+)\s+(\d+)\s+([A-Za-z0-9_-]+)\s+([A-Za-z0-9_-]+)\s+(\d+)`)
+	for _, line := range lines {
+		m := re.FindStringSubmatch(strings.TrimSpace(line))
+		if len(m) >= 7 {
+			slot, _ := strconv.Atoi(m[3])
+			cardType := m[4]
+			role := "Line Card"
+			if strings.Contains(strings.ToUpper(cardType), "SMX") || strings.Contains(strings.ToUpper(cardType), "SCX") {
+				role = "Control & Switch Card"
+			}
+			cards = append(cards, domain.ZTECardInfo{
+				Slot: slot,
+				Type: cardType,
+				Role: role,
+			})
+		}
+	}
+	return cards
+}
+
+func parseZTEPortsOutput(output string) []domain.ZTEPortInfo {
+	var ports []domain.ZTEPortInfo
+	lines := strings.Split(output, "\n")
+	// Match port patterns like gei_1/3/1, xgei_1/4/1, etc.
+	re := regexp.MustCompile(`([a-z0-9_]+_1/(\d+)/(\d+))\s+([a-z]+)\s+([a-z]+)`)
+	for _, line := range lines {
+		m := re.FindStringSubmatch(strings.ToLower(strings.TrimSpace(line)))
+		if len(m) >= 6 {
+			slot, _ := strconv.Atoi(m[2])
+			portNum, _ := strconv.Atoi(m[3])
+			admin := m[4]
+			oper := m[5]
+			kind := "GE"
+			speed := 1000
+			if strings.Contains(m[1], "xgei") {
+				kind = "10GE"
+				speed = 10000
+			}
+			ports = append(ports, domain.ZTEPortInfo{
+				Name:        m[1],
+				Shelf:       1,
+				Slot:        slot,
+				Port:        portNum,
+				Kind:        kind,
+				AdminStatus: admin,
+				OperStatus:  oper,
+				SpeedMbps:   speed,
+			})
+		}
+	}
+	return ports
+}
+
+func parseZTEONUs(board, pon int, outState, outConfig, outBase string) []domain.ZTEONUInfo {
+	onusMap := make(map[int]*domain.ZTEONUInfo)
+
+	// 1. Parse show gpon onu state:
+	// Format: gpon-onu_1/1/1:1   enable  enable  working  1
+	// or:     gpon-onu_1/1/1:2   enable  enable  los      1
+	reState := regexp.MustCompile(`gpon-onu_1/\d+/\d+:(\d+)\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)`)
+	for _, line := range strings.Split(outState, "\n") {
+		m := reState.FindStringSubmatch(strings.TrimSpace(line))
+		if len(m) >= 5 {
+			id, _ := strconv.Atoi(m[1])
+			phaseState := strings.ToLower(m[4])
+			status := "Offline"
+			if phaseState == "working" || phaseState == "online" {
+				status = "Online"
+			}
+			onusMap[id] = &domain.ZTEONUInfo{
+				Board:   board,
+				PON:     pon,
+				ONUID:   id,
+				Status:  status,
+				ONUType: "GPON",
+			}
+		}
+	}
+
+	// 2. Parse show running-config interface gpon-olt_1/x/y:
+	// Matches:
+	//   onu 1 type ZTE-F660 sn ZTEGC1234567
+	//   onu 1 name CustomerName
+	reTypeSN := regexp.MustCompile(`onu\s+(\d+)\s+type\s+([^\s]+)\s+sn\s+([^\s]+)`)
+	reName := regexp.MustCompile(`onu\s+(\d+)\s+name\s+([^\r\n]+)`)
+
+	for _, line := range strings.Split(outConfig, "\n") {
+		line = strings.TrimSpace(line)
+		if m := reTypeSN.FindStringSubmatch(line); len(m) >= 4 {
+			id, _ := strconv.Atoi(m[1])
+			if onu, ok := onusMap[id]; ok {
+				onu.ONUType = m[2]
+				onu.SerialNumber = m[3]
+			} else {
+				onusMap[id] = &domain.ZTEONUInfo{
+					Board:        board,
+					PON:          pon,
+					ONUID:        id,
+					Status:       "Offline",
+					ONUType:      m[2],
+					SerialNumber: m[3],
+				}
+			}
+		}
+		if m := reName.FindStringSubmatch(line); len(m) >= 3 {
+			id, _ := strconv.Atoi(m[1])
+			if onu, ok := onusMap[id]; ok {
+				onu.Name = strings.TrimSpace(m[2])
+			}
+		}
+	}
+
+	// 3. Fallback parse show gpon onu baseinfo if serial number is missing:
+	// Format: gpon-onu_1/1/1:1  ZTEG-F660  ZTEGC1234567  ready
+	reBase := regexp.MustCompile(`gpon-onu_1/\d+/\d+:(\d+)\s+([^\s]+)\s+([^\s]+)`)
+	for _, line := range strings.Split(outBase, "\n") {
+		m := reBase.FindStringSubmatch(strings.TrimSpace(line))
+		if len(m) >= 4 {
+			id, _ := strconv.Atoi(m[1])
+			if onu, ok := onusMap[id]; ok {
+				if onu.ONUType == "" || onu.ONUType == "GPON" {
+					onu.ONUType = m[2]
+				}
+				if onu.SerialNumber == "" {
+					onu.SerialNumber = m[3]
+				}
+			}
+		}
+	}
+
+	// Flatten map to sorted slice
+	var result []domain.ZTEONUInfo
+	for id := 1; id <= 128; id++ {
+		if onu, ok := onusMap[id]; ok {
+			result = append(result, *onu)
+		}
+	}
+	return result
+}
+
+func parseZTEONUDetailOutput(board, pon, onuID int, outPower, outDist, outDetail string) *domain.ZTEONUDetail {
+	detail := &domain.ZTEONUDetail{
+		Board:         board,
+		PON:           pon,
+		ONUID:         onuID,
+		Status:        "Offline",
+		OfflineReason: "Normal / Tidak Ada Error",
+	}
+
+	// 1. Parse optical power attenuation:
+	// Output format:
+	//               OLT Rx(dBm)        ONU Rx(dBm)
+	// -------------------------------------------------------------
+	// up            -21.432            -
+	// down          -                  -22.150
+	reDown := regexp.MustCompile(`down\s+([-\d.]+|-)\s+([-\d.]+)`)
+	if m := reDown.FindStringSubmatch(outPower); len(m) >= 3 {
+		if val, err := strconv.ParseFloat(m[2], 64); err == nil {
+			detail.RxPower = fmt.Sprintf("%.2f dBm", val)
+		} else {
+			detail.RxPower = m[2] + " dBm"
+		}
+	} else {
+		// Single pattern match: ONU Rx: -22.15
+		reRx := regexp.MustCompile(`(?:onu\s*rx|rx\s*power)[^\r\n:]*:\s*([-\d.]+)`)
+		if m := reRx.FindStringSubmatch(strings.ToLower(outPower)); len(m) >= 2 {
+			detail.RxPower = m[1] + " dBm"
+		}
+	}
+
+	reUp := regexp.MustCompile(`up\s+([-\d.]+)\s+([-\d.]+|-)`)
+	if m := reUp.FindStringSubmatch(outPower); len(m) >= 2 && m[1] != "-" {
+		if val, err := strconv.ParseFloat(m[1], 64); err == nil {
+			detail.TxPower = fmt.Sprintf("%.2f dBm", val)
+		} else {
+			detail.TxPower = m[1] + " dBm"
+		}
+	}
+
+	// 2. Parse optical distance:
+	// Output: Distance: 1420m or 1420 m
+	reDist := regexp.MustCompile(`(?i)(?:distance|dist)[^\d]*(\d+)\s*m`)
+	if m := reDist.FindStringSubmatch(outDist); len(m) >= 2 {
+		detail.GponOpticalDistance = m[1]
+	}
+
+	// 3. Parse detail info: Name, SN, Model, State
+	for _, line := range strings.Split(outDetail, "\n") {
+		l := strings.TrimSpace(line)
+		lLow := strings.ToLower(l)
+		if strings.HasPrefix(lLow, "name:") {
+			detail.Name = strings.TrimSpace(strings.TrimPrefix(l, "Name:"))
+		} else if strings.HasPrefix(lLow, "sn:") || strings.HasPrefix(lLow, "serial number:") {
+			detail.SerialNumber = strings.TrimSpace(strings.Split(l, ":")[1])
+		} else if strings.HasPrefix(lLow, "type:") || strings.HasPrefix(lLow, "model:") {
+			detail.ONUType = strings.TrimSpace(strings.Split(l, ":")[1])
+		} else if strings.HasPrefix(lLow, "phase state:") || strings.HasPrefix(lLow, "state:") {
+			st := strings.ToLower(strings.TrimSpace(strings.Split(l, ":")[1]))
+			if st == "working" || st == "online" {
+				detail.Status = "Online"
+			} else {
+				detail.Status = "Offline"
+				if strings.Contains(st, "los") {
+					detail.OfflineReason = "LOS (Kabel Optik Putus / Signal Loss)"
+				} else if strings.Contains(st, "dyinggasp") {
+					detail.OfflineReason = "Dying Gasp (Modem Mati Listrik / Power Off)"
+				} else {
+					detail.OfflineReason = "State: " + st
+				}
+			}
+		}
+	}
+
+	return detail
+}

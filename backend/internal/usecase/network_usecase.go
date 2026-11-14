@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"billing-backend/pkg/mikrotik"
 	"billing-backend/pkg/utils"
 	"billing-backend/pkg/zteclient"
+	"billing-backend/pkg/ztetelnet"
 )
 
 type mikrotikUsecase struct {
@@ -142,14 +144,16 @@ func (u *mikrotikUsecase) TestConnection(ctx context.Context, id uint64) (map[st
 type oltUsecase struct {
 	oltRepo    domain.OLTRepository
 	zteClient  zteclient.Client
+	zteTelnet  ztetelnet.Client
 	hsgqClient hsgqclient.Client
 }
 
-func NewOLTUsecase(repo domain.OLTRepository, zteClient zteclient.Client, hsgqClient hsgqclient.Client) domain.OLTUsecase {
+func NewOLTUsecase(repo domain.OLTRepository, zteClient zteclient.Client, hsgqClient hsgqclient.Client, zteTelnet ztetelnet.Client) domain.OLTUsecase {
 	return &oltUsecase{
 		oltRepo:    repo,
 		zteClient:  zteClient,
 		hsgqClient: hsgqClient,
+		zteTelnet:  zteTelnet,
 	}
 }
 
@@ -175,6 +179,18 @@ func (u *oltUsecase) isZTE(olt *domain.OLT) bool {
 	}
 	name := strings.ToLower(olt.NamaOlt)
 	return strings.Contains(name, "pinus") || strings.Contains(name, "pulogebang") || strings.Contains(name, "tipar")
+}
+
+func (u *oltUsecase) getZTECredentials(olt *domain.OLT) (string, string) {
+	username := ""
+	if olt != nil && olt.Username != nil && *olt.Username != "" {
+		username = *olt.Username
+	}
+	password := ""
+	if olt != nil && olt.Password != nil {
+		password = *olt.Password
+	}
+	return username, password
 }
 
 func (u *oltUsecase) isHSGQ(olt *domain.OLT) bool {
@@ -254,13 +270,24 @@ func (u *oltUsecase) TestConnection(ctx context.Context, id uint64) (string, err
 		return u.hsgqClient.TestConnection(ctx, olt.IPAddress, 23, username, password)
 	}
 
-	if u.zteClient != nil && u.isZTE(olt) {
-		oltID := u.getZTEOltID(olt)
-		uplinks, err := u.zteClient.GetUplinks(ctx, oltID)
-		if err != nil {
-			return "", fmt.Errorf("gagal terhubung ke SNMP ZTE OLT %s (%s): %w", olt.NamaOlt, olt.IPAddress, err)
+	if u.isZTE(olt) {
+		username, password := u.getZTECredentials(olt)
+		if u.zteTelnet != nil && username != "" {
+			res, err := u.zteTelnet.TestConnection(ctx, olt.IPAddress, 23, username, password)
+			if err == nil {
+				return res, nil
+			}
+			log.Printf("[ZTE OLT] Telnet test connection failed for %s (%s): %v. Trying SNMP gateway...", olt.NamaOlt, olt.IPAddress, err)
 		}
-		return fmt.Sprintf("Berhasil terhubung ke ZTE OLT %s (%s). Terdeteksi %d kartu dan %d port uplink", olt.NamaOlt, olt.IPAddress, len(uplinks.Cards), len(uplinks.Ports)), nil
+
+		if u.zteClient != nil {
+			oltID := u.getZTEOltID(olt)
+			uplinks, err := u.zteClient.GetUplinks(ctx, oltID)
+			if err != nil {
+				return "", fmt.Errorf("gagal terhubung ke ZTE OLT %s (%s): %w", olt.NamaOlt, olt.IPAddress, err)
+			}
+			return fmt.Sprintf("Berhasil terhubung ke ZTE OLT %s (%s) via SNMP Gateway. Terdeteksi %d kartu dan %d port uplink", olt.NamaOlt, olt.IPAddress, len(uplinks.Cards), len(uplinks.Ports)), nil
+		}
 	}
 
 	return fmt.Sprintf("Successfully connected to OLT %s at %s", olt.NamaOlt, olt.IPAddress), nil
@@ -278,6 +305,21 @@ func (u *oltUsecase) GetUplinks(ctx context.Context, id uint64) (*domain.ZTEUpli
 		}
 		username, password := u.getHSGQCredentials(olt)
 		return u.hsgqClient.GetUplinks(ctx, olt.IPAddress, 23, username, password)
+	}
+
+	if u.isZTE(olt) {
+		username, password := u.getZTECredentials(olt)
+		if u.zteTelnet != nil && username != "" {
+			data, err := u.zteTelnet.GetUplinks(ctx, olt.IPAddress, 23, username, password)
+			if err == nil && data != nil && (len(data.Cards) > 0 || len(data.Ports) > 0) {
+				return data, nil
+			}
+			log.Printf("[ZTE OLT] Telnet GetUplinks failed for %s (%s): %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, err)
+		}
+		if u.zteClient != nil {
+			return u.zteClient.GetUplinks(ctx, u.getZTEOltID(olt))
+		}
+		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
 
 	if u.zteClient == nil {
@@ -300,6 +342,21 @@ func (u *oltUsecase) GetONUs(ctx context.Context, id uint64, board int, pon int)
 		return u.hsgqClient.GetONUs(ctx, olt.IPAddress, 23, username, password, pon)
 	}
 
+	if u.isZTE(olt) {
+		username, password := u.getZTECredentials(olt)
+		if u.zteTelnet != nil && username != "" {
+			data, err := u.zteTelnet.GetONUs(ctx, olt.IPAddress, 23, username, password, board, pon)
+			if err == nil {
+				return data, nil
+			}
+			log.Printf("[ZTE OLT] Telnet GetONUs failed for %s (%s) board %d pon %d: %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, board, pon, err)
+		}
+		if u.zteClient != nil {
+			return u.zteClient.GetONUs(ctx, u.getZTEOltID(olt), board, pon)
+		}
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+
 	if u.zteClient == nil {
 		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
@@ -318,6 +375,21 @@ func (u *oltUsecase) GetPaginatedONUs(ctx context.Context, id uint64, board int,
 		}
 		username, password := u.getHSGQCredentials(olt)
 		return u.hsgqClient.GetPaginatedONUs(ctx, olt.IPAddress, 23, username, password, pon, page, limit)
+	}
+
+	if u.isZTE(olt) {
+		username, password := u.getZTECredentials(olt)
+		if u.zteTelnet != nil && username != "" {
+			data, err := u.zteTelnet.GetPaginatedONUs(ctx, olt.IPAddress, 23, username, password, board, pon, page, limit)
+			if err == nil {
+				return data, nil
+			}
+			log.Printf("[ZTE OLT] Telnet GetPaginatedONUs failed for %s (%s): %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, err)
+		}
+		if u.zteClient != nil {
+			return u.zteClient.GetPaginatedONUs(ctx, u.getZTEOltID(olt), board, pon, page, limit)
+		}
+		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
 
 	if u.zteClient == nil {
@@ -340,6 +412,21 @@ func (u *oltUsecase) GetONUDetail(ctx context.Context, id uint64, board int, pon
 		return u.hsgqClient.GetONUDetail(ctx, olt.IPAddress, 23, username, password, pon, onuID)
 	}
 
+	if u.isZTE(olt) {
+		username, password := u.getZTECredentials(olt)
+		if u.zteTelnet != nil && username != "" {
+			data, err := u.zteTelnet.GetONUDetail(ctx, olt.IPAddress, 23, username, password, board, pon, onuID)
+			if err == nil && data != nil && (data.RxPower != "" || data.Name != "") {
+				return data, nil
+			}
+			log.Printf("[ZTE OLT] Telnet GetONUDetail failed for %s (%s) onu %d: %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, onuID, err)
+		}
+		if u.zteClient != nil {
+			return u.zteClient.GetONUDetail(ctx, u.getZTEOltID(olt), board, pon, onuID)
+		}
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+
 	if u.zteClient == nil {
 		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
@@ -358,6 +445,21 @@ func (u *oltUsecase) GetEmptyONUIDs(ctx context.Context, id uint64, board int, p
 		}
 		username, password := u.getHSGQCredentials(olt)
 		return u.hsgqClient.GetEmptyONUIDs(ctx, olt.IPAddress, 23, username, password, pon)
+	}
+
+	if u.isZTE(olt) {
+		username, password := u.getZTECredentials(olt)
+		if u.zteTelnet != nil && username != "" {
+			data, err := u.zteTelnet.GetEmptyONUIDs(ctx, olt.IPAddress, 23, username, password, board, pon)
+			if err == nil {
+				return data, nil
+			}
+			log.Printf("[ZTE OLT] Telnet GetEmptyONUIDs failed for %s (%s): %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, err)
+		}
+		if u.zteClient != nil {
+			return u.zteClient.GetEmptyONUIDs(ctx, u.getZTEOltID(olt), board, pon)
+		}
+		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
 
 	if u.zteClient == nil {
@@ -391,6 +493,28 @@ func (u *oltUsecase) GetONUSerials(ctx context.Context, id uint64, board int, po
 		return serials, nil
 	}
 
+	if u.isZTE(olt) {
+		username, password := u.getZTECredentials(olt)
+		if u.zteTelnet != nil && username != "" {
+			onus, err := u.zteTelnet.GetONUs(ctx, olt.IPAddress, 23, username, password, board, pon)
+			if err == nil {
+				var serials []domain.ONUSerialInfo
+				for _, o := range onus {
+					serials = append(serials, domain.ONUSerialInfo{
+						ONUID:        o.ONUID,
+						SerialNumber: o.SerialNumber,
+					})
+				}
+				return serials, nil
+			}
+			log.Printf("[ZTE OLT] Telnet GetONUSerials failed for %s (%s): %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, err)
+		}
+		if u.zteClient != nil {
+			return u.zteClient.GetONUSerials(ctx, u.getZTEOltID(olt), board, pon, noCache)
+		}
+		return nil, errors.New("ZTE OLT client service is not initialized")
+	}
+
 	if u.zteClient == nil {
 		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
@@ -406,6 +530,16 @@ func (u *oltUsecase) ClearCache(ctx context.Context, id uint64, board int, pon i
 	if u.isHSGQ(olt) {
 		if u.hsgqClient != nil {
 			u.hsgqClient.ClearCache(olt.IPAddress)
+		}
+		return nil
+	}
+
+	if u.isZTE(olt) {
+		if u.zteTelnet != nil {
+			u.zteTelnet.ClearCache(olt.IPAddress)
+		}
+		if u.zteClient != nil {
+			_ = u.zteClient.ClearCache(ctx, u.getZTEOltID(olt), board, pon)
 		}
 		return nil
 	}
