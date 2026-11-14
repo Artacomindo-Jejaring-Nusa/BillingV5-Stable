@@ -328,39 +328,144 @@ func (u *oltUsecase) GetUplinks(ctx context.Context, id uint64) (*domain.ZTEUpli
 	return u.zteClient.GetUplinks(ctx, u.getZTEOltID(olt))
 }
 
+func normalizeDeviceIdentifier(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = strings.ReplaceAll(s, ":", "")
+	s = strings.ReplaceAll(s, "-", "")
+	s = strings.ReplaceAll(s, " ", "")
+	return s
+}
+
+func (u *oltUsecase) enrichONUList(ctx context.Context, onus []domain.ZTEONUInfo) []domain.ZTEONUInfo {
+	if len(onus) == 0 {
+		return onus
+	}
+
+	snMap, allList, err := u.oltRepo.GetCustomerDeviceInfoMap(ctx)
+	if err != nil || (len(snMap) == 0 && len(allList) == 0) {
+		return onus
+	}
+
+	for i := range onus {
+		normSN := normalizeDeviceIdentifier(onus[i].SerialNumber)
+		// 1. Try matching by Serial Number / MAC
+		if normSN != "" {
+			if match, ok := snMap[normSN]; ok {
+				if match.Nama != "" {
+					onus[i].CustomerName = match.Nama
+				}
+				if match.IDPelanggan != "" && (len(onus[i].Name) <= 12 || strings.HasPrefix(strings.ToLower(match.IDPelanggan), strings.ToLower(onus[i].Name))) {
+					onus[i].Name = match.IDPelanggan
+				}
+				continue
+			}
+		}
+
+		// 2. Fallback: match by prefix of ID Pelanggan if Name has 5+ chars
+		rawName := strings.TrimSpace(onus[i].Name)
+		if len(rawName) >= 5 {
+			rawNameLower := strings.ToLower(rawName)
+			for _, item := range allList {
+				idLower := strings.ToLower(item.IDPelanggan)
+				if idLower == rawNameLower || strings.HasPrefix(idLower, rawNameLower) {
+					if item.IDPelanggan != "" {
+						onus[i].Name = item.IDPelanggan
+					}
+					if item.Nama != "" {
+						onus[i].CustomerName = item.Nama
+					}
+					break
+				}
+			}
+		}
+	}
+	return onus
+}
+
+func (u *oltUsecase) enrichONUDetail(ctx context.Context, detail *domain.ZTEONUDetail) *domain.ZTEONUDetail {
+	if detail == nil {
+		return nil
+	}
+
+	snMap, allList, err := u.oltRepo.GetCustomerDeviceInfoMap(ctx)
+	if err != nil || (len(snMap) == 0 && len(allList) == 0) {
+		return detail
+	}
+
+	normSN := normalizeDeviceIdentifier(detail.SerialNumber)
+	if normSN != "" {
+		if match, ok := snMap[normSN]; ok {
+			if match.Nama != "" && detail.CustomerName == "" {
+				detail.CustomerName = match.Nama
+			}
+			if match.IDPelanggan != "" && (len(detail.Name) <= 12 || strings.HasPrefix(strings.ToLower(match.IDPelanggan), strings.ToLower(detail.Name))) {
+				detail.Name = match.IDPelanggan
+			}
+			return detail
+		}
+	}
+
+	rawName := strings.TrimSpace(detail.Name)
+	if len(rawName) >= 5 {
+		rawNameLower := strings.ToLower(rawName)
+		for _, item := range allList {
+			idLower := strings.ToLower(item.IDPelanggan)
+			if idLower == rawNameLower || strings.HasPrefix(idLower, rawNameLower) {
+				if item.IDPelanggan != "" {
+					detail.Name = item.IDPelanggan
+				}
+				if item.Nama != "" && detail.CustomerName == "" {
+					detail.CustomerName = item.Nama
+				}
+				break
+			}
+		}
+	}
+	return detail
+}
+
 func (u *oltUsecase) GetONUs(ctx context.Context, id uint64, board int, pon int) ([]domain.ZTEONUInfo, error) {
 	olt, err := u.oltRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
+	var data []domain.ZTEONUInfo
 	if u.isHSGQ(olt) {
 		if u.hsgqClient == nil {
 			return nil, errors.New("HSGQ OLT client service is not initialized")
 		}
 		username, password := u.getHSGQCredentials(olt)
-		return u.hsgqClient.GetONUs(ctx, olt.IPAddress, 23, username, password, pon)
-	}
-
-	if u.isZTE(olt) {
+		data, err = u.hsgqClient.GetONUs(ctx, olt.IPAddress, 23, username, password, pon)
+	} else if u.isZTE(olt) {
 		username, password := u.getZTECredentials(olt)
 		if u.zteTelnet != nil && username != "" {
-			data, err := u.zteTelnet.GetONUs(ctx, olt.IPAddress, 23, username, password, board, pon)
-			if err == nil {
-				return data, nil
+			tData, tErr := u.zteTelnet.GetONUs(ctx, olt.IPAddress, 23, username, password, board, pon)
+			if tErr == nil {
+				data = tData
+			} else {
+				log.Printf("[ZTE OLT] Telnet GetONUs failed for %s (%s) board %d pon %d: %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, board, pon, tErr)
 			}
-			log.Printf("[ZTE OLT] Telnet GetONUs failed for %s (%s) board %d pon %d: %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, board, pon, err)
 		}
-		if u.zteClient != nil {
-			return u.zteClient.GetONUs(ctx, u.getZTEOltID(olt), board, pon)
+		if data == nil {
+			if u.zteClient != nil {
+				data, err = u.zteClient.GetONUs(ctx, u.getZTEOltID(olt), board, pon)
+			} else {
+				return nil, errors.New("ZTE OLT client service is not initialized")
+			}
 		}
-		return nil, errors.New("ZTE OLT client service is not initialized")
+	} else {
+		if u.zteClient == nil {
+			return nil, errors.New("ZTE OLT client service is not initialized")
+		}
+		data, err = u.zteClient.GetONUs(ctx, u.getZTEOltID(olt), board, pon)
 	}
 
-	if u.zteClient == nil {
-		return nil, errors.New("ZTE OLT client service is not initialized")
+	if err != nil {
+		return nil, err
 	}
-	return u.zteClient.GetONUs(ctx, u.getZTEOltID(olt), board, pon)
+
+	return u.enrichONUList(ctx, data), nil
 }
 
 func (u *oltUsecase) GetPaginatedONUs(ctx context.Context, id uint64, board int, pon int, page int, limit int) (*domain.ZTEPaginatedONUs, error) {
@@ -369,33 +474,46 @@ func (u *oltUsecase) GetPaginatedONUs(ctx context.Context, id uint64, board int,
 		return nil, err
 	}
 
+	var paginated *domain.ZTEPaginatedONUs
 	if u.isHSGQ(olt) {
 		if u.hsgqClient == nil {
 			return nil, errors.New("HSGQ OLT client service is not initialized")
 		}
 		username, password := u.getHSGQCredentials(olt)
-		return u.hsgqClient.GetPaginatedONUs(ctx, olt.IPAddress, 23, username, password, pon, page, limit)
-	}
-
-	if u.isZTE(olt) {
+		paginated, err = u.hsgqClient.GetPaginatedONUs(ctx, olt.IPAddress, 23, username, password, pon, page, limit)
+	} else if u.isZTE(olt) {
 		username, password := u.getZTECredentials(olt)
 		if u.zteTelnet != nil && username != "" {
-			data, err := u.zteTelnet.GetPaginatedONUs(ctx, olt.IPAddress, 23, username, password, board, pon, page, limit)
-			if err == nil {
-				return data, nil
+			tData, tErr := u.zteTelnet.GetPaginatedONUs(ctx, olt.IPAddress, 23, username, password, board, pon, page, limit)
+			if tErr == nil {
+				paginated = tData
+			} else {
+				log.Printf("[ZTE OLT] Telnet GetPaginatedONUs failed for %s (%s): %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, tErr)
 			}
-			log.Printf("[ZTE OLT] Telnet GetPaginatedONUs failed for %s (%s): %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, err)
 		}
-		if u.zteClient != nil {
-			return u.zteClient.GetPaginatedONUs(ctx, u.getZTEOltID(olt), board, pon, page, limit)
+		if paginated == nil {
+			if u.zteClient != nil {
+				paginated, err = u.zteClient.GetPaginatedONUs(ctx, u.getZTEOltID(olt), board, pon, page, limit)
+			} else {
+				return nil, errors.New("ZTE OLT client service is not initialized")
+			}
 		}
-		return nil, errors.New("ZTE OLT client service is not initialized")
+	} else {
+		if u.zteClient == nil {
+			return nil, errors.New("ZTE OLT client service is not initialized")
+		}
+		paginated, err = u.zteClient.GetPaginatedONUs(ctx, u.getZTEOltID(olt), board, pon, page, limit)
 	}
 
-	if u.zteClient == nil {
-		return nil, errors.New("ZTE OLT client service is not initialized")
+	if err != nil {
+		return nil, err
 	}
-	return u.zteClient.GetPaginatedONUs(ctx, u.getZTEOltID(olt), board, pon, page, limit)
+
+	if paginated != nil && len(paginated.Data) > 0 {
+		paginated.Data = u.enrichONUList(ctx, paginated.Data)
+	}
+
+	return paginated, nil
 }
 
 func (u *oltUsecase) GetONUDetail(ctx context.Context, id uint64, board int, pon int, onuID int) (*domain.ZTEONUDetail, error) {
@@ -404,33 +522,42 @@ func (u *oltUsecase) GetONUDetail(ctx context.Context, id uint64, board int, pon
 		return nil, err
 	}
 
+	var detail *domain.ZTEONUDetail
 	if u.isHSGQ(olt) {
 		if u.hsgqClient == nil {
 			return nil, errors.New("HSGQ OLT client service is not initialized")
 		}
 		username, password := u.getHSGQCredentials(olt)
-		return u.hsgqClient.GetONUDetail(ctx, olt.IPAddress, 23, username, password, pon, onuID)
-	}
-
-	if u.isZTE(olt) {
+		detail, err = u.hsgqClient.GetONUDetail(ctx, olt.IPAddress, 23, username, password, pon, onuID)
+	} else if u.isZTE(olt) {
 		username, password := u.getZTECredentials(olt)
 		if u.zteTelnet != nil && username != "" {
-			data, err := u.zteTelnet.GetONUDetail(ctx, olt.IPAddress, 23, username, password, board, pon, onuID)
-			if err == nil && data != nil && (data.RxPower != "" || data.Name != "") {
-				return data, nil
+			tData, tErr := u.zteTelnet.GetONUDetail(ctx, olt.IPAddress, 23, username, password, board, pon, onuID)
+			if tErr == nil && tData != nil && (tData.RxPower != "" || tData.Name != "") {
+				detail = tData
+			} else {
+				log.Printf("[ZTE OLT] Telnet GetONUDetail failed for %s (%s) onu %d: %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, onuID, tErr)
 			}
-			log.Printf("[ZTE OLT] Telnet GetONUDetail failed for %s (%s) onu %d: %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, onuID, err)
 		}
-		if u.zteClient != nil {
-			return u.zteClient.GetONUDetail(ctx, u.getZTEOltID(olt), board, pon, onuID)
+		if detail == nil {
+			if u.zteClient != nil {
+				detail, err = u.zteClient.GetONUDetail(ctx, u.getZTEOltID(olt), board, pon, onuID)
+			} else {
+				return nil, errors.New("ZTE OLT client service is not initialized")
+			}
 		}
-		return nil, errors.New("ZTE OLT client service is not initialized")
+	} else {
+		if u.zteClient == nil {
+			return nil, errors.New("ZTE OLT client service is not initialized")
+		}
+		detail, err = u.zteClient.GetONUDetail(ctx, u.getZTEOltID(olt), board, pon, onuID)
 	}
 
-	if u.zteClient == nil {
-		return nil, errors.New("ZTE OLT client service is not initialized")
+	if err != nil {
+		return nil, err
 	}
-	return u.zteClient.GetONUDetail(ctx, u.getZTEOltID(olt), board, pon, onuID)
+
+	return u.enrichONUDetail(ctx, detail), nil
 }
 
 func (u *oltUsecase) GetEmptyONUIDs(ctx context.Context, id uint64, board int, pon int) ([]int, error) {

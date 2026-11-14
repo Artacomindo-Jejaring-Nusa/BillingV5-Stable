@@ -100,6 +100,13 @@ type BulkSyncItem struct {
 	Status      string `json:"status"`
 }
 
+// CustomerDeviceInfo represents mapping data between customer, PPPoE username, and device SN/MAC.
+type CustomerDeviceInfo struct {
+	IDPelanggan string `json:"id_pelanggan"`
+	Nama        string `json:"nama"`
+	SN          string `json:"sn"`
+}
+
 // OLTRepository defines database operations for OLT
 type OLTRepository interface {
 	GetAll(ctx context.Context) ([]OLT, error)
@@ -107,6 +114,7 @@ type OLTRepository interface {
 	Create(ctx context.Context, olt *OLT) error
 	Update(ctx context.Context, olt *OLT) error
 	Delete(ctx context.Context, id uint64) error
+	GetCustomerDeviceInfoMap(ctx context.Context) (map[string]CustomerDeviceInfo, []CustomerDeviceInfo, error)
 }
 
 // OLTUsecase defines business logic for OLT

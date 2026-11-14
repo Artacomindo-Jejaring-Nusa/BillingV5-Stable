@@ -159,10 +159,10 @@
             </div>
           </v-card-text>
 
-          <!-- Card Actions -->
-          <div class="pa-3 pt-0 d-flex gap-2">
+          <!-- Card Actions with Clean Separation -->
+          <div class="card-footer-actions pa-3 pt-0">
             <v-btn
-              height="36"
+              height="38"
               rounded="lg"
               variant="flat"
               class="flex-grow-1 font-weight-bold text-none btn-explorer"
@@ -173,13 +173,13 @@
               PON Explorer
             </v-btn>
             <v-btn
-              height="36"
+              height="38"
               rounded="lg"
               :loading="testingConnectionId === item.id"
               @click="testConnection(item)"
               :color="connectionStatus[item.id] ? 'success' : 'default'"
               :variant="connectionStatus[item.id] ? 'flat' : 'outlined'"
-              class="font-weight-medium text-none"
+              class="btn-test-action font-weight-medium text-none"
               elevation="0"
             >
               <v-icon :icon="connectionStatus[item.id] ? 'mdi-check-circle' : 'mdi-connection'" size="16" class="me-1"></v-icon>
@@ -359,47 +359,55 @@
     </v-dialog>
 
     <!-- ===== DIALOG PON EXPLORER & TELEMETRY LIVE ===== -->
-    <v-dialog v-model="dialogExplorer" max-width="1100px" scrollable transition="dialog-bottom-transition">
+    <v-dialog v-model="dialogExplorer" max-width="1420px" width="95vw" scrollable transition="dialog-bottom-transition">
       <v-card rounded="xl" class="overflow-hidden border">
-        <!-- Explorer Header -->
-        <div class="pa-4 px-5 bg-white d-flex align-center justify-space-between border-b">
-          <div class="d-flex align-center">
-            <div class="dialog-icon-box box-slate me-3">
-              <v-icon size="22" color="slate-800">mdi-lan-connect</v-icon>
-            </div>
-            <div>
-              <div class="d-flex align-center gap-2">
-                <h2 class="text-subtitle-1 font-weight-bold text-slate-900 mb-0">{{ activeOlt?.nama_olt }}</h2>
-                <v-chip size="x-small" :color="isHSGQ ? 'teal-darken-1' : 'indigo-darken-1'" variant="tonal" class="font-weight-bold">
-                  {{ activeOlt?.tipe_olt }}
-                </v-chip>
+        <!-- Explorer Header (Opaque solid white with z-index) -->
+        <div class="explorer-modal-top bg-white border-b" style="background-color: #ffffff !important; position: relative; z-index: 30;">
+          <div class="pa-4 px-5 d-flex align-center justify-space-between">
+            <div class="d-flex align-center">
+              <div class="dialog-icon-box box-slate me-3">
+                <v-icon size="22" color="slate-800">mdi-lan-connect</v-icon>
               </div>
-              <p class="text-caption text-slate-500 mb-0 font-mono">
-                IP: {{ activeOlt?.ip_address }} &bull; {{ isHSGQ ? 'HSGQ EPON Telnet Gateway' : 'ZTE C320 Gateway (Direct Telnet / SNMP)' }}
-              </p>
+              <div>
+                <div class="d-flex align-center gap-2">
+                  <h2 class="text-subtitle-1 font-weight-bold text-slate-900 mb-0">{{ activeOlt?.nama_olt }}</h2>
+                  <v-chip size="x-small" :color="isHSGQ ? 'teal-darken-1' : 'indigo-darken-1'" variant="tonal" class="font-weight-bold">
+                    {{ activeOlt?.tipe_olt }}
+                  </v-chip>
+                </div>
+                <p class="text-caption text-slate-500 mb-0 font-mono">
+                  IP: {{ activeOlt?.ip_address }} &bull; {{ isHSGQ ? 'HSGQ EPON Telnet Gateway' : 'ZTE C320 Gateway (Direct Telnet / SNMP)' }}
+                </p>
+              </div>
             </div>
+            <v-btn icon variant="text" density="comfortable" color="slate-600" @click="dialogExplorer = false">
+              <v-icon size="20">mdi-close</v-icon>
+            </v-btn>
           </div>
-          <v-btn icon variant="text" density="comfortable" color="slate-600" @click="dialogExplorer = false">
-            <v-icon size="20">mdi-close</v-icon>
-          </v-btn>
+
+          <!-- Navigation Tabs (Solid Opaque Background) -->
+          <v-tabs
+            v-model="explorerTab"
+            color="primary"
+            density="comfortable"
+            class="border-t px-3"
+            style="background-color: #f8fafc !important;"
+          >
+            <v-tab value="pon" prepend-icon="mdi-access-point-network" class="text-none font-weight-bold">
+              PON & Telemetri ONU
+            </v-tab>
+            <v-tab value="uplinks" prepend-icon="mdi-server-network" class="text-none font-weight-bold">
+              Kartu & Uplink Port
+            </v-tab>
+          </v-tabs>
         </div>
 
-        <!-- Navigation Tabs -->
-        <v-tabs v-model="explorerTab" color="primary" density="comfortable" class="border-b bg-slate-50 px-3">
-          <v-tab value="pon" prepend-icon="mdi-access-point-network" class="text-none font-weight-bold">
-            PON & Telemetri ONU
-          </v-tab>
-          <v-tab value="uplinks" prepend-icon="mdi-server-network" class="text-none font-weight-bold">
-            Kartu & Uplink Port
-          </v-tab>
-        </v-tabs>
-
-        <v-card-text class="pa-4 pa-md-5 bg-slate-50">
+        <v-card-text class="pa-4 pa-md-5" style="background-color: #f8fafc !important;">
           <!-- TAB 1: PON & ONUs -->
           <div v-if="explorerTab === 'pon'">
-            <!-- Filter Bar -->
-            <div class="filter-bar pa-3 rounded-lg border bg-white mb-4 d-flex align-center flex-wrap gap-3">
-              <div v-if="!isHSGQ" style="min-width: 140px;" class="flex-grow-1 flex-sm-grow-0">
+            <!-- Filter Bar with Search and Spacious Actions -->
+            <div class="filter-bar pa-3 rounded-lg border bg-white mb-4 d-flex align-center flex-wrap" style="gap: 12px;">
+              <div v-if="!isHSGQ" style="min-width: 130px; max-width: 160px;" class="flex-grow-1 flex-sm-grow-0">
                 <v-select
                   v-model="selectedBoard"
                   :items="availableBoards"
@@ -411,7 +419,7 @@
                   @update:model-value="loadPonONUs"
                 ></v-select>
               </div>
-              <div style="min-width: 140px;" class="flex-grow-1 flex-sm-grow-0">
+              <div style="min-width: 130px; max-width: 160px;" class="flex-grow-1 flex-sm-grow-0">
                 <v-select
                   v-model="selectedPon"
                   :items="availablePons"
@@ -424,10 +432,23 @@
                 ></v-select>
               </div>
 
+              <!-- Quick Search Input -->
+              <div style="min-width: 240px; max-width: 340px;" class="flex-grow-1">
+                <v-text-field
+                  v-model="onuSearch"
+                  placeholder="Cari ONU ID, Nama, atau MAC..."
+                  prepend-inner-icon="mdi-magnify"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  clearable
+                ></v-text-field>
+              </div>
+
               <v-spacer class="d-none d-md-block"></v-spacer>
 
-              <!-- Action Buttons -->
-              <div class="d-flex align-center gap-2 flex-wrap">
+              <!-- Action Buttons with clean spacing -->
+              <div class="d-flex align-center flex-wrap" style="gap: 12px;">
                 <v-btn
                   variant="tonal"
                   color="primary"
@@ -464,10 +485,11 @@
             ></v-progress-linear>
 
             <!-- Summary Status Badges -->
-            <div class="d-flex align-center flex-wrap gap-2 mb-3">
+            <div class="d-flex align-center flex-wrap mb-3" style="gap: 8px;">
               <div class="counter-badge counter-total">
                 <span class="label">Total ONU:</span>
-                <span class="value">{{ onusList.length }}</span>
+                <span class="value">{{ filteredOnus.length }}</span>
+                <span v-if="onuSearch" class="text-caption text-slate-400 ms-1 font-weight-normal">(dari {{ onusList.length }})</span>
               </div>
               <div class="counter-badge counter-online">
                 <span class="dot dot-emerald"></span>
@@ -486,23 +508,25 @@
               <v-table density="comfortable" hover class="onu-table">
                 <thead>
                   <tr>
-                    <th class="text-caption font-weight-bold text-slate-600">ONU ID</th>
-                    <th class="text-caption font-weight-bold text-slate-600">NAMA / DESKRIPSI</th>
-                    <th class="text-caption font-weight-bold text-slate-600">TIPE MODEM</th>
-                    <th class="text-caption font-weight-bold text-slate-600">SERIAL NUMBER / MAC</th>
-                    <th class="text-caption font-weight-bold text-slate-600 text-center">RX POWER (SIGNAL)</th>
-                    <th class="text-caption font-weight-bold text-slate-600 text-center">STATUS</th>
-                    <th class="text-caption font-weight-bold text-slate-600 text-center">DETAIL</th>
+                    <th class="text-caption font-weight-bold text-slate-600" style="width: 70px;">ONU ID</th>
+                    <th class="text-caption font-weight-bold text-slate-600" style="min-width: 220px;">NAMA / DESKRIPSI</th>
+                    <th class="text-caption font-weight-bold text-slate-600" style="width: 110px;">TIPE MODEM</th>
+                    <th class="text-caption font-weight-bold text-slate-600" style="min-width: 190px;">SERIAL NUMBER / MAC</th>
+                    <th class="text-caption font-weight-bold text-slate-600 text-center" style="width: 160px;">RX POWER (SIGNAL)</th>
+                    <th class="text-caption font-weight-bold text-slate-600 text-center" style="width: 110px;">STATUS</th>
+                    <th class="text-caption font-weight-bold text-slate-600 text-center" style="width: 110px;">DETAIL</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="!loadingPonData && onusList.length === 0">
+                  <tr v-if="!loadingPonData && filteredOnus.length === 0">
                     <td colspan="7" class="text-center py-8 text-slate-400">
                       <v-icon size="40" color="slate-300" class="mb-2">mdi-router-wireless-off</v-icon>
-                      <div class="text-body-2 font-weight-medium">Tidak ada ONU terdaftar pada Board {{ selectedBoard }} PON {{ selectedPon }}</div>
+                      <div class="text-body-2 font-weight-medium">
+                        {{ onuSearch ? 'Tidak ada ONU yang cocok dengan kata kunci "' + onuSearch + '"' : 'Tidak ada ONU terdaftar pada Board ' + selectedBoard + ' PON ' + selectedPon }}
+                      </div>
                     </td>
                   </tr>
-                  <tr v-for="onu in onusList" :key="onu.onu_id">
+                  <tr v-for="onu in paginatedOnus" :key="onu.onu_id">
                     <td>
                       <span class="onu-id-badge font-mono">
                         #{{ onu.onu_id }}
@@ -510,6 +534,9 @@
                     </td>
                     <td>
                       <div class="font-weight-bold text-slate-900 text-body-2">{{ onu.name || '-' }}</div>
+                      <div v-if="onu.customer_name" class="text-caption text-slate-500 font-weight-medium mt-0.5">
+                        {{ onu.customer_name }}
+                      </div>
                     </td>
                     <td>
                       <v-chip v-if="onu.onu_type" size="x-small" variant="tonal" color="indigo" class="font-weight-bold">
@@ -578,6 +605,74 @@
                   </tr>
                 </tbody>
               </v-table>
+
+              <!-- Table Pagination matching user's design -->
+              <div class="d-flex align-center justify-end px-4 py-3 bg-white border-t flex-wrap" style="gap: 16px;">
+                <div class="d-flex align-center" style="gap: 8px;">
+                  <span class="text-caption text-slate-500 font-weight-medium">Items per page:</span>
+                  <div style="width: 76px;">
+                    <v-select
+                      v-model="itemsPerPage"
+                      :items="itemsPerPageOptions"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                      class="compact-pagination-select"
+                    ></v-select>
+                  </div>
+                </div>
+
+                <span class="text-caption text-slate-700 font-weight-medium font-mono">
+                  {{ paginationRangeText }}
+                </span>
+
+                <div class="d-flex align-center" style="gap: 2px;">
+                  <v-btn
+                    icon
+                    size="x-small"
+                    variant="text"
+                    density="comfortable"
+                    :disabled="currentPage <= 1"
+                    @click="currentPage = 1"
+                    title="Halaman Pertama"
+                  >
+                    <v-icon size="18" color="slate-600">mdi-page-first</v-icon>
+                  </v-btn>
+                  <v-btn
+                    icon
+                    size="x-small"
+                    variant="text"
+                    density="comfortable"
+                    :disabled="currentPage <= 1"
+                    @click="currentPage--"
+                    title="Halaman Sebelumnya"
+                  >
+                    <v-icon size="18" color="slate-600">mdi-chevron-left</v-icon>
+                  </v-btn>
+                  <v-btn
+                    icon
+                    size="x-small"
+                    variant="text"
+                    density="comfortable"
+                    :disabled="currentPage >= totalPages"
+                    @click="currentPage++"
+                    title="Halaman Selanjutnya"
+                  >
+                    <v-icon size="18" color="slate-600">mdi-chevron-right</v-icon>
+                  </v-btn>
+                  <v-btn
+                    icon
+                    size="x-small"
+                    variant="text"
+                    density="comfortable"
+                    :disabled="currentPage >= totalPages"
+                    @click="currentPage = totalPages"
+                    title="Halaman Terakhir"
+                  >
+                    <v-icon size="18" color="slate-600">mdi-page-last</v-icon>
+                  </v-btn>
+                </div>
+              </div>
             </v-card>
           </div>
 
@@ -667,6 +762,9 @@
               <h3 class="text-subtitle-1 font-weight-bold text-slate-900 mb-0">
                 {{ selectedOnuDetail?.name || 'Detail Telemetri ONU' }}
               </h3>
+              <p v-if="selectedOnuDetail?.customer_name" class="text-caption font-weight-bold text-primary mb-0">
+                {{ selectedOnuDetail.customer_name }}
+              </p>
               <p class="text-caption text-slate-500 mb-0 font-mono">
                 SN/MAC: {{ selectedOnuDetail?.serial_number }}
               </p>
@@ -868,7 +966,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import apiClient from '@/services/api';
 
 // --- INTERFACES ---
@@ -891,6 +989,7 @@ interface ZTEONUInfo {
   pon: number;
   onu_id: number;
   name: string;
+  customer_name?: string;
   onu_type: string;
   serial_number: string;
   rx_power: string;
@@ -902,6 +1001,7 @@ interface ZTEONUDetail {
   pon: number;
   onu_id: number;
   name: string;
+  customer_name?: string;
   description: string;
   onu_type: string;
   serial_number: string;
@@ -967,6 +1067,47 @@ const uplinksData = ref<ZTEUplinksData | null>(null);
 const loadingPonData = ref(false);
 const loadingUplinks = ref(false);
 
+// --- PON EXPLORER PAGINATION & SEARCH STATE ---
+const onuSearch = ref('');
+const itemsPerPage = ref(10);
+const itemsPerPageOptions = [10, 25, 50, 100];
+const currentPage = ref(1);
+
+const filteredOnus = computed(() => {
+  if (!onuSearch.value || !onuSearch.value.trim()) {
+    return onusList.value;
+  }
+  const q = onuSearch.value.trim().toLowerCase();
+  return onusList.value.filter(o => {
+    const idMatch = o.onu_id.toString().includes(q);
+    const nameMatch = (o.name || '').toLowerCase().includes(q);
+    const custMatch = (o.customer_name || '').toLowerCase().includes(q);
+    const snMatch = (o.serial_number || '').toLowerCase().includes(q);
+    const statusMatch = (o.status || '').toLowerCase().includes(q);
+    return idMatch || nameMatch || custMatch || snMatch || statusMatch;
+  });
+});
+
+const totalFilteredOnus = computed(() => filteredOnus.value.length);
+const totalPages = computed(() => Math.max(1, Math.ceil(totalFilteredOnus.value / itemsPerPage.value)));
+
+const paginatedOnus = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  return filteredOnus.value.slice(start, start + itemsPerPage.value);
+});
+
+const paginationRangeText = computed(() => {
+  const total = totalFilteredOnus.value;
+  if (total === 0) return '0-0 of 0';
+  const start = (currentPage.value - 1) * itemsPerPage.value + 1;
+  const end = Math.min(start + itemsPerPage.value - 1, total);
+  return `${start}-${end} of ${total}`;
+});
+
+watch([selectedPon, selectedBoard, onuSearch, itemsPerPage], () => {
+  currentPage.value = 1;
+});
+
 const emptyOnuIds = ref<number[]>([]);
 const dialogEmptyIds = ref(false);
 const loadingEmptyIds = ref(false);
@@ -978,8 +1119,8 @@ const loadingOnuDetail = ref(false);
 // --- COMPUTED PROPERTIES ---
 const isEditMode = computed(() => !!editedItem.value.id);
 const formTitle = computed(() => isEditMode.value ? 'Edit Gateway OLT' : 'Tambah Gateway OLT');
-const countOnline = computed(() => onusList.value.filter(o => o.status?.toLowerCase() === 'online').length);
-const countOffline = computed(() => onusList.value.filter(o => o.status?.toLowerCase() !== 'online').length);
+const countOnline = computed(() => filteredOnus.value.filter(o => o.status?.toLowerCase() === 'online').length);
+const countOffline = computed(() => filteredOnus.value.filter(o => o.status?.toLowerCase() !== 'online').length);
 
 const isHSGQ = computed(() => {
   const type = (activeOlt.value?.tipe_olt || '').toLowerCase();
@@ -1379,14 +1520,37 @@ function showSnackbar(text: string, color: 'success' | 'error' | 'info') {
   letter-spacing: -0.01em;
 }
 
+.card-footer-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
 .btn-explorer {
   background-color: #0f172a !important;
   color: #ffffff !important;
   transition: background-color 0.2s ease;
+  flex: 1 1 auto;
 }
 
 .btn-explorer:hover {
   background-color: #1e293b !important;
+}
+
+.btn-test-action {
+  min-width: 96px;
+  flex-shrink: 0;
+}
+
+.compact-pagination-select :deep(.v-field__input) {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  min-height: 28px !important;
+  font-size: 0.8125rem !important;
+}
+
+.compact-pagination-select :deep(.v-field) {
+  border-radius: 6px !important;
 }
 
 /* ===== SUMMARY STATUS BADGES ===== */

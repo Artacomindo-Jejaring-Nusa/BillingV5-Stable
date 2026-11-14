@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"billing-backend/internal/domain"
 
@@ -101,6 +102,65 @@ func (r *oltRepository) Update(ctx context.Context, olt *domain.OLT) error {
 
 func (r *oltRepository) Delete(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Delete(&domain.OLT{}, id).Error
+}
+
+func normalizeDeviceIdentifier(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = strings.ReplaceAll(s, ":", "")
+	s = strings.ReplaceAll(s, "-", "")
+	s = strings.ReplaceAll(s, " ", "")
+	return s
+}
+
+func (r *oltRepository) GetCustomerDeviceInfoMap(ctx context.Context) (map[string]domain.CustomerDeviceInfo, []domain.CustomerDeviceInfo, error) {
+	type rowResult struct {
+		IDPelanggan *string `gorm:"column:id_pelanggan"`
+		SN          *string `gorm:"column:sn"`
+		Nama        *string `gorm:"column:nama"`
+	}
+	var rows []rowResult
+	err := r.db.WithContext(ctx).Table("data_teknis dt").
+		Select("dt.id_pelanggan, dt.sn, p.nama").
+		Joins("LEFT JOIN pelanggan p ON p.id = dt.pelanggan_id AND p.deleted_at IS NULL").
+		Where("dt.id_pelanggan IS NOT NULL OR dt.sn IS NOT NULL").
+		Find(&rows).Error
+	if err != nil {
+		return nil, nil, err
+	}
+
+	snMap := make(map[string]domain.CustomerDeviceInfo, len(rows))
+	var allList []domain.CustomerDeviceInfo
+
+	for _, row := range rows {
+		idPelanggan := ""
+		if row.IDPelanggan != nil {
+			idPelanggan = strings.TrimSpace(*row.IDPelanggan)
+		}
+		sn := ""
+		if row.SN != nil {
+			sn = strings.TrimSpace(*row.SN)
+		}
+		nama := ""
+		if row.Nama != nil {
+			nama = strings.TrimSpace(*row.Nama)
+		}
+
+		info := domain.CustomerDeviceInfo{
+			IDPelanggan: idPelanggan,
+			Nama:        nama,
+			SN:          sn,
+		}
+		allList = append(allList, info)
+
+		if sn != "" {
+			normSN := normalizeDeviceIdentifier(sn)
+			if normSN != "" {
+				snMap[normSN] = info
+			}
+		}
+	}
+
+	return snMap, allList, nil
 }
 
 // ODC Repository implementation

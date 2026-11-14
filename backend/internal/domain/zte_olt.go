@@ -1,11 +1,12 @@
 package domain
 
-// ZTEONUInfo represents summary information of an ONU connected to ZTE OLT.
+// ZTEONUInfo represents summary information of an ONU connected to ZTE or HSGQ OLT.
 type ZTEONUInfo struct {
 	Board        int    `json:"board"`
 	PON          int    `json:"pon"`
 	ONUID        int    `json:"onu_id"`
 	Name         string `json:"name"`
+	CustomerName string `json:"customer_name,omitempty"`
 	ONUType      string `json:"onu_type"`
 	SerialNumber string `json:"serial_number"`
 	RxPower      string `json:"rx_power"`
@@ -18,6 +19,7 @@ type ZTEONUDetail struct {
 	PON                  int    `json:"pon"`
 	ONUID                int    `json:"onu_id"`
 	Name                 string `json:"name"`
+	CustomerName         string `json:"customer_name,omitempty"`
 	Description          string `json:"description"`
 	ONUType              string `json:"onu_type"`
 	SerialNumber         string `json:"serial_number"`

@@ -121,3 +121,4 @@ Phase State: working
 		t.Errorf("expected Name Customer-A, got %s", detail.Name)
 	}
 }
+
