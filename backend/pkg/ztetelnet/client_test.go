@@ -195,3 +195,105 @@ interface gpon-olt_1/1/10
 	}
 }
 
+func TestParseZTEONUDetailOutput_RealZTEC320(t *testing.T) {
+	outPower := `
+           OLT               ONU             Attenuation
+--------------------------------------------------------------------------
+up         Rx :-27.596(dbm)   Tx:2.362(dbm)   29.958(dB)
+down       Tx :6.895(dbm)    Rx:-32.216(dbm)  39.111(dB)
+`
+	outDist := `
+Distance: 15m
+`
+	outDetail := `
+ONU interface: gpon-onu_1/1/2:1
+Name: 
+Type: ALL
+State: ready
+Admin state: enable
+Phase state: working
+Authentication mode: sn
+SN Bind: enable with SN check
+Serial number: MHEGCDE92049
+ONU Distance: 15m
+Online Duration: 5d 12h 30m 15s
+`
+	detail := parseZTEONUDetailOutput(1, 2, 1, outPower, outDist, outDetail)
+	if detail.RxPower != "-32.22 dBm" {
+		t.Errorf("expected RxPower -32.22 dBm, got %s", detail.RxPower)
+	}
+	if detail.TxPower != "2.36 dBm" {
+		t.Errorf("expected TxPower 2.36 dBm, got %s", detail.TxPower)
+	}
+	if detail.GponOpticalDistance != "15" {
+		t.Errorf("expected GponOpticalDistance 15, got %s", detail.GponOpticalDistance)
+	}
+	if detail.Status != "Online" {
+		t.Errorf("expected Status Online, got %s", detail.Status)
+	}
+	if detail.Uptime != "5d 12h 30m 15s" {
+		t.Errorf("expected Uptime '5d 12h 30m 15s', got %s", detail.Uptime)
+	}
+	if detail.OfflineReason != "Normal / Tidak Ada Error" {
+		t.Errorf("expected OfflineReason 'Normal / Tidak Ada Error', got %s", detail.OfflineReason)
+	}
+}
+
+func TestParseZTEONUDetailOutput_OfflineWithCause(t *testing.T) {
+	outPower := `
+OLT ONU Attenuation
+--------------------------------------------------------------------------
+up Rx : no signal    Tx : N/A          N/A
+down Tx : 6.892(dbm) Rx : N/A          N/A
+`
+	outDist := ""
+	outDetail := `
+ONU interface: gpon-onu_1/1/2:2
+Type: ALL
+State: ready
+Phase state: OffLine
+Serial number: MHEGCDE92050
+----------------------------------------------
+     Authpass Time         OfflineTime          Cause
+1    2026-05-10 08:12:00   2026-05-12 14:20:11  DyingGasp
+`
+	detail := parseZTEONUDetailOutput(1, 2, 2, outPower, outDist, outDetail)
+	if detail.RxPower != "" {
+		t.Errorf("expected empty RxPower for offline, got %s", detail.RxPower)
+	}
+	if detail.Status != "Offline" {
+		t.Errorf("expected Status Offline, got %s", detail.Status)
+	}
+	if detail.OfflineReason != "Dying Gasp (Modem Mati Listrik / Power Off)" {
+		t.Errorf("expected Dying Gasp reason, got %s", detail.OfflineReason)
+	}
+}
+
+func TestParseZTEONUs_BatchRxPower(t *testing.T) {
+	outState := `
+1/1/2:1     enable       enable      working      1(GPON)
+1/1/2:2     enable       enable      working      1(GPON)
+`
+	outConfig := `
+interface gpon-olt_1/1/2
+  onu 1 type ALL sn MHEGCDE92049
+  onu 2 type ALL sn MHEGCDE92050
+`
+	outRx := `
+Onu Rx power 
+------------------------------------
+gpon-onu_1/1/2:1    -18.060(dbm)
+gpon-onu_1/1/2:2    -21.320(dbm)
+`
+	onus := parseZTEONUs(1, 2, outState, outConfig, "", outRx)
+	if len(onus) != 2 {
+		t.Fatalf("expected 2 ONUs, got %d", len(onus))
+	}
+	if onus[0].RxPower != "-18.06 dBm" {
+		t.Errorf("expected RxPower -18.06 dBm for ONU 1, got %s", onus[0].RxPower)
+	}
+	if onus[1].RxPower != "-21.32 dBm" {
+		t.Errorf("expected RxPower -21.32 dBm for ONU 2, got %s", onus[1].RxPower)
+	}
+}
+

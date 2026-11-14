@@ -533,7 +533,7 @@ func (u *oltUsecase) GetONUDetail(ctx context.Context, id uint64, board int, pon
 		username, password := u.getZTECredentials(olt)
 		if u.zteTelnet != nil && username != "" {
 			tData, tErr := u.zteTelnet.GetONUDetail(ctx, olt.IPAddress, 23, username, password, board, pon, onuID)
-			if tErr == nil && tData != nil && (tData.RxPower != "" || tData.Name != "") {
+			if tErr == nil && tData != nil && (tData.RxPower != "" || tData.Name != "" || tData.SerialNumber != "" || tData.Status != "") {
 				detail = tData
 			} else {
 				log.Printf("[ZTE OLT] Telnet GetONUDetail failed for %s (%s) onu %d: %v. Fallback to SNMP...", olt.NamaOlt, olt.IPAddress, onuID, tErr)

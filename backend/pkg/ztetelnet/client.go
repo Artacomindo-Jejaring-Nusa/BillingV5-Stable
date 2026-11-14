@@ -346,7 +346,11 @@ func (c *zteTelnetClient) GetONUs(ctx context.Context, host string, port int, us
 	cmdBase := fmt.Sprintf("show gpon onu baseinfo gpon-olt_1/%d/%d", board, pon)
 	outBase, _ := session.executeCommand(cmdBase, 8*time.Second)
 
-	onus := parseZTEONUs(board, pon, outState, outConfig, outBase)
+	// 3. Optional batch optical power for the entire PON port
+	cmdRx := fmt.Sprintf("show pon power onu-rx gpon-olt_1/%d/%d", board, pon)
+	outRx, _ := session.executeCommand(cmdRx, 6*time.Second)
+
+	onus := parseZTEONUs(board, pon, outState, outConfig, outBase, outRx)
 
 	// Cache results for 15 seconds
 	c.cacheMu.Lock()
@@ -421,25 +425,35 @@ func (c *zteTelnetClient) GetONUDetail(ctx context.Context, host string, port in
 	// 1. Optical attenuation (Rx/Tx Power)
 	cmdPower := fmt.Sprintf("show pon power attenuation %s", onuTarget)
 	outPower, _ := session.executeCommand(cmdPower, 6*time.Second)
-	if strings.Contains(outPower, "%Error") {
+	if strings.Contains(outPower, "%Error") || strings.Contains(outPower, "Unrecognized") {
 		outPower, _ = session.executeCommand(fmt.Sprintf("show pon power attenuation %s", altTarget), 6*time.Second)
 	}
 
+	// 1b. Fallback optical power if attenuation had error or missing Rx
+	var outRxSingle string
+	if strings.Contains(outPower, "%Error") || !strings.Contains(strings.ToLower(outPower), "rx") {
+		cmdRxSingle := fmt.Sprintf("show pon power onu-rx %s", onuTarget)
+		outRxSingle, _ = session.executeCommand(cmdRxSingle, 5*time.Second)
+		if strings.Contains(outRxSingle, "%Error") {
+			outRxSingle, _ = session.executeCommand(fmt.Sprintf("show pon power onu-rx %s", altTarget), 5*time.Second)
+		}
+	}
+
 	// 2. Optical distance
-	cmdDist := fmt.Sprintf("show gpon optical-distance %s", onuTarget)
+	cmdDist := fmt.Sprintf("show gpon onu distance %s", onuTarget)
 	outDist, _ := session.executeCommand(cmdDist, 6*time.Second)
-	if strings.Contains(outDist, "%Error") {
-		outDist, _ = session.executeCommand(fmt.Sprintf("show gpon optical-distance %s", altTarget), 6*time.Second)
+	if strings.Contains(outDist, "%Error") || strings.Contains(outDist, "Unrecognized") {
+		outDist, _ = session.executeCommand(fmt.Sprintf("show gpon onu distance %s", altTarget), 6*time.Second)
 	}
 
 	// 3. ONU detail info & state
 	cmdDetail := fmt.Sprintf("show gpon onu detail-info %s", onuTarget)
 	outDetail, _ := session.executeCommand(cmdDetail, 6*time.Second)
-	if strings.Contains(outDetail, "%Error") {
+	if strings.Contains(outDetail, "%Error") || strings.Contains(outDetail, "Unrecognized") {
 		outDetail, _ = session.executeCommand(fmt.Sprintf("show gpon onu detail-info %s", altTarget), 6*time.Second)
 	}
 
-	detail := parseZTEONUDetailOutput(board, pon, onuID, outPower, outDist, outDetail)
+	detail := parseZTEONUDetailOutput(board, pon, onuID, outPower, outDist, outDetail, outRxSingle)
 	return detail, nil
 }
 
@@ -524,7 +538,7 @@ func parseZTEPortsOutput(output string) []domain.ZTEPortInfo {
 	return ports
 }
 
-func parseZTEONUs(board, pon int, outState, outConfig, outBase string) []domain.ZTEONUInfo {
+func parseZTEONUs(board, pon int, outState, outConfig, outBase string, outRx ...string) []domain.ZTEONUInfo {
 	onusMap := make(map[int]*domain.ZTEONUInfo)
 
 	// 1. Parse show gpon onu state:
@@ -614,6 +628,22 @@ func parseZTEONUs(board, pon int, outState, outConfig, outBase string) []domain.
 		}
 	}
 
+	// 4. Batch parse Rx Power if available:
+	if len(outRx) > 0 && outRx[0] != "" && !strings.Contains(outRx[0], "%Error") {
+		reRxLine := regexp.MustCompile(`(?:gpon-onu_)?(?:(?:\d+)/)*(\d+):(\d+)\s+([-\d.]+)`)
+		for _, line := range strings.Split(outRx[0], "\n") {
+			m := reRxLine.FindStringSubmatch(strings.TrimSpace(line))
+			if len(m) >= 4 {
+				id, _ := strconv.Atoi(m[2])
+				if onu, ok := onusMap[id]; ok {
+					if val, err := strconv.ParseFloat(m[3], 64); err == nil {
+						onu.RxPower = fmt.Sprintf("%.2f dBm", val)
+					}
+				}
+			}
+		}
+	}
+
 	// Flatten map to sorted slice
 	var result []domain.ZTEONUInfo
 	for id := 1; id <= 128; id++ {
@@ -624,7 +654,7 @@ func parseZTEONUs(board, pon int, outState, outConfig, outBase string) []domain.
 	return result
 }
 
-func parseZTEONUDetailOutput(board, pon, onuID int, outPower, outDist, outDetail string) *domain.ZTEONUDetail {
+func parseZTEONUDetailOutput(board, pon, onuID int, outPower, outDist, outDetail string, outRxSingle ...string) *domain.ZTEONUDetail {
 	detail := &domain.ZTEONUDetail{
 		Board:         board,
 		PON:           pon,
@@ -634,66 +664,151 @@ func parseZTEONUDetailOutput(board, pon, onuID int, outPower, outDist, outDetail
 	}
 
 	// 1. Parse optical power attenuation:
-	// Output format:
-	//               OLT Rx(dBm)        ONU Rx(dBm)
-	// -------------------------------------------------------------
-	// up            -21.432            -
-	// down          -                  -22.150
-	reDown := regexp.MustCompile(`down\s+([-\d.]+|-)\s+([-\d.]+)`)
-	if m := reDown.FindStringSubmatch(outPower); len(m) >= 3 {
-		if val, err := strconv.ParseFloat(m[2], 64); err == nil {
-			detail.RxPower = fmt.Sprintf("%.2f dBm", val)
+	// Format 1 (Standard ZTE C300/C320 attenuation output):
+	//            OLT               ONU             Attenuation
+	// --------------------------------------------------------------------------
+	// up         Rx :-27.596(dbm)   Tx:2.362(dbm)   29.958(dB)
+	// down       Tx :6.895(dbm)    Rx:-32.216(dbm)  39.111(dB)
+	//
+	// Format 2 (Tabular attenuation):
+	//            OLT Rx(dBm)        ONU Rx(dBm)
+	// up         -21.432            -
+	// down       -                  -22.150
+
+	// Check downstream line for ONU Rx power:
+	reDownLine := regexp.MustCompile(`(?i)\bdown\b[^\r\n]+`)
+	if mDown := reDownLine.FindString(outPower); mDown != "" {
+		// Look for Rx on down line: e.g. Rx:-32.216(dbm) or Rx :-32.216(dbm) or Rx : -32.216
+		reRx := regexp.MustCompile(`(?i)Rx\s*:\s*([-\d.]+)`)
+		if m := reRx.FindStringSubmatch(mDown); len(m) >= 2 {
+			if val, err := strconv.ParseFloat(m[1], 64); err == nil {
+				detail.RxPower = fmt.Sprintf("%.2f dBm", val)
+			} else {
+				detail.RxPower = m[1] + " dBm"
+			}
 		} else {
-			detail.RxPower = m[2] + " dBm"
-		}
-	} else {
-		// Single pattern match: ONU Rx: -22.15
-		reRx := regexp.MustCompile(`(?:onu\s*rx|rx\s*power)[^\r\n:]*:\s*([-\d.]+)`)
-		if m := reRx.FindStringSubmatch(strings.ToLower(outPower)); len(m) >= 2 {
-			detail.RxPower = m[1] + " dBm"
+			// Tabular: down - -22.150
+			reTable := regexp.MustCompile(`(?i)down\s+([-\d.]+|-)\s+([-\d.]+)`)
+			if mTable := reTable.FindStringSubmatch(mDown); len(mTable) >= 3 && mTable[2] != "-" {
+				if val, err := strconv.ParseFloat(mTable[2], 64); err == nil {
+					detail.RxPower = fmt.Sprintf("%.2f dBm", val)
+				} else {
+					detail.RxPower = mTable[2] + " dBm"
+				}
+			}
 		}
 	}
 
-	reUp := regexp.MustCompile(`up\s+([-\d.]+)\s+([-\d.]+|-)`)
-	if m := reUp.FindStringSubmatch(outPower); len(m) >= 2 && m[1] != "-" {
-		if val, err := strconv.ParseFloat(m[1], 64); err == nil {
-			detail.TxPower = fmt.Sprintf("%.2f dBm", val)
-		} else {
-			detail.TxPower = m[1] + " dBm"
+	// Fallback to single Rx power command if empty: e.g. "gpon-onu_1/1/2:1 -18.060(dbm)" or "-18.060"
+	if detail.RxPower == "" && len(outRxSingle) > 0 && outRxSingle[0] != "" {
+		reRxSingle := regexp.MustCompile(`([-\d.]+)\s*(?:\(dbm\)|dbm)?`)
+		if m := reRxSingle.FindStringSubmatch(outRxSingle[0]); len(m) >= 2 {
+			if val, err := strconv.ParseFloat(m[1], 64); err == nil {
+				detail.RxPower = fmt.Sprintf("%.2f dBm", val)
+			}
 		}
 	}
 
-	// 2. Parse optical distance:
-	// Output: Distance: 1420m or 1420 m
-	reDist := regexp.MustCompile(`(?i)(?:distance|dist)[^\d]*(\d+)\s*m`)
-	if m := reDist.FindStringSubmatch(outDist); len(m) >= 2 {
+	// Final fallback for Rx power anywhere in outPower
+	if detail.RxPower == "" {
+		reRxAny := regexp.MustCompile(`(?i)(?:onu\s*rx|rx\s*power)[^\r\n:]*:\s*([-\d.]+)`)
+		if m := reRxAny.FindStringSubmatch(outPower); len(m) >= 2 {
+			if val, err := strconv.ParseFloat(m[1], 64); err == nil {
+				detail.RxPower = fmt.Sprintf("%.2f dBm", val)
+			} else {
+				detail.RxPower = m[1] + " dBm"
+			}
+		}
+	}
+
+	// Check upstream line for ONU Tx power:
+	// up Rx :-27.596(dbm) Tx:2.362(dbm) 29.958(dB)
+	reUpLine := regexp.MustCompile(`(?i)\bup\b[^\r\n]+`)
+	if mUp := reUpLine.FindString(outPower); mUp != "" {
+		reTx := regexp.MustCompile(`(?i)Tx\s*:\s*([-\d.]+)`)
+		if m := reTx.FindStringSubmatch(mUp); len(m) >= 2 {
+			if val, err := strconv.ParseFloat(m[1], 64); err == nil {
+				detail.TxPower = fmt.Sprintf("%.2f dBm", val)
+			} else {
+				detail.TxPower = m[1] + " dBm"
+			}
+		} else {
+			// Tabular: up -21.432 -
+			reTable := regexp.MustCompile(`(?i)up\s+([-\d.]+)\s+([-\d.]+|-)`)
+			if mTable := reTable.FindStringSubmatch(mUp); len(mTable) >= 3 && mTable[1] != "-" {
+				if val, err := strconv.ParseFloat(mTable[1], 64); err == nil {
+					detail.TxPower = fmt.Sprintf("%.2f dBm", val)
+				}
+			}
+		}
+	}
+
+	// 2. Parse optical distance (from show gpon onu distance or detail-info):
+	// Formats:
+	//   Distance: 1420m or 1420 m
+	//   ONU Distance: 2450m
+	//   Distance : 2450(m)
+	reDist := regexp.MustCompile(`(?i)(?:onu\s*)?dist(?:ance)?[^\d]*(\d+)\s*(?:m|\(m\)|meter)?`)
+	if m := reDist.FindStringSubmatch(outDist); len(m) >= 2 && m[1] != "" {
 		detail.GponOpticalDistance = m[1]
 	}
+	if detail.GponOpticalDistance == "" {
+		if m := reDist.FindStringSubmatch(outDetail); len(m) >= 2 && m[1] != "" {
+			detail.GponOpticalDistance = m[1]
+		}
+	}
 
-	// 3. Parse detail info: Name, SN, Model, State
+	// 3. Parse Uptime / Online duration from detail-info:
+	// Format: Online Duration: 5d 12h 30m 15s
+	reUptime := regexp.MustCompile(`(?i)(?:online\s*duration|uptime)[^\r\n:]*:\s*([^\r\n]+)`)
+	if m := reUptime.FindStringSubmatch(outDetail); len(m) >= 2 {
+		detail.Uptime = strings.TrimSpace(m[1])
+	}
+
+	// 4. Parse detail info: Name, SN, Model, State
 	for _, line := range strings.Split(outDetail, "\n") {
 		l := strings.TrimSpace(line)
 		lLow := strings.ToLower(l)
 		if strings.HasPrefix(lLow, "name:") {
 			detail.Name = strings.TrimSpace(strings.TrimPrefix(l, "Name:"))
 		} else if strings.HasPrefix(lLow, "sn:") || strings.HasPrefix(lLow, "serial number:") {
-			detail.SerialNumber = strings.TrimSpace(strings.Split(l, ":")[1])
+			parts := strings.SplitN(l, ":", 2)
+			if len(parts) >= 2 {
+				detail.SerialNumber = strings.TrimSpace(parts[1])
+			}
 		} else if strings.HasPrefix(lLow, "type:") || strings.HasPrefix(lLow, "model:") {
-			detail.ONUType = strings.TrimSpace(strings.Split(l, ":")[1])
+			parts := strings.SplitN(l, ":", 2)
+			if len(parts) >= 2 {
+				detail.ONUType = strings.TrimSpace(parts[1])
+			}
 		} else if strings.HasPrefix(lLow, "phase state:") || strings.HasPrefix(lLow, "state:") {
-			st := strings.ToLower(strings.TrimSpace(strings.Split(l, ":")[1]))
-			if st == "working" || st == "online" {
-				detail.Status = "Online"
-			} else {
-				detail.Status = "Offline"
-				if strings.Contains(st, "los") {
-					detail.OfflineReason = "LOS (Kabel Optik Putus / Signal Loss)"
-				} else if strings.Contains(st, "dyinggasp") {
-					detail.OfflineReason = "Dying Gasp (Modem Mati Listrik / Power Off)"
+			parts := strings.SplitN(l, ":", 2)
+			if len(parts) >= 2 {
+				st := strings.ToLower(strings.TrimSpace(parts[1]))
+				if st == "working" || st == "online" || st == "ready" {
+					detail.Status = "Online"
+					detail.OfflineReason = "Normal / Tidak Ada Error"
 				} else {
-					detail.OfflineReason = "State: " + st
+					detail.Status = "Offline"
+					if strings.Contains(st, "los") {
+						detail.OfflineReason = "LOS (Kabel Optik Putus / Signal Loss)"
+					} else if strings.Contains(st, "dyinggasp") {
+						detail.OfflineReason = "Dying Gasp (Modem Mati Listrik / Power Off)"
+					} else {
+						detail.OfflineReason = "State: " + st
+					}
 				}
 			}
+		}
+	}
+
+	// If history section has cause for offline ONU:
+	// 1    2026-05-10 08:12:00   2026-05-12 14:20:11  DyingGasp
+	if detail.Status == "Offline" {
+		if strings.Contains(outDetail, "DyingGasp") {
+			detail.OfflineReason = "Dying Gasp (Modem Mati Listrik / Power Off)"
+		} else if strings.Contains(outDetail, "LOS") {
+			detail.OfflineReason = "LOS (Kabel Optik Putus / Signal Loss)"
 		}
 	}
 
