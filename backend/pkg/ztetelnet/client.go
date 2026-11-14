@@ -222,27 +222,49 @@ func (c *zteTelnetClient) TestConnection(ctx context.Context, host string, port 
 		return "", err
 	}
 
-	out, err := session.executeCommand("show version", 6*time.Second)
-	if err != nil {
-		// Fallback to show card if show version fails
-		out, err = session.executeCommand("show card", 6*time.Second)
-		if err != nil {
-			return "", err
+	// 1. Try unambiguous command: "show card" (standard on all ZTE C300/C320)
+	out, err := session.executeCommand("show card", 6*time.Second)
+	if err != nil || strings.Contains(out, "%Error") {
+		// 2. Fallback to "show version-running" (never use ambiguous "show version")
+		out, err = session.executeCommand("show version-running", 6*time.Second)
+		if err != nil || strings.Contains(out, "%Error") {
+			// 3. Fallback to basic clock check
+			out, _ = session.executeCommand("show clock", 4*time.Second)
 		}
 	}
 
-	// Extract meaningful version string or card count
+	// Extract meaningful summary from output
 	lines := strings.Split(out, "\n")
-	var summary string
+	var activeCards []string
+	var versionStr string
+
 	for _, l := range lines {
 		lTrim := strings.TrimSpace(l)
-		if strings.Contains(strings.ToLower(lTrim), "zte") || strings.Contains(strings.ToLower(lTrim), "version") {
-			summary = lTrim
-			break
+		if lTrim == "" || strings.HasPrefix(lTrim, "%Error") || strings.HasPrefix(lTrim, "Rack") || strings.HasPrefix(lTrim, "---") {
+			continue
+		}
+		// Match card line: e.g. "1 1 1 GTGH GTGHG 16 120400 V1.2.5P3 INSERVICE"
+		if strings.Contains(lTrim, "INSERVICE") {
+			parts := strings.Fields(lTrim)
+			if len(parts) >= 4 {
+				slot := parts[2]
+				cardType := parts[3]
+				activeCards = append(activeCards, fmt.Sprintf("Slot %s: %s", slot, cardType))
+			}
+		} else if strings.Contains(strings.ToLower(lTrim), "zte") || strings.Contains(strings.ToLower(lTrim), "zxros") {
+			if versionStr == "" {
+				versionStr = lTrim
+			}
 		}
 	}
-	if summary == "" {
-		summary = "ZTE C320 Control System Active"
+
+	var summary string
+	if len(activeCards) > 0 {
+		summary = fmt.Sprintf("Card Terdeteksi (%s)", strings.Join(activeCards, ", "))
+	} else if versionStr != "" {
+		summary = versionStr
+	} else {
+		summary = "ZTE C320 Control System Siap"
 	}
 
 	return fmt.Sprintf("Berhasil terhubung ke ZTE OLT via Telnet (%s:%d). %s", host, port, summary), nil
