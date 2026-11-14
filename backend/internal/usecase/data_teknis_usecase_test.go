@@ -125,3 +125,38 @@ func TestAutoSyncProfileForPelanggan(t *testing.T) {
 		t.Error("expected a non-empty profile name")
 	}
 }
+
+func TestParseRxPowerToInt(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected *int
+	}{
+		{"-26.02 dBm", intPtr(-26)},
+		{"-24 dBm", intPtr(-24)},
+		{"-27.50", intPtr(-28)},
+		{"-18.06 dBm (Online)", intPtr(-18)},
+		{"", nil},
+		{"-", nil},
+		{"N/A", nil},
+		{"Tidak Terdeteksi", nil},
+	}
+
+	for _, tc := range tests {
+		actual := parseRxPowerToInt(tc.input)
+		if tc.expected == nil {
+			if actual != nil {
+				t.Errorf("for input %q, expected nil, got %d", tc.input, *actual)
+			}
+		} else {
+			if actual == nil {
+				t.Errorf("for input %q, expected %d, got nil", tc.input, *tc.expected)
+			} else if *actual != *tc.expected {
+				t.Errorf("for input %q, expected %d, got %d", tc.input, *tc.expected, *actual)
+			}
+		}
+	}
+}
+
+func intPtr(val int) *int {
+	return &val
+}

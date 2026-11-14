@@ -365,7 +365,7 @@ func main() {
 
 	// DataTeknis
 	dataTeknisRepo := repository.NewDataTeknisRepository(db)
-	dataTeknisUsecase := usecase.NewDataTeknisUsecase(dataTeknisRepo, mikrotikRepo, pelangganRepo, paketLayananRepo, oltRepo, zteClient)
+	dataTeknisUsecase := usecase.NewDataTeknisUsecase(dataTeknisRepo, mikrotikRepo, pelangganRepo, paketLayananRepo, oltRepo, zteClient, hsgqClient, zteTelnet)
 	httpDelivery.NewDataTeknisHandler(api, dataTeknisUsecase, authMw)
 
 	// Pelanggan Usecase & Handler (with Data Teknis auto-sync)

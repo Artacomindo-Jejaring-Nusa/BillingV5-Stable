@@ -1909,7 +1909,7 @@
                     <td><code class="font-mono text-primary font-weight-bold">{{ item.sn }}</code></td>
                     <td>
                       <v-chip size="x-small" :color="getLiveSignalColor(item.rx_power)" variant="flat">
-                        {{ item.rx_power ? item.rx_power + ' dBm' : '-' }}
+                        {{ item.rx_power ? (item.rx_power.includes('dBm') ? item.rx_power : item.rx_power + ' dBm') : '-' }}
                       </v-chip>
                     </td>
                     <td>
