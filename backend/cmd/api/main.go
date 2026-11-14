@@ -20,6 +20,7 @@ import (
 	"billing-backend/internal/usecase"
 	"billing-backend/internal/websocket"
 	"billing-backend/pkg/database"
+	"billing-backend/pkg/hsgqclient"
 	"billing-backend/pkg/logger"
 	"billing-backend/pkg/telemetry"
 	"billing-backend/pkg/utils"
@@ -342,8 +343,9 @@ func main() {
 
 	// OLT
 	zteClient := zteclient.NewClient(cfg.ZteOltApiURL, cfg.ZteOltApiKey)
+	hsgqClient := hsgqclient.NewClient()
 	oltRepo := repository.NewOLTRepository(db)
-	oltUsecase := usecase.NewOLTUsecase(oltRepo, zteClient)
+	oltUsecase := usecase.NewOLTUsecase(oltRepo, zteClient, hsgqClient)
 	httpDelivery.NewOLTHandler(api, oltUsecase, authMw)
 
 	// ODC

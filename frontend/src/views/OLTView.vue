@@ -343,12 +343,12 @@
                   {{ activeOlt?.tipe_olt }}
                 </v-chip>
               </div>
-              <p class="text-caption text-white opacity-80 mb-0 font-mono">
-                IP: {{ activeOlt?.ip_address }} | ZTE C320 SNMP Gateway
+              <p class="text-caption text-grey-darken-1 mb-0 font-mono">
+                IP: {{ activeOlt?.ip_address }} | {{ isHSGQ ? 'HSGQ EPON Telnet Gateway' : 'ZTE C320 SNMP Gateway' }}
               </p>
             </div>
           </div>
-          <v-btn icon variant="text" color="white" @click="dialogExplorer = false">
+          <v-btn icon variant="text" color="grey-darken-2" @click="dialogExplorer = false">
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </div>
@@ -369,10 +369,10 @@
             <!-- Filter Bar -->
             <v-card class="mb-4 pa-3 rounded-lg" elevation="0" border>
               <div class="d-flex align-center flex-wrap gap-3">
-                <div style="min-width: 140px;" class="flex-grow-1 flex-sm-grow-0">
+                <div v-if="!isHSGQ" style="min-width: 140px;" class="flex-grow-1 flex-sm-grow-0">
                   <v-select
                     v-model="selectedBoard"
-                    :items="[1, 2]"
+                    :items="availableBoards"
                     label="Board / Slot"
                     variant="outlined"
                     density="compact"
@@ -384,7 +384,7 @@
                 <div style="min-width: 140px;" class="flex-grow-1 flex-sm-grow-0">
                   <v-select
                     v-model="selectedPon"
-                    :items="Array.from({ length: 16 }, (_, i) => i + 1)"
+                    :items="availablePons"
                     label="PON Port"
                     variant="outlined"
                     density="compact"
@@ -507,7 +507,17 @@
                       >
                         {{ onu.rx_power }} dBm
                       </v-chip>
-                      <span v-else class="text-caption text-grey">-</span>
+                      <v-btn
+                        v-else
+                        size="x-small"
+                        variant="tonal"
+                        color="primary"
+                        class="text-none font-weight-bold"
+                        prepend-icon="mdi-signal-distance-variant"
+                        @click="openOnuDetail(onu)"
+                      >
+                        Cek Redaman
+                      </v-btn>
                     </td>
                     <td class="text-center">
                       <v-chip
@@ -687,6 +697,17 @@
                   <div class="text-caption text-grey">Uptime Terakhir</div>
                   <div class="text-body-2 font-weight-medium text-grey-darken-3 font-mono">
                     {{ selectedOnuDetail.uptime || '-' }}
+                  </div>
+                </div>
+              </v-col>
+              <v-col cols="12" v-if="selectedOnuDetail.description">
+                <div class="pa-3 bg-blue-lighten-5 rounded-lg border border-blue-200">
+                  <div class="text-caption text-blue-darken-4 font-weight-bold mb-1">
+                    <v-icon size="14" color="primary" class="me-1">mdi-chip</v-icon>
+                    Diagnostik Modul Optik (Suhu, Voltase, Arus)
+                  </div>
+                  <div class="text-body-2 font-mono font-weight-bold text-slate-800">
+                    {{ selectedOnuDetail.description }}
                   </div>
                 </div>
               </v-col>
@@ -872,6 +893,26 @@ const isEditMode = computed(() => !!editedItem.value.id);
 const formTitle = computed(() => isEditMode.value ? 'Edit OLT' : 'Tambah OLT Baru');
 const countOnline = computed(() => onusList.value.filter(o => o.status?.toLowerCase() === 'online').length);
 const countOffline = computed(() => onusList.value.filter(o => o.status?.toLowerCase() !== 'online').length);
+
+const isHSGQ = computed(() => {
+  const type = (activeOlt.value?.tipe_olt || '').toLowerCase();
+  const name = (activeOlt.value?.nama_olt || '').toLowerCase();
+  return type.includes('hsgq') || name.includes('hsgq');
+});
+
+const availableBoards = computed(() => {
+  if (isHSGQ.value) {
+    return [1];
+  }
+  return [1, 2];
+});
+
+const availablePons = computed(() => {
+  if (isHSGQ.value) {
+    return [1, 2, 3, 4];
+  }
+  return Array.from({ length: 16 }, (_, i) => i + 1);
+});
 
 // --- DATA & CONFIGURATION ---
 const oltTypes = ['HSGQ', 'ZTE', 'Huawei', 'Fiberhome', 'Lainnya'];

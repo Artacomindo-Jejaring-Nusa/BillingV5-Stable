@@ -9,6 +9,7 @@ import (
 
 	"billing-backend/internal/domain"
 	"billing-backend/internal/websocket"
+	"billing-backend/pkg/hsgqclient"
 	"billing-backend/pkg/mikrotik"
 	"billing-backend/pkg/utils"
 	"billing-backend/pkg/zteclient"
@@ -139,14 +140,16 @@ func (u *mikrotikUsecase) TestConnection(ctx context.Context, id uint64) (map[st
 }
 
 type oltUsecase struct {
-	oltRepo   domain.OLTRepository
-	zteClient zteclient.Client
+	oltRepo    domain.OLTRepository
+	zteClient  zteclient.Client
+	hsgqClient hsgqclient.Client
 }
 
-func NewOLTUsecase(repo domain.OLTRepository, zteClient zteclient.Client) domain.OLTUsecase {
+func NewOLTUsecase(repo domain.OLTRepository, zteClient zteclient.Client, hsgqClient hsgqclient.Client) domain.OLTUsecase {
 	return &oltUsecase{
-		oltRepo:   repo,
-		zteClient: zteClient,
+		oltRepo:    repo,
+		zteClient:  zteClient,
+		hsgqClient: hsgqClient,
 	}
 }
 
@@ -172,6 +175,27 @@ func (u *oltUsecase) isZTE(olt *domain.OLT) bool {
 	}
 	name := strings.ToLower(olt.NamaOlt)
 	return strings.Contains(name, "pinus") || strings.Contains(name, "pulogebang") || strings.Contains(name, "tipar")
+}
+
+func (u *oltUsecase) isHSGQ(olt *domain.OLT) bool {
+	if olt == nil {
+		return false
+	}
+	tipe := strings.ToUpper(strings.TrimSpace(olt.TipeOlt))
+	name := strings.ToUpper(strings.TrimSpace(olt.NamaOlt))
+	return strings.Contains(tipe, "HSGQ") || strings.Contains(name, "HSGQ")
+}
+
+func (u *oltUsecase) getHSGQCredentials(olt *domain.OLT) (string, string) {
+	username := "root"
+	if olt != nil && olt.Username != nil && *olt.Username != "" {
+		username = *olt.Username
+	}
+	password := ""
+	if olt != nil && olt.Password != nil {
+		password = *olt.Password
+	}
+	return username, password
 }
 
 func (u *oltUsecase) FetchAll(ctx context.Context) ([]domain.OLT, error) {
@@ -222,6 +246,14 @@ func (u *oltUsecase) TestConnection(ctx context.Context, id uint64) (string, err
 		return "", err
 	}
 
+	if u.isHSGQ(olt) {
+		if u.hsgqClient == nil {
+			return "", errors.New("HSGQ OLT client service is not initialized")
+		}
+		username, password := u.getHSGQCredentials(olt)
+		return u.hsgqClient.TestConnection(ctx, olt.IPAddress, 23, username, password)
+	}
+
 	if u.zteClient != nil && u.isZTE(olt) {
 		oltID := u.getZTEOltID(olt)
 		uplinks, err := u.zteClient.GetUplinks(ctx, oltID)
@@ -239,6 +271,15 @@ func (u *oltUsecase) GetUplinks(ctx context.Context, id uint64) (*domain.ZTEUpli
 	if err != nil {
 		return nil, err
 	}
+
+	if u.isHSGQ(olt) {
+		if u.hsgqClient == nil {
+			return nil, errors.New("HSGQ OLT client service is not initialized")
+		}
+		username, password := u.getHSGQCredentials(olt)
+		return u.hsgqClient.GetUplinks(ctx, olt.IPAddress, 23, username, password)
+	}
+
 	if u.zteClient == nil {
 		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
@@ -250,6 +291,15 @@ func (u *oltUsecase) GetONUs(ctx context.Context, id uint64, board int, pon int)
 	if err != nil {
 		return nil, err
 	}
+
+	if u.isHSGQ(olt) {
+		if u.hsgqClient == nil {
+			return nil, errors.New("HSGQ OLT client service is not initialized")
+		}
+		username, password := u.getHSGQCredentials(olt)
+		return u.hsgqClient.GetONUs(ctx, olt.IPAddress, 23, username, password, pon)
+	}
+
 	if u.zteClient == nil {
 		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
@@ -261,6 +311,15 @@ func (u *oltUsecase) GetPaginatedONUs(ctx context.Context, id uint64, board int,
 	if err != nil {
 		return nil, err
 	}
+
+	if u.isHSGQ(olt) {
+		if u.hsgqClient == nil {
+			return nil, errors.New("HSGQ OLT client service is not initialized")
+		}
+		username, password := u.getHSGQCredentials(olt)
+		return u.hsgqClient.GetPaginatedONUs(ctx, olt.IPAddress, 23, username, password, pon, page, limit)
+	}
+
 	if u.zteClient == nil {
 		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
@@ -272,6 +331,15 @@ func (u *oltUsecase) GetONUDetail(ctx context.Context, id uint64, board int, pon
 	if err != nil {
 		return nil, err
 	}
+
+	if u.isHSGQ(olt) {
+		if u.hsgqClient == nil {
+			return nil, errors.New("HSGQ OLT client service is not initialized")
+		}
+		username, password := u.getHSGQCredentials(olt)
+		return u.hsgqClient.GetONUDetail(ctx, olt.IPAddress, 23, username, password, pon, onuID)
+	}
+
 	if u.zteClient == nil {
 		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
@@ -283,6 +351,15 @@ func (u *oltUsecase) GetEmptyONUIDs(ctx context.Context, id uint64, board int, p
 	if err != nil {
 		return nil, err
 	}
+
+	if u.isHSGQ(olt) {
+		if u.hsgqClient == nil {
+			return nil, errors.New("HSGQ OLT client service is not initialized")
+		}
+		username, password := u.getHSGQCredentials(olt)
+		return u.hsgqClient.GetEmptyONUIDs(ctx, olt.IPAddress, 23, username, password, pon)
+	}
+
 	if u.zteClient == nil {
 		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
@@ -294,6 +371,26 @@ func (u *oltUsecase) GetONUSerials(ctx context.Context, id uint64, board int, po
 	if err != nil {
 		return nil, err
 	}
+
+	if u.isHSGQ(olt) {
+		if u.hsgqClient == nil {
+			return nil, errors.New("HSGQ OLT client service is not initialized")
+		}
+		username, password := u.getHSGQCredentials(olt)
+		onus, err := u.hsgqClient.GetONUs(ctx, olt.IPAddress, 23, username, password, pon)
+		if err != nil {
+			return nil, err
+		}
+		var serials []domain.ONUSerialInfo
+		for _, o := range onus {
+			serials = append(serials, domain.ONUSerialInfo{
+				ONUID:        o.ONUID,
+				SerialNumber: o.SerialNumber,
+			})
+		}
+		return serials, nil
+	}
+
 	if u.zteClient == nil {
 		return nil, errors.New("ZTE OLT client service is not initialized")
 	}
@@ -305,6 +402,14 @@ func (u *oltUsecase) ClearCache(ctx context.Context, id uint64, board int, pon i
 	if err != nil {
 		return err
 	}
+
+	if u.isHSGQ(olt) {
+		if u.hsgqClient != nil {
+			u.hsgqClient.ClearCache(olt.IPAddress)
+		}
+		return nil
+	}
+
 	if u.zteClient == nil {
 		return errors.New("ZTE OLT client service is not initialized")
 	}
