@@ -810,4 +810,3 @@ func (u *odpUsecase) GetNetworkMapData(ctx context.Context) (*domain.NetworkMapD
 func (u *odpUsecase) UpdateNodeCoordinate(ctx context.Context, nodeType string, id uint64, lat, lng float64) error {
 	return u.odpRepo.UpdateNodeCoordinate(ctx, nodeType, id, lat, lng)
 }
-
