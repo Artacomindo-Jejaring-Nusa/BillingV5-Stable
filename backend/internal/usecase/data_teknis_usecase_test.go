@@ -160,3 +160,100 @@ func TestParseRxPowerToInt(t *testing.T) {
 func intPtr(val int) *int {
 	return &val
 }
+
+func TestMatchONUToCustomer(t *testing.T) {
+	tests := []struct {
+		name     string
+		onu      domain.ZTEONUInfo
+		dt       domain.DataTeknis
+		expected bool
+	}{
+		{
+			name: "Exact match IDPelanggan",
+			onu: domain.ZTEONUInfo{
+				Name: "PRM-B6-2-Mega",
+			},
+			dt: domain.DataTeknis{
+				IDPelanggan: "PRM-B6-2-Mega",
+			},
+			expected: true,
+		},
+		{
+			name: "Truncated ONU name on HSGQ OLT (16 chars limit)",
+			onu: domain.ZTEONUInfo{
+				Name: "PRM-B5-19-Anissa",
+			},
+			dt: domain.DataTeknis{
+				IDPelanggan: "PRM-B5-19-Anissah",
+				Pelanggan:   &domain.Pelanggan{Nama: "Anissah Rubianti"},
+			},
+			expected: true,
+		},
+		{
+			name: "Stripped prefix match (without PRM-)",
+			onu: domain.ZTEONUInfo{
+				Name: "B5-19-Anissah",
+			},
+			dt: domain.DataTeknis{
+				IDPelanggan: "PRM-B5-19-Anissah",
+			},
+			expected: true,
+		},
+		{
+			name: "Block and unit match",
+			onu: domain.ZTEONUInfo{
+				Name: "PRM-B5-19",
+			},
+			dt: domain.DataTeknis{
+				IDPelanggan: "PRM-B5-19-Anissah",
+			},
+			expected: true,
+		},
+		{
+			name: "Customer name word match",
+			onu: domain.ZTEONUInfo{
+				Name: "PRM-MODEM-ANISSAH",
+			},
+			dt: domain.DataTeknis{
+				IDPelanggan: "CUST-999",
+				Pelanggan:   &domain.Pelanggan{Nama: "Anissah Rubianti"},
+			},
+			expected: true,
+		},
+		{
+			name: "Serial number match with different formatting",
+			onu: domain.ZTEONUInfo{
+				SerialNumber: "70:2e:22:0a:59:47",
+			},
+			dt: domain.DataTeknis{
+				IDPelanggan: "PRM-A2-26-Ar",
+				Sn:          stringPtr("702E220A5947"),
+			},
+			expected: true,
+		},
+		{
+			name: "Different customer should not match",
+			onu: domain.ZTEONUInfo{
+				Name: "PRM-A1-43-Ri",
+			},
+			dt: domain.DataTeknis{
+				IDPelanggan: "PRM-B5-19-Anissah",
+				Pelanggan:   &domain.Pelanggan{Nama: "Anissah Rubianti"},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := matchONUToCustomer(&tc.onu, &tc.dt)
+			if res != tc.expected {
+				t.Errorf("expected %v, got %v", tc.expected, res)
+			}
+		})
+	}
+}
+
+func stringPtr(s string) *string {
+	return &s
+}

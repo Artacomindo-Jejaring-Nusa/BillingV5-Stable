@@ -21,6 +21,7 @@ type Client interface {
 	GetONUs(ctx context.Context, host string, port int, username, password string, ponFilter int) ([]domain.ZTEONUInfo, error)
 	GetPaginatedONUs(ctx context.Context, host string, port int, username, password string, ponFilter int, page, limit int) (*domain.ZTEPaginatedONUs, error)
 	GetONUDetail(ctx context.Context, host string, port int, username, password string, pon int, onuID int) (*domain.ZTEONUDetail, error)
+	GetBatchOpticalPower(ctx context.Context, host string, port int, username, password string, targets []domain.ZTEONUInfo) (map[string]string, error)
 	GetEmptyONUIDs(ctx context.Context, host string, port int, username, password string, pon int) ([]int, error)
 	GetUplinks(ctx context.Context, host string, port int, username, password string) (*domain.ZTEUplinksData, error)
 	ClearCache(host string)
@@ -335,6 +336,41 @@ func (c *hsgqClient) GetONUDetail(ctx context.Context, host string, port int, us
 	return detail, nil
 }
 
+// GetBatchOpticalPower retrieves optical power for multiple ONUs using a single Telnet session.
+func (c *hsgqClient) GetBatchOpticalPower(ctx context.Context, host string, port int, username, password string, targets []domain.ZTEONUInfo) (map[string]string, error) {
+	result := make(map[string]string)
+	if len(targets) == 0 {
+		return result, nil
+	}
+
+	sess, err := dialTelnet(ctx, host, port, 10*time.Second)
+	if err != nil {
+		return result, err
+	}
+	defer sess.Close()
+
+	if err := sess.login(username, password); err != nil {
+		return result, err
+	}
+
+	for _, t := range targets {
+		if !strings.EqualFold(t.Status, "Online") && !strings.EqualFold(t.Status, "working") {
+			continue
+		}
+		cmd := fmt.Sprintf("show optical-rssi %d %d", t.PON, t.ONUID)
+		out, err := sess.execCommand(cmd)
+		if err == nil {
+			detail := parseOpticalRSSIOutput(out, t.PON, t.ONUID)
+			if detail != nil && detail.RxPower != "" {
+				key := fmt.Sprintf("%d:%d", t.PON, t.ONUID)
+				result[key] = detail.RxPower
+			}
+		}
+	}
+
+	return result, nil
+}
+
 func (c *hsgqClient) GetEmptyONUIDs(ctx context.Context, host string, port int, username, password string, pon int) ([]int, error) {
 	onus, err := c.GetONUs(ctx, host, port, username, password, pon)
 	if err != nil {
@@ -422,12 +458,20 @@ func parseONUInfoOutput(output string) []domain.ZTEONUInfo {
 			mac := strings.ToLower(matches[3])
 			status := matches[4]
 			name := matches[8]
+			desc := ""
+			if len(matches) >= 10 {
+				desc = strings.TrimSpace(matches[9])
+				if strings.EqualFold(desc, "no-descripti") || strings.EqualFold(desc, "no-description") || desc == "-" {
+					desc = ""
+				}
+			}
 
 			list = append(list, domain.ZTEONUInfo{
 				Board:        1,
 				PON:          pon,
 				ONUID:        onuID,
 				Name:         name,
+				CustomerName: desc,
 				ONUType:      "EPON",
 				SerialNumber: mac,
 				Status:       status,

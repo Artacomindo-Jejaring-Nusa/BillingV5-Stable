@@ -19,6 +19,7 @@ import (
 type Client interface {
 	TestConnection(ctx context.Context, host string, port int, username, password string) (string, error)
 	GetONUs(ctx context.Context, host string, port int, username, password string, board, pon int) ([]domain.ZTEONUInfo, error)
+	GetAllONUs(ctx context.Context, host string, port int, username, password string) ([]domain.ZTEONUInfo, error)
 	GetPaginatedONUs(ctx context.Context, host string, port int, username, password string, board, pon int, page, limit int) (*domain.ZTEPaginatedONUs, error)
 	GetONUDetail(ctx context.Context, host string, port int, username, password string, board, pon, onuID int) (*domain.ZTEONUDetail, error)
 	GetEmptyONUIDs(ctx context.Context, host string, port int, username, password string, board, pon int) ([]int, error)
@@ -361,6 +362,70 @@ func (c *zteTelnetClient) GetONUs(ctx context.Context, host string, port int, us
 	c.cacheMu.Unlock()
 
 	return onus, nil
+}
+
+// GetAllONUs retrieves all configured ONUs across all active PON ports in a single Telnet session.
+func (c *zteTelnetClient) GetAllONUs(ctx context.Context, host string, port int, username, password string) ([]domain.ZTEONUInfo, error) {
+	lock := c.getHostLock(host)
+	lock.Lock()
+	defer lock.Unlock()
+
+	session, err := dialTelnet(ctx, host, port, 6*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer session.CloseWithLogout()
+
+	if err := session.login(username, password); err != nil {
+		return nil, err
+	}
+
+	// 1. Fetch global ONU state across the whole OLT in 1 command
+	outState, err := session.executeCommand("show gpon onu state", 10*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	// Detect all active (board, pon) pairs that actually have ONUs
+	activePONs := make(map[string]struct{ board, pon int })
+	reStateLine := regexp.MustCompile(`^\s*(?:gpon-onu_)?(\d+)/(\d+)/(\d+):(\d+)`)
+	for _, line := range strings.Split(outState, "\n") {
+		if m := reStateLine.FindStringSubmatch(strings.TrimSpace(line)); len(m) >= 5 {
+			b, _ := strconv.Atoi(m[2])
+			p, _ := strconv.Atoi(m[3])
+			if b > 0 && p > 0 {
+				key := fmt.Sprintf("%d:%d", b, p)
+				activePONs[key] = struct{ board, pon int }{board: b, pon: p}
+			}
+		}
+	}
+
+	// If no active PONs parsed from global state, fallback to board 1 pon 1..16
+	if len(activePONs) == 0 {
+		for p := 1; p <= 16; p++ {
+			activePONs[fmt.Sprintf("1:%d", p)] = struct{ board, pon int }{board: 1, pon: p}
+		}
+	}
+
+	var allONUs []domain.ZTEONUInfo
+
+	for _, bp := range activePONs {
+		cmdConfig := fmt.Sprintf("show running-config interface gpon-olt_1/%d/%d", bp.board, bp.pon)
+		outConfig, _ := session.executeCommand(cmdConfig, 6*time.Second)
+
+		cmdBase := fmt.Sprintf("show gpon onu baseinfo gpon-olt_1/%d/%d", bp.board, bp.pon)
+		outBase, _ := session.executeCommand(cmdBase, 6*time.Second)
+
+		cmdRx := fmt.Sprintf("show pon power onu-rx gpon-olt_1/%d/%d", bp.board, bp.pon)
+		outRx, _ := session.executeCommand(cmdRx, 6*time.Second)
+
+		onus := parseZTEONUs(bp.board, bp.pon, outState, outConfig, outBase, outRx)
+		if len(onus) > 0 {
+			allONUs = append(allONUs, onus...)
+		}
+	}
+
+	return allONUs, nil
 }
 
 // GetPaginatedONUs returns a paginated slice of ONUs.

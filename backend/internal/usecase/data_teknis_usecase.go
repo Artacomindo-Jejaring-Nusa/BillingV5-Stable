@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -1555,6 +1556,109 @@ func (u *dataTeknisUsecase) resolveOltKey(oltName string) string {
 	return name
 }
 
+var blockRegex = regexp.MustCompile(`([a-zA-Z]\d+)[-_/]?(\d+)`)
+
+func cleanIdentifier(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = strings.ReplaceAll(s, ":", "")
+	s = strings.ReplaceAll(s, "-", "")
+	s = strings.ReplaceAll(s, "_", "")
+	s = strings.ReplaceAll(s, "/", "")
+	s = strings.ReplaceAll(s, ".", "")
+	s = strings.ReplaceAll(s, " ", "")
+	return s
+}
+
+func stripPrefix(s string) string {
+	lower := strings.ToLower(strings.TrimSpace(s))
+	prefixes := []string{"prm-", "prm_", "tpr-", "tpr_", "ckg-", "ckg_", "pgb-", "pgb_", "rusun-", "rusun_", "blok-", "blok_"}
+	for _, pfx := range prefixes {
+		if strings.HasPrefix(lower, pfx) {
+			lower = strings.TrimPrefix(lower, pfx)
+			break
+		}
+	}
+	return lower
+}
+
+func matchONUToCustomer(onu *domain.ZTEONUInfo, dt *domain.DataTeknis) bool {
+	if onu == nil || dt == nil {
+		return false
+	}
+
+	// 1. Match by Serial Number / MAC Address
+	if onu.SerialNumber != "" && dt.Sn != nil && *dt.Sn != "" {
+		normOnuSN := normalizeDeviceIdentifier(onu.SerialNumber)
+		normDtSN := normalizeDeviceIdentifier(*dt.Sn)
+		if normOnuSN != "" && normDtSN != "" && normOnuSN == normDtSN {
+			return true
+		}
+	}
+
+	rawONUName := strings.TrimSpace(onu.Name)
+	rawONUDesc := strings.TrimSpace(onu.CustomerName)
+	rawDtID := strings.TrimSpace(dt.IDPelanggan)
+
+	cleanONU := cleanIdentifier(rawONUName)
+	cleanDtID := cleanIdentifier(rawDtID)
+
+	// 2. Exact match or prefix match on clean identifiers
+	if cleanONU != "" && cleanDtID != "" {
+		if cleanONU == cleanDtID {
+			return true
+		}
+		// Handles truncated ONU names on OLT (e.g. "prmb519anissah" vs "prmb519anissa")
+		if len(cleanONU) >= 5 && (strings.HasPrefix(cleanDtID, cleanONU) || strings.HasPrefix(cleanONU, cleanDtID)) {
+			return true
+		}
+	}
+
+	// 3. Match with OLT prefix stripped (e.g. "PRM-B5-19-Anissah" vs "B5-19-Anissah")
+	strippedDtID := cleanIdentifier(stripPrefix(rawDtID))
+	strippedONU := cleanIdentifier(stripPrefix(rawONUName))
+	if strippedDtID != "" && strippedONU != "" {
+		if strippedDtID == strippedONU {
+			return true
+		}
+		if len(strippedONU) >= 4 && (strings.HasPrefix(strippedDtID, strippedONU) || strings.HasPrefix(strippedONU, strippedDtID)) {
+			return true
+		}
+	}
+
+	// 4. Block & Unit Pattern Match (e.g. "B5-19" from PRM-B5-19-Anissah vs B5-19 on OLT)
+	mDt := blockRegex.FindStringSubmatch(rawDtID)
+	mOnu := blockRegex.FindStringSubmatch(rawONUName)
+	if len(mDt) >= 3 && len(mOnu) >= 3 {
+		blockDt := strings.ToLower(mDt[1]) + "-" + mDt[2]
+		blockOnu := strings.ToLower(mOnu[1]) + "-" + mOnu[2]
+		if blockDt == blockOnu {
+			return true
+		}
+	}
+
+	// 5. Match by Customer Name Words (e.g. "Anissah" from "Anissah Rubianti")
+	if dt.Pelanggan != nil && dt.Pelanggan.Nama != "" {
+		nameWords := strings.Fields(strings.ToLower(dt.Pelanggan.Nama))
+		for _, w := range nameWords {
+			if len(w) >= 4 {
+				if strings.Contains(strings.ToLower(rawONUName), w) || (rawONUDesc != "" && strings.Contains(strings.ToLower(rawONUDesc), w)) {
+					return true
+				}
+			}
+		}
+	}
+
+	// 6. Match by Description if technician wrote ID in description
+	if rawONUDesc != "" && cleanDtID != "" {
+		cleanDesc := cleanIdentifier(rawONUDesc)
+		if cleanDesc == cleanDtID || (len(cleanDesc) >= 5 && (strings.HasPrefix(cleanDtID, cleanDesc) || strings.HasPrefix(cleanDesc, cleanDtID))) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (u *dataTeknisUsecase) GetLiveONU(ctx context.Context, id uint64) (*domain.ZTEONUDetail, error) {
 	dt, err := u.dataTeknisRepo.GetByID(ctx, id)
 	if err != nil {
@@ -1571,12 +1675,6 @@ func (u *dataTeknisUsecase) GetLiveONU(ctx context.Context, id uint64) (*domain.
 		targetPon = *dt.Pon
 	}
 
-	targetSN := ""
-	if dt.Sn != nil {
-		targetSN = strings.TrimSpace(*dt.Sn)
-	}
-	normTargetSN := normalizeDeviceIdentifier(targetSN)
-
 	olt, _ := u.findOLT(ctx, oltName)
 
 	// --- 1. HSGQ Path ---
@@ -1591,36 +1689,10 @@ func (u *dataTeknisUsecase) GetLiveONU(ctx context.Context, id uint64) (*domain.
 		}
 
 		var matched *domain.ZTEONUInfo
-		if normTargetSN != "" {
-			for i := range onus {
-				if normalizeDeviceIdentifier(onus[i].SerialNumber) == normTargetSN {
-					matched = &onus[i]
-					break
-				}
-			}
-		}
-
-		if matched == nil && dt.IDPelanggan != "" {
-			idP := strings.ToLower(strings.TrimSpace(dt.IDPelanggan))
-			for i := range onus {
-				onuName := strings.ToLower(strings.TrimSpace(onus[i].Name))
-				if onuName == idP || strings.HasPrefix(idP, onuName) || strings.HasPrefix(onuName, idP) {
-					matched = &onus[i]
-					break
-				}
-			}
-		}
-
-		if matched == nil && dt.Pelanggan != nil && dt.Pelanggan.Nama != "" {
-			custName := strings.ToLower(strings.TrimSpace(dt.Pelanggan.Nama))
-			if len(custName) >= 4 {
-				for i := range onus {
-					onuName := strings.ToLower(strings.TrimSpace(onus[i].Name))
-					if strings.Contains(onuName, custName) || strings.Contains(custName, onuName) {
-						matched = &onus[i]
-						break
-					}
-				}
+		for i := range onus {
+			if matchONUToCustomer(&onus[i], dt) {
+				matched = &onus[i]
+				break
 			}
 		}
 
@@ -1677,23 +1749,10 @@ func (u *dataTeknisUsecase) GetLiveONU(ctx context.Context, id uint64) (*domain.
 					continue
 				}
 
-				if normTargetSN != "" {
-					for i := range onus {
-						if normalizeDeviceIdentifier(onus[i].SerialNumber) == normTargetSN {
-							matched = &onus[i]
-							break
-						}
-					}
-				}
-
-				if matched == nil && dt.IDPelanggan != "" {
-					idP := strings.ToLower(strings.TrimSpace(dt.IDPelanggan))
-					for i := range onus {
-						onuName := strings.ToLower(strings.TrimSpace(onus[i].Name))
-						if onuName == idP || strings.HasPrefix(idP, onuName) || strings.HasPrefix(onuName, idP) {
-							matched = &onus[i]
-							break
-						}
+				for i := range onus {
+					if matchONUToCustomer(&onus[i], dt) {
+						matched = &onus[i]
+						break
 					}
 				}
 
@@ -1922,11 +1981,9 @@ func (u *dataTeknisUsecase) BulkSyncOLT(ctx context.Context, oltName string) (*d
 	} else if olt != nil && u.isZTE(olt) && u.zteTelnet != nil {
 		user, pass := u.getZTECredentials(olt)
 		if user != "" {
-			for p := 1; p <= 16; p++ {
-				onus, err := u.zteTelnet.GetONUs(ctx, olt.IPAddress, 23, user, pass, 1, p)
-				if err == nil && len(onus) > 0 {
-					scannedONUs = append(scannedONUs, onus...)
-				}
+			onus, err := u.zteTelnet.GetAllONUs(ctx, olt.IPAddress, 23, user, pass)
+			if err == nil && len(onus) > 0 {
+				scannedONUs = onus
 			}
 		}
 		if len(scannedONUs) == 0 && u.zteClient != nil {
@@ -1969,7 +2026,7 @@ func (u *dataTeknisUsecase) BulkSyncOLT(ctx context.Context, oltName string) (*d
 		return nil, fmt.Errorf("failed to fetch data teknis: %w", err)
 	}
 
-	// 3. Build candidate lookup structures
+	// 3. Filter candidates
 	var candidates []*domain.DataTeknis
 	for i := range dtList {
 		dt := &dtList[i]
@@ -1982,167 +2039,120 @@ func (u *dataTeknisUsecase) BulkSyncOLT(ctx context.Context, oltName string) (*d
 		candidates = append(candidates, dt)
 	}
 
-	snMap := make(map[string]*domain.DataTeknis)
-	idMap := make(map[string]*domain.DataTeknis)
+	// 4. Pre-match in memory
+	type matchPair struct {
+		onu *domain.ZTEONUInfo
+		dt  *domain.DataTeknis
+	}
+	var matchedPairs []matchPair
+	matchedDTIDs := make(map[uint64]bool)
 
-	for _, dt := range candidates {
-		if dt.Sn != nil && strings.TrimSpace(*dt.Sn) != "" {
-			norm := normalizeDeviceIdentifier(*dt.Sn)
-			if norm != "" {
-				snMap[norm] = dt
+	for i := range scannedONUs {
+		onu := &scannedONUs[i]
+		for _, dt := range candidates {
+			if matchedDTIDs[dt.ID] {
+				continue
 			}
-		}
-		if dt.IDPelanggan != "" {
-			idMap[strings.ToLower(strings.TrimSpace(dt.IDPelanggan))] = dt
+			if matchONUToCustomer(onu, dt) {
+				matchedDTIDs[dt.ID] = true
+				matchedPairs = append(matchedPairs, matchPair{onu: onu, dt: dt})
+				break
+			}
 		}
 	}
 
-	matchedDTIDs := make(map[uint64]bool)
+	// 5. Batch-fetch optical power for HSGQ in ONE single Telnet session
+	rxPowerMap := make(map[string]string)
+	if olt != nil && u.isHSGQ(olt) && u.hsgqClient != nil && len(matchedPairs) > 0 {
+		var targetsToQuery []domain.ZTEONUInfo
+		for _, pair := range matchedPairs {
+			if (pair.onu.RxPower == "" || pair.onu.RxPower == "-") && (strings.EqualFold(pair.onu.Status, "Online") || strings.EqualFold(pair.onu.Status, "working")) {
+				targetsToQuery = append(targetsToQuery, *pair.onu)
+			}
+		}
+		if len(targetsToQuery) > 0 {
+			user, pass := u.getHSGQCredentials(olt)
+			batchPowers, err := u.hsgqClient.GetBatchOpticalPower(ctx, olt.IPAddress, 23, user, pass, targetsToQuery)
+			if err == nil {
+				rxPowerMap = batchPowers
+			}
+		}
+	}
 
-	for _, onu := range scannedONUs {
-		var matchedDT *domain.DataTeknis
-		onuSN := strings.TrimSpace(onu.SerialNumber)
-		normSN := normalizeDeviceIdentifier(onuSN)
+	// 6. Update database for all matched records
+	for _, pair := range matchedPairs {
+		onu := pair.onu
+		matchedDT := pair.dt
+		result.TotalMatched++
 
-		// 1. Match by Serial Number / MAC
-		if normSN != "" {
-			if dt, ok := snMap[normSN]; ok && !matchedDTIDs[dt.ID] {
-				matchedDT = dt
+		snToUse := strings.TrimSpace(onu.SerialNumber)
+		rxPowerToUse := strings.TrimSpace(onu.RxPower)
+		statusToUse := onu.Status
+
+		if rxPowerToUse == "" || rxPowerToUse == "-" {
+			key := fmt.Sprintf("%d:%d", onu.PON, onu.ONUID)
+			if pwr, ok := rxPowerMap[key]; ok && pwr != "" {
+				rxPowerToUse = pwr
 			}
 		}
 
-		// 2. Match by ID Pelanggan (PPPoE Username)
-		if matchedDT == nil && onu.Name != "" {
-			onuNameLower := strings.ToLower(strings.TrimSpace(onu.Name))
-			if dt, ok := idMap[onuNameLower]; ok && !matchedDTIDs[dt.ID] {
-				matchedDT = dt
-			} else if len(onuNameLower) >= 5 {
-				for _, dt := range candidates {
-					if matchedDTIDs[dt.ID] {
-						continue
-					}
-					dtIDLower := strings.ToLower(strings.TrimSpace(dt.IDPelanggan))
-					if dtIDLower != "" && (strings.HasPrefix(dtIDLower, onuNameLower) || strings.HasPrefix(onuNameLower, dtIDLower)) {
-						matchedDT = dt
-						break
-					}
+		needsUpdate := false
+
+		// Check OLT
+		if matchedDT.Olt == nil || *matchedDT.Olt == "" || !strings.EqualFold(*matchedDT.Olt, targetOLTName) {
+			matchedDT.Olt = &targetOLTName
+			needsUpdate = true
+		}
+
+		// Check PON
+		if matchedDT.Pon == nil || *matchedDT.Pon != onu.PON {
+			ponVal := onu.PON
+			matchedDT.Pon = &ponVal
+			needsUpdate = true
+		}
+
+		// Check SN
+		if snToUse != "" && (matchedDT.Sn == nil || *matchedDT.Sn == "" || *matchedDT.Sn != snToUse) {
+			matchedDT.Sn = &snToUse
+			needsUpdate = true
+		}
+
+		// Check Redaman (OnuPower)
+		if rxPowerToUse != "" {
+			if pwrInt := parseRxPowerToInt(rxPowerToUse); pwrInt != nil {
+				if matchedDT.OnuPower == nil || *matchedDT.OnuPower != *pwrInt {
+					matchedDT.OnuPower = pwrInt
+					needsUpdate = true
 				}
 			}
 		}
 
-		// 3. Match by Customer Name
-		if matchedDT == nil && (onu.CustomerName != "" || onu.Name != "") {
-			checkName := strings.ToLower(strings.TrimSpace(onu.CustomerName))
-			if checkName == "" {
-				checkName = strings.ToLower(strings.TrimSpace(onu.Name))
-			}
-			if len(checkName) >= 4 {
-				for _, dt := range candidates {
-					if matchedDTIDs[dt.ID] {
-						continue
-					}
-					if dt.Pelanggan != nil && dt.Pelanggan.Nama != "" {
-						custLower := strings.ToLower(strings.TrimSpace(dt.Pelanggan.Nama))
-						if len(custLower) >= 4 && (strings.Contains(custLower, checkName) || strings.Contains(checkName, custLower)) {
-							matchedDT = dt
-							break
-						}
-					}
-				}
+		if needsUpdate {
+			if err := u.dataTeknisRepo.Update(ctx, matchedDT); err == nil {
+				result.UpdatedCount++
 			}
 		}
 
-		if matchedDT != nil {
-			matchedDTIDs[matchedDT.ID] = true
-			result.TotalMatched++
-
-			snToUse := onuSN
-			rxPowerToUse := strings.TrimSpace(onu.RxPower)
-			statusToUse := onu.Status
-
-			// If redaman is not present in batch and ONU is online, query detail
-			if (rxPowerToUse == "" || rxPowerToUse == "-" || strings.EqualFold(rxPowerToUse, "n/a")) && (strings.EqualFold(statusToUse, "online") || strings.EqualFold(statusToUse, "working")) {
-				if olt != nil && u.isHSGQ(olt) && u.hsgqClient != nil {
-					user, pass := u.getHSGQCredentials(olt)
-					if detail, err := u.hsgqClient.GetONUDetail(ctx, olt.IPAddress, 23, user, pass, onu.PON, onu.ONUID); err == nil && detail != nil {
-						if detail.RxPower != "" {
-							rxPowerToUse = detail.RxPower
-						}
-						if detail.SerialNumber != "" && snToUse == "" {
-							snToUse = detail.SerialNumber
-						}
-					}
-				} else if olt != nil && u.isZTE(olt) && u.zteTelnet != nil {
-					user, pass := u.getZTECredentials(olt)
-					if detail, err := u.zteTelnet.GetONUDetail(ctx, olt.IPAddress, 23, user, pass, onu.Board, onu.PON, onu.ONUID); err == nil && detail != nil {
-						if detail.RxPower != "" {
-							rxPowerToUse = detail.RxPower
-						}
-						if detail.SerialNumber != "" && snToUse == "" {
-							snToUse = detail.SerialNumber
-						}
-					}
-				}
-			}
-
-			needsUpdate := false
-
-			// Check OLT
-			if matchedDT.Olt == nil || *matchedDT.Olt == "" || !strings.EqualFold(*matchedDT.Olt, targetOLTName) {
-				matchedDT.Olt = &targetOLTName
-				needsUpdate = true
-			}
-
-			// Check PON
-			if matchedDT.Pon == nil || *matchedDT.Pon != onu.PON {
-				ponVal := onu.PON
-				matchedDT.Pon = &ponVal
-				needsUpdate = true
-			}
-
-			// Check SN
-			if snToUse != "" && (matchedDT.Sn == nil || *matchedDT.Sn == "" || *matchedDT.Sn != snToUse) {
-				matchedDT.Sn = &snToUse
-				needsUpdate = true
-			}
-
-			// Check Redaman (OnuPower)
-			if rxPowerToUse != "" {
-				if pwrInt := parseRxPowerToInt(rxPowerToUse); pwrInt != nil {
-					if matchedDT.OnuPower == nil || *matchedDT.OnuPower != *pwrInt {
-						matchedDT.OnuPower = pwrInt
-						needsUpdate = true
-					}
-				}
-			}
-
-			if needsUpdate {
-				if err := u.dataTeknisRepo.Update(ctx, matchedDT); err == nil {
-					result.UpdatedCount++
-				}
-			}
-
-			custName := ""
-			if matchedDT.Pelanggan != nil {
-				custName = matchedDT.Pelanggan.Nama
-			}
-			itemIP := ""
-			if matchedDT.IPPelanggan != nil {
-				itemIP = *matchedDT.IPPelanggan
-			}
-
-			result.Details = append(result.Details, domain.BulkSyncItem{
-				IDPelanggan: matchedDT.IDPelanggan,
-				Nama:        custName,
-				IP:          itemIP,
-				PON:         onu.PON,
-				Board:       onu.Board,
-				ONUID:       onu.ONUID,
-				SN:          snToUse,
-				RxPower:     rxPowerToUse,
-				Status:      statusToUse,
-			})
+		custName := ""
+		if matchedDT.Pelanggan != nil {
+			custName = matchedDT.Pelanggan.Nama
 		}
+		itemIP := ""
+		if matchedDT.IPPelanggan != nil {
+			itemIP = *matchedDT.IPPelanggan
+		}
+
+		result.Details = append(result.Details, domain.BulkSyncItem{
+			IDPelanggan: matchedDT.IDPelanggan,
+			Nama:        custName,
+			IP:          itemIP,
+			PON:         onu.PON,
+			Board:       onu.Board,
+			ONUID:       onu.ONUID,
+			SN:          snToUse,
+			RxPower:     rxPowerToUse,
+			Status:      statusToUse,
+		})
 	}
 
 	return result, nil

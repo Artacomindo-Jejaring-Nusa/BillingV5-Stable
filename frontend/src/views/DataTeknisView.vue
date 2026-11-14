@@ -487,12 +487,12 @@
                       @click="openLiveDetailModal(item)"
                     >
                       <v-icon start size="14">mdi-broadcast</v-icon>
-                      {{ liveTelemetryMap[item.id]?.data?.rx_power ? liveTelemetryMap[item.id]?.data?.rx_power + ' dBm' : '-' }}
+                      {{ formatPowerDisplay(liveTelemetryMap[item.id]?.data?.rx_power) }}
                     </v-chip>
                   </template>
                   <span>
                     Status: <strong>{{ liveTelemetryMap[item.id]?.data?.status }}</strong><br>
-                    Tx Power: {{ liveTelemetryMap[item.id]?.data?.tx_power }} dBm<br>
+                    Tx Power: {{ formatPowerDisplay(liveTelemetryMap[item.id]?.data?.tx_power) }}<br>
                     Jarak Optik: {{ liveTelemetryMap[item.id]?.data?.gpon_optical_distance || '0' }} meter<br>
                     Klik untuk detail lengkap
                   </span>
@@ -641,12 +641,12 @@
                         <div class="d-flex justify-space-between align-center mb-1">
                           <span class="text-caption text-grey-darken-1">Redaman Rx:</span>
                           <span class="text-caption font-weight-bold" :class="getLiveSignalColor(liveTelemetryMap[item.id]?.data?.rx_power) === 'success' ? 'text-success' : 'text-error'">
-                            {{ liveTelemetryMap[item.id]?.data?.rx_power }} dBm
+                            {{ formatPowerDisplay(liveTelemetryMap[item.id]?.data?.rx_power) }}
                           </span>
                         </div>
                         <div class="d-flex justify-space-between align-center mb-1">
                           <span class="text-caption text-grey-darken-1">Power Tx:</span>
-                          <span class="text-caption font-weight-medium">{{ liveTelemetryMap[item.id]?.data?.tx_power }} dBm</span>
+                          <span class="text-caption font-weight-medium">{{ formatPowerDisplay(liveTelemetryMap[item.id]?.data?.tx_power) }}</span>
                         </div>
                         <div class="d-flex justify-space-between align-center mb-1">
                           <span class="text-caption text-grey-darken-1">Jarak Kabel:</span>
@@ -834,7 +834,7 @@
                          class="font-weight-bold"
                          @click="openLiveDetailModal(item)"
                        >
-                         {{ liveTelemetryMap[item.id]?.data?.rx_power }} dBm ({{ liveTelemetryMap[item.id]?.data?.status }})
+                         {{ formatPowerDisplay(liveTelemetryMap[item.id]?.data?.rx_power) }} ({{ liveTelemetryMap[item.id]?.data?.status }})
                        </v-chip>
                        <v-chip v-else :color="getOnuPowerColor(item.onu_power)" size="small" variant="flat" label class="font-weight-bold">
                          {{ item.onu_power ? item.onu_power + ' dBm' : '0 dBm' }}
@@ -889,7 +889,7 @@
                         </div>
                         <div class="d-flex justify-space-between text-caption mb-1">
                           <span>Redaman Rx:</span>
-                          <strong :class="getLiveSignalColor(liveTelemetryMap[item.id]?.data?.rx_power) === 'success' ? 'text-success' : 'text-error'">{{ liveTelemetryMap[item.id]?.data?.rx_power }} dBm</strong>
+                          <strong :class="getLiveSignalColor(liveTelemetryMap[item.id]?.data?.rx_power) === 'success' ? 'text-success' : 'text-error'">{{ formatPowerDisplay(liveTelemetryMap[item.id]?.data?.rx_power) }}</strong>
                         </div>
                         <div class="d-flex justify-space-between text-caption mb-1">
                           <span>Jarak Kabel:</span>
@@ -1592,14 +1592,14 @@
                 <div class="pa-3 bg-grey-lighten-4 rounded-lg">
                   <div class="text-caption text-grey-darken-1">Rx Optical Power (Redaman)</div>
                   <div class="text-h6 font-weight-bold mt-1" :class="getLiveSignalColor(liveTelemetryMap[selectedLiveDT?.id]?.data?.rx_power) === 'success' ? 'text-success' : 'text-error'">
-                    {{ liveTelemetryMap[selectedLiveDT?.id]?.data?.rx_power }} dBm
+                    {{ formatPowerDisplay(liveTelemetryMap[selectedLiveDT?.id]?.data?.rx_power) }}
                   </div>
                 </div>
               </v-col>
               <v-col cols="6">
                 <div class="pa-3 bg-grey-lighten-4 rounded-lg">
                   <div class="text-caption text-grey-darken-1">Tx Optical Power</div>
-                  <div class="text-body-1 font-weight-bold mt-1">{{ liveTelemetryMap[selectedLiveDT?.id]?.data?.tx_power }} dBm</div>
+                  <div class="text-body-1 font-weight-bold mt-1">{{ formatPowerDisplay(liveTelemetryMap[selectedLiveDT?.id]?.data?.tx_power) }}</div>
                 </div>
               </v-col>
               <v-col cols="6">
@@ -1767,7 +1767,7 @@
                   <td>{{ onu.onu_type || '-' }}</td>
                   <td>
                     <v-chip size="x-small" :color="getLiveSignalColor(onu.rx_power)" variant="flat">
-                      {{ onu.rx_power }} dBm
+                      {{ formatPowerDisplay(onu.rx_power) }}
                     </v-chip>
                   </td>
                   <td>
@@ -1909,7 +1909,7 @@
                     <td><code class="font-mono text-primary font-weight-bold">{{ item.sn }}</code></td>
                     <td>
                       <v-chip size="x-small" :color="getLiveSignalColor(item.rx_power)" variant="flat">
-                        {{ item.rx_power ? (item.rx_power.includes('dBm') ? item.rx_power : item.rx_power + ' dBm') : '-' }}
+                        {{ formatPowerDisplay(item.rx_power) }}
                       </v-chip>
                     </td>
                     <td>
@@ -3066,6 +3066,15 @@ function getOnuPowerStatus(power: number) {
 }
 
 // --- Live ZTE Optical Telemetry Helpers ---
+function formatPowerDisplay(power?: string | number): string {
+  if (power === undefined || power === null || power === '' || power === '-') return '-';
+  const str = String(power).trim();
+  if (str.toLowerCase().includes('dbm')) {
+    return str;
+  }
+  return `${str} dBm`;
+}
+
 function getLiveSignalColor(powerStr?: string | number): string {
   if (powerStr === undefined || powerStr === null || powerStr === '') return 'grey';
   const val = typeof powerStr === 'number' ? powerStr : parseFloat(String(powerStr));
