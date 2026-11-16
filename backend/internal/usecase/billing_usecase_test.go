@@ -1577,3 +1577,146 @@ func TestSyncAllSuspendedToMikrotik_NilDbGraceful(t *testing.T) {
 	}
 }
 
+func TestAutoSuspend_SkipsWhenCycleAlreadyPaid(t *testing.T) {
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	dueDate := time.Date(2026, 11, 4, 0, 0, 0, 0, loc)
+
+	langganan := &domain.Langganan{
+		ID:          1,
+		PelangganID: 1044,
+		Status:      "Aktif",
+		Pelanggan: &domain.Pelanggan{
+			ID:   1044,
+			Nama: "m alfarelio aditya saputra",
+			DataTeknis: &domain.DataTeknis{
+				IDPelanggan: "PRM-C1-13-Alfarelio",
+			},
+		},
+	}
+
+	invUnpaid := &domain.Invoice{
+		ID:            14433,
+		InvoiceNumber: "INV-UNPAID",
+		PelangganID:   1044,
+		LanggananID:   &langganan.ID,
+		StatusInvoice: "Belum Bayar",
+		TglJatuhTempo: dueDate,
+	}
+
+	invPaid := &domain.Invoice{
+		ID:            14435,
+		InvoiceNumber: "INV-PAID",
+		PelangganID:   1044,
+		LanggananID:   &langganan.ID,
+		StatusInvoice: "Lunas",
+		TglJatuhTempo: dueDate,
+	}
+
+	invRepo := &mockInvoiceRepoCallback{
+		invoices: map[string]*domain.Invoice{
+			"INV-UNPAID": invUnpaid,
+			"INV-PAID":   invPaid,
+		},
+	}
+
+	langRepo := &mockLanggananRepo{
+		data: map[uint64]*domain.Langganan{
+			1: langganan,
+		},
+	}
+
+	sysRepo := &mockSystemRepo{}
+	u := NewBillingUsecase(invRepo, langRepo, nil, nil, nil, nil, nil, nil, sysRepo, nil).(*billingUsecase)
+
+	err := u.AutoSuspend(context.Background())
+	if err != nil {
+		t.Fatalf("AutoSuspend returned unexpected error: %v", err)
+	}
+
+	// Langganan MUST stay Aktif because the cycle was paid by INV-PAID!
+	if langganan.Status != "Aktif" {
+		t.Errorf("expected langganan to remain 'Aktif' because a paid invoice exists for this cycle, but got: %s", langganan.Status)
+	}
+}
+
+func TestGenerateManualInvoice_RejectsDuplicate(t *testing.T) {
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	dueDate := time.Date(2026, 11, 4, 0, 0, 0, 0, loc)
+
+	langganan := &domain.Langganan{
+		ID:                         1020,
+		PelangganID:                1044,
+		Status:                     "Aktif",
+		TglJatuhTempoPembayaran:    &dueDate,
+		TglJatuhTempo:              &dueDate,
+		PaketLayananID:             6,
+	}
+
+	pelanggan := &domain.Pelanggan{
+		ID:      1044,
+		Nama:    "m alfarelio aditya saputra",
+		IDBrand: stringPtr("brand1"),
+	}
+
+	brand := &domain.HargaLayanan{
+		IDBrand: "brand1",
+		Brand:   "JELANTIK",
+	}
+
+	paket := &domain.PaketLayanan{
+		ID:    6,
+		Harga: 200000,
+	}
+
+	existingInv := &domain.Invoice{
+		ID:            14433,
+		InvoiceNumber: "INV-14433",
+		PelangganID:   1044,
+		StatusInvoice: "Belum Bayar",
+		TglJatuhTempo: dueDate,
+	}
+
+	invRepo := &mockInvoiceRepoCallback{
+		invoices: map[string]*domain.Invoice{
+			"INV-14433": existingInv,
+		},
+	}
+
+	langRepo := &mockLanggananRepo{
+		data: map[uint64]*domain.Langganan{
+			1020: langganan,
+		},
+	}
+
+	pelRepo := &mockPelangganRepo{
+		data: map[uint64]*domain.Pelanggan{
+			1044: pelanggan,
+		},
+	}
+
+	brandRepo := &mockBrandRepo{
+		data: map[string]*domain.HargaLayanan{
+			"brand1": brand,
+		},
+	}
+
+	paketRepo := &mockPaketRepo{
+		data: map[uint64]*domain.PaketLayanan{
+			6: paket,
+		},
+	}
+
+	sysRepo := &mockSystemRepo{}
+	u := NewBillingUsecase(invRepo, langRepo, pelRepo, paketRepo, brandRepo, nil, nil, nil, sysRepo, nil).(*billingUsecase)
+
+	// Call GenerateManualInvoice - it should detect existing unpaid invoice for the cycle and reject
+	_, err := u.GenerateManualInvoice(context.Background(), 1020)
+	if err == nil {
+		t.Fatal("expected error rejecting duplicate manual invoice, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "sudah ada") {
+		t.Errorf("expected error message to contain 'sudah ada', got: %v", err)
+	}
+}
+

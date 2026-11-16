@@ -207,6 +207,7 @@ func (r *invoiceRepository) GetInvoiceByPelangganAndDueDateRange(ctx context.Con
 		Clauses(dbresolver.Write).
 		Where("pelanggan_id = ?", pelangganID).
 		Where("tgl_jatuh_tempo BETWEEN ? AND ?", start, end).
+		Order("CASE WHEN status_invoice = 'Lunas' THEN 1 WHEN status_invoice = 'Belum Bayar' THEN 2 ELSE 3 END, id DESC").
 		First(&inv).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

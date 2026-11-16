@@ -132,7 +132,10 @@ func (u *billingUsecase) CreateInvoice(ctx context.Context, invoice *domain.Invo
 		return errors.New("brand not found")
 	}
 	pelanggan.HargaLayanan = brand
-	dt, _ := u.dataTeknisRepo.GetByPelangganID(ctx, pelanggan.ID)
+	var dt *domain.DataTeknis
+	if u.dataTeknisRepo != nil {
+		dt, _ = u.dataTeknisRepo.GetByPelangganID(ctx, pelanggan.ID)
+	}
 	if dt == nil {
 		return errors.New("data teknis missing")
 	}
@@ -422,7 +425,10 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 	}
 	pelanggan.HargaLayanan = brand
 
-	dt, _ := u.dataTeknisRepo.GetByPelangganID(ctx, pelanggan.ID)
+	var dt *domain.DataTeknis
+	if u.dataTeknisRepo != nil {
+		dt, _ = u.dataTeknisRepo.GetByPelangganID(ctx, pelanggan.ID)
+	}
 
 	now := time.Now()
 	harga := langganan.HargaAwal
@@ -444,6 +450,27 @@ func (u *billingUsecase) GenerateManualInvoice(ctx context.Context, langgananID 
 	if dueDate == nil {
 		d := now.AddDate(0, 1, 0)
 		dueDate = &d
+	}
+
+	// Validasi pencegahan invoice ganda/duplikat untuk siklus bulan yang sama
+	checkDate := dueDate
+	if checkDate == nil {
+		checkDate = langganan.TglJatuhTempo
+	}
+	if checkDate == nil {
+		checkDate = &now
+	}
+	startCycle := time.Date(checkDate.Year(), checkDate.Month(), 1, 0, 0, 0, 0, checkDate.Location())
+	endCycle := time.Date(checkDate.Year(), checkDate.Month()+1, 0, 23, 59, 59, 0, checkDate.Location())
+
+	existingCycleInv, errCycle := u.invoiceRepo.GetInvoiceByPelangganAndDueDateRange(ctx, langganan.PelangganID, startCycle, endCycle)
+	if errCycle == nil && existingCycleInv != nil {
+		if strings.EqualFold(existingCycleInv.StatusInvoice, "Lunas") {
+			return nil, fmt.Errorf("pelanggan sudah memiliki invoice yang LUNAS untuk periode ini (%s)", existingCycleInv.InvoiceNumber)
+		}
+		if strings.EqualFold(existingCycleInv.StatusInvoice, "Belum Bayar") {
+			return nil, fmt.Errorf("invoice untuk periode ini sudah ada (%s) dan masih berstatus Belum Bayar", existingCycleInv.InvoiceNumber)
+		}
 	}
 
 	re := regexp.MustCompile(`[^a-zA-Z0-9]`)
@@ -1380,7 +1407,10 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 					}
 					pelanggan.HargaLayanan = brand
 
-					dt, _ := u.dataTeknisRepo.GetByPelangganID(ctx, pelanggan.ID)
+					var dt *domain.DataTeknis
+	if u.dataTeknisRepo != nil {
+		dt, _ = u.dataTeknisRepo.GetByPelangganID(ctx, pelanggan.ID)
+	}
 
 					// Prioritaskan tgl_jatuh_tempo_pembayaran (Kotak 3) sebagai jatuh tempo pembayaran invoice
 					dueDate := l.TglJatuhTempoPembayaran
@@ -1676,6 +1706,25 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 					continue
 				}
 
+				// Proteksi Kritis: Cek apakah pelanggan sudah memiliki invoice LUNAS untuk siklus/bulan yang sama
+				startMonth := time.Date(invDueDate.Year(), invDueDate.Month(), 1, 0, 0, 0, 0, loc)
+				endMonth := time.Date(invDueDate.Year(), invDueDate.Month()+1, 0, 23, 59, 59, 0, loc)
+				var paidCount int64
+				errPaid := db.WithContext(ctx).Model(&domain.Invoice{}).
+					Where("pelanggan_id = ? AND status_invoice = ? AND id != ?", inv.PelangganID, "Lunas", inv.ID).
+					Where("tgl_jatuh_tempo BETWEEN ? AND ?", startMonth, endMonth).
+					Count(&paidCount).Error
+				if errPaid == nil && paidCount > 0 {
+					pName := ""
+					if inv.Pelanggan != nil {
+						pName = inv.Pelanggan.Nama
+					}
+					u.logSystem(ctx, "WARN", fmt.Sprintf("AutoSuspend: DIBATALKAN untuk pelanggan %s (Invoice: %s). Pelanggan sudah memiliki invoice LUNAS pada periode %s-%d. Menandai invoice duplikat ini sebagai Expired.",
+						pName, inv.InvoiceNumber, invDueDate.Month().String(), invDueDate.Year()))
+					_ = db.WithContext(ctx).Model(&domain.Invoice{}).Where("id = ?", inv.ID).Update("status_invoice", "Expired")
+					continue
+				}
+
 				if inv.Pelanggan == nil || len(inv.Pelanggan.Langganan) == 0 {
 					continue
 				}
@@ -1743,6 +1792,14 @@ func (u *billingUsecase) AutoSuspend(ctx context.Context) error {
 				}
 
 				if now.Before(suspendCutoffDate) {
+					continue
+				}
+
+				// Proteksi fallback: Cek apakah ada invoice LUNAS untuk pelanggan pada periode siklus yang sama
+				existingPaid, _ := u.invoiceRepo.GetInvoiceByPelangganAndDueDateRange(ctx, inv.PelangganID,
+					time.Date(invDueDate.Year(), invDueDate.Month(), 1, 0, 0, 0, 0, loc),
+					time.Date(invDueDate.Year(), invDueDate.Month()+1, 0, 23, 59, 59, 0, loc))
+				if existingPaid != nil && existingPaid.ID != inv.ID && strings.EqualFold(existingPaid.StatusInvoice, "Lunas") {
 					continue
 				}
 
@@ -3251,6 +3308,33 @@ func (u *billingUsecase) processSuccessfulPayment(ctx context.Context, inv *doma
 			"amount":         amt,
 		})
 	}
+
+	// Otomatis expire tagihan duplikat yang masih 'Belum Bayar' pada periode siklus yang sama
+	go func(pelangganID uint64, paidInvID uint64, dueDate time.Time, paidInvNum string) {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		db := database.GetDB()
+		if db == nil {
+			return
+		}
+		var duplicateInvoices []domain.Invoice
+		startMonth := time.Date(dueDate.Year(), dueDate.Month(), 1, 0, 0, 0, 0, dueDate.Location())
+		endMonth := time.Date(dueDate.Year(), dueDate.Month()+1, 0, 23, 59, 59, 0, dueDate.Location())
+
+		err := db.WithContext(bgCtx).
+			Where("pelanggan_id = ? AND id != ? AND status_invoice = ?", pelangganID, paidInvID, "Belum Bayar").
+			Where("tgl_jatuh_tempo BETWEEN ? AND ?", startMonth, endMonth).
+			Find(&duplicateInvoices).Error
+		if err == nil && len(duplicateInvoices) > 0 {
+			for _, dup := range duplicateInvoices {
+				dup.StatusInvoice = "Expired"
+				_ = db.WithContext(bgCtx).Model(&domain.Invoice{}).Where("id = ?", dup.ID).Update("status_invoice", "Expired")
+				u.logSystem(bgCtx, "INFO", fmt.Sprintf("Auto-expired duplicate unpaid invoice %s (ID: %d) because invoice %s was paid", dup.InvoiceNumber, dup.ID, paidInvNum))
+				_ = u.expireXenditInvoice(bgCtx, &dup, dup.Pelanggan)
+			}
+		}
+	}(inv.PelangganID, inv.ID, inv.TglJatuhTempo, inv.InvoiceNumber)
 
 	var targetLangganan *domain.Langganan
 	if inv.LanggananID != nil && *inv.LanggananID > 0 && u.langgananRepo != nil {

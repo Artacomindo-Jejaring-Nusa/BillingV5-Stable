@@ -963,7 +963,7 @@
             color="primary" 
             @click="generateManualInvoice"
             :loading="generating"
-            :disabled="!selectedLanggananId"
+            :disabled="!selectedLanggananId || generating"
             variant="elevated"
             size="large"
             class="text-none font-weight-bold"
@@ -1743,6 +1743,8 @@ async function generateManualInvoice() {
     return;
   }
 
+  if (generating.value) return;
+
   // Cek apakah langganan memiliki error
   if (selectedLangganan.raw?.has_error) {
     showSnackbar(selectedLangganan.raw.error_message || 'Data langganan tidak konsisten. Hubungi admin.', 'error');
@@ -1764,7 +1766,7 @@ async function generateManualInvoice() {
     fetchInvoices();
     closeDialog();
   } catch (error: any) {
-    const detail = error.response?.data?.detail || 'Gagal membuat invoice.';
+    const detail = error.response?.data?.error || error.response?.data?.detail || 'Gagal membuat invoice.';
 
     // Handle error spesifik untuk data tidak konsisten
     if (detail.includes('tidak ditemukan')) {

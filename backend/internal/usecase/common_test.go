@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"time"
 	"billing-backend/internal/domain"
 )
 
@@ -212,6 +213,21 @@ func (m *mockInvoiceRepoCallback) GetAll(ctx context.Context, limit, offset int,
 		}
 	}
 	return res, int64(len(res)), nil
+}
+
+func (m *mockInvoiceRepoCallback) GetInvoiceByPelangganAndDueDateRange(ctx context.Context, pelangganID uint64, start, end time.Time) (*domain.Invoice, error) {
+	var candidate *domain.Invoice
+	for _, inv := range m.invoices {
+		if inv.PelangganID == pelangganID && (inv.TglJatuhTempo.After(start) || inv.TglJatuhTempo.Equal(start)) && (inv.TglJatuhTempo.Before(end) || inv.TglJatuhTempo.Equal(end)) {
+			if inv.StatusInvoice == "Lunas" {
+				return inv, nil
+			}
+			if candidate == nil || inv.StatusInvoice == "Belum Bayar" {
+				candidate = inv
+			}
+		}
+	}
+	return candidate, nil
 }
 
 type mockPaketRepo struct {
