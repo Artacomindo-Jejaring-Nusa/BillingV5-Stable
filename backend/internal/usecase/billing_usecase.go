@@ -251,7 +251,7 @@ func (u *billingUsecase) sendQontakInvoiceBroadcast(ctx context.Context, pelangg
 	if alamat == "" {
 		alamat = "-"
 	}
-	
+
 	// Use invoice due date to represent the billing month & year in Indonesian
 	periode := fmt.Sprintf("%s %d", getIndonesianMonthName(invoice.TglJatuhTempo.Month()), invoice.TglJatuhTempo.Year())
 	totalAmount := fmt.Sprintf("Rp %.0f", invoice.TotalHarga)
@@ -667,6 +667,50 @@ func (u *billingUsecase) DeleteInvoice(ctx context.Context, id uint64) error {
 		websocket.InvalidateDashboardCache(ctx)
 	}
 	return err
+}
+
+func (u *billingUsecase) ExpireInvoice(ctx context.Context, id uint64) (*domain.Invoice, error) {
+	invoice, err := u.invoiceRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if invoice == nil {
+		return nil, errors.New("invoice tidak ditemukan")
+	}
+
+	if invoice.StatusInvoice == "Lunas" {
+		return nil, errors.New("invoice sudah berstatus Lunas dan tidak dapat di-expire")
+	}
+	if invoice.StatusInvoice == "Expired" {
+		return nil, errors.New("invoice sudah berstatus Expired")
+	}
+
+	if u.cfg != nil && ((invoice.XenditID != nil && *invoice.XenditID != "") || strings.EqualFold(invoice.XenditStatus, "pending")) {
+		expCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		expErr := u.expireXenditInvoice(expCtx, invoice, invoice.Pelanggan)
+		cancel()
+		if expErr != nil {
+			errMsg := expErr.Error()
+			// Proceed locally only if the invoice doesn't exist on Xendit; otherwise fail so DB stays in sync with Xendit
+			if !strings.Contains(errMsg, "not found") && !strings.Contains(errMsg, "tidak dapat menemukan") {
+				u.logSystem(ctx, "ERROR", fmt.Sprintf("ExpireInvoice: Gagal expire invoice Xendit %s: %v", invoice.InvoiceNumber, expErr))
+				return nil, fmt.Errorf("gagal meng-expire invoice di Xendit: %w", expErr)
+			}
+			logger.Warn("ExpireInvoice: Invoice Xendit %s tidak ditemukan di gateway (%v), lanjut expire lokal", invoice.InvoiceNumber, expErr)
+		}
+	}
+
+	invoice.StatusInvoice = "Expired"
+	invoice.XenditStatus = "expired"
+	if err := u.invoiceRepo.Update(ctx, invoice); err != nil {
+		return nil, err
+	}
+
+	u.logActivity(ctx, "Expire Invoice", fmt.Sprintf("Expired invoice %s (ID: %d) and synced with Xendit", invoice.InvoiceNumber, id))
+	u.logSystem(ctx, "INFO", fmt.Sprintf("ExpireInvoice: Invoice %s (ID: %d) berhasil diubah ke Expired dan disinkronkan ke Xendit", invoice.InvoiceNumber, id))
+	websocket.InvalidateDashboardCache(ctx)
+
+	return invoice, nil
 }
 
 func (u *billingUsecase) expireXenditInvoice(ctx context.Context, inv *domain.Invoice, pelanggan *domain.Pelanggan) error {
@@ -1364,7 +1408,7 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 			// Konversi ke zona waktu Asia/Jakarta untuk pembandingan presisi
 			subDue := targetDue.In(loc)
 			isBefore := subDue.Before(targetDate)
-			u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateInvoices: Checking Langganan ID %d (Pelanggan ID %d). subDue: %s, targetDate: %s, isBefore: %t", 
+			u.logSystem(ctx, "INFO", fmt.Sprintf("GenerateInvoices: Checking Langganan ID %d (Pelanggan ID %d). subDue: %s, targetDate: %s, isBefore: %t",
 				l.ID, l.PelangganID, subDue.Format("2006-01-02 15:04:05 Z0700"), targetDate.Format("2006-01-02 15:04:05 Z0700"), isBefore))
 
 			// Jika jatuh tempo berada pada atau sebelum targetDate (H-5)
@@ -1408,9 +1452,9 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 					pelanggan.HargaLayanan = brand
 
 					var dt *domain.DataTeknis
-	if u.dataTeknisRepo != nil {
-		dt, _ = u.dataTeknisRepo.GetByPelangganID(ctx, pelanggan.ID)
-	}
+					if u.dataTeknisRepo != nil {
+						dt, _ = u.dataTeknisRepo.GetByPelangganID(ctx, pelanggan.ID)
+					}
 
 					// Prioritaskan tgl_jatuh_tempo_pembayaran (Kotak 3) sebagai jatuh tempo pembayaran invoice
 					dueDate := l.TglJatuhTempoPembayaran
@@ -1444,7 +1488,7 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 					}
 
 					invoiceNumber := fmt.Sprintf("%s/ftth/%s/%s/%s/%s", brandSingkat, namaSingkat, bulanTahun, alamatSingkat, idSuffix)
-					
+
 					// Avoid duplicates
 					counter := 0
 					for {
@@ -1524,7 +1568,7 @@ func (u *billingUsecase) GenerateInvoices(ctx context.Context) error {
 					// Calculate tax and format description for Xendit
 					noTelpXendit := utils.NormalizePhoneForXendit(pelanggan.NoTelp)
 					pajak := inv.TotalHarga - math.Round(inv.TotalHarga/(1.0+(brand.Pajak/100.0)))
-					
+
 					var itemPrefix string
 					if paket == nil {
 						paket, _ = u.paketRepo.GetByID(ctx, l.PaketLayananID)
@@ -1953,7 +1997,7 @@ func (u *billingUsecase) VerifyPayments(ctx context.Context) error {
 			if pAmt, ok := xResp["paid_amount"].(float64); ok && pAmt > 0 {
 				paidAmount = pAmt
 			}
-			
+
 			paidAtStr, _ := xResp["paid_at"].(string)
 			paidAt, _ := time.Parse(time.RFC3339, paidAtStr)
 			if paidAt.IsZero() {
@@ -1961,7 +2005,7 @@ func (u *billingUsecase) VerifyPayments(ctx context.Context) error {
 			}
 
 			u.logSystem(ctx, "INFO", fmt.Sprintf("VerifyPayments: Invoice %s terdeteksi PAID di Xendit. Memproses pembayaran...", inv.InvoiceNumber))
-			
+
 			err = u.processSuccessfulPayment(ctx, &inv, paidAmount, paidAt)
 			if err != nil {
 				u.logSystem(ctx, "ERROR", fmt.Sprintf("VerifyPayments: Gagal memproses pembayaran untuk Invoice %s: %v", inv.InvoiceNumber, err))
@@ -2284,10 +2328,25 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 		Metode         string
 	}
 
+	type PasangBerhentiInfo struct {
+		ID             uint64
+		Nama           string
+		NoTelp         string
+		Alamat         string
+		Brand          string
+		Paket          string
+		Status         string
+		TanggalPasang  string
+		MulaiLangganan string
+		TglBerhenti    string
+		AlasanBerhenti string
+	}
+
 	var totalAktif, totalSuspended, totalBerhenti, totalLangganan int64
 	var totalNewUsersThisMonth, totalStoppedThisMonth int64
 	var stoppedUsers []StoppedUser
 	var newUsers []NewUserInfo
+	var pasangBerhentiList []PasangBerhentiInfo
 
 	startOfMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
 	endOfMonth := startOfMonth.AddDate(0, 1, 0)
@@ -2341,6 +2400,23 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 			if l.AlasanBerhenti != nil {
 				al = *l.AlasanBerhenti
 			}
+			tglPasang := sm
+			if l.Pelanggan != nil && l.Pelanggan.TglInstalasi != nil {
+				tglPasang = l.Pelanggan.TglInstalasi.Format("2006-01-02")
+			}
+			pasangBerhentiList = append(pasangBerhentiList, PasangBerhentiInfo{
+				ID:             l.ID,
+				Nama:           pName,
+				NoTelp:         pPhone,
+				Alamat:         addr,
+				Brand:          brandName,
+				Paket:          pkName,
+				Status:         l.Status,
+				TanggalPasang:  tglPasang,
+				MulaiLangganan: sm,
+				TglBerhenti:    tb,
+				AlasanBerhenti: al,
+			})
 			h := 0.0
 			if l.HargaAwal != nil {
 				h = *l.HargaAwal
@@ -2433,7 +2509,23 @@ func (u *billingUsecase) ExportLanggananMultiSheet(ctx context.Context) ([]byte,
 		}
 	}
 
-	// 4. DATA TEKNIS
+	// 4. LAPORAN PASANG & BERHENTI (AUDIT FINANCE)
+	sLifecycle := "Laporan Pasang & Berhenti"
+	f.NewSheet(sLifecycle)
+	headersLifecycle := []string{"ID", "Nama Pelanggan", "No. Telepon", "Alamat", "Brand", "Paket", "Status", "Tanggal Pasang", "Mulai Langganan", "Tanggal Berhenti", "Alasan Berhenti"}
+	for i, h := range headersLifecycle {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sLifecycle, cell, h)
+	}
+	for i, pb := range pasangBerhentiList {
+		vals := []interface{}{pb.ID, pb.Nama, pb.NoTelp, pb.Alamat, pb.Brand, pb.Paket, pb.Status, pb.TanggalPasang, pb.MulaiLangganan, pb.TglBerhenti, pb.AlasanBerhenti}
+		for c, v := range vals {
+			cell, _ := excelize.CoordinatesToCellName(c+1, i+2)
+			f.SetCellValue(sLifecycle, cell, v)
+		}
+	}
+
+	// 5. DATA TEKNIS
 	s2 := "Data Teknis"
 	f.NewSheet(s2)
 	headers2 := []string{"ID Pelanggan", "PPPoE User", "Profile", "IP Address", "VLAN", "OLT", "PON/OTB/ODC", "SN", "ONU Power"}
@@ -3951,4 +4043,3 @@ func (u *billingUsecase) sendCustomerInvoicePush(inv *domain.Invoice, pelanggan 
 
 	fcm.SendToCustomerTokens(ctx, tokenStrings, title, body, data)
 }
-

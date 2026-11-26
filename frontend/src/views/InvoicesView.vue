@@ -548,6 +548,21 @@
                   <span>Tandai Lunas</span>
                 </v-tooltip>
 
+              <v-tooltip location="top" v-if="auth.hasPermission('edit_invoices')">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-if="item.status_invoice !== 'Lunas' && item.status_invoice !== 'Expired'"
+                    icon="mdi-timer-off-outline"
+                    v-bind="props"
+                    variant="text"
+                    size="small"
+                    color="orange-darken-2"
+                    @click="openExpireDialog(item)"
+                  ></v-btn>
+                </template>
+                <span>Jadikan Expired (Sync Xendit)</span>
+              </v-tooltip>
+
               <!-- Button Buat Reinvoice -->
             <v-tooltip location="top" v-if="auth.hasPermission('create_invoices')">
               <template v-slot:activator="{ props }">
@@ -737,6 +752,11 @@
                   <v-btn v-bind="props" icon variant="text" size="small" color="success" @click="openMarkAsPaidDialog(item)"><v-icon>mdi-check-decagram</v-icon></v-btn>
                 </template>
               </v-tooltip>
+              <v-tooltip text="Jadikan Expired" v-if="auth.hasPermission('edit_invoices') && item.status_invoice !== 'Lunas' && item.status_invoice !== 'Expired'">
+                <template v-slot:activator="{ props }">
+                  <v-btn v-bind="props" icon variant="text" size="small" color="orange-darken-2" @click="openExpireDialog(item)"><v-icon>mdi-timer-off-outline</v-icon></v-btn>
+                </template>
+              </v-tooltip>
               <v-tooltip text="Buat Reinvoice" v-if="auth.hasPermission('create_invoices') && canCreateReinvoice(item)">
                 <template v-slot:activator="{ props }">
                   <v-btn v-bind="props" icon variant="text" size="small" color="warning" @click="createReinvoice(item)"><v-icon>mdi-refresh</v-icon></v-btn>
@@ -827,6 +847,43 @@
             @click="confirmDelete"
           >
             Ya, Hapus
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="dialogExpire" max-width="500px" persistent>
+      <v-card class="rounded-xl">
+        <v-card-title class="text-h6 d-flex align-center bg-orange-darken-2 text-white">
+          <v-icon start color="white">mdi-timer-off-outline</v-icon>
+          Konfirmasi Expire Invoice
+        </v-card-title>
+        <v-card-text class="pt-6">
+          <div class="mb-3">
+            Apakah Anda yakin ingin mengubah status invoice
+            <strong>{{ itemToExpire?.invoice_number }}</strong> menjadi <strong>Expired</strong>?
+          </div>
+          <v-alert
+            type="info"
+            variant="tonal"
+            density="compact"
+            class="mb-0 text-caption"
+            icon="mdi-information"
+          >
+            Riwayat invoice tetap tersimpan di sistem dan link pembayaran di Xendit akan otomatis dinonaktifkan (Expired).
+          </v-alert>
+        </v-card-text>
+        <v-card-actions class="px-6 pb-5">
+          <v-spacer></v-spacer>
+          <v-btn variant="outlined" @click="closeExpireDialog" class="text-none">Batal</v-btn>
+          <v-btn
+            color="orange-darken-2"
+            variant="elevated"
+            :loading="expiring"
+            @click="confirmExpire"
+            class="text-none font-weight-bold text-white"
+          >
+            Ya, Jadikan Expired
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -1198,6 +1255,9 @@ const snackbar = ref({ show: false, text: '', color: 'success' });
 const dialogDelete = ref(false);
 const deleting = ref(false);
 const itemToDelete = ref<Invoice | null>(null);
+const dialogExpire = ref(false);
+const expiring = ref(false);
+const itemToExpire = ref<Invoice | null>(null);
 const selectedInvoices = ref<Invoice[]>([]);
 const dialogBulkDelete = ref(false);
 const dialogReinvoice = ref(false);
@@ -1231,7 +1291,7 @@ const selectedFailedInvoice = ref<Invoice | null>(null);
 const retryingXenditId = ref<number | null>(null);
 
 const showLoadingOverlay = computed(() => {
-  return generating.value || deleting.value || creatingReinvoice.value || markingAsPaid.value;
+  return generating.value || deleting.value || expiring.value || creatingReinvoice.value || markingAsPaid.value;
 });
 
 const activeFilterCount = computed(() => {
@@ -1906,6 +1966,32 @@ async function confirmDelete() {
     showSnackbar(detail, 'error');
   } finally {
     deleting.value = false;
+  }
+}
+
+function openExpireDialog(item: Invoice) {
+  itemToExpire.value = item;
+  dialogExpire.value = true;
+}
+
+function closeExpireDialog() {
+  dialogExpire.value = false;
+  itemToExpire.value = null;
+}
+
+async function confirmExpire() {
+  if (!itemToExpire.value) return;
+  expiring.value = true;
+  try {
+    const response = await apiClient.post(`/invoices/${itemToExpire.value.id}/expire`);
+    showSnackbar(response.data?.message || 'Invoice berhasil diubah menjadi Expired & disinkronkan ke Xendit', 'success');
+    await fetchInvoices();
+    closeExpireDialog();
+  } catch (error: any) {
+    const detail = error.response?.data?.detail || error.response?.data?.error || 'Gagal meng-expire invoice.';
+    showSnackbar(detail, 'error');
+  } finally {
+    expiring.value = false;
   }
 }
 

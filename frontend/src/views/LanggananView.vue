@@ -62,7 +62,7 @@
                   <span class="text-primary font-weight-medium">Export Multi-Sheet (Lengkap)</span>
                 </v-list-item-title>
                 <v-list-item-subtitle class="text-wrap mt-1 text-caption">
-                  Data langganan + history pembayaran & invoice + summary statistik
+                  Data langganan + laporan pasang &amp; berhenti (alasan berhenti) + riwayat invoice + statistik
                 </v-list-item-subtitle>
               </v-list-item>
             </v-list>

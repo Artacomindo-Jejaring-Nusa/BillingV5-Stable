@@ -42,6 +42,7 @@ func NewBillingHandler(r *gin.RouterGroup, bu domain.BillingUsecase, authMiddlew
 		invoiceGroup.POST("/generate", middleware.PermissionMiddleware("create_invoices"), handler.GenerateManualInvoice)
 		invoiceGroup.PATCH("/:id/status", middleware.PermissionMiddleware("edit_invoices"), handler.UpdateInvoiceStatus)
 		invoiceGroup.POST("/:id/mark-as-paid", middleware.PermissionMiddleware("edit_invoices"), handler.MarkInvoiceAsPaid)
+		invoiceGroup.POST("/:id/expire", middleware.PermissionMiddleware("edit_invoices"), handler.ExpireInvoice)
 		invoiceGroup.DELETE("/:id", middleware.PermissionMiddleware("delete_invoices"), handler.DeleteInvoice)
 		invoiceGroup.POST("/:id/resend-wa", middleware.PermissionMiddleware("edit_invoices"), handler.ResendWA)
 		invoiceGroup.POST("/:id/retry-xendit", middleware.PermissionMiddleware("edit_invoices"), handler.RetryXenditInvoice)
@@ -230,6 +231,25 @@ func (h *BillingHandler) DeleteInvoice(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Invoice berhasil dihapus"})
+}
+
+func (h *BillingHandler) ExpireInvoice(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format", "detail": "Invalid ID format"})
+		return
+	}
+
+	invoice, err := h.billingUsecase.ExpireInvoice(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "detail": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Invoice berhasil diubah menjadi Expired dan disinkronkan ke Xendit",
+		"data":    invoice,
+	})
 }
 
 // Langganan Endpoints

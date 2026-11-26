@@ -657,6 +657,32 @@ func TestExportLanggananMultiSheet(t *testing.T) {
 	if len(data) == 0 { t.Error("empty data") }
 }
 
+func TestExpireInvoice(t *testing.T) {
+	invRepo := &mockInvoiceRepoCallback{
+		invoices: map[string]*domain.Invoice{
+			"INV-001": {ID: 1, InvoiceNumber: "INV-001", StatusInvoice: "Belum Bayar", XenditStatus: "pending"},
+			"INV-002": {ID: 2, InvoiceNumber: "INV-002", StatusInvoice: "Lunas", XenditStatus: "paid"},
+		},
+	}
+	// Ensure GetByID works by ID in mockInvoiceRepoCallback; let's check or test via BillingUsecase
+	u := NewBillingUsecase(invRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+
+	inv, err := u.ExpireInvoice(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("expected no error expiring unpaid invoice, got: %v", err)
+	}
+	if inv.StatusInvoice != "Expired" {
+		t.Errorf("expected StatusInvoice=Expired, got %s", inv.StatusInvoice)
+	}
+	if inv.XenditStatus != "expired" {
+		t.Errorf("expected XenditStatus=expired, got %s", inv.XenditStatus)
+	}
+
+	if _, err := u.ExpireInvoice(context.Background(), 2); err == nil {
+		t.Error("expected error when expiring already Lunas invoice")
+	}
+}
+
 func TestDetermineIsNewUser(t *testing.T) {
 	today := time.Now()
 	startOfMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
