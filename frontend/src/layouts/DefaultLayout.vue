@@ -1,5 +1,25 @@
 <template>
   <v-app class="modern-app">
+    <!-- Global Mutation Loading Overlay (Create / Update / Delete) -->
+    <v-overlay
+      :model-value="isMutatingLoading"
+      class="align-center justify-center global-mutation-overlay"
+      scrim="rgba(15, 23, 42, 0.35)"
+      persistent
+    >
+      <v-card class="pa-6 rounded-xl text-center elevation-12" min-width="240">
+        <v-progress-circular
+          indeterminate
+          color="primary"
+          size="48"
+          width="4"
+          class="mb-3"
+        ></v-progress-circular>
+        <div class="text-subtitle-1 font-weight-bold">Sedang Memproses...</div>
+        <div class="text-caption text-medium-emphasis">Mohon tunggu sebentar</div>
+      </v-card>
+    </v-overlay>
+
     <!-- Maintenance Mode Overlay for Non-Admin Users -->
     <v-overlay
       v-if="settingsStore.maintenanceMode.isActive && !isAdmin"
@@ -87,7 +107,6 @@
       }"
       :elevation="isMobile ? 16 : 3"
       :width="isMobile ? 285 : 300"
-      :key="forceRender"
       @mouseenter="handleMouseEnter"
       @mouseleave="handleMouseLeave"
     >
@@ -608,7 +627,7 @@ import { useDisplay } from 'vuetify'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
-import apiClient from '@/services/api';
+import apiClient, { isMutatingLoading } from '@/services/api';
 import logoLight from '@/assets/images/Jelantik-Light.webp';
 import logoDark from '@/assets/images/Jelantik-Dark.webp';
 import GlobalSearch from '@/components/GlobalSearch.vue';
@@ -2991,7 +3010,7 @@ onUnmounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 1000;
+  z-index: 1004 !important;
   background: rgb(var(--v-theme-surface)) !important;
   border-top: 1px solid rgba(var(--v-border-color), 0.12);
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
@@ -3132,6 +3151,10 @@ onUnmounted(() => {
 
 .maintenance-overlay {
   z-index: 9999 !important;
+}
+
+.global-mutation-overlay {
+  z-index: 9998 !important;
 }
 
 .maintenance-card {
@@ -3531,6 +3554,10 @@ onUnmounted(() => {
 /* ==================== RESPONSIVE DESIGN ==================== */
 
 @media (max-width: 960px) {
+  .modern-app-bar {
+    z-index: 1005 !important;
+  }
+
   .modern-drawer {
     width: 285px !important;
     max-width: 85vw !important;

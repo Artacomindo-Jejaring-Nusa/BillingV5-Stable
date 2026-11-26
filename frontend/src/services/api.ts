@@ -1,9 +1,29 @@
 // frontend/src/services/api.ts (atau di mana pun file ini berada)
 
 import axios from 'axios';
+import { ref, computed } from 'vue';
 import router from '@/router'; 
 import { getEncryptedToken, removeEncryptedToken, setEncryptedToken } from '@/utils';
 import { errorStorage, networkErrorRateLimit } from './errorStorage';
+
+const activeMutations = ref(0);
+export const isMutatingLoading = computed(() => activeMutations.value > 0);
+
+function shouldTrackMutation(config: any): boolean {
+  const method = (config?.method || '').toLowerCase();
+  if (!['post', 'put', 'patch', 'delete'].includes(method)) return false;
+  if (config?.headers?.['X-Silent'] || config?.headers?.['X-Skip-Loading']) return false;
+  const url = String(config?.url || '');
+  const skipPrefixes = ['/auth/refresh', '/auth/login', '/calculator', '/langganan/calculate', '/customer-chat', '/notifications'];
+  return !skipPrefixes.some((p) => url.includes(p));
+}
+
+function finishMutation(config: any) {
+  if (config?._trackedMutation) {
+    config._trackedMutation = false;
+    activeMutations.value = Math.max(0, activeMutations.value - 1);
+  }
+}
 
 // Helper untuk mendapatkan baseURL secara dinamis berdasarkan environment & hostname
 const getBaseURL = (): string => {
@@ -45,10 +65,14 @@ const apiClient = axios.create({
 
 // Interceptor untuk MENAMBAHKAN token ke setiap request (Ini sudah ada)
 apiClient.interceptors.request.use(
-  (config) => {
+  (config: any) => {
     const token = getEncryptedToken('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (shouldTrackMutation(config) && !config._trackedMutation) {
+      config._trackedMutation = true;
+      activeMutations.value++;
     }
     return config;
   },
@@ -62,11 +86,12 @@ apiClient.interceptors.request.use(
 // ==========================================================
 apiClient.interceptors.response.use(
   (response) => {
-    // Jika response sukses (status 2xx), lanjutkan seperti biasa
+    finishMutation(response.config);
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
+    finishMutation(originalRequest);
 
     // Jika response dari server adalah error 401 (Unauthorized)
     if (error.response?.status === 401 && !originalRequest?._retry && !originalRequest?.url?.includes('/auth/refresh')) {
