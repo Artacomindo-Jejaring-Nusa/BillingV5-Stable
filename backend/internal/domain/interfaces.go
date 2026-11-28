@@ -73,9 +73,12 @@ type RoleUsecase interface {
 type PermissionRepository interface {
 	GetAll(ctx context.Context) ([]Permission, error)
 	GetByIDs(ctx context.Context, ids []uint64) ([]Permission, error)
+	CreateIfNotExists(ctx context.Context, names []string) (int, error)
 }
 
 // PermissionUsecase defines business logic for Permission
 type PermissionUsecase interface {
 	GetAll(ctx context.Context) ([]Permission, error)
+	Create(ctx context.Context, name string) (*Permission, error)
+	GenerateDefaultPermissions(ctx context.Context) (int, error)
 }

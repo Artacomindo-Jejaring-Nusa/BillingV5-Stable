@@ -7,6 +7,7 @@ import (
 	"billing-backend/internal/domain"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type userRepository struct {
@@ -80,7 +81,8 @@ func (r *userRepository) Create(ctx context.Context, user *domain.User) error {
 }
 
 func (r *userRepository) Update(ctx context.Context, user *domain.User) error {
-	return r.db.WithContext(ctx).Save(user).Error
+	// Omit preloaded associations so changing RoleID is not overwritten by preloaded Role.ID
+	return r.db.WithContext(ctx).Omit(clause.Associations).Save(user).Error
 }
 
 func (r *userRepository) Delete(ctx context.Context, id uint64) error {

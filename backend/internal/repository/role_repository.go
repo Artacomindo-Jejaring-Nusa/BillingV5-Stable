@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"billing-backend/internal/domain"
 
@@ -152,4 +153,28 @@ func (r *permissionRepository) GetByIDs(ctx context.Context, ids []uint64) ([]do
 	var permissions []domain.Permission
 	err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&permissions).Error
 	return permissions, err
+}
+
+func (r *permissionRepository) CreateIfNotExists(ctx context.Context, names []string) (int, error) {
+	created := 0
+	for _, raw := range names {
+		name := strings.TrimSpace(raw)
+		if name == "" {
+			continue
+		}
+		var existing domain.Permission
+		err := r.db.WithContext(ctx).Where("name = ?", name).First(&existing).Error
+		if err == nil {
+			continue
+		}
+		if err != gorm.ErrRecordNotFound {
+			return created, err
+		}
+		perm := domain.Permission{Name: name}
+		if err := r.db.WithContext(ctx).Create(&perm).Error; err != nil {
+			return created, err
+		}
+		created++
+	}
+	return created, nil
 }

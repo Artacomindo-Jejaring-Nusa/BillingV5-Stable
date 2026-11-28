@@ -2,7 +2,9 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"billing-backend/internal/domain"
 )
@@ -78,4 +80,34 @@ func NewPermissionUsecase(permRepo domain.PermissionRepository) domain.Permissio
 
 func (u *permissionUsecase) GetAll(ctx context.Context) ([]domain.Permission, error) {
 	return u.permRepo.GetAll(ctx)
+}
+
+func (u *permissionUsecase) Create(ctx context.Context, name string) (*domain.Permission, error) {
+	clean := strings.TrimSpace(strings.ToLower(name))
+	if clean == "" {
+		return nil, errors.New("nama permission wajib diisi")
+	}
+	if _, err := u.permRepo.CreateIfNotExists(ctx, []string{clean}); err != nil {
+		return nil, err
+	}
+	all, err := u.permRepo.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i := range all {
+		if all[i].Name == clean {
+			return &all[i], nil
+		}
+	}
+	return nil, errors.New("gagal mengambil permission yang baru dibuat")
+}
+
+func (u *permissionUsecase) GenerateDefaultPermissions(ctx context.Context) (int, error) {
+	defaults := []string{
+		"view_customer_chat",
+		"create_customer_chat",
+		"edit_customer_chat",
+		"delete_customer_chat",
+	}
+	return u.permRepo.CreateIfNotExists(ctx, defaults)
 }

@@ -137,6 +137,8 @@ func NewPermissionHandler(r *gin.RouterGroup, pu domain.PermissionUsecase, authM
 	perms.Use(authMiddleware)
 	{
 		perms.GET("", handler.GetAll)
+		perms.POST("", handler.Create)
+		perms.POST("/generate", handler.Generate)
 	}
 }
 
@@ -147,4 +149,32 @@ func (h *PermissionHandler) GetAll(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": permissions})
+}
+
+func (h *PermissionHandler) Create(c *gin.Context) {
+	var req struct {
+		Name string `json:"name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+	perm, err := h.permUsecase.Create(c.Request.Context(), req.Name)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": perm})
+}
+
+func (h *PermissionHandler) Generate(c *gin.Context) {
+	created, err := h.permUsecase.GenerateDefaultPermissions(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Permissions berhasil di-generate",
+		"created": created,
+	})
 }
